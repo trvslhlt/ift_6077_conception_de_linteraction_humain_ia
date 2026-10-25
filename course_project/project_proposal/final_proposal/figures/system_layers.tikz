@@ -1,0 +1,103 @@
+%% System layers figure (Figure 1). \input inside a figure* environment.
+%% Orange = the user (input and views), blue = AI, gray = infrastructure.
+\definecolor{hum}{RGB}{196,112,30}
+\definecolor{humfill}{RGB}{253,242,229}
+\definecolor{ai}{RGB}{42,106,155}
+\definecolor{aifill}{RGB}{231,240,248}
+\definecolor{infra}{RGB}{95,95,95}
+\definecolor{bandfill}{RGB}{246,246,246}
+\definecolor{bandline}{RGB}{214,214,214}
+\definecolor{subtext}{RGB}{105,105,105}
+\begin{tikzpicture}[
+    x=1cm, y=1cm,
+    font=\sffamily\scriptsize,
+    box/.style={draw, rounded corners=2pt, minimum height=0.8cm, align=center,
+      inner sep=2pt, line width=0.6pt},
+    human/.style={box, draw=hum, fill=humfill},
+    ai/.style={box, draw=ai, fill=aifill},
+    infra/.style={box, draw=infra, fill=white},
+    arr/.style={-{Stealth[length=4pt]}, line width=0.6pt},
+    lbl/.style={font=\sffamily\tiny, text=subtext, inner sep=1.5pt},
+  ]
+  \newcommand{\sub}[1]{\\[-1pt]{\color{subtext}\tiny #1}}
+
+  %% Layer bands, with labels in the left gutter
+  \foreach \y/\name in {0/Conductor input, -1.55/Interpretation, -3.1/Agent ensemble,
+                        -4.6/Change bus, -6.1/openDAW} {
+    \draw[draw=bandline, fill=bandfill, rounded corners=3pt]
+      (0,\y+0.55) rectangle (13.35,\y-0.55);
+    \node[anchor=west, text width=1.9cm, font=\sffamily\tiny\bfseries, text=subtext]
+      at (0.12,\y) {\MakeUppercase{\name}};
+  }
+
+  %% Conductor input
+  \node[human, minimum width=2.4cm] (gest) at (3.35,0)
+    {\textbf{Hand gestures}\sub{camera hand tracking}};
+  \node[human, minimum width=3.6cm] (speech) at (8.45,0)
+    {\textbf{Speech or text}\sub{addresses sections, sets meaning}};
+
+  %% Interpretation: continuous gestures every frame, cues and speech per
+  %% instruction, compound or novel requests per plan
+  \node[infra, minimum width=2.1cm] (feat) at (3.35,-1.55)
+    {\textbf{Gesture features}\sub{every frame}};
+  \node[box, draw=ai, dashed, fill=white, minimum width=2.1cm] (map) at (5.8,-1.55)
+    {\textbf{Gesture mappings}\sub{no model in the loop}};
+  \node[ai, minimum width=2.3cm] (jev) at (8.45,-1.55)
+    {\textbf{Fast model (Jev)}\sub{speech + gesture cues}};
+  \node[ai, minimum width=2.1cm] (llm) at (12.1,-1.55)
+    {\textbf{LLM planner}\sub{per plan}};
+
+  %% Agent ensemble
+  \foreach \x/\name/\role in {3.285/Tempo/tempo map, 5.505/Strings/section agent,
+                              7.725/Brass/section agent, 9.945/Woodwinds/section agent,
+                              12.165/Percussion/section agent} {
+    \node[ai, minimum width=1.97cm] at (\x,-3.1) {\textbf{\name}\sub{\role}};
+  }
+
+  %% Change bus
+  \node[infra, minimum width=10.85cm] (bus) at (7.725,-4.6)
+    {\textbf{Arbitration $\cdot$ human-held parameters $\cdot$ event log}};
+
+  %% openDAW
+  \node[infra, minimum width=3.2cm] (state) at (3.9,-6.1)
+    {\textbf{Project state}\sub{tracks, notes, parameters}};
+  \node[infra, minimum width=3.6cm] (takes) at (7.9,-6.1)
+    {\textbf{Captured takes}\sub{automation curves + tempo map}};
+  \node[infra, minimum width=3.1cm] (audio) at (11.6,-6.1)
+    {\textbf{Audio engine}\sub{playback}};
+
+  %% Views for the user
+  \node[human, minimum width=3.2cm, minimum height=1.1cm] (cview) at (15.4,-3.1)
+    {\textbf{Conductor view}\sub{agent activity,}\sub{moves to confirm}};
+  \node[human, minimum width=3.2cm, minimum height=2.6cm] (tview) at (15.4,-5.35)
+    {\textbf{DAW timeline view}\sub{direct manipulation}};
+
+  %% Input -> interpretation
+  \draw[arr, hum] (gest) -- (feat);
+  \draw[arr, hum] (speech) -- (jev);
+  %% Discrete gestures (pointing, cues, cutoffs) go to the fast model with speech
+  \draw[arr] (4.1,-1.15) |- node[lbl, above, pos=0.75] {gesture cues: pointing, cutoffs, entrances}
+    (7.75,-0.78) -- (7.75,-1.15);
+  %% Continuous gestures go through the mapping the fast model selects
+  \draw[arr] (feat) -- (map);
+  \draw[arr, ai, dashed] (jev) -- node[lbl, below] {selects} (map);
+  \draw[arr, ai] (jev) -- node[lbl, below] {compound or novel} (llm);
+
+  %% Interpretation -> ensemble
+  \draw[arr] (map.south) -- node[lbl, right] {continuous expression} (5.8,-2.55);
+  \draw[arr, ai] (jev.south) -- node[lbl, right] {typed commands} (8.45,-2.55);
+  \draw[arr, ai] (llm.south) -- node[lbl, right] {recipes, rules} (12.1,-2.55);
+
+  %% Ensemble <-> change bus
+  \draw[arr, ai] (4.0,-3.65) -- node[lbl, right] {proposed changes} (4.0,-4.2);
+  \draw[arr] (9.4,-4.2) -- node[lbl, right] {overrides + state} (9.4,-3.65);
+
+  %% Change bus <-> openDAW
+  \draw[arr] (3.2,-5.0) -- node[lbl, left] {apply} (3.2,-5.7);
+  \draw[arr] (4.6,-5.7) -- node[lbl, right] {change events} (4.6,-5.0);
+  \draw[arr] (7.9,-5.0) -- node[lbl, right] {record} (7.9,-5.7);
+
+  %% Views
+  \draw[arr] (13.35,-3.1) -- (cview.west);
+  \draw[arr, hum] (tview.west |- 0,-6.1) -- node[lbl, above] {edits} (13.35,-6.1);
+\end{tikzpicture}

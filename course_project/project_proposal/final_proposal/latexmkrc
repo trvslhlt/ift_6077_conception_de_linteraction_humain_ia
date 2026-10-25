@@ -1,0 +1,3 @@
+# Keep all build output in build/ when running plain `latexmk` here
+$pdf_mode = 1;
+$out_dir = 'build';
