@@ -1,0 +1,175 @@
+%% Conductair -- IFT 6077 project proposal
+%% ACM SIGCHI two-column format (acmart, sigconf). `nonacm` removes the
+%% ACM reference block, copyright box and conference headers.
+\documentclass[sigconf,nonacm]{acmart}
+
+\usepackage{graphicx}
+
+%% Show the image if it exists, otherwise a framed placeholder.
+%% #1 = image path (with extension), #2 = placeholder height
+\newcommand{\figorplaceholder}[2]{%
+  \IfFileExists{#1}%
+    {\includegraphics[width=\linewidth]{#1}}%
+    {\fbox{\parbox[c][#2][c]{0.95\linewidth}{\centering\small\ttfamily [placeholder] \detokenize{#1}}}}%
+}
+
+\begin{document}
+
+\title{Conductair}
+\subtitle{Reframing Music Performance through the Metaphor of a Conductor and Autonomous AI Agent Ensembles}
+
+\author{Travis Holt}
+\affiliation{%
+  \institution{Universit\'e de Montr\'eal}
+  \city{Montr\'eal}
+  \state{Qu\'ebec}
+  \country{Canada}}
+\email{trvslhlt@gmail.com}
+
+\begin{abstract}
+Digital Audio Workstations (DAWs) require creators to translate high-level expressive intents into many low-level parameter modifications across a project. This technical friction creates a bottleneck: human creators think in perceptual, qualitative terms (e.g., wanting a lead synth to ``float over the mix''), yet software interfaces only accept granular technical inputs like fader automation, plugin bypasses, and EQ frequency bands. Each artistic impulse requires translation into a series of precise parameter moves disconnected from the creator's intent.
+We propose \textbf{Conductair}, an interactive system that reframes live music performance through the metaphor of a \emph{conductor directing an ensemble of autonomous musicians}. Rather than manually tweaking atomic, low-level controls, the user communicates high-level expressive goals (e.g., ``make the lead synth float over the mix and have the rhythm section match its intensity''). Grounded in HCI theories of \emph{Interface Metaphors} and \emph{Direct Manipulation}, our system architecture supports multi-modal user input, headlined by expressive physical gestures and supported by natural language interfaces.
+Each track in the DAW is managed by an AI agent that interprets real-time conductor direction into concrete project changes, while preserving the ability to make manual edits in a traditional DAW view. When the conductor communicates a high-level intent, the intent is routed through the change bus to the corresponding agent(s)---such as a `String Section' bus agent or individual track agents---which dynamically calculate and execute the necessary low-level parameter moves (e.g., boosting saturation, sharpening attack transients, and adjusting EQ dynamic range) on their assigned tracks. Beyond live control, Conductair introduces a live performance capture pipeline that bakes real-time agent interpretations back into the DAW as editable parameter automation curves.
+This work demonstrates how multi-agent delegation can dramatically expand a creator's control surface in complex domain software without sacrificing post-performance editability.
+\end{abstract}
+
+\keywords{music performance, digital audio workstations, interface metaphors, direct manipulation, mixed-initiative interaction, multi-agent systems, gesture input}
+
+\maketitle
+
+%% ------------------------------------------------------------------
+\section{Introduction}
+
+\subsection{Motivation and Importance}
+
+Digital audio production and live performance present a fundamental translation problem: human creators think in perceptual and expressive terms~\cite{cartwright2013socialeq,stables2014safe}, but software interfaces only accept concrete technical inputs. A performer might want a string section to sound ``more aggressive'' or the ambient pads to ``recede into the background,'' but traditional DAWs force them to navigate complex and dynamic UIs to implement these intents.
+
+This mismatch harms creators in a few ways:
+\begin{itemize}
+  \item \textbf{Physical control limits.} Human operators are limited by two hands. Tweaking parameters across multiple tracks simultaneously in real time is physically impossible without extensive pre-programmed automation, which also limits accessibility.
+  \item \textbf{Experienced producers} suffer cognitive fatigue from repetitive, tedious actions.
+  \item \textbf{Non-technical musicians} lack the vocabulary and muscle memory required to map expressive goals to complex controls~\cite{seetharaman2016audealize,louie2020novice}.
+\end{itemize}
+
+\subsection{Why Existing Solutions Are Not Enough}
+
+Existing solutions address some of the same issues as Conductair, but introduce challenges of their own. Text-to-audio generative AI systems like Suno or Udio generate fully rendered audio from prompts. The output is a black box: it lacks precision, offers few adjustment capabilities, and has drawn copyright suits from major labels, only partly resolved by licensing settlements in 2025. Existing LLM-based plugins either hand the user a set of manipulation instructions to carry out, or, more recently, execute edits directly in the DAW~\cite{elkins2025dawzy}. Both work one chat request at a time, which forces context-switching between the chat and DAW controls and cannot follow a live performance. Early gesture-based music systems, like MIDI gesture controllers, map physical motions directly to single hardware values (e.g., hand height $=$ master volume)~\cite{hunt2003mapping}. These lack semantic depth and fail to scale beyond simple 1:1 parameter mappings.
+
+\subsection{Solution Description and System Architecture}
+
+We propose \textbf{Conductair}, a novel interactive system built on the \emph{Performer as Conductor} metaphor. Rather than acting as a low-level operator directly tweaking software parameters, the performer assumes the role of a conductor directing an ensemble of specialized AI agents representing virtual musicians and sound engineers.
+
+\begin{itemize}
+  \item \textbf{Multi-modal conductor interface.} Designed primarily for expressive physical gesture input (e.g., conducting batons, hand motion tracking), scaffolded by a natural language text interface for precise configuration.
+  \item \textbf{Flexible agent-to-track mapping.} By default, each agent manages one DAW track, controlling its volume, effects, and sends. However, the architecture flexibly allows specialized agents such as a Master Bus Engineer managing global dynamics, or multi-agent pairings on complex lead tracks.
+  \item \textbf{Dual view and bi-directional change bus.} The system features two separate views: a high-level \emph{Conductor View} for directing agents, and a traditional \emph{DAW timeline view} for direct manipulation. A bi-directional change bus ensures that when a performer manually adjusts a fader in the DAW, the corresponding AI agent observes the change and updates its context accordingly.
+  \item \textbf{Live performance capture.} During a live performance, all real-time agent interventions are recorded in the DAW timeline as non-destructive parameter automation curves (and optionally MIDI performance clips as a stretch goal). After the performance, the creator can inspect, fine-tune, or edit every single node by hand.
+  \item \textbf{Two-tier intent interpretation.} Instead of generating free-form parameter values, a fast typed-judgment model (e.g., Jev~\cite{typesafe2026systemone}) chooses among predefined options for routine instructions: the agents addressed, an expressive descriptor (e.g., \emph{aggressive}, \emph{float}, \emph{recede}) and an intensity. Compound or novel instructions go to an LLM, whose plans are also structured: recipes, gesture mappings and coordination rules between agents. Every command that reaches the DAW is therefore well-formed and reproducible.
+\end{itemize}
+
+\begin{figure}[t]
+  \centering
+  \figorplaceholder{figures/system_layers.png}{4cm}
+  \caption{System layers. Every change, from an agent or from the performer's hands, passes through the Change Bus, which also records agent moves as editable automation.}
+  \Description{Layered architecture diagram: conductor input, interpretation, agent ensemble, Change Bus, openDAW project state, and the DAW timeline view.}
+  \label{fig:layers}
+\end{figure}
+
+\paragraph{System layers.}
+Conductor input is interpreted, then routed to the agent ensemble (Figure~\ref{fig:layers}). Agents never write to the DAW directly. They propose changes to the Change Bus, which applies them to the openDAW project state and records them onto automation lanes. Manual edits in the DAW timeline view enter the same project state, and the bus reports them back up to the agents as change events. The conductor view shows what each agent is doing.
+
+\begin{figure}[t]
+  \centering
+  \figorplaceholder{figures/bidirectional_control.png}{4cm}
+  \caption{One intent, one override. Conflicts are settled in the Change Bus, and the performer always has priority.}
+  \Description{Sequence diagram: the conductor asks for aggressive strings, the strings agent proposes moves, the performer grabs the fader, and the bus drops agent writes to the human-held parameter.}
+  \label{fig:override}
+\end{figure}
+
+\paragraph{Bi-directional control.}
+When the conductor asks for ``aggressive strings,'' the strings agent proposes drive, attack and EQ moves, and the bus applies and records them (Figure~\ref{fig:override}). If the performer then grabs the strings fader, openDAW emits a change event marked as human. The bus marks that parameter as \emph{human-held}, and agent writes to it are dropped until the performer lets go, as in the Touch and Latch automation modes DAWs already provide. The agent is notified of the override and adjusts its later moves instead of competing with the performer.
+
+\subsection{Grounding in Interaction Theories}
+
+\paragraph{Interface metaphors.}
+Conductair leverages the classic conductor--orchestra real-world model~\cite{carroll1988metaphors}. By mapping software actions to a familiar conducting paradigm, the system reduces semantic distance (the cognitive effort required to translate intentions into actions~\cite{hutchins1985direct}) and increases semantic depth (providing expressive control over complex systems without being overburdened by process or syntax). Rather than formulating concrete parameter changes, the performer uses intuitive gestures and qualitative musical phrasing.
+
+\paragraph{Direct manipulation and mixed-initiative interaction.}
+Delegating to agents has long been seen as in tension with direct manipulation~\cite{shneiderman1997direct}. Conductair keeps both. The user retains complete authority through rapid, incremental, and reversible operations~\cite{shneiderman1983direct} provided by the dual-view architecture; a primary strength of this solution is that it allows the user to work at a high level without removing their ability to work at a low level. Following mixed-initiative principles~\cite{horvitz1999principles,amershi2019guidelines}, agents act when confident and ask when unsure, and users can instantly override any agent action by touching the DAW controls directly (Figure~\ref{fig:override}).
+
+%% ------------------------------------------------------------------
+\section{Related Work}
+
+To contextualize Conductair, we categorize existing literature and commercial tools into three primary themes.
+
+\subsection{Conversational AI and Intent-Based Creative Interfaces}
+
+Prior research in creative software copilots explores shifting user interaction from low-level execution to high-level delegation. Systems in code generation (e.g., GitHub Copilot) and visual design explore agentic execution, but few address real-time continuous performance. In music, Loop Copilot already frames an LLM as conducting an AI ensemble~\cite{zhang2023loopcopilot}, but its ensemble generates audio rather than performing on an existing project. DAWZY translates text and voice requests into reversible DAW edits~\cite{elkins2025dawzy}, and LLMs can predict effect parameters from text descriptions~\cite{doh2025llm,chu2025text2fx}. These systems work one request at a time and are too slow for gesture-rate control during live playback. Automatic mixing research~\cite{deman2017ten,deman2019intelligent} and commercial tools like iZotope Neutron (Assistant View and Target Library) and Sonible pure:bundle provide stem-level diagnostics and automated parameter suggestions, but they typically act as diagnostic black boxes or one-off fixers rather than a continuous, collaborative partner. Logic Pro's Session Players~\cite{apple2024logic} show that an AI backing band is commercially accepted, but those players follow chords, not a conductor.
+
+\subsection{Embodied Music Interaction and Gesture-Based Conducting}
+
+Embodied interaction in music has a rich history, from early motion-tracking conducting jackets~\cite{marrin1998conductor} and interactive conducting exhibits~\cite{borchers2004personal} to depth-camera gesture controllers. However, these systems were largely bound to fixed mappings (e.g., arm height controlling master gain~\cite{hunt2003mapping}), and even mappings learned from examples~\cite{fiebrink2011realtime} stay fixed during performance, lacking semantic depth and failing to coordinate multiple elements simultaneously. Conductair builds on this work by placing a semantic layer between gesture and sound. A spoken or typed instruction determines what a gesture means: which sub-mix it drives and which expressive quality it shapes. A simple physical gesture can then trigger coordinated multi-parameter moves across entire sub-mixes.
+
+\subsection{DAW Architectures and Mixed-Initiative Control}
+
+Research into DAW usability highlights the friction between rigid timeline grids and open-ended creative exploration. Projects like \emph{EuterPen}~\cite{cavez2025euterpen} and interactive score surfaces investigate alternative input modalities for score creation. Conductair differentiates itself by focusing on post-composition performance and arrangement, utilizing open Web-based DAW architectures (e.g., openDAW~\cite{michelle2026opendaw}) to create an observable, shared state where human and AI agents collaborate synchronously.
+
+\subsection{How Our Work Differs and Builds Upon Previous Work}
+
+While prior research and commercial tools have explored generative AI, conversational assistants, and embodied control for music, they leave a critical gap between high-level creative intent and granular session-level control. Conductair addresses these limitations through three core departures.
+
+\paragraph{Beyond black-box generation (vs.\ text-to-audio generators).}
+Generative tools (such as Suno, Udio, or deep learning music visualizers) produce fully rendered audio stems from text prompts, but they function as opaque black boxes. They strip away user agency, offer no granular stems or plugin parameter access for post-processing, and have faced copyright litigation over their training data. Rather than generating final audio files, Conductair treats AI as a performing ensemble and technical crew operating directly on an existing DAW project state. The output is not a static audio file, but live performance data (parameter automation curves) applied to real tracks, ensuring full transparency, granular editability, and creative ownership. It bridges live emotional expression with traditional non-destructive post-production, easing the long-standing conflict between ``live take'' and ``precision mix.''
+
+\paragraph{Beyond the ``to-do list'' trap (vs.\ conversational copilots).}
+Current LLM-based creative copilots and chat plugins act as conversational advisors that instruct the user on what to do (e.g., handing the user a text-based ``to-do list'' like \emph{``Click Solo on Track 3 and cut 3\,dB at 200\,Hz''}). Even assistants that execute edits directly~\cite{elkins2025dawzy} work turn by turn in a chat box, apart from the performance. This forces the creator into constant, distracting context-switching between the chat thread and a dense DAW timeline. Conductair eliminates text-based instruction by introducing a bi-directional Change Bus. The AI agents do not tell the user how to mix; they programmatically execute the changes directly within the shared session state, allowing the creator to maintain an uninterrupted artistic flow.
+
+\paragraph{Beyond deterministic 1:1 mapping (vs.\ gesture and MIDI controllers).}
+Classical embodied music interfaces (such as motion-tracking conducting jackets or depth-camera controllers) map physical motion to digital sound. However, these systems rely on rigid, deterministic 1:1 hardware mappings (e.g., hand height tied strictly to master volume~\cite{hunt2003mapping}), lacking semantic depth and failing to coordinate multiple elements simultaneously. Conductair merges expressive physical gesture input with \textbf{agentic interpretation}. A System One model turns routine instructions into typed commands addressed to one or more agents, and an LLM plans compound ones as structured coordination rules. Each agent compiles the command into concrete parameter moves on its tracks, and gestures then modulate those moves continuously. Interpretation is probabilistic, but execution is deterministic and inspectable: the same command always produces the same moves, and every move lands on the timeline as editable automation. A single conducting gesture can thus orchestrate multi-parameter shifts across entire sub-mixes (e.g., a leader--follower dynamic where one track's delay adjustment automatically adapts another track's spatial effects).
+
+By combining multi-modal conductor input, autonomous agent ensembles, and non-destructive performance capture onto a shared DAW timeline, Conductair bridges the gap between live physical expression and rigorous digital production.
+
+%% ------------------------------------------------------------------
+\section{Technical Feasibility and Research Impact}
+
+\subsection{Technical Implementation Plan and Risks}
+
+\paragraph{DAW backend.}
+We leverage openDAW~\cite{michelle2026opendaw}, an open-source, Web Audio API and TypeScript-based DAW. Its state is fully observable and exposed programmatically, making it the ideal engine for real-time bi-directional state synchronization.
+
+\paragraph{Control at three speeds.}
+A gesture's audible response should arrive within about 10\,ms~\cite{wessel2001intimate}, far less than a language model takes, so Conductair separates control into three tiers (Figure~\ref{fig:speeds}), much as dual-system robot controllers pair a slow planner with a fast policy~\cite{figure2025helix,kahneman2011thinking}.
+\begin{itemize}
+  \item \emph{Every frame:} camera-based hand tracking (e.g., MediaPipe~\cite{zhang2020mediapipe}) produces gesture features such as height, speed and spread, which are applied through each agent's gesture mapping with no model in the loop.
+  \item \emph{Per instruction:} spoken or typed instructions are interpreted by \textbf{Jev}, TypeSafe's System One model~\cite{typesafe2026systemone}, which returns typed judgments and probabilities rather than generated text: whether each agent is addressed, an expressive descriptor chosen from a fixed vocabulary, an intensity score, and whether the instruction needs deeper planning. Agents map each descriptor to a recipe of parameter moves in code, building on crowdsourced descriptor-to-effect maps~\cite{cartwright2013socialeq,stables2014safe} (e.g., \emph{aggressive} $\rightarrow$ more drive, faster attack, an upper-mid boost), scaled by intensity, and select their gesture mapping.
+  \item \emph{Per plan:} compound or novel instructions (e.g., ``have the rhythm section match the lead's intensity'') go to an LLM, which plans over the session state and returns structured output: new recipes (LLMs can already predict effect parameters from text~\cite{doh2025llm}), gesture mappings, and coordination rules between agents, such as a leader--follower link. These are validated before agents use them and saved for reuse, so execution never waits on a model.
+\end{itemize}
+
+\begin{figure}[t]
+  \centering
+  \figorplaceholder{figures/three_speeds.png}{4cm}
+  \caption{Three speeds. Gestures never wait on a model; Jev handles routine instructions and the LLM plans complex ones.}
+  \Description{Three control loops at different rates: per-frame gesture mapping, per-instruction interpretation by Jev, and per-plan LLM planning.}
+  \label{fig:speeds}
+\end{figure}
+
+\paragraph{Mixed-initiative control.}
+Jev's probabilities determine how the system acts~\cite{horvitz1999principles}. Confident interpretations execute immediately; uncertain ones, and LLM plans that touch many agents, are shown in the Conductor View for the performer to confirm.
+
+\paragraph{Technical risks.}
+\begin{itemize}
+  \item \emph{Concurrent writes.} Human and agent changes may target the same parameter. The Change Bus resolves this with the human-held rule (Figure~\ref{fig:override}) and must do so without audio jitter.
+  \item \emph{Vocabulary coverage.} A fixed descriptor vocabulary may not cover what musicians actually say. We will measure the share of instructions that need the LLM and grow the vocabulary from those cases.
+  \item \emph{Recipe validity.} A recipe for \emph{aggressive}, hand-written or LLM-authored, may not match what performers hear as aggressive. We will check recipes against listener judgments in a pilot study, following the listener evaluation in \citet{chu2025text2fx}.
+  \item \emph{Latency.} We will measure end-to-end latency separately for the gesture, Jev and LLM paths.
+\end{itemize}
+
+\subsection{Expected Impact and Scientific Contribution}
+
+This project demonstrates a scalable paradigm for the agentic expansion of human control surfaces in complex creative applications. By showing how multi-agent delegation can coexist with traditional direct-manipulation timelines and non-destructive performance capture, Conductair establishes design principles applicable across domains beyond music---including video editing, 3D animation, and complex live system administration. Furthermore, it introduces novel possibilities such as emergent inter-agent coordination (e.g., leader--follower dynamics where a rhythm track agent automatically adapts its delay time to match a synth lead) and flexible multi-musician track assignments.
+
+%% ------------------------------------------------------------------
+\bibliographystyle{ACM-Reference-Format}
+\bibliography{references}
+
+\end{document}

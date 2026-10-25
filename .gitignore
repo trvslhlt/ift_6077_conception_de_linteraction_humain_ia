@@ -1,0 +1,20 @@
+# LaTeX build output (latexmk -outdir=build)
+build/
+
+# LaTeX auxiliary files, in case of a build without -outdir
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
+*.toc
+
+# macOS
+.DS_Store
+
+# Editors
+.vscode/
+*.swp
