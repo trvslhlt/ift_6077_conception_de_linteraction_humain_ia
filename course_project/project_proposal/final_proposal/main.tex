@@ -1,14 +1,15 @@
-%% ConductAir -- IFT 6077 project proposal
+%% IFT 6077 project proposal
 %% ACM SIGCHI two-column format (acmart, sigconf). `nonacm` removes the
 %% ACM reference block, copyright box and conference headers.
 \documentclass[sigconf,nonacm]{acmart}
 
 \usepackage{tikz}
+\newcommand{\projectname}{ProducerTBD}
 \usetikzlibrary{arrows.meta}
 
 \begin{document}
 
-\title{ConductAir}
+\title{\projectname{}}
 \subtitle{Conducting Expressive Performance through an Ensemble of AI Agents}
 
 %% Each author gets its own affiliation so acmart sets them in separate columns.
@@ -16,21 +17,15 @@
 \author{Travis Holt}
 \affiliation{%
   \institution{Universit\'e de Montr\'eal}
+  \city{}
   \country{}}
-\author{Niels Mainville}
-\affiliation{%
-  \institution{McGill University}
-  \country{}}
-\author{Emma Tomiuk}
-\affiliation{%
-  \institution{McGill University}
-  \country{}}
+\email{travis.holt@umontreal.ca}
 
 \begin{abstract}
 Composers think in perceptual, abstract and relative terms (the strings should swell beneath the melody, the brass should hold back). Yet score editors and Digital Audio Workstations (DAWs) only accept low-level inputs such as dynamic markings, velocities and automation points spread across many tracks.
-We propose \textbf{ConductAir}, which reframes this work through the metaphor of a \emph{conductor directing an ensemble of autonomous musicians}.
+We propose \textbf{\projectname{}}, which reframes this work through the metaphor of a \emph{conductor directing an ensemble of autonomous musicians}.
 As a conductor does in rehearsal, the user directs the piece in speech or text while it plays. AI agents, one per instrument section, turn this direction into coordinated changes to tempo, dynamics, articulation and balance. A fast model interprets routine direction and a large language model (LLM) plans complex instructions, so the ensemble can respond during playback. The input layer can also be extended to other modalities such as conducting gestures. Every agent change passes through a change bus that gives the user priority and records each take as editable automation. This keeps direct manipulation available alongside mixed-initiative delegation.
-More broadly, ConductAir is a test case for an \emph{expressive interpretation layer}, which turns expressive direction into coordinated operations on a technical interface without giving up precision or editability.
+More broadly, \projectname{} is a test case for an \emph{expressive interpretation layer}, which turns expressive direction into coordinated operations on a technical interface without giving up precision or editability.
 \end{abstract}
 
 \maketitle
@@ -40,9 +35,9 @@ More broadly, ConductAir is a test case for an \emph{expressive interpretation l
 
 Musicians think about music in perceptual and expressive terms~\cite{cartwright2013socialeq}, but traditional software only accepts technical inputs. This gap shows when a composer adds performance detail to a first draft. An expressive intent, such as making a passage more urgent, has no single control. It is spread across tempo, note velocities, articulation and the balance between instruments, and the composer has to work out which parameters to change, on which tracks, and by how much. Realizing even one idea in a DAW, such as ``let the strings swell under the melody while the brass recedes,'' means coordinated edits to many values that often interact. This is tedious for experts and out of reach for musicians without specific technical knowledge. It is also impossible to do in real time with two hands.
 
-Current tools do not close this gap. Text-to-music generators such as Suno\footnote{\url{https://suno.com}} accept this kind of expressive description, a ``vibe''~\cite{hammad2025vibe}. However, they answer it by generating new audio as a black box, instead of shaping an existing piece in ways the composer can inspect and edit. LLM assistants can execute DAW edits~\cite{elkins2025dawzy}, but each request becomes an isolated edit made between playbacks. Computer conducting systems shape a performance in real time~\cite{borchers2004personal}, but through restrictive fixed mappings to a few global parameters~\cite{hunt2003mapping}.
+Current tools do not close this gap. Text-to-music generators such as Suno\footnote{\url{https://suno.com}} accept this kind of expressive description, a ``vibe''~\cite{hammad2025vibe}. However, they answer it by generating new audio as a black box, instead of shaping an existing piece in ways the composer can inspect and edit. LLM assistants can execute DAW edits~\cite{elkins2025dawzy}, but each request becomes an isolated edit made between playbacks. Computer conducting systems shape a performance in real time, but through restrictive fixed mappings to a few global parameters.
 
-We propose \textbf{ConductAir}, built on the \emph{performer as conductor} metaphor. The user directs their draft as it plays, the way a conductor directs an orchestra in rehearsal, and an ensemble of AI agents performs it. ConductAir has three parts (Figure~\ref{fig:layers}).
+We propose \textbf{\projectname{}}, built on the \emph{performer as conductor} metaphor. The user directs their draft as it plays, the way a conductor directs an orchestra in rehearsal, and an ensemble of AI agents performs it. \projectname{} has three parts (Figure~\ref{fig:layers}).
 \begin{itemize}
   \item \textbf{Input.} The user addresses sections and describes what they want in musical language, by speech or text (``strings, more urgent here'' or ``bring the brass down under the melody''). This happens in a \emph{conductor view}, which also shows what each agent is doing. An interpretation layer turns each instruction into structured commands for the agents. Input is not limited to language. Our stretch goal is conducting gestures from camera hand tracking. Discrete gestures such as pointing would be interpreted together with language, as in Put-That-There~\cite{bolt1980put}, and continuous motion would be applied every frame through a mapping the model selects.
   \item \textbf{Agent ensemble.} Each instrument section (e.g., strings, brass) is played by an agent that controls the dynamics, articulation and balance of its tracks. A tempo agent owns the tempo map. Each agent keeps its own context and adapts when the user overrides it. Relative direction such as ``strings over the brass'' becomes coordinated moves by several agents.
@@ -57,11 +52,11 @@ We propose \textbf{ConductAir}, built on the \emph{performer as conductor} metap
   \label{fig:layers}
 \end{figure*}
 
-ConductAir draws on three theories seen in class. As an \emph{interface metaphor}~\cite{carroll1988metaphors}, conducting is a familiar model for directing many performers at once. Directing in musical language keeps the \emph{semantic distance} small, because the user states the intent and not the parameters. It also keeps the \emph{articulatory distance} small, because instructions take the form musicians already use with each other~\cite{hutchins1985direct}. Delegating to agents has long been seen as in tension with \emph{direct manipulation}~\cite{shneiderman1997direct}. ConductAir keeps both. Performance capture and the timeline view make every agent action visible, incremental and reversible~\cite{shneiderman1983direct}. Following \emph{mixed-initiative} principles~\cite{horvitz1999principles}, confident interpretations are carried out immediately, and uncertain ones wait for confirmation from further input or observations.
+\projectname{} draws on three theories seen in class. As an \emph{interface metaphor}~\cite{carroll1988metaphors}, conducting is a familiar model for directing many performers at once. Directing in musical language keeps the \emph{semantic distance} small, because the user states the intent and not the parameters. It also keeps the \emph{articulatory distance} small, because instructions take the form musicians already use with each other~\cite{hutchins1985direct}. Delegating to agents has long been seen as in tension with \emph{direct manipulation}~\cite{shneiderman1997direct}. \projectname{} keeps both. Performance capture and the timeline view make every agent action visible, incremental and reversible~\cite{shneiderman1983direct}. Following \emph{mixed-initiative} principles~\cite{horvitz1999principles}, confident interpretations are carried out immediately, and uncertain ones wait for confirmation from further input or observations.
 
-The core of ConductAir is not specific to music. Video editors, lighting consoles and 3D animation tools also expose hundreds of technical parameters to users who think in expressive terms. We see ConductAir as a test case for an \emph{expressive interpretation layer}. This is an AI layer that sits between a person's expressive direction and a technical interface. It turns that direction into coordinated low-level operations and leaves every operation visible and editable. We aim to make four contributions.
+The core of \projectname{} is not specific to music. Video editors, lighting consoles and 3D animation tools also expose hundreds of technical parameters to users who think in expressive terms. We see \projectname{} as a test case for an \emph{expressive interpretation layer}. This is an AI layer that sits between a person's expressive direction and a technical interface. It turns that direction into coordinated low-level operations and leaves every operation visible and editable. We aim to make four contributions.
 \begin{enumerate}
-  \item \textbf{An architecture for AI interpretation of expressive direction at interactive speed.} A fast structured-output model (Jev~\cite{typesafe2026systemone}) interprets routine instructions. It chooses the sections addressed, an expressive descriptor and an intensity. Agents then turn descriptors into parameter recipes in code (e.g., \emph{aggressive} $\rightarrow$ higher velocity, shorter notes). Compound or novel instructions, like ``have the brass answer the strings,'' go to an LLM. Its structured plans are validated and saved for reuse, so the ensemble can respond during playback. Inputs that need a faster response can be added below the models as per-frame mappings that the models select. Gestures are one example, since their audible effect should arrive within about 10\,ms~\cite{wessel2001intimate}.
+  \item \textbf{An architecture for AI interpretation of expressive direction at interactive speed.} A fast structured-output model ("system one") interprets routine instructions. It chooses the sections addressed, an expressive descriptor and an intensity. Agents then turn descriptors into parameter recipes in code (e.g., \emph{aggressive} $\rightarrow$ higher velocity, shorter notes). Compound or novel instructions, like ``have the brass answer the strings,'' go to an LLM. Its structured plans are validated and saved for reuse, so the ensemble can respond during playback. Inputs that need a faster response can be added below the models as per-frame mappings that the models select. Gestures are one example, since their audible effect should arrive without detectable latency.
   \item \textbf{A mechanism for shared human--agent control of one interface.} The change bus gives the human priority at all times.
   \item \textbf{Direct edits as evidence of intent.} When the user edits the DAW directly, the agents observe the change through the bus. They use it to refine their understanding of what the user wants, so direct manipulation also teaches the agents.
   \item \textbf{Delegation without loss of direct manipulation.} Agent actions become ordinary, editable artifacts of the underlying tool, so the user can revise anything the agents did.
@@ -74,15 +69,15 @@ The core of ConductAir is not specific to music. Video editors, lighting console
 
 \subsection{Computer Conducting Systems}
 
-Computer conducting has a long history. Personal Orchestra, for example, let museum visitors conduct the tempo and dynamics of a recorded orchestra~\cite{borchers2004personal}. Such systems map motion directly to a few parameters, and the mappings stay fixed during performance~\cite{hunt2003mapping}. ConductAir borrows the conductor's role, not the baton. The user directs agents that interpret expressive intent. Gesture is still a natural extension. Following multimodal interfaces since Put-That-There~\cite{bolt1980put}, gestures could be interpreted together with language, with the model deciding what continuous motion controls.
+Computer conducting has a long history. Personal Orchestra, for example, let museum visitors conduct the tempo and dynamics of a recorded orchestra~\cite{borchers2004personal}. Such systems map motion directly to a few parameters, and the mappings stay fixed during performance. \projectname{} borrows the conductor's role, not the baton. The user directs agents that interpret expressive intent. Gesture is still a natural extension. Following multimodal interfaces since Put-That-There~\cite{bolt1980put}, gestures could be interpreted together with language, with the model deciding what continuous motion controls.
 
 \subsection{Semantic and AI-Assisted Music Control}
 
-Crowdsourced descriptor maps link words such as \emph{warm} to audio effect settings~\cite{cartwright2013socialeq}, but they are applied one adjustment at a time, outside performance. Loop Copilot frames an LLM as conducting an AI ensemble~\cite{zhang2023loopcopilot}, but it generates new audio instead of performing an existing piece. DAWZY turns requests into reversible DAW edits~\cite{elkins2025dawzy}, each an isolated change. In ConductAir, the user gives direction while the music plays. Agents keep applying an intent across a passage and coordinate it across sections, and every change stays editable.
+Crowdsourced descriptor maps link words such as \emph{warm} to audio effect settings~\cite{cartwright2013socialeq}, but they are applied one adjustment at a time, outside of performance. Loop Copilot frames an LLM as conducting an AI ensemble~\cite{zhang2023loopcopilot}, but it generates new audio instead of performing an existing piece. DAWZY turns requests into reversible DAW edits~\cite{elkins2025dawzy}, each an isolated change. In \projectname{}, the user gives direction while the music plays. Agents keep applying an intent across a passage and coordinate it across sections, and every change stays editable.
 
 \subsection{Score and DAW Editing Tools}
 
-Interviews with professional composers show a tension between the structure of a score and the flexibility needed to sketch and iterate. EuterPen addresses this with pen input on the score~\cite{cavez2025euterpen}. ConductAir shares this goal, but it changes the object of manipulation from symbols to the sounding performance, and the input from pen to spoken or written direction. It builds on openDAW~\cite{michelle2026opendaw}, whose observable project state lets human and agent edits share one timeline.
+Interviews with professional composers show a tension between the structure of a score and the flexibility needed to sketch and iterate. EuterPen addresses this with pen input on the score~\cite{cavez2025euterpen}. \projectname{} shares this goal, but it changes the object of manipulation from symbols to the sounding performance, and the input from pen to spoken or written direction.
 
 %% ------------------------------------------------------------------
 \bibliographystyle{ACM-Reference-Format}
