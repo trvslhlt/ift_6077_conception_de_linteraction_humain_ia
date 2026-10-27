@@ -1,7 +1,6 @@
 %% System layers figure (Figure 1). \input inside a figure* environment.
 %% An illustration, not an architecture diagram: box names and arrows only.
-%% Orange = the user (input and views), blue = AI, gray = infrastructure,
-%% dashed = the gesture stretch goal.
+%% Orange = the user (input and views), blue = AI, gray = infrastructure.
 \definecolor{hum}{RGB}{196,112,30}
 \definecolor{humfill}{RGB}{253,242,229}
 \definecolor{ai}{RGB}{42,106,155}
@@ -22,7 +21,7 @@
   ]
 
   %% Layer bands, with labels in the left gutter
-  \foreach \y/\name in {0/Conductor input, -1.55/Interpretation, -3.1/Agent ensemble,
+  \foreach \y/\name in {0/Producer input, -1.55/Interpretation, -3.1/Agent ensemble,
                         -4.6/Change bus, -6.1/openDAW} {
     \draw[draw=bandline, fill=bandfill, rounded corners=3pt]
       (0,\y+0.55) rectangle (13.35,\y-0.55);
@@ -30,21 +29,19 @@
       at (0.12,\y) {\MakeUppercase{\name}};
   }
 
-  %% Conductor input
-  \node[human, dashed, minimum width=2.4cm] (gest) at (3.35,0) {Hand gestures};
+  %% Producer input
+  \node[human, minimum width=2.6cm] (macro) at (4.6,0) {Macro controls};
   \node[human, minimum width=3.6cm] (speech) at (8.45,0) {Speech or text};
 
   %% Interpretation
-  \node[infra, dashed, minimum width=2.1cm] (feat) at (3.35,-1.55) {Gesture features};
-  \node[box, draw=ai, dashed, fill=white, minimum width=2.1cm] (map) at (5.8,-1.55)
-    {Gesture mappings};
+  \node[ai, minimum width=2.4cm] (map) at (4.6,-1.55) {Macro mappings};
   \node[ai, minimum width=2.3cm] (jev) at (8.45,-1.55) {Fast model};
   \node[ai, minimum width=2.1cm] (llm) at (12.1,-1.55) {LLM planner};
 
   %% Agent ensemble
-  \foreach \x/\name in {3.285/Tempo, 5.505/Strings, 7.725/Brass, 9.945/Woodwinds,
-                        12.165/Percussion} {
-    \node[ai, minimum width=1.97cm] at (\x,-3.1) {\name};
+  \foreach \x/\name in {3.6/Performance, 6.35/Arrangement, 9.1/Mix,
+                        11.85/Conductor} {
+    \node[ai, minimum width=2.6cm] at (\x,-3.1) {\name};
   }
 
   %% Change bus: a heavy bar, named by its layer label
@@ -55,23 +52,21 @@
   \node[infra, minimum width=3.2cm] (state) at (3.9,-6.1) {Project state};
   \node[infra, minimum width=3.6cm] (takes) at (7.9,-6.1) {Captured takes};
 
-  %% Views for the user: the conductor view spans the input to ensemble layers,
+  %% Views for the user: the producer view spans the input to ensemble layers,
   %% the timeline view spans the change bus and openDAW layers
   \node[human, minimum width=3.2cm, minimum height=4.2cm] (cview) at (15.4,-1.55)
-    {Conductor view};
+    {Producer view};
   \node[human, minimum width=3.2cm, minimum height=2.6cm] (tview) at (15.4,-5.35)
     {DAW timeline view};
 
   %% Input -> interpretation
-  \draw[arr, hum, dashed] (gest) -- (feat);
+  \draw[arr, hum] (macro) -- (map);
   \draw[arr, hum] (speech) -- (jev);
-  \draw[arr, dashed] (4.1,-1.15) |- (7.75,-0.78) -- (7.75,-1.15);
-  \draw[arr, dashed] (feat) -- (map);
-  \draw[arr, ai, dashed] (jev) -- (map);
+  \draw[arr, ai] (jev) -- (map);
   \draw[arr, ai] (jev) -- (llm);
 
   %% Interpretation -> ensemble
-  \draw[arr, dashed] (map.south) -- (5.8,-2.55);
+  \draw[arr, ai] (map.south) -- (4.6,-2.55);
   \draw[arr, ai] (jev.south) -- (8.45,-2.55);
   \draw[arr, ai] (llm.south) -- (12.1,-2.55);
 
