@@ -1,5 +1,6 @@
-// Team view test: boots the studio in headless Chromium, opens a new project and the Team screen, then checks
-// both directions: the team changes the project, and a change made in the DAW (undo) shows up in the team log.
+// Team view test: boots the studio in headless Chromium, opens a new project, moves the floating robot button and
+// opens the team view over the DAW, then checks both directions: the team changes the project, and a change made in
+// the DAW (undo) shows up in the team log.
 // Run via `make test`; it shares the studio container's network, so the page is at localhost.
 import {chromium} from "playwright"
 
@@ -40,10 +41,22 @@ try {
     await page.getByText("Welcome to openDAW").waitFor()
     await page.keyboard.press("Escape")
     await page.getByText("Welcome to openDAW").waitFor({state: "hidden"})
-    // The Team screen button (added by opendaw.patch) has the robot icon.
-    await page.locator("header .panel-selector label:has(use[href='#Robot'])").click()
+    // The floating robot widget (mounted by opendaw.patch) starts bottom right and moves with its corner buttons.
+    const widget = page.getByTestId("team-widget")
+    const viewport = page.viewportSize()
+    const startBox = await widget.boundingBox()
+    check("robot floats bottom right", startBox.x > viewport.width / 2 && startBox.y > viewport.height / 2)
+    await page.getByTestId("team-move-top-left").click()
+    const movedBox = await widget.boundingBox()
+    check("robot moves to top left", movedBox.x < viewport.width / 2 && movedBox.y < viewport.height / 2)
+
+    const workspace = await page.locator("main, .workspace, body > *").first().boundingBox()
+    await page.getByTestId("team-toggle").click()
     await page.getByTestId("team-panel").waitFor()
-    check("team screen opens", true)
+    check("team view opens", true)
+    const view = page.getByTestId("team-view")
+    check("team view floats over the DAW", await view.evaluate(element => getComputedStyle(element).position) === "fixed"
+        && JSON.stringify(await page.locator("main, .workspace, body > *").first().boundingBox()) === JSON.stringify(workspace))
 
     await page.evaluate(() => window.opendaw.engine.play())
     const before = await bpm()

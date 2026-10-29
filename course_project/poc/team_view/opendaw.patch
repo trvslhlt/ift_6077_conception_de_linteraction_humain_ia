@@ -1,88 +1,23 @@
-diff --git a/packages/app/studio/src/ui/header/Header.tsx b/packages/app/studio/src/ui/header/Header.tsx
-index 4227d0f..895c6f8 100644
---- a/packages/app/studio/src/ui/header/Header.tsx
-+++ b/packages/app/studio/src/ui/header/Header.tsx
-@@ -41,7 +41,8 @@ const ScreenShortcutKeys: Record<Workspace.ScreenKeys, keyof typeof GlobalShortc
-     "project": "workspace-screen-project",
-     "shadertoy": "workspace-screen-shadertoy",
-     "code": "workspace-screen-default",
--    "tap": "workspace-screen-tap"
-+    "tap": "workspace-screen-tap",
-+    "team": "workspace-screen-default"
- }
- 
- export const Header = ({lifecycle, service}: Construct) => {
-diff --git a/packages/app/studio/src/ui/workspace/Default.ts b/packages/app/studio/src/ui/workspace/Default.ts
-index 3d5ad68..a046d9e 100644
---- a/packages/app/studio/src/ui/workspace/Default.ts
-+++ b/packages/app/studio/src/ui/workspace/Default.ts
-@@ -286,6 +286,32 @@ export const DefaultWorkspace = Object.freeze({
-             notPopoutable: true,
-             constrains: {type: "flex", minSize: 0, flex: 1}
-         })
-+    },
-+    "team": {
-+        name: "Team",
-+        icon: IconSymbol.Robot,
-+        content: {
-+            type: "layout",
-+            orientation: "horizontal",
-+            contents: [
-+                PanelState.create({
-+                    type: "panel",
-+                    name: "Timeline",
-+                    icon: IconSymbol.Timeline,
-+                    panelType: PanelType.Timeline,
-+                    constrains: {type: "flex", minSize: 94, flex: 2}
-+                }),
-+                PanelState.create({
-+                    type: "panel",
-+                    name: "Team",
-+                    icon: IconSymbol.Robot,
-+                    panelType: PanelType.Team,
-+                    notMinimizable: true,
-+                    constrains: {type: "flex", minSize: 320, flex: 1}
-+                })
-+            ],
-+            constrains: {type: "flex", minSize: 20, flex: 1}
-+        }
-     }
- } satisfies Record<string, Workspace.Screen>)
- 
-diff --git a/packages/app/studio/src/ui/workspace/PanelFactory.tsx b/packages/app/studio/src/ui/workspace/PanelFactory.tsx
-index 26773ac..3e7c993 100644
---- a/packages/app/studio/src/ui/workspace/PanelFactory.tsx
-+++ b/packages/app/studio/src/ui/workspace/PanelFactory.tsx
-@@ -20,6 +20,7 @@ import {ShadertoyEditor} from "@/ui/shadertoy/ShadertoyEditor"
- import {CodeEditorPanel} from "@/ui/code-editor/CodeEditorPanel"
- import {TapTempo} from "@/ui/pages/TapTempo"
- import {AnalysisPanel} from "@/ui/analysis/AnalysisPanel"
+diff --git a/packages/app/studio/src/ui/App.tsx b/packages/app/studio/src/ui/App.tsx
+index 7ea008a..1df33e9 100644
+--- a/packages/app/studio/src/ui/App.tsx
++++ b/packages/app/studio/src/ui/App.tsx
+@@ -31,6 +31,7 @@ import {DevicePreviewPage} from "@/ui/pages/DevicePreviewPage"
+ import {DevicePreviewRoute} from "@/service/StudioNavigation"
+ import {SampleEditorPage} from "@/ui/pages/SampleEditorPage"
+ import {SampleEditorRoute} from "@/service/SampleEditorService"
 +import {TeamHost} from "@/team_view/TeamHost"
  
- export const createPanelFactory = (service: StudioService): PanelContentFactory => ({
-     create: (lifecycle: Lifecycle, type: PanelType): JsxValue => {
-@@ -56,6 +57,8 @@ export const createPanelFactory = (service: StudioService): PanelContentFactory
-                 return (<TapTempo lifecycle={lifecycle} service={service}/>)
-             case PanelType.Analysis:
-                 return (<AnalysisPanel lifecycle={lifecycle} service={service}/>)
-+            case PanelType.Team:
-+                return (<TeamHost lifecycle={lifecycle} service={service}/>)
-             case PanelType.EmptyFlexSpace:
-                 return (<FlexSpace/>)
-             default:
-diff --git a/packages/app/studio/src/ui/workspace/PanelType.ts b/packages/app/studio/src/ui/workspace/PanelType.ts
-index 8dee3c5..00e5d2d 100644
---- a/packages/app/studio/src/ui/workspace/PanelType.ts
-+++ b/packages/app/studio/src/ui/workspace/PanelType.ts
-@@ -15,5 +15,6 @@ export enum PanelType {
-     CodeEditor,
-     EmptyFlexSpace,
-     TapTempo,
--    Analysis
-+    Analysis,
-+    Team
- }
-\ No newline at end of file
+ const StandaloneRoutes: ReadonlySet<string> = new Set([SampleEditorRoute])
+ 
+@@ -96,6 +97,7 @@ export const App = (service: StudioService) => {
+                 ]}
+             />
+             <ChatOverlay lifecycle={terminator} service={service}/>
++            <TeamHost lifecycle={terminator} service={service}/>
+             {footer}
+         </Frag>
+     )
 diff --git a/packages/app/studio/vite.config.ts b/packages/app/studio/vite.config.ts
 index 8e0e82c..144d37c 100644
 --- a/packages/app/studio/vite.config.ts

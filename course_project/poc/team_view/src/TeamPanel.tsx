@@ -73,7 +73,7 @@ export const TeamPanel = ({lifecycle, service}: Construct): HTMLElement => {
     return (
         <div data-testid="team-panel"
              style={{flex: "1 0 0", display: "flex", flexDirection: "column", rowGap: "0.5em", padding: "1em",
-                 minWidth: "0", color: "var(--color-dark)", overflow: "hidden"}}>
+                 minWidth: "0", minHeight: "0", overflow: "hidden"}}>
             <h3 style={{margin: "0"}}>Team view</h3>
             {status}
             <p>Tempo: {bpm} BPM {tempoUp}</p>
