@@ -1,7 +1,7 @@
 # IFT 6077 course project
 
 Course project: AI agents that turn a producer's spoken/text notes into edits in openDAW, during playback.
-The proposal is `course_project/project_proposal/final_proposal/main.tex`; the runnable openDAW baseline is `course_project/poc/`.
+The proposal is `course_project/project_proposal/final_proposal/main.tex`; the runnable openDAW baseline is `course_project/poc/hello_world/`.
 
 ## LaTeX
 
@@ -18,7 +18,7 @@ The proposal is `course_project/project_proposal/final_proposal/main.tex`; the r
 ## Docker conventions
 
 - Host is Apple Silicon (arm64), Docker Desktop with 8 GB of memory and a 32 GB virtual disk (tight: one openDAW build plus the Playwright image needs ~15 GB). Shared with other course projects: never run global `docker system/builder/volume prune`.
-- Each component gets a compose project plus a dedicated buildx builder of the same name; `make clean` must remove exactly those (containers, network, images, builder cache) and nothing else. Pattern: `course_project/poc/Makefile`.
+- Each component gets a compose project plus a dedicated buildx builder of the same name; `make clean` must remove exactly those (containers, network, images, builder cache) and nothing else. Pattern: `course_project/poc/hello_world/Makefile`.
 - `.dockerignore` files are allowlists (`*` then `!file`), so `.env` and secrets never enter a build context.
 - Pin everything: base images by digest, toolchains by exact version, apt packages that affect output, openDAW by commit. Bump pins together and re-run `make test`.
 - Run browser tests with Playwright's image (multi-arch). Puppeteer's image is amd64-only, and Chrome won't start under emulation.
