@@ -31,6 +31,11 @@ the exact origin, so a different port shows an empty studio (see `../hello_world
 - **`opendaw.patch` (openDAW's code):** `make up` rebuilds in seconds. Only the patched files are rebuilt, never the openDAW tree.
   To change it, apply it to a checkout of openDAW at the pinned commit, edit, and save `git diff` back here.
 
+- **Editor types:** `make types` copies the patched openDAW tree out of the studio image into `.opendaw/` (~1 GB,
+  git-ignored) and links `node_modules` to it. `tsconfig.json` then resolves `@/…`, `@opendaw/…` and third-party imports in
+  `src/` on the host. Re-run it after changing the patch. Vite doesn't type-check; to check from the terminal, run
+  `node .opendaw/node_modules/typescript/bin/tsc -p tsconfig.json --noEmit`.
+
 What the patch touches (5 files, +35/-2):
 
 | File | Change |

@@ -6,11 +6,12 @@ PROJECT := opendaw-team-view
 REPO_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))../../..)
 PORT ?= 8080
 URL := http://localhost:$(PORT)
+TYPES_DIR := .opendaw
 
 export PORT
 COMPOSE := docker compose --profile test
 
-.PHONY: help builder build up down restart logs status open shell test usage clean
+.PHONY: help builder build up down restart logs status open shell test types usage clean
 
 help: ## List targets
 	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
@@ -46,9 +47,18 @@ shell: ## Shell into the running studio container
 test: build ## Check the team view in headless Chromium (starts the studio if needed)
 	$(COMPOSE) run --rm smoke
 
+types: build ## Copy openDAW's source and types out of the image into .opendaw/, for the editor (see tsconfig.json)
+	rm -rf $(TYPES_DIR) && mkdir -p $(TYPES_DIR)
+	docker run --rm --entrypoint tar $(PROJECT)-studio -C /src -c \
+		--exclude=./.git --exclude=./crates --exclude=./packages/app/studio/dist --exclude='*.wasm' . \
+		| tar -x -C $(TYPES_DIR)
+	ln -sfn $(TYPES_DIR)/node_modules node_modules
+	@du -sh $(TYPES_DIR)
+
 usage: ## Show disk used by this POC's images (shared build cache: `make -C docker usage` from the repo root)
 	@docker image ls --filter label=com.docker.compose.project=$(PROJECT)
 
-clean: ## Remove all containers, images and network of this POC (not the shared builder)
+clean: ## Remove all containers, images and network of this POC (not the shared builder), and .opendaw/
 	$(COMPOSE) down --remove-orphans --rmi local
+	rm -rf $(TYPES_DIR) node_modules
 	-docker image prune -f --filter label=com.docker.compose.project=$(PROJECT)

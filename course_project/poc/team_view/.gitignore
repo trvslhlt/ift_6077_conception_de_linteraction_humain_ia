@@ -1,3 +1,6 @@
 # Local overrides for compose (PORT, OPENDAW_REF, later API keys)
 .env
 test/node_modules/
+# Editor types copied out of the studio image by `make types`
+.opendaw/
+node_modules

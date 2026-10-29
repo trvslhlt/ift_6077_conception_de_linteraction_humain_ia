@@ -1,0 +1,41 @@
+{
+  "//": [
+    "Editor types for src/. Run `make types` first: it copies the patched openDAW tree into .opendaw/ and links node_modules to it.",
+    "Options copied from openDAW's studio tsconfig (packages/app/studio, config/typescript/{vite,base}.json) instead of extending it:",
+    "those set baseUrl, which TypeScript 6 (VS Code's) rejects, and the fix for that is rejected by openDAW's TypeScript 5.9.",
+    "@/team_view mirrors the bind mount in compose.yaml."
+  ],
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ESNext", "DOM", "DOM.Iterable", "DOM.AsyncIterable"],
+    "types": ["vite/client", "node", "wicg-file-system-access", "dom-webcodecs", "dom-mediacapture-transform"],
+    "jsx": "react",
+    "jsxFactory": "createElement",
+    "jsxFragmentFactory": "Fragment",
+    "strict": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "useDefineForClassFields": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "paths": {
+      "@/team_view/*": ["./src/*"],
+      "@/*": ["./.opendaw/packages/app/studio/src/*"]
+    }
+  },
+  "include": [
+    "src",
+    ".opendaw/packages/app/studio/src/vite-env.d.ts",
+    ".opendaw/packages/app/studio/src/global.d.ts"
+  ]
+}
