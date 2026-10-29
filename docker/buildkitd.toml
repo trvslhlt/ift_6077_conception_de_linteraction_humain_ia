@@ -1,0 +1,6 @@
+# Config for the repo's shared buildx builder (see builder.mk).
+# Caps its build cache; BuildKit evicts the oldest entries past the limit.
+# Read only when the builder is created: after a change, `make clean` then `make builder` here (loses the cache).
+[worker.oci]
+  gc = true
+  maxUsedSpace = "15GB"

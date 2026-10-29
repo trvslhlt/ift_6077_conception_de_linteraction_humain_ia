@@ -38,13 +38,13 @@ preferences in `localStorage`, both tied to the exact origin `http://localhost:8
 
 ## Docker footprint
 
-Everything Docker creates for this POC belongs to two named owners, and `make clean` removes both:
+Everything Docker creates for this POC belongs to compose project `opendaw-poc` (`compose.yaml`), and `make clean`
+removes all of it: the `studio` and `smoke` containers, the `opendaw-poc_default` network and the
+`opendaw-poc-studio` / `opendaw-poc-smoke` images. No volumes.
 
-- **Compose project `opendaw-poc`** (`compose.yaml`): the `studio` and `smoke` containers, the `opendaw-poc_default` network
-  and the `opendaw-poc-studio` / `opendaw-poc-smoke` images. No volumes.
-- **Buildx builder `opendaw-poc`**: a dedicated BuildKit container holding this POC's build cache (base images, Rust
-  toolchains, compiled openDAW), capped at 15 GB by `buildkitd.toml`. The cache keeps rebuilds fast; it never mixes
-  with other projects' cache in Docker Desktop's default builder.
+Builds use the repo's shared buildx builder (`../../../docker/builder.mk`; also named `opendaw-poc`). Its cache holds the base
+images, Rust toolchains and compiled openDAW, which other POCs reuse. `make clean` leaves it alone;
+`make -C docker clean` from the repo root removes it.
 
 Containers, networks and the studio image never outlive `make down`/`make clean`, rebuilds prune the project's
 dangling images, and the smoke test container is removed after each run.
@@ -63,7 +63,7 @@ All pinned, verified working together on 2026-10-29:
 | binaryen (`wasm-opt`) | Debian package `120-4` | `Dockerfile` |
 | nginx (runtime image) | `nginx:1.31.8-alpine` by digest | `Dockerfile` |
 | Playwright (test image) | `mcr.microsoft.com/playwright:v1.64.1-noble` by digest; `playwright` 1.64.1 | `test/Dockerfile`, `test/package-lock.json` |
-| BuildKit (builder) | `moby/buildkit:v0.34.1` by digest | `Makefile` |
+| BuildKit (builder) | `moby/buildkit:v0.34.1` by digest | `docker/builder.mk` (repo root) |
 
 npm and cargo dependencies are fixed by openDAW's own `package-lock.json` and `Cargo.lock` at that commit.
 `git`, `curl` and `build-essential` are installed unpinned from Debian; they don't affect the output.
@@ -84,10 +84,9 @@ It exits non-zero on any failure.
 ## Files
 
 - `compose.yaml`: the `studio` service and the `smoke` test service (profile `test`)
-- `Makefile`: the entry point; wraps compose and manages the dedicated builder
+- `Makefile`: the entry point; wraps compose and includes the shared builder
 - `Dockerfile`: stage 1 installs Node and Rust and runs `turbo build` for `@opendaw/app-studio`; stage 2 is nginx serving `dist/`
 - `nginx.conf`: COOP/COEP/CORP headers, gzip, SPA fallback
-- `buildkitd.toml`: build-cache cap for the dedicated builder
 - `.dockerignore`, `test/.dockerignore`: allowlists, so only the files the Dockerfiles copy enter a build
 - `test/`: `smoke.mjs` and its Playwright runner image
 

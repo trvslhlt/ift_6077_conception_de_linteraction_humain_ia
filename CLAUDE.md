@@ -18,7 +18,8 @@ The proposal is `course_project/project_proposal/final_proposal/main.tex`; the r
 ## Docker conventions
 
 - Host is Apple Silicon (arm64), Docker Desktop with 8 GB of memory and a 32 GB virtual disk (tight: one openDAW build plus the Playwright image needs ~15 GB). Shared with other course projects: never run global `docker system/builder/volume prune`.
-- Each component gets a compose project plus a dedicated buildx builder of the same name; `make clean` must remove exactly those (containers, network, images, builder cache) and nothing else. Pattern: `course_project/poc/hello_world/Makefile`.
+- Each POC folder is its own compose project; its `make clean` removes exactly that project's containers, network and images, and nothing else. Pattern: `course_project/poc/hello_world/Makefile`.
+- All builds share one buildx builder, `opendaw-poc`, defined in `docker/builder.mk` (each POC Makefile includes it). One cache means POCs that share build steps get cache hits; a POC's `make clean` never removes it, `make -C docker clean` does. A POC that builds openDAW should keep hello_world's build stage instruction-for-instruction so it stays a cache hit.
 - `.dockerignore` files are allowlists (`*` then `!file`), so `.env` and secrets never enter a build context.
 - Pin everything: base images by digest, toolchains by exact version, apt packages that affect output, openDAW by commit. Bump pins together and re-run `make test`.
 - Run browser tests with Playwright's image (multi-arch). Puppeteer's image is amd64-only, and Chrome won't start under emulation.
