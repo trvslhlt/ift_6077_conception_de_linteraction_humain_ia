@@ -1,0 +1,4 @@
+# Allowlist. The studio image clones openDAW itself and needs only nginx.conf from here.
+# Anything new (.env, secrets, test/, notes) stays out of the build context unless listed.
+*
+!nginx.conf

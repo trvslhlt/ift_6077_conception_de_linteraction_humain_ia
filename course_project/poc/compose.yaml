@@ -1,0 +1,30 @@
+# openDAW POC. Drive it through the Makefile, which also sets the dedicated buildx builder.
+# Every container, network and image here belongs to the compose project "opendaw-poc".
+# There are no volumes: openDAW keeps projects and preferences in the browser (see README.md).
+name: opendaw-poc
+
+services:
+  studio:
+    build:
+      context: .
+      args:
+        - OPENDAW_REF  # unset -> the Dockerfile's pinned default
+    ports:
+      # Bound to localhost only. The port is part of the browser origin that owns the saved projects.
+      - "127.0.0.1:${PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+      start_interval: 1s
+
+  smoke:
+    build: test
+    profiles: [test]
+    # Shares the studio's network namespace, so the page is served from localhost (a secure context).
+    network_mode: service:studio
+    depends_on:
+      studio:
+        condition: service_healthy

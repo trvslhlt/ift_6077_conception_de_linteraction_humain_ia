@@ -1,0 +1,5 @@
+# Config for this POC's dedicated buildx builder (see Makefile).
+# Caps its build cache; BuildKit evicts the oldest entries past the limit.
+[worker.oci]
+  gc = true
+  maxUsedSpace = "15GB"
