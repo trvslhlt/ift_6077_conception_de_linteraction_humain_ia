@@ -72,6 +72,16 @@ try {
     await logEntries("daw").filter({hasText: "TimelineBox:bpm"}).first().waitFor({timeout: 5000})
     check("DAW change is observed as daw", true)
     check("undo restores the tempo", (await bpm()) === before, `${await bpm()} BPM`)
+
+    // Reading state on demand: the team view only sees the notes when it asks for them.
+    const notesView = page.getByTestId("team-notes")
+    await page.getByTestId("team-add-demo-clip").click()
+    check("notes are not pushed", (await notesView.textContent()).startsWith("Click Read notes"))
+    await page.getByTestId("team-read-notes").click()
+    const notes = await notesView.textContent()
+    check("reads the clip's notes on demand",
+        notes.includes("4 notes") && [/C4\s+\(60\)/, /E4\s+\(64\)/, /G4\s+\(67\)/, /C5\s+\(72\)/].every(note => note.test(notes)),
+        notes.split("\n")[1])
     await page.evaluate(() => window.opendaw.engine.stop())
 
     check("no page errors or failed requests", problems.length === 0, problems.slice(0, 5).join("; "))

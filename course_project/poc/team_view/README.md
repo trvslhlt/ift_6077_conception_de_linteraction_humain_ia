@@ -5,8 +5,11 @@ Shows that our own application logic can run inside [openDAW](https://github.com
 any corner of the window). Clicking it opens the **team view** on top of the DAW, outside openDAW's layout. The team view
 
 - logs every change to the open project, tagged `team` (made by the team view) or `daw` (made anywhere else in openDAW,
-  including undo), and
-- makes one change itself: **Tempo +5 BPM**, an ordinary undoable openDAW edit, applied during playback.
+  including undo),
+- makes changes itself, as ordinary undoable openDAW edits, also during playback: **Tempo +5 BPM**, and **Add demo
+  clip** (a Vaporisateur synth track with a one-bar C major arpeggio), and
+- reads state on demand: **Read notes** lists every note in every MIDI region and clip at the moment it's clicked.
+  Agents will need to query the project like this, not only have changes pushed to them.
 
 Discovery-stage code, copied from `../hello_world` and changed. Not meant for deployment.
 
