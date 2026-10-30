@@ -1,5 +1,6 @@
 // Edit bench test: boots the studio in headless Chromium, opens a new project and the bench, and runs the checks
 // from project_plan/OPENDAW.md ("Checks") through window.editBench:
+//   8.   the device catalog (saved to results/catalog.json);
 //   4+5. an agent editing every 250 ms while a knob is dragged (direct, append, queue), and the held signal;
 //   3.   automation written during playback; 7. effects and instruments changed during playback; 2. lead time;
 //   1.   edit rate (EDIT_RATE_SECONDS per case).
@@ -18,15 +19,30 @@ const check = (name, ok, detail = "") => {
     console.log(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? `  (${detail})` : ""}`)
     if (!ok) failures.push(name)
 }
+mkdirSync("results", {recursive: true})
 const results = {startedAt: new Date().toISOString(), editRateSeconds: EDIT_RATE_SECONDS}
 
 const browser = await chromium.launch({args: ["--autoplay-policy=no-user-gesture-required", "--enable-precise-memory-info"]})
 const page = await browser.newPage({viewport: {width: 1440, height: 900}})
 page.setDefaultTimeout(TIMEOUT)
 
+// Some devices (WebCLAP, Soundfont, presets) fetch openDAW's online asset indexes, which the test container can't
+// reach: those are listed in results.remoteAssets, not counted as problems.
+const RemoteAssets = "https://assets.opendaw.studio/"
 const problems = []
+const remoteAssets = new Set()
+const remote = url => {
+    if (!url?.startsWith(RemoteAssets)) {return false}
+    remoteAssets.add(url.split("?")[0])
+    return true
+}
 page.on("pageerror", error => problems.push(`pageerror: ${error.message}`))
-page.on("console", message => {if (message.type() === "error") problems.push(`console: ${message.text()}`)})
+page.on("console", message => {
+    if (message.type() === "error" && !remote(message.location().url)) {problems.push(`console: ${message.text()}`)}
+})
+page.on("requestfailed", request => {
+    if (!remote(request.url())) {problems.push(`request failed: ${request.url()} (${request.failure()?.errorText})`)}
+})
 page.on("response", response => {if (response.status() >= 400) problems.push(`http ${response.status()}: ${response.url()}`)})
 
 // Holds a knob of the newest instrument still for HOLD_MS, then drags it down (down: volume has more range below
@@ -62,6 +78,24 @@ try {
     await page.getByTestId("bench-panel").waitFor()
     await page.waitForFunction(() => window.editBench !== undefined)
     check("bench opens", true)
+
+    console.log("\n8. device catalog")
+    const catalog = await page.evaluate(() => window.editBench.catalog())
+    writeFileSync("results/catalog.json", JSON.stringify(catalog, null, 2))
+    for (const kind of ["instrument", "midi effect", "audio effect"]) {
+        const ofKind = catalog.devices.filter(device => device.kind === kind)
+        console.log(`      ${kind}s (${ofKind.length}): `
+            + ofKind.map(device => `${device.name} ${device.parameters.length}/${device.settings.length}`).join(", "))
+    }
+    const allowed = catalog.devices.filter(device => device.allowed)
+    console.log(`      allowed for agents (${allowed.length}, ${allowed.reduce((sum, device) => sum + device.parameters.length, 0)} `
+        + `parameters): ${allowed.map(device => device.name).join(", ")}`)
+    console.log("      (parameters/settings per device; full catalog in results/catalog.json)")
+    for (const failure of catalog.failures) {console.log(`      failed: ${failure.key}: ${failure.error}`)}
+    check("every device can be created and read", catalog.failures.length === 0,
+        catalog.failures.map(failure => failure.key).join(", "))
+    check("every parameter has a name and a printable range", catalog.devices.every(device => device.parameters
+        .every(parameter => parameter.name !== "" && parameter.min !== "" && parameter.max !== "")))
 
     console.log("\n4+5. agent edits during a knob drag, held signal")
     results.drag = {}
@@ -159,7 +193,8 @@ try {
 
 results.failures = failures
 results.problems = problems
-mkdirSync("results", {recursive: true})
+results.remoteAssets = [...remoteAssets]
+console.log(`\nremote asset indexes requested (unreachable here): ${results.remoteAssets.join(", ") || "none"}`)
 const file = `results/headless-${results.startedAt.replace(/[:.]/g, "-")}.json`
 writeFileSync(file, JSON.stringify(results, null, 2))
 console.log(`\nresults saved to ${file}`)

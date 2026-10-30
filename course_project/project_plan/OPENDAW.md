@@ -97,13 +97,15 @@ Source: `app/studio/src/ui/wrapper/RelativeUnitValueDragging.tsx` (knobs), `app/
   device and its lanes together.
 - Measured (check 7, headless), on a soloed synth, from the engine's output:
   - Inserting or removing an effect is heard within one audio callback (Stereo Tool at -24 dB: level drop after
-    5 ms, back after 3 ms), with no gaps in a held note, for Stereo Tool, Delay, Free Reverb, Dattorro Reverb,
-    Compressor, Crusher and Tidal. `modify()` cost 6–13 ms; 1 block over budget in 14 edits.
+    5 ms, back after 3 ms), with no gaps in a held note, for the allowed effects (STRATEGY.md, "Agents change
+    devices"). Exceptions: inserting Autotune made one 35 ms gap and Maximizer one 2.7 ms gap; inserting or
+    removing Fold put 5–7 blocks over budget. Sink and Vocoder had no destination or second input. `modify()` cost
+    6–17 ms.
   - Replacing an instrument cuts the old one within 5–11 ms, with no release tail, which may click. Notes already
     sounding are not handed over: the new instrument is heard from the first note that starts at least ~30 ms after
     the swap (the lead time). Tubular, swapped 21 ms before a note, was heard from the note after (507 ms). Tubular,
-    Neon, Cubed, Korpus, Apparat and Vaporisateur all sounded; `modify()` cost 6–13 ms; 2 blocks over budget, for
-    Tubular.
+    Neon, Cubed, Korpus, Apparat and Vaporisateur all sounded; `modify()` cost 6–13 ms; 0–2 blocks over budget per
+    swap.
   - Three ways to change the instrument of a track playing a short note every beat with a 2 s release (so its tails
     fill the time between notes), each edit landing during a note, two runs:
 
@@ -122,8 +124,46 @@ Source: `app/studio/src/ui/wrapper/RelativeUnitValueDragging.tsx` (knobs), `app/
   - Layers: `wrapInstrumentIntoComposite` moves the unit's effects onto layer 1; move them back with
     `api.moveEffects` to keep them on the whole track. Each layer (`InstrumentCompositeCellBox`) has automatable
     `gain`, `pan`, `mute`, `solo`. There is no unwrap: a track with one layer left stays a composite.
-  - Not measured: instruments and effects that load files (Soundfont, Nano, Playfield, Convolver, NeuralAmp), which
-    may stay silent until the file loads.
+  - Not measured: instruments that need content to sound (Nano, Playfield, Soundfont, Audio Track, layer
+    racks), and how long a sample takes to load until it is heard.
+
+- **Stored values aren't display values** (live POC, 2026-10-30). Stepped parameters are often stored offset:
+  Tubular's algorithm 0-based (stored 4 = algorithm 5), its operator detune 0–14 for -7..+7, Vaporisateur's
+  `filterOrder` 1–4 for 12/24/36/48 dB. `adapter.setPrintValue("24")` on the filter slope did nothing, without an
+  error. Write through `valueMapping` (or the raw value, knowing the offset), then read `getPrintValue()` back.
+- **Note names: openDAW calls MIDI 60 "C3"** (its piano roll shows MIDI 64 as E3), one octave below scientific naming
+  (C4 = 60). Our sample library follows openDAW's.
+
+### What devices exist, read from openDAW (check 8)
+
+openDAW describes its own devices well enough to generate a catalog for agents, with no hand-written list:
+
+- Each factory (`DeviceFactory`) has `defaultName`, `briefDescription` ("Acid bassline synthesizer"), `description`
+  and `manualPage`; effect factories add `type` (`audio`/`midi`). The lists: `InstrumentFactories.Named` (13),
+  `EffectFactories.MidiNamed` (6) and `AudioNamed` (22).
+- A device's automatable parameters are registered in `project.parameterFieldAdapters` when its adapter is made
+  (`project.boxAdapters.adapterFor(box, Devices.isAny)`). That registry can't be listed, but it can be looked up by
+  address: walk the box's primitive fields (`field.accept({visitPrimitiveField, visitArrayField, visitObjectField})`,
+  skipping `field.deprecated`) and call `parameterFieldAdapters.opt(field.address)`. Each adapter gives `name`, the
+  range through `valueMapping.y(0)`/`y(1)`, display text with units through `stringMapping.x(value)` ("8000 Hz",
+  "-6.0 db", "3/16"), and `valueMapping.floating()` for stepped parameters, whose values can all be printed (Delay's
+  note lengths, Tubular's 32 algorithms, Neon's modulation modes).
+- Fields without a parameter adapter are settings: settable in a `modify()` but not automatable (Vocoder's
+  `bandCount`, Cubed's pattern steps, a script's `code`).
+- Measured (headless): all 41 devices can be created, read and deleted while stopped, giving 395 parameters (210
+  stepped), every one with a name and a printable range.
+- Size: names and descriptions are ~1.5k tokens; with every parameter ~12.5k; with settings ~22k. The 21 devices
+  allowed for agents: ~0.7k and ~10.5k. Tubular's 156
+  operator parameters are ~5.5k alone, Cubed has ~1000 pattern settings.
+- Every device has a manual page in openDAW's source: `packages/app/manual/public/<manualPage>.md` (the manual is
+  its own app, served at `/manuals/`; the studio's dev server proxies it). 200–2400 words each, 28k in all; written
+  for users, so they describe controls by their place in the UI. `ai.md`, `automation.md`, `mixer.md`,
+  `modulation.md` and `presets.md` cover the rest of the studio.
+- Shows no parameters: devices whose parameters live in other boxes (composites' layers, Playfield's pads,
+  Zeitgeist's groove), scriptable devices (Apparat, Spielwerk, Werkstatt: the script declares them) and WebCLAP
+  (the plugin declares them). Read those from the project once the device has content, not from the catalog.
+- Creating WebCLAP, Soundfont and some other devices makes openDAW fetch indexes from `assets.opendaw.studio` (see
+  "Remote services").
 
 ## Timing and load
 
@@ -146,7 +186,8 @@ only; to be repeated from the bench's buttons in a real browser.
 ## Remote services
 
 openDAW's source calls `api.opendaw.studio` (shared music, user count, SoundCloud), `package.opendaw.studio`
-(ffmpeg) and `logs.opendaw.studio`. The study draft must not depend on any of them.
+(ffmpeg) and `logs.opendaw.studio`. Creating devices fetches `assets.opendaw.studio` indexes: `wclaps/`,
+`presets/` and `soundfonts/index.json` (check 8). The study draft must not depend on any of them.
 
 ## Reading state on demand
 
@@ -251,15 +292,17 @@ Source: `studio/adapters/src/` (`IndexedBoxAdapterCollection.ts`, `timeline/Regi
 
 ## Checks
 
-Implemented in `poc/edit_bench` (see its README); results are in the sections above. `make test` there runs 1–5
+Implemented in `poc/edit_bench` (see its README); results are in the sections above. `make test` there runs all but 6
 headless.
 
 | # | Check | Status |
 |---|---|---|
 | 1 | Edit rate: velocity changes to 10/100/1000 notes per bar; one parameter at 30/60/120 Hz; automation points at the same rates | Done headless (3 s per case). **To do:** repeat in a real browser for 30 s per case, listening for dropouts; find what makes a single `modify()` on a large region cost 24+ ms |
-| 2 | Lead time: insert, change an existing note, insert into a looping region, at 0–300 ms ahead | Done headless: 30–50 ms. **To do:** repeat in a real browser. Pitch change stands in for velocity change, since the engine doesn't report velocity |
-| 3 | Automation added during playback: linear, curve, tempo, and on a parameter touched this pass | Done: all as expected. Checked through the value the engine applies, not by listening |
+| 2 | Lead time: insert, change an existing note, insert into a looping region, at 0–300 ms ahead | Done headless: 30–50 ms; one run missed 1 of 3 loop inserts at 300 ms, after hearing all from 30 ms (`make test` fails then). **To do:** repeat in a real browser; find the occasional loop miss. Pitch change stands in for velocity change, since the engine doesn't report velocity |
+| 3 | Automation added during playback: linear, curve, tempo, and on a parameter touched this pass | Done: all as expected. Checked through the value the engine applies, not by listening. Confirmed by hand in a real browser (live POC): grabbing a knob that has a lane turns the lane off until stop |
 | 4 | Agent edits during a drag: direct, `append()`, queue while held | Done: queue is the only one that keeps the drag its own undo step |
 | 5 | Held signal patch | Done: +9 lines in 2 files; fires on a grab without movement; address matches the updates |
 | 6 | Study draft loads and sounds with the network blocked (Playwright `route` abort for non-localhost requests) | **Blocked:** no study draft yet |
-| 7 | Effects and instruments changed during playback: insert/remove 7 effects, swap through 6 instruments, swap vs. layer crossfade vs. new track, lanes on a replaced or deleted device | Done headless: effects heard within one callback, no gaps; a swap or a wrap into layers cuts the sound until the next note; a crossfade on an already-wrapped track and a new track are gapless; lanes are deleted with their device, undo restores both. **To do:** listen in a real browser (click on a cut, the crossfade's dip); file-loading devices; why deleting a layer costs up to 320 ms |
+| 7 | Effects and instruments changed during playback: insert/remove the 16 allowed effects, swap through the 5 allowed instruments, swap vs. layer crossfade vs. new track, lanes on a replaced or deleted device | Done headless: effects heard within one callback, no gaps (Maximizer: one 2.7 ms gap); a swap or a wrap into layers cuts the sound until the next note; a crossfade on an already-wrapped track and a new track are gapless; lanes are deleted with their device, undo restores both. **To do:** listen in a real browser (click on a cut, the crossfade's dip); instruments that need samples; why deleting a layer costs up to 320 ms |
+| 8 | Device catalog: every instrument and effect, with its descriptions, parameters (name, range, default, values when stepped) and settings, read from openDAW | Done headless: 41 devices, 395 parameters, none failed; 33 allowed for agents, with 392 parameters; saved to `results/catalog.json`. **To do:** decide the hand-written notes per device (character, typical use) |
+| 9 | Library samples in openDAW: import `sample_library/` into the browser's sample storage, load sounds into Playfield pads, Nano, an audio track and Convolver during playback; time until heard, gaps | Partly done by hand in a real browser (live POC): the vinyl crackle imported with `project.env.sampleService.importFile({name, bpm: 0, arrayBuffer})` (no uuid: openDAW derives it from the file's SHA-256, so re-imports reuse it), an `AudioFileBox` with that uuid (its class taken from a box already in the project), and `api.createNotStretchedRegion` on a new Audio Track (`InstrumentFactories.Tape`), seconds time base, looped by setting `duration` beyond `loopDuration`. Heard; survived save and page reload with the project's automation and arrangement. **To do:** Nano, Playfield and Convolver; time until heard; an automated version |

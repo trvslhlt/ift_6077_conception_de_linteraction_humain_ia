@@ -6,15 +6,18 @@ import {EffectBox, EffectFactories, EffectFactory, type Project} from "@opendaw/
 import {createRig, Log, PerfProbe, playFromStart, position, ppqnToMs, Rig, round, sleep, writeAutomation} from "./Bench"
 import {Chunk, gaps, meanRms, msUntil, OutputTap, Silent} from "./OutputTap"
 import {ChangeCase, runInstrumentChanges} from "./InstrumentChange"
+import {AllowedAudioEffects, AllowedInstruments, AllowedMidiEffects, NeedsContent} from "./Allowed"
 
 // Check 7: agents changing devices during playback. Sound is read from the engine's output (OutputTap), with only
 // the rig under test soloed.
 // - baseline: a held note with no edits, for the gap count to compare against;
-// - effects: insert then remove each effect on a held note: gaps (silence inside the note) and audio blocks over
-//   budget. Stereo Tool goes in at -24 dB, so the time until the level drops is the time until an inserted effect is
-//   heard (and, on removal, until it is gone);
-// - swaps: replace the instrument of a rig playing a note every beat, as the device browser does. The new instrument
-//   doesn't receive notes already sounding, so it can be heard from the next note at the earliest;
+// - effects: insert then remove each allowed effect (Allowed.ts) on a held note: gaps (silence inside the note) and
+//   audio blocks over budget. Stereo Tool goes in at -24 dB, so the time until the level drops is the time until an
+//   inserted effect is heard (and, on removal, until it is gone). Some effects make gaps by design (Arpeggio, Gate,
+//   and Sink and Vocoder, which have no destination or second input here);
+// - swaps: replace the instrument of a rig playing a note every beat, through each allowed instrument that sounds
+//   without content (Allowed.ts), as the device browser does. The new instrument doesn't receive notes already
+//   sounding, so it can be heard from the next note at the earliest;
 // - changes: swap vs. crossfading layers vs. a new track (InstrumentChange.ts);
 // - lanes: what happens to an automation lane when its device is replaced or deleted, and whether one undo brings
 //   both back.
@@ -42,10 +45,9 @@ const ListenMs = 1000
 const SwapListenMs = 1500
 const BaselineMs = 2000
 const LevelDb = -24
-const Effects: ReadonlyArray<EffectFactory> = [EffectFactories.StereoTool, EffectFactories.Delay, EffectFactories.Reverb,
-    EffectFactories.DattorroReverb, EffectFactories.Compressor, EffectFactories.Crusher, EffectFactories.Tidal]
-const Instruments: ReadonlyArray<InstrumentFactory> = [InstrumentFactories.Tubular, InstrumentFactories.Neon,
-    InstrumentFactories.Cubed, InstrumentFactories.Korpus, InstrumentFactories.Apparat, InstrumentFactories.Vaporisateur]
+const Effects: ReadonlyArray<EffectFactory> = [...AllowedAudioEffects, ...AllowedMidiEffects]
+const Instruments: ReadonlyArray<InstrumentFactory> =
+    AllowedInstruments.filter(factory => !NeedsContent.includes(factory))
 
 export const runDeviceChanges = async (project: Project, sampleRate: number, log: Log): Promise<DeviceChangesResult> => {
     const tap = OutputTap.create()
@@ -75,7 +77,8 @@ export const runDeviceChanges = async (project: Project, sampleRate: number, log
             const label = levelled ? `${factory.defaultName} (${LevelDb} dB)` : factory.defaultName
             let effect: EffectBox | null = null
             effects.push(await measureEffect(project, tap, probe, `insert ${label}`, levelled ? "drops" : null, () => {
-                effect = project.api.insertEffect(held.audioUnitBox.audioEffects, factory)
+                effect = project.api.insertEffect(factory.type === "audio"
+                    ? held.audioUnitBox.audioEffects : held.audioUnitBox.midiEffects, factory)
                 if (effect instanceof StereoToolDeviceBox) {effect.volume.setValue(LevelDb)}
             }))
             effects.push(await measureEffect(project, tap, probe, `remove ${label}`, levelled ? "rises" : null,

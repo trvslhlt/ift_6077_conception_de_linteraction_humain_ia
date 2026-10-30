@@ -1,10 +1,14 @@
 import {createElement} from "@opendaw/lib-jsx"
 import {Lifecycle, Terminator} from "@opendaw/lib-std"
+import {PPQN} from "@opendaw/lib-dsp"
+import {Devices, InstrumentFactories} from "@opendaw/studio-adapters"
+import {EffectFactories, type Project} from "@opendaw/studio-core"
 import type {StudioService} from "@/service/StudioService"
 import {runEditRate} from "./EditRate"
 import {runLeadTime} from "./LeadTime"
 import {runAutomation} from "./Automation"
 import {runDeviceChanges} from "./DeviceChanges"
+import {runCatalog} from "./Catalog"
 import {AgentLoop, Strategy} from "./DragUndo"
 import {Holds} from "./Holds"
 
@@ -15,10 +19,15 @@ import {Holds} from "./Holds"
 type Construct = { lifecycle: Lifecycle, service: StudioService }
 
 export type EditBenchApi = {
+    // For live/eval.mjs: the open project, and what scripts sent to the page need to edit it.
+    project: Project
+    lib: { PPQN: typeof PPQN, Devices: typeof Devices, EffectFactories: typeof EffectFactories,
+        InstrumentFactories: typeof InstrumentFactories }
     editRate(seconds: number): Promise<unknown>
     leadTime(): Promise<unknown>
     automation(): Promise<unknown>
     devices(): Promise<unknown>
+    catalog(): Promise<unknown>
     startAgent(strategy: Strategy): void
     stopAgent(): unknown
     holds(): unknown
@@ -44,11 +53,12 @@ export const BenchPanel = ({lifecycle, service}: Construct): HTMLElement => {
     const leadTime = button("bench-lead-time", "2. Lead time")
     const automation = button("bench-automation", "3. Automation")
     const devices = button("bench-devices", "7. Devices")
+    const catalog = button("bench-catalog", "8. Catalog")
     const agentToggle = button("bench-agent", "4. Start agent")
     const strategy: HTMLSelectElement = (
         <select data-testid="bench-strategy">{Strategies.map(name => <option value={name}>{name}</option>)}</select>
     )
-    const runButtons = [editRate, leadTime, automation, devices]
+    const runButtons = [editRate, leadTime, automation, devices, catalog]
     const log = (line: string): void => {
         output.textContent += `${line}\n`
         output.scrollTop = output.scrollHeight
@@ -73,10 +83,13 @@ export const BenchPanel = ({lifecycle, service}: Construct): HTMLElement => {
                 let agent: AgentLoop | null = null
                 projectRuntime.own({terminate: () => agent?.stop()})
                 const api: EditBenchApi = {
+                    project,
+                    lib: {PPQN, Devices, EffectFactories, InstrumentFactories},
                     editRate: seconds => exclusive(() => runEditRate(project, service.audioContext.sampleRate, {seconds}, log)),
                     leadTime: () => exclusive(() => runLeadTime(project, log)),
                     automation: () => exclusive(() => runAutomation(project, log)),
                     devices: () => exclusive(() => runDeviceChanges(project, service.audioContext.sampleRate, log)),
+                    catalog: () => exclusive(() => runCatalog(project, log)),
                     startAgent: name => {
                         if (agent !== null) {return}
                         agent = new AgentLoop(project, holds, name)
@@ -112,6 +125,7 @@ export const BenchPanel = ({lifecycle, service}: Construct): HTMLElement => {
                 leadTime.onclick = () => api.leadTime()
                 automation.onclick = () => api.automation()
                 devices.onclick = () => api.devices()
+                catalog.onclick = () => api.catalog()
                 agentToggle.onclick = () => agent === null
                     ? api.startAgent(Strategies.find(name => name === strategy.value) ?? "direct")
                     : api.stopAgent()

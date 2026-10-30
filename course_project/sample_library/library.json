@@ -1,0 +1,2050 @@
+{
+  "about": "Sample library for the agents: each sound's description (hand-written, sources.json) and measurements (scripts/analyze.mjs). measured.brightness is the spectral centroid: dark < 600 Hz, warm < 1500, balanced < 3500, bright above. decaySeconds runs from the peak until 40 dB below it. Notes are sounding pitch in openDAW's naming, C3 = MIDI 60 = 261.6 Hz (measured.pitch checks them). Every sound is CC0.",
+  "sampleRate": 48000,
+  "samples": [
+    {
+      "id": "circuit-kick-808",
+      "file": "samples/circuit-kit/kick-808.wav",
+      "name": "808 Kick",
+      "kind": "drum hit",
+      "category": "kick",
+      "kit": "Circuit",
+      "gmNote": 36,
+      "tags": [
+        "electronic",
+        "boomy",
+        "sub",
+        "long",
+        "hip-hop",
+        "trap"
+      ],
+      "description": "Deep sine kick with a slow pitch drop and a long sub tail, in the style of a Roland TR-808.",
+      "devices": [
+        "Playfield"
+      ],
+      "source": {
+        "origin": "synthesized",
+        "license": "CC0-1.0",
+        "recipe": "scripts/synth.mjs: kick808"
+      },
+      "measured": {
+        "durationSeconds": 1.2,
+        "channels": 1,
+        "sampleRate": 48000,
+        "sizeKb": 113,
+        "peakDb": -1,
+        "rmsDb": -11.3,
+        "attackMs": 1,
+        "decaySeconds": 1.2,
+        "brightnessHz": 55,
+        "brightness": "dark"
+      }
+    },
+    {
+      "id": "circuit-kick-punch",
+      "file": "samples/circuit-kit/kick-punch.wav",
+      "name": "Punch Kick",
+      "kind": "drum hit",
+      "category": "kick",
+      "kit": "Circuit",
+      "gmNote": 35,
+      "tags": [
+        "electronic",
+        "punchy",
+        "tight",
+        "short",
+        "house",
+        "techno"
+      ],
+      "description": "Short, saturated kick with a click on the attack; cuts through a dense mix.",
+      "devices": [
+        "Playfield"
+      ],
+      "source": {
+        "origin": "synthesized",
+        "license": "CC0-1.0",
+        "recipe": "scripts/synth.mjs: kickPunch"
+      },
+      "measured": {
+        "durationSeconds": 0.5,
+        "channels": 1,
+        "sampleRate": 48000,
+        "sizeKb": 47,
+        "peakDb": -1,
+        "rmsDb": -11.4,
+        "attackMs": 0,
+        "decaySeconds": 0.5,
+        "brightnessHz": 77,
+        "brightness": "dark"
+      }
+    },
+    {
+      "id": "circuit-snare",
+      "file": "samples/circuit-kit/snare.wav",
+      "name": "Circuit Snare",
+      "kind": "drum hit",
+      "category": "snare",
+      "kit": "Circuit",
+      "gmNote": 38,
+      "tags": [
+        "electronic",
+        "snappy",
+        "bright",
+        "hip-hop",
+        "pop"
+      ],
+      "description": "Two-tone body with a burst of filtered noise; crisp and short.",
+      "devices": [
+        "Playfield"
+      ],
+      "source": {
+        "origin": "synthesized",
+        "license": "CC0-1.0",
+        "recipe": "scripts/synth.mjs: snare"
+      },
+      "measured": {
+        "durationSeconds": 0.4,
+        "channels": 1,
+        "sampleRate": 48000,
+        "sizeKb": 38,
+        "peakDb": -1,
+        "rmsDb": -17.8,
+        "attackMs": 0,
+        "decaySeconds": 0.39,
+        "brightnessHz": 5702,
+        "brightness": "bright"
+      }
+    },
+    {
+      "id": "circuit-clap",
+      "file": "samples/circuit-kit/clap.wav",
+      "name": "Circuit Clap",
+      "kind": "drum hit",
+      "category": "clap",
+      "kit": "Circuit",
+      "gmNote": 39,
+      "tags": [
+        "electronic",
+        "snappy",
+        "classic",
+        "house",
+        "pop"
+      ],
+      "description": "Three quick noise bursts and a short tail, like a drum machine hand clap.",
+      "devices": [
+        "Playfield"
+      ],
+      "source": {
+        "origin": "synthesized",
+        "license": "CC0-1.0",
+        "recipe": "scripts/synth.mjs: clap"
+      },
+      "measured": {
+        "durationSeconds": 0.5,
+        "channels": 1,
+        "sampleRate": 48000,
+        "sizeKb": 47,
+        "peakDb": -1,
+        "rmsDb": -18.2,
+        "attackMs": 41,
+        "decaySeconds": 0.46,
+        "brightnessHz": 2646,
+        "brightness": "balanced"
+      }
+    },
+    {
+      "id": "circuit-rim",
+      "file": "samples/circuit-kit/rim.wav",
+      "name": "Circuit Rim",
+      "kind": "drum hit",
+      "category": "rim",
+      "kit": "Circuit",
+      "gmNote": 37,
+      "tags": [
+        "electronic",
+        "clicky",
+        "short",
+        "tight"
+      ],
+      "description": "Tiny high click for rimshot and side-stick patterns.",
+      "devices": [
+        "Playfield"
+      ],
+      "source": {
+        "origin": "synthesized",
+        "license": "CC0-1.0",
+        "recipe": "scripts/synth.mjs: rim"
+      },
+      "measured": {
+        "durationSeconds": 0.08,
+        "channels": 1,
+        "sampleRate": 48000,
+        "sizeKb": 8,
+        "peakDb": -1,
+        "rmsDb": -16.5,
+        "attackMs": 0,
+        "decaySeconds": 0.08,
+        "brightnessHz": 1156,
+        "brightness": "warm"
+      }
+    },
+    {
+      "id": "circuit-hat-closed",
+      "file": "samples/circuit-kit/hat-closed.wav",
+      "name": "Closed Hat",
+      "kind": "drum hit",
+      "category": "hi-hat closed",
+      "kit": "Circuit",
+      "gmNote": 42,
+      "tags": [
+        "electronic",
+        "metallic",
+        "bright",
+        "short",
+        "tight"
+      ],
+      "description": "Short metallic tick from six detuned square waves; the driving hat for 8th and 16th patterns.",
+      "devices": [
+        "Playfield"
+      ],
+      "source": {
+        "origin": "synthesized",
+        "license": "CC0-1.0",
+        "recipe": "scripts/synth.mjs: hatClosed"
+      },
+      "measured": {
+        "durationSeconds": 0.2,
+        "channels": 1,
+        "sampleRate": 48000,
+        "sizeKb": 19,
+        "peakDb": -1,
+        "rmsDb": -21.2,
+        "attackMs": 10,
+        "decaySeconds": 0.15,
+        "brightnessHz": 14834,
+        "brightness": "bright"
+      }
+    },
+    {
+      "id": "circuit-hat-open",
+      "file": "samples/circuit-kit/hat-open.wav",
+      "name": "Open Hat",
+      "kind": "drum hit",
+      "category": "hi-hat open",
+      "kit": "Circuit",
+      "gmNote": 46,
+      "tags": [
+        "electronic",
+        "metallic",
+        "bright",
+        "sizzle"
+      ],
+      "description": "The closed hat's sound left ringing; classic on the offbeats in house.",
+      "devices": [
+        "Playfield"
+      ],
+      "source": {
+        "origin": "synthesized",
+        "license": "CC0-1.0",
+        "recipe": "scripts/synth.mjs: hatOpen"
+      },
+      "measured": {
+        "durationSeconds": 0.9,
+        "channels": 1,
+        "sampleRate": 48000,
+        "sizeKb": 84,
+        "peakDb": -1,
+        "rmsDb": -20.2,
+        "attackMs": 15,
+        "decaySeconds": 0.88,
+        "brightnessHz": 14794,
+        "brightness": "bright"
+      }
+    },
+    {
+      "id": "circuit-tom-low",
+      "file": "samples/circuit-kit/tom-low.wav",
+      "name": "Low Tom",
+      "kind": "drum hit",
+      "category": "tom",
+      "kit": "Circuit",
+      "gmNote": 45,
+      "tags": [
+        "electronic",
+        "round",
+        "boomy"
+      ],
+      "description": "Low pitched sine tom with a quick downward bend.",
+      "devices": [
+        "Playfield"
+      ],
+      "source": {
+        "origin": "synthesized",
+        "license": "CC0-1.0",
+        "recipe": "scripts/synth.mjs: tomLow"
+      },
+      "measured": {
+        "durationSeconds": 0.8,
+        "channels": 1,
+        "sampleRate": 48000,
+        "sizeKb": 75,
+        "peakDb": -1,
+        "rmsDb": -12.6,
+        "attackMs": 1,
+        "decaySeconds": 0.8,
+        "brightnessHz": 96,
+        "brightness": "dark"
+      }
+    },
+    {
+      "id": "circuit-tom-mid",
+      "file": "samples/circuit-kit/tom-mid.wav",
+      "name": "Mid Tom",
+      "kind": "drum hit",
+      "category": "tom",
+      "kit": "Circuit",
+      "gmNote": 47,
+      "tags": [
+        "electronic",
+        "round"
+      ],
+      "description": "Middle sine tom; fills between the low and high toms.",
+      "devices": [
+        "Playfield"
+      ],
+      "source": {
+        "origin": "synthesized",
+        "license": "CC0-1.0",
+        "recipe": "scripts/synth.mjs: tomMid"
+      },
+      "measured": {
+        "durationSeconds": 0.8,
+        "channels": 1,
+        "sampleRate": 48000,
+        "sizeKb": 75,
+        "peakDb": -1,
+        "rmsDb": -12.6,
+        "attackMs": 1,
+        "decaySeconds": 0.8,
+        "brightnessHz": 135,
+        "brightness": "dark"
+      }
+    },
+    {
+      "id": "circuit-tom-high",
+      "file": "samples/circuit-kit/tom-high.wav",
+      "name": "High Tom",
+      "kind": "drum hit",
+      "category": "tom",
+      "kit": "Circuit",
+      "gmNote": 50,
+      "tags": [
+        "electronic",
+        "round"
+      ],
+      "description": "High sine tom, the top of the fill.",
+      "devices": [
+        "Playfield"
+      ],
+      "source": {
+        "origin": "synthesized",
+        "license": "CC0-1.0",
+        "recipe": "scripts/synth.mjs: tomHigh"
+      },
+      "measured": {
+        "durationSeconds": 0.8,
+        "channels": 1,
+        "sampleRate": 48000,
+        "sizeKb": 75,
+        "peakDb": -1,
+        "rmsDb": -12.6,
+        "attackMs": 0,
+        "decaySeconds": 0.8,
+        "brightnessHz": 196,
+        "brightness": "dark"
+      }
+    },
+    {
+      "id": "circuit-cowbell",
+      "file": "samples/circuit-kit/cowbell.wav",
+      "name": "Circuit Cowbell",
+      "kind": "drum hit",
+      "category": "cowbell",
+      "kit": "Circuit",
+      "gmNote": 56,
+      "tags": [
+        "electronic",
+        "metallic",
+        "nasal",
+        "classic"
+      ],
+      "description": "Two square waves through a bandpass: the drum machine cowbell.",
+      "devices": [
+        "Playfield"
+      ],
+      "source": {
+        "origin": "synthesized",
+        "license": "CC0-1.0",
+        "recipe": "scripts/synth.mjs: cowbell"
+      },
+      "measured": {
+        "durationSeconds": 0.5,
+        "channels": 1,
+        "sampleRate": 48000,
+        "sizeKb": 47,
+        "peakDb": -1,
+        "rmsDb": -16,
+        "attackMs": 4,
+        "decaySeconds": 0.49,
+        "brightnessHz": 714,
+        "brightness": "warm"
+      }
+    },
+    {
+      "id": "circuit-crash",
+      "file": "samples/circuit-kit/crash.wav",
+      "name": "Circuit Crash",
+      "kind": "drum hit",
+      "category": "cymbal",
+      "kit": "Circuit",
+      "gmNote": 49,
+      "tags": [
+        "electronic",
+        "metallic",
+        "noisy",
+        "long",
+        "transition"
+      ],
+      "description": "Noisy metallic wash for the downbeat after a fill.",
+      "devices": [
+        "Playfield"
+      ],
+      "source": {
+        "origin": "synthesized",
+        "license": "CC0-1.0",
+        "recipe": "scripts/synth.mjs: crash"
+      },
+      "measured": {
+        "durationSeconds": 2.5,
+        "channels": 1,
+        "sampleRate": 48000,
+        "sizeKb": 234,
+        "peakDb": -1,
+        "rmsDb": -20.3,
+        "attackMs": 17,
+        "decaySeconds": 2.48,
+        "brightnessHz": 14148,
+        "brightness": "bright"
+      }
+    },
+    {
+      "id": "hall-kick",
+      "file": "samples/hall-percussion/kick.wav",
+      "name": "Concert Bass Drum",
+      "kind": "drum hit",
+      "category": "kick",
+      "kit": "Hall Percussion",
+      "gmNote": 36,
+      "tags": [
+        "acoustic",
+        "boomy",
+        "orchestral",
+        "cinematic",
+        "room"
+      ],
+      "description": "Large orchestral bass drum struck with a soft beater; deep and roomy rather than tight.",
+      "devices": [
+        "Playfield"
+      ],
+      "source": {
+        "origin": "VCSL",
+        "license": "CC0-1.0",
+        "path": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v5_rr1_Sum.wav",
+        "url": "https://github.com/sgossner/VCSL/blob/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bass%20Drum%201/BDrumNew_hit_v5_rr1_Sum.wav"
+      },
+      "measured": {
+        "durationSeconds": 2.465,
+        "channels": 2,
+        "sampleRate": 48000,
+        "sizeKb": 462,
+        "peakDb": -1,
+        "rmsDb": -24,
+        "attackMs": 24,
+        "decaySeconds": 1.15,
+        "brightnessHz": 97,
+        "brightness": "dark"
+      }
+    },
+    {
+      "id": "hall-snare",
+      "file": "samples/hall-percussion/snare.wav",
+      "name": "Acoustic Snare",
+      "kind": "drum hit",
+      "category": "snare",
+      "kit": "Hall Percussion",
+      "gmNote": 38,
+      "tags": [
+        "acoustic",
+        "snappy",
+        "natural",
+        "pop",
+        "rock"
+      ],
+      "description": "Modern snare drum, snares on, medium-hard stick hit.",
+      "devices": [
+        "Playfield"
+      ],
+      "source": {
+        "origin": "VCSL",
+        "license": "CC0-1.0",
+        "path": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v5_rr1_Mid.wav",
+        "url": "https://github.com/sgossner/VCSL/blob/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Snare%20Drum%2C%20Modern%201/Snare2_HitSN_v5_rr1_Mid.wav"
+      },
+      "measured": {
+        "durationSeconds": 1.355,
+        "channels": 2,
+        "sampleRate": 48000,
+        "sizeKb": 254,
+        "peakDb": -1,
+        "rmsDb": -26.3,
+        "attackMs": 11,
+        "decaySeconds": 1.1,
+        "brightnessHz": 1079,
+        "brightness": "warm"
+      }
+    },
+    {
+      "id": "hall-hat-closed",
+      "file": "samples/hall-percussion/hat-closed.wav",
+      "name": "Acoustic Closed Hat",
+      "kind": "drum hit",
+      "category": "hi-hat closed",
+      "kit": "Hall Percussion",
+      "gmNote": 42,
+      "tags": [
+        "acoustic",
+        "tight",
+        "natural",
+        "jazz",
+        "pop"
+      ],
+      "description": "Closed hi-hat, stick tip.",
+      "devices": [
+        "Playfield"
+      ],
+      "source": {
+        "origin": "VCSL",
+        "license": "CC0-1.0",
+        "path": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitC_v3_rr1_Mid.wav",
+        "url": "https://github.com/sgossner/VCSL/blob/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Hi-Hat%20Cymbal/HiHat_HitC_v3_rr1_Mid.wav"
+      },
+      "measured": {
+        "durationSeconds": 0.567,
+        "channels": 2,
+        "sampleRate": 48000,
+        "sizeKb": 106,
+        "peakDb": -1,
+        "rmsDb": -27.1,
+        "attackMs": 1,
+        "decaySeconds": 0.3,
+        "brightnessHz": 10544,
+        "brightness": "bright"
+      }
+    },
+    {
+      "id": "hall-hat-open",
+      "file": "samples/hall-percussion/hat-open.wav",
+      "name": "Acoustic Open Hat",
+      "kind": "drum hit",
+      "category": "hi-hat open",
+      "kit": "Hall Percussion",
+      "gmNote": 46,
+      "tags": [
+        "acoustic",
+        "sizzle",
+        "natural"
+      ],
+      "description": "Open hi-hat left to ring.",
+      "devices": [
+        "Playfield"
+      ],
+      "source": {
+        "origin": "VCSL",
+        "license": "CC0-1.0",
+        "path": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitO_rr1_Mid.wav",
+        "url": "https://github.com/sgossner/VCSL/blob/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Hi-Hat%20Cymbal/HiHat_HitO_rr1_Mid.wav"
+      },
+      "measured": {
+        "durationSeconds": 3,
+        "channels": 2,
+        "sampleRate": 48000,
+        "sizeKb": 563,
+        "peakDb": -1,
+        "rmsDb": -26.8,
+        "attackMs": 27,
+        "decaySeconds": 1.86,
+        "brightnessHz": 7009,
+        "brightness": "bright"
+      }
+    },
+    {
+      "id": "hall-tom",
+      "file": "samples/hall-percussion/tom.wav",
+      "name": "Acoustic Tom",
+      "kind": "drum hit",
+      "category": "tom",
+      "kit": "Hall Percussion",
+      "gmNote": 48,
+      "tags": [
+        "acoustic",
+        "round",
+        "natural"
+      ],
+      "description": "High concert tom, stick hit.",
+      "devices": [
+        "Playfield"
+      ],
+      "source": {
+        "origin": "VCSL",
+        "license": "CC0-1.0",
+        "path": "Membranophones/Struck Membranophones/Tom 1/Stick/TomH_HitS_v3_rr1_Mid.wav",
+        "url": "https://github.com/sgossner/VCSL/blob/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Tom%201/Stick/TomH_HitS_v3_rr1_Mid.wav"
+      },
+      "measured": {
+        "durationSeconds": 2,
+        "channels": 2,
+        "sampleRate": 48000,
+        "sizeKb": 375,
+        "peakDb": -1,
+        "rmsDb": -25.7,
+        "attackMs": 2,
+        "decaySeconds": 0.8,
+        "brightnessHz": 235,
+        "brightness": "dark"
+      }
+    },
+    {
+      "id": "hall-cymbal",
+      "file": "samples/hall-percussion/cymbal.wav",
+      "name": "Suspended Cymbal",
+      "kind": "drum hit",
+      "category": "cymbal",
+      "kit": "Hall Percussion",
+      "gmNote": 57,
+      "tags": [
+        "acoustic",
+        "shimmer",
+        "long",
+        "cinematic",
+        "transition"
+      ],
+      "description": "Suspended cymbal struck firmly; a long, shimmering crash.",
+      "devices": [
+        "Playfield"
+      ],
+      "source": {
+        "origin": "VCSL",
+        "license": "CC0-1.0",
+        "path": "Idiophones/Struck Idiophones/Suspended Cymbal 1/susCymb1_hit_f1.wav",
+        "url": "https://github.com/sgossner/VCSL/blob/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Suspended%20Cymbal%201/susCymb1_hit_f1.wav"
+      },
+      "measured": {
+        "durationSeconds": 4,
+        "channels": 2,
+        "sampleRate": 48000,
+        "sizeKb": 750,
+        "peakDb": -1,
+        "rmsDb": -19.8,
+        "attackMs": 130,
+        "decaySeconds": 3.82,
+        "brightnessHz": 2091,
+        "brightness": "balanced"
+      }
+    },
+    {
+      "id": "hall-clap",
+      "file": "samples/hall-percussion/clap.wav",
+      "name": "Hand Clap",
+      "kind": "drum hit",
+      "category": "clap",
+      "kit": "Hall Percussion",
+      "gmNote": 39,
+      "tags": [
+        "acoustic",
+        "human",
+        "group",
+        "pop",
+        "gospel"
+      ],
+      "description": "A group of real hand claps.",
+      "devices": [
+        "Playfield"
+      ],
+      "source": {
+        "origin": "VCSL",
+        "license": "CC0-1.0",
+        "path": "Idiophones/Struck Idiophones/Claps/Clap_rr1.wav",
+        "url": "https://github.com/sgossner/VCSL/blob/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Claps/Clap_rr1.wav"
+      },
+      "measured": {
+        "durationSeconds": 0.737,
+        "channels": 2,
+        "sampleRate": 48000,
+        "sizeKb": 138,
+        "peakDb": -1,
+        "rmsDb": -29.8,
+        "attackMs": 2,
+        "decaySeconds": 0.16,
+        "brightnessHz": 3018,
+        "brightness": "balanced"
+      }
+    },
+    {
+      "id": "hall-conga",
+      "file": "samples/hall-percussion/conga.wav",
+      "name": "Conga",
+      "kind": "drum hit",
+      "category": "hand drum",
+      "kit": "Hall Percussion",
+      "gmNote": 63,
+      "tags": [
+        "acoustic",
+        "latin",
+        "warm",
+        "organic"
+      ],
+      "description": "Open conga tone.",
+      "devices": [
+        "Playfield"
+      ],
+      "source": {
+        "origin": "VCSL",
+        "license": "CC0-1.0",
+        "path": "Membranophones/Struck Membranophones/Conga/Conga_HitN_v2_rr1_Sum.wav",
+        "url": "https://github.com/sgossner/VCSL/blob/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Conga/Conga_HitN_v2_rr1_Sum.wav"
+      },
+      "measured": {
+        "durationSeconds": 0.753,
+        "channels": 2,
+        "sampleRate": 48000,
+        "sizeKb": 141,
+        "peakDb": -1,
+        "rmsDb": -20.3,
+        "attackMs": 20,
+        "decaySeconds": 0.49,
+        "brightnessHz": 171,
+        "brightness": "dark"
+      }
+    },
+    {
+      "id": "hall-bongo-high",
+      "file": "samples/hall-percussion/bongo-high.wav",
+      "name": "Bongo High",
+      "kind": "drum hit",
+      "category": "hand drum",
+      "kit": "Hall Percussion",
+      "gmNote": 60,
+      "tags": [
+        "acoustic",
+        "latin",
+        "snappy",
+        "organic"
+      ],
+      "description": "High bongo, open stroke.",
+      "devices": [
+        "Playfield"
+      ],
+      "source": {
+        "origin": "VCSL",
+        "license": "CC0-1.0",
+        "path": "Membranophones/Struck Membranophones/Bongos/BongoH_Hit1_v2_rr1_Mid.wav",
+        "url": "https://github.com/sgossner/VCSL/blob/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bongos/BongoH_Hit1_v2_rr1_Mid.wav"
+      },
+      "measured": {
+        "durationSeconds": 0.715,
+        "channels": 2,
+        "sampleRate": 48000,
+        "sizeKb": 134,
+        "peakDb": -1,
+        "rmsDb": -26.1,
+        "attackMs": 7,
+        "decaySeconds": 0.39,
+        "brightnessHz": 408,
+        "brightness": "dark"
+      }
+    },
+    {
+      "id": "hall-bongo-low",
+      "file": "samples/hall-percussion/bongo-low.wav",
+      "name": "Bongo Low",
+      "kind": "drum hit",
+      "category": "hand drum",
+      "kit": "Hall Percussion",
+      "gmNote": 61,
+      "tags": [
+        "acoustic",
+        "latin",
+        "organic"
+      ],
+      "description": "Low bongo, open stroke.",
+      "devices": [
+        "Playfield"
+      ],
+      "source": {
+        "origin": "VCSL",
+        "license": "CC0-1.0",
+        "path": "Membranophones/Struck Membranophones/Bongos/BongoL_Hit1_v2_rr1_Mid.wav",
+        "url": "https://github.com/sgossner/VCSL/blob/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Membranophones/Struck%20Membranophones/Bongos/BongoL_Hit1_v2_rr1_Mid.wav"
+      },
+      "measured": {
+        "durationSeconds": 0.661,
+        "channels": 2,
+        "sampleRate": 48000,
+        "sizeKb": 124,
+        "peakDb": -1,
+        "rmsDb": -22.2,
+        "attackMs": 10,
+        "decaySeconds": 0.4,
+        "brightnessHz": 281,
+        "brightness": "dark"
+      }
+    },
+    {
+      "id": "hall-shaker",
+      "file": "samples/hall-percussion/shaker.wav",
+      "name": "Shaker",
+      "kind": "drum hit",
+      "category": "shaker",
+      "kit": "Hall Percussion",
+      "gmNote": 70,
+      "tags": [
+        "acoustic",
+        "airy",
+        "soft",
+        "groove",
+        "latin",
+        "pop"
+      ],
+      "description": "Small shaker, one down stroke; adds a soft 16th-note pulse.",
+      "devices": [
+        "Playfield"
+      ],
+      "source": {
+        "origin": "VCSL",
+        "license": "CC0-1.0",
+        "path": "Idiophones/Struck Idiophones/Shaker, Small/Mid_ShakerDouble_Down_rr1.wav",
+        "url": "https://github.com/sgossner/VCSL/blob/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Shaker%2C%20Small/Mid_ShakerDouble_Down_rr1.wav"
+      },
+      "measured": {
+        "durationSeconds": 0.263,
+        "channels": 2,
+        "sampleRate": 48000,
+        "sizeKb": 49,
+        "peakDb": -1,
+        "rmsDb": -23.9,
+        "attackMs": 38,
+        "decaySeconds": 0.19,
+        "brightnessHz": 9676,
+        "brightness": "bright"
+      }
+    },
+    {
+      "id": "hall-tambourine",
+      "file": "samples/hall-percussion/tambourine.wav",
+      "name": "Tambourine",
+      "kind": "drum hit",
+      "category": "tambourine",
+      "kit": "Hall Percussion",
+      "gmNote": 54,
+      "tags": [
+        "acoustic",
+        "jingly",
+        "bright",
+        "pop",
+        "gospel"
+      ],
+      "description": "Tambourine hit with jingles.",
+      "devices": [
+        "Playfield"
+      ],
+      "source": {
+        "origin": "VCSL",
+        "license": "CC0-1.0",
+        "path": "Idiophones/Struck Idiophones/Tambourine 1/Tamb1_Hit_v2_rr1_Mid.wav",
+        "url": "https://github.com/sgossner/VCSL/blob/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Tambourine%201/Tamb1_Hit_v2_rr1_Mid.wav"
+      },
+      "measured": {
+        "durationSeconds": 0.826,
+        "channels": 2,
+        "sampleRate": 48000,
+        "sizeKb": 155,
+        "peakDb": -1,
+        "rmsDb": -27.7,
+        "attackMs": 23,
+        "decaySeconds": 0.37,
+        "brightnessHz": 9286,
+        "brightness": "bright"
+      }
+    },
+    {
+      "id": "hall-cowbell",
+      "file": "samples/hall-percussion/cowbell.wav",
+      "name": "Acoustic Cowbell",
+      "kind": "drum hit",
+      "category": "cowbell",
+      "kit": "Hall Percussion",
+      "gmNote": 56,
+      "tags": [
+        "acoustic",
+        "metallic",
+        "latin",
+        "rock"
+      ],
+      "description": "Real cowbell, open hit.",
+      "devices": [
+        "Playfield"
+      ],
+      "source": {
+        "origin": "VCSL",
+        "license": "CC0-1.0",
+        "path": "Idiophones/Struck Idiophones/Cowbells/Cowbell1_Normal_v3_rr1_Mid.wav",
+        "url": "https://github.com/sgossner/VCSL/blob/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Cowbells/Cowbell1_Normal_v3_rr1_Mid.wav"
+      },
+      "measured": {
+        "durationSeconds": 0.578,
+        "channels": 2,
+        "sampleRate": 48000,
+        "sizeKb": 108,
+        "peakDb": -1,
+        "rmsDb": -28.9,
+        "attackMs": 6,
+        "decaySeconds": 0.3,
+        "brightnessHz": 936,
+        "brightness": "warm"
+      }
+    },
+    {
+      "id": "hall-claves",
+      "file": "samples/hall-percussion/claves.wav",
+      "name": "Claves",
+      "kind": "drum hit",
+      "category": "woodblock",
+      "kit": "Hall Percussion",
+      "gmNote": 75,
+      "tags": [
+        "acoustic",
+        "woody",
+        "clicky",
+        "latin"
+      ],
+      "description": "Two hardwood sticks struck together; a sharp, pitched click for clave rhythms.",
+      "devices": [
+        "Playfield"
+      ],
+      "source": {
+        "origin": "VCSL",
+        "license": "CC0-1.0",
+        "path": "Idiophones/Struck Idiophones/Claves/Claves1_Hit_v2_rr1_Mid.wav",
+        "url": "https://github.com/sgossner/VCSL/blob/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Claves/Claves1_Hit_v2_rr1_Mid.wav"
+      },
+      "measured": {
+        "durationSeconds": 0.782,
+        "channels": 2,
+        "sampleRate": 48000,
+        "sizeKb": 147,
+        "peakDb": -1,
+        "rmsDb": -30.1,
+        "attackMs": 0,
+        "decaySeconds": 0.38,
+        "brightnessHz": 2128,
+        "brightness": "balanced"
+      }
+    },
+    {
+      "id": "hall-woodblock",
+      "file": "samples/hall-percussion/woodblock.wav",
+      "name": "Woodblock",
+      "kind": "drum hit",
+      "category": "woodblock",
+      "kit": "Hall Percussion",
+      "gmNote": 76,
+      "tags": [
+        "acoustic",
+        "woody",
+        "hollow",
+        "clicky"
+      ],
+      "description": "Hollow woodblock knock.",
+      "devices": [
+        "Playfield"
+      ],
+      "source": {
+        "origin": "VCSL",
+        "license": "CC0-1.0",
+        "path": "Idiophones/Struck Idiophones/Woodblock/wood_click_f_rr1.wav",
+        "url": "https://github.com/sgossner/VCSL/blob/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Woodblock/wood_click_f_rr1.wav"
+      },
+      "measured": {
+        "durationSeconds": 0.406,
+        "channels": 2,
+        "sampleRate": 48000,
+        "sizeKb": 76,
+        "peakDb": -1,
+        "rmsDb": -25.4,
+        "attackMs": 10,
+        "decaySeconds": 0.2,
+        "brightnessHz": 1445,
+        "brightness": "warm"
+      }
+    },
+    {
+      "id": "piano-upright-c4",
+      "file": "samples/keys/piano-upright-c4.wav",
+      "name": "Upright Piano",
+      "kind": "one-shot",
+      "category": "piano",
+      "note": "C4",
+      "tags": [
+        "acoustic",
+        "warm",
+        "intimate",
+        "sustained",
+        "pop",
+        "ballad",
+        "lo-fi"
+      ],
+      "description": "Yamaha upright piano, the C above middle C, medium touch; warmer and more intimate than a grand.",
+      "devices": [
+        "Nano"
+      ],
+      "midiNote": 72,
+      "source": {
+        "origin": "VCSL",
+        "license": "CC0-1.0",
+        "path": "Chordophones/Zithers/Upright Piano, Yamaha/Sustains/Upright1_Sus_C4_vl2_rr1.wav",
+        "url": "https://github.com/sgossner/VCSL/blob/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Chordophones/Zithers/Upright%20Piano%2C%20Yamaha/Sustains/Upright1_Sus_C4_vl2_rr1.wav"
+      },
+      "measured": {
+        "durationSeconds": 5,
+        "channels": 2,
+        "sampleRate": 48000,
+        "sizeKb": 938,
+        "peakDb": -1,
+        "rmsDb": -32.2,
+        "attackMs": 26,
+        "decaySeconds": 3.56,
+        "brightnessHz": 905,
+        "brightness": "warm",
+        "pitch": {
+          "hz": 522.3,
+          "note": "C4",
+          "centsFromNote": -3
+        }
+      }
+    },
+    {
+      "id": "fm-piano-c2",
+      "file": "samples/keys/fm-piano-c2.wav",
+      "name": "FM Electric Piano",
+      "kind": "one-shot",
+      "category": "electric piano",
+      "note": "C2",
+      "tags": [
+        "electronic",
+        "vintage",
+        "glassy",
+        "80s",
+        "bell-like"
+      ],
+      "description": "Yamaha TX81Z FM electric piano: glassy, bell-like attack, the 80s ballad keys.",
+      "devices": [
+        "Nano"
+      ],
+      "midiNote": 48,
+      "source": {
+        "origin": "VCSL",
+        "license": "CC0-1.0",
+        "path": "Electrophones/TX81Z/FM Piano/FMPiano_C3_vl2.wav",
+        "url": "https://github.com/sgossner/VCSL/blob/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Electrophones/TX81Z/FM%20Piano/FMPiano_C3_vl2.wav"
+      },
+      "measured": {
+        "durationSeconds": 4,
+        "channels": 1,
+        "sampleRate": 48000,
+        "sizeKb": 375,
+        "peakDb": -1,
+        "rmsDb": -16.5,
+        "attackMs": 2,
+        "decaySeconds": 3.95,
+        "brightnessHz": 307,
+        "brightness": "dark",
+        "pitch": {
+          "hz": 130.6,
+          "note": "C2",
+          "centsFromNote": -2
+        }
+      }
+    },
+    {
+      "id": "clavisynth-c4",
+      "file": "samples/keys/clavisynth-c4.wav",
+      "name": "Clavisynth",
+      "kind": "one-shot",
+      "category": "keys",
+      "note": "C4",
+      "tags": [
+        "electronic",
+        "vintage",
+        "funky",
+        "plucky",
+        "nasal"
+      ],
+      "description": "TX81Z clavinet-like patch: plucky and nasal, for funk comping.",
+      "devices": [
+        "Nano"
+      ],
+      "midiNote": 72,
+      "source": {
+        "origin": "VCSL",
+        "license": "CC0-1.0",
+        "path": "Electrophones/TX81Z/Clavisynth/Clavisynth_C3_vl2.wav",
+        "url": "https://github.com/sgossner/VCSL/blob/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Electrophones/TX81Z/Clavisynth/Clavisynth_C3_vl2.wav"
+      },
+      "measured": {
+        "durationSeconds": 3,
+        "channels": 1,
+        "sampleRate": 48000,
+        "sizeKb": 281,
+        "peakDb": -1,
+        "rmsDb": -19.1,
+        "attackMs": 9,
+        "decaySeconds": 2.55,
+        "brightnessHz": 1085,
+        "brightness": "warm",
+        "pitch": {
+          "hz": 524,
+          "note": "C4",
+          "centsFromNote": 2
+        }
+      }
+    },
+    {
+      "id": "organ-pipe-c3",
+      "file": "samples/keys/organ-pipe-c3.wav",
+      "name": "Pipe Organ",
+      "kind": "one-shot",
+      "category": "organ",
+      "note": "C3",
+      "tags": [
+        "acoustic",
+        "sustained",
+        "majestic",
+        "church",
+        "cinematic"
+      ],
+      "description": "Church pipe organ, open loud manual stop; a held, majestic tone.",
+      "devices": [
+        "Nano"
+      ],
+      "midiNote": 60,
+      "source": {
+        "origin": "VCSL",
+        "license": "CC0-1.0",
+        "path": "Aerophones/Edge-blown Aerophones/Pipe Organ/Loud/Rode_Man3Open_C3.wav",
+        "url": "https://github.com/sgossner/VCSL/blob/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Aerophones/Edge-blown%20Aerophones/Pipe%20Organ/Loud/Rode_Man3Open_C3.wav"
+      },
+      "measured": {
+        "durationSeconds": 4,
+        "channels": 2,
+        "sampleRate": 48000,
+        "sizeKb": 750,
+        "peakDb": -1,
+        "rmsDb": -14.1,
+        "attackMs": 2110,
+        "decaySeconds": 1.79,
+        "brightnessHz": 567,
+        "brightness": "dark",
+        "pitch": {
+          "hz": 261.3,
+          "note": "C3",
+          "centsFromNote": -2
+        }
+      }
+    },
+    {
+      "id": "vibraphone-c3",
+      "file": "samples/mallets/vibraphone-c3.wav",
+      "name": "Vibraphone",
+      "kind": "one-shot",
+      "category": "mallet",
+      "note": "C3",
+      "tags": [
+        "acoustic",
+        "mellow",
+        "jazz",
+        "shimmer",
+        "lounge"
+      ],
+      "description": "Vibraphone struck with hard mallets; mellow metal bars with a long ring.",
+      "devices": [
+        "Nano"
+      ],
+      "midiNote": 60,
+      "source": {
+        "origin": "VCSL",
+        "license": "CC0-1.0",
+        "path": "Idiophones/Struck Idiophones/Vibraphone/Hard Mallets/Vibes_hard_C3_v3_rr1_Main.wav",
+        "url": "https://github.com/sgossner/VCSL/blob/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Vibraphone/Hard%20Mallets/Vibes_hard_C3_v3_rr1_Main.wav"
+      },
+      "measured": {
+        "durationSeconds": 4,
+        "channels": 2,
+        "sampleRate": 48000,
+        "sizeKb": 750,
+        "peakDb": -1,
+        "rmsDb": -24.1,
+        "attackMs": 1,
+        "decaySeconds": 3.81,
+        "brightnessHz": 2065,
+        "brightness": "balanced",
+        "pitch": {
+          "hz": 261.5,
+          "note": "C3",
+          "centsFromNote": -1
+        }
+      }
+    },
+    {
+      "id": "marimba-c4",
+      "file": "samples/mallets/marimba-c4.wav",
+      "name": "Marimba",
+      "kind": "one-shot",
+      "category": "mallet",
+      "note": "C4",
+      "tags": [
+        "acoustic",
+        "woody",
+        "warm",
+        "short",
+        "world",
+        "pop"
+      ],
+      "description": "Marimba, medium stroke; warm wooden bars with a short decay.",
+      "devices": [
+        "Nano"
+      ],
+      "midiNote": 72,
+      "source": {
+        "origin": "VCSL",
+        "license": "CC0-1.0",
+        "path": "Idiophones/Struck Idiophones/Marimba/Marimba_hit_Outrigger_C4_med_01.wav",
+        "url": "https://github.com/sgossner/VCSL/blob/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Marimba/Marimba_hit_Outrigger_C4_med_01.wav"
+      },
+      "measured": {
+        "durationSeconds": 2,
+        "channels": 2,
+        "sampleRate": 48000,
+        "sizeKb": 375,
+        "peakDb": -1,
+        "rmsDb": -24.6,
+        "attackMs": 25,
+        "decaySeconds": 1.37,
+        "brightnessHz": 528,
+        "brightness": "dark",
+        "pitch": {
+          "hz": 524.6,
+          "note": "C4",
+          "centsFromNote": 4
+        }
+      }
+    },
+    {
+      "id": "glockenspiel-c5",
+      "file": "samples/mallets/glockenspiel-c5.wav",
+      "name": "Glockenspiel",
+      "kind": "one-shot",
+      "category": "mallet",
+      "note": "C5",
+      "tags": [
+        "acoustic",
+        "bright",
+        "sparkly",
+        "bell-like",
+        "cinematic",
+        "childlike"
+      ],
+      "description": "Glockenspiel, medium stroke; small steel bars, very bright and sparkly.",
+      "devices": [
+        "Nano"
+      ],
+      "midiNote": 84,
+      "source": {
+        "origin": "VCSL",
+        "license": "CC0-1.0",
+        "path": "Idiophones/Struck Idiophones/Glockenspiel/glock_medium_C5_01.wav",
+        "url": "https://github.com/sgossner/VCSL/blob/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Struck%20Idiophones/Glockenspiel/glock_medium_C5_01.wav"
+      },
+      "measured": {
+        "durationSeconds": 3,
+        "channels": 2,
+        "sampleRate": 48000,
+        "sizeKb": 563,
+        "peakDb": -1,
+        "rmsDb": -25.2,
+        "attackMs": 9,
+        "decaySeconds": 2.74,
+        "brightnessHz": 2508,
+        "brightness": "balanced",
+        "pitch": {
+          "hz": 1053.6,
+          "note": "C5",
+          "centsFromNote": 12
+        }
+      }
+    },
+    {
+      "id": "kalimba-cs4",
+      "file": "samples/mallets/kalimba-cs4.wav",
+      "name": "Kalimba",
+      "kind": "one-shot",
+      "category": "plucked",
+      "note": "C#4",
+      "tags": [
+        "acoustic",
+        "plucky",
+        "organic",
+        "world",
+        "lo-fi",
+        "soft"
+      ],
+      "description": "Tanzanian mbira (kalimba) tine plucked with the thumb; soft, buzzy and organic.",
+      "devices": [
+        "Nano"
+      ],
+      "midiNote": 73,
+      "source": {
+        "origin": "VCSL",
+        "license": "CC0-1.0",
+        "path": "Idiophones/Plucked Idiophones/Kalimba, Tanzania/MBira3_pluck_Main_C#4_k5_50_100_rr2.wav",
+        "url": "https://github.com/sgossner/VCSL/blob/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Idiophones/Plucked%20Idiophones/Kalimba%2C%20Tanzania/MBira3_pluck_Main_C%234_k5_50_100_rr2.wav"
+      },
+      "measured": {
+        "durationSeconds": 1.647,
+        "channels": 2,
+        "sampleRate": 48000,
+        "sizeKb": 309,
+        "peakDb": -1,
+        "rmsDb": -27.8,
+        "attackMs": 7,
+        "decaySeconds": 1.1,
+        "brightnessHz": 915,
+        "brightness": "warm",
+        "pitch": {
+          "hz": 557.5,
+          "note": "C#4",
+          "centsFromNote": 10
+        }
+      }
+    },
+    {
+      "id": "harp-a3",
+      "file": "samples/strings/harp-a3.wav",
+      "name": "Concert Harp",
+      "kind": "one-shot",
+      "category": "plucked",
+      "note": "A3",
+      "tags": [
+        "acoustic",
+        "plucky",
+        "elegant",
+        "cinematic",
+        "classical"
+      ],
+      "description": "Concert harp string plucked mezzo-forte; clear and elegant.",
+      "devices": [
+        "Nano"
+      ],
+      "midiNote": 69,
+      "source": {
+        "origin": "VCSL",
+        "license": "CC0-1.0",
+        "path": "Chordophones/Composite Chordophones/Concert Harp/KSHarp_A4_mf1.wav",
+        "url": "https://github.com/sgossner/VCSL/blob/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Chordophones/Composite%20Chordophones/Concert%20Harp/KSHarp_A4_mf1.wav"
+      },
+      "measured": {
+        "durationSeconds": 4,
+        "channels": 2,
+        "sampleRate": 48000,
+        "sizeKb": 750,
+        "peakDb": -1,
+        "rmsDb": -28.9,
+        "attackMs": 9,
+        "decaySeconds": 3.1,
+        "brightnessHz": 503,
+        "brightness": "dark",
+        "pitch": {
+          "hz": 437.9,
+          "note": "A3",
+          "centsFromNote": -8
+        }
+      }
+    },
+    {
+      "id": "sax-tenor-c4",
+      "file": "samples/winds/sax-tenor-c4.wav",
+      "name": "Tenor Sax",
+      "kind": "one-shot",
+      "category": "wind",
+      "note": "C4",
+      "tags": [
+        "acoustic",
+        "breathy",
+        "sustained",
+        "jazz",
+        "soul"
+      ],
+      "description": "Tenor saxophone, held note without vibrato; breathy and warm.",
+      "devices": [
+        "Nano"
+      ],
+      "midiNote": 72,
+      "source": {
+        "origin": "VCSL",
+        "license": "CC0-1.0",
+        "path": "Aerophones/Reed Aerophones/Tenor Saxophone/Non-Vibrato/BrettTenor_NV_Main_C4_vl2_rr1.wav",
+        "url": "https://github.com/sgossner/VCSL/blob/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Aerophones/Reed%20Aerophones/Tenor%20Saxophone/Non-Vibrato/BrettTenor_NV_Main_C4_vl2_rr1.wav"
+      },
+      "measured": {
+        "durationSeconds": 4,
+        "channels": 2,
+        "sampleRate": 48000,
+        "sizeKb": 750,
+        "peakDb": -1,
+        "rmsDb": -14.3,
+        "attackMs": 73,
+        "decaySeconds": 3.87,
+        "brightnessHz": 829,
+        "brightness": "warm",
+        "pitch": {
+          "hz": 523.2,
+          "note": "C4",
+          "centsFromNote": 0
+        }
+      }
+    },
+    {
+      "id": "sax-tenor-stab-c4",
+      "file": "samples/winds/sax-tenor-stab-c4.wav",
+      "name": "Tenor Sax Stab",
+      "kind": "one-shot",
+      "category": "wind",
+      "note": "C4",
+      "tags": [
+        "acoustic",
+        "short",
+        "punchy",
+        "funk",
+        "soul"
+      ],
+      "description": "Tenor saxophone, short staccato note for horn stabs.",
+      "devices": [
+        "Nano"
+      ],
+      "midiNote": 72,
+      "source": {
+        "origin": "VCSL",
+        "license": "CC0-1.0",
+        "path": "Aerophones/Reed Aerophones/Tenor Saxophone/Staccato/BrettTenor_Staccato_Main_C4_vl2_rr3.wav",
+        "url": "https://github.com/sgossner/VCSL/blob/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/Aerophones/Reed%20Aerophones/Tenor%20Saxophone/Staccato/BrettTenor_Staccato_Main_C4_vl2_rr3.wav"
+      },
+      "measured": {
+        "durationSeconds": 0.504,
+        "channels": 2,
+        "sampleRate": 48000,
+        "sizeKb": 95,
+        "peakDb": -1,
+        "rmsDb": -21.9,
+        "attackMs": 44,
+        "decaySeconds": 0.27,
+        "brightnessHz": 1401,
+        "brightness": "warm",
+        "pitch": {
+          "hz": 527,
+          "note": "C4",
+          "centsFromNote": 13
+        }
+      }
+    },
+    {
+      "id": "sub-bass-c1",
+      "file": "samples/synth/sub-bass-c1.wav",
+      "name": "Sub Bass",
+      "kind": "one-shot",
+      "category": "bass",
+      "note": "C1",
+      "tags": [
+        "electronic",
+        "sub",
+        "deep",
+        "clean",
+        "hip-hop",
+        "trap"
+      ],
+      "description": "Lightly saturated sine bass; felt more than heard, sits under everything.",
+      "devices": [
+        "Nano"
+      ],
+      "midiNote": 36,
+      "source": {
+        "origin": "synthesized",
+        "license": "CC0-1.0",
+        "recipe": "scripts/synth.mjs: subBassC1"
+      },
+      "measured": {
+        "durationSeconds": 2,
+        "channels": 1,
+        "sampleRate": 48000,
+        "sizeKb": 188,
+        "peakDb": -1,
+        "rmsDb": -7.9,
+        "attackMs": 3,
+        "decaySeconds": 1.99,
+        "brightnessHz": 66,
+        "brightness": "dark",
+        "pitch": {
+          "hz": 65.5,
+          "note": "C1",
+          "centsFromNote": 2
+        }
+      }
+    },
+    {
+      "id": "saw-bass-c1",
+      "file": "samples/synth/saw-bass-c1.wav",
+      "name": "Saw Bass",
+      "kind": "one-shot",
+      "category": "bass",
+      "note": "C1",
+      "tags": [
+        "electronic",
+        "gritty",
+        "plucky",
+        "house",
+        "techno"
+      ],
+      "description": "Sawtooth bass with a closing filter: bright bite on the attack, round body after.",
+      "devices": [
+        "Nano"
+      ],
+      "midiNote": 36,
+      "source": {
+        "origin": "synthesized",
+        "license": "CC0-1.0",
+        "recipe": "scripts/synth.mjs: sawBassC1"
+      },
+      "measured": {
+        "durationSeconds": 1.5,
+        "channels": 1,
+        "sampleRate": 48000,
+        "sizeKb": 141,
+        "peakDb": -1,
+        "rmsDb": -14.5,
+        "attackMs": 14,
+        "decaySeconds": 1.48,
+        "brightnessHz": 116,
+        "brightness": "dark",
+        "pitch": {
+          "hz": 65.3,
+          "note": "C1",
+          "centsFromNote": -3
+        }
+      }
+    },
+    {
+      "id": "pluck-c3",
+      "file": "samples/synth/pluck-c3.wav",
+      "name": "String Pluck",
+      "kind": "one-shot",
+      "category": "plucked",
+      "note": "C3",
+      "tags": [
+        "electronic",
+        "plucky",
+        "bright",
+        "short",
+        "pop"
+      ],
+      "description": "Karplus-Strong plucked string: a synthetic guitar-like pluck.",
+      "devices": [
+        "Nano"
+      ],
+      "midiNote": 60,
+      "source": {
+        "origin": "synthesized",
+        "license": "CC0-1.0",
+        "recipe": "scripts/synth.mjs: pluckC3"
+      },
+      "measured": {
+        "durationSeconds": 2,
+        "channels": 1,
+        "sampleRate": 48000,
+        "sizeKb": 188,
+        "peakDb": -1,
+        "rmsDb": -24,
+        "attackMs": 0,
+        "decaySeconds": 1.83,
+        "brightnessHz": 2162,
+        "brightness": "balanced",
+        "pitch": {
+          "hz": 263.1,
+          "note": "C3",
+          "centsFromNote": 9
+        }
+      }
+    },
+    {
+      "id": "pad-c2",
+      "file": "samples/synth/pad-c2.wav",
+      "name": "Warm Pad",
+      "kind": "one-shot",
+      "category": "pad",
+      "note": "C2",
+      "tags": [
+        "electronic",
+        "warm",
+        "wide",
+        "sustained",
+        "ambient",
+        "slow attack"
+      ],
+      "description": "Detuned saw pad on an open C chord (C, G, C, E), slow attack, stereo; plays chords from one key.",
+      "devices": [
+        "Nano"
+      ],
+      "midiNote": 48,
+      "source": {
+        "origin": "synthesized",
+        "license": "CC0-1.0",
+        "recipe": "scripts/synth.mjs: padC2"
+      },
+      "measured": {
+        "durationSeconds": 4,
+        "channels": 2,
+        "sampleRate": 48000,
+        "sizeKb": 750,
+        "peakDb": -1,
+        "rmsDb": -15,
+        "attackMs": 1713,
+        "decaySeconds": 1.86,
+        "brightnessHz": 396,
+        "brightness": "dark"
+      }
+    },
+    {
+      "id": "stab-cm7",
+      "file": "samples/synth/stab-cm7.wav",
+      "name": "Minor 7 Stab",
+      "kind": "one-shot",
+      "category": "chord stab",
+      "note": "C2",
+      "tags": [
+        "electronic",
+        "short",
+        "punchy",
+        "house",
+        "garage"
+      ],
+      "description": "Filtered saw chord stab, C minor 7; the classic deep house chord.",
+      "devices": [
+        "Nano"
+      ],
+      "midiNote": 48,
+      "source": {
+        "origin": "synthesized",
+        "license": "CC0-1.0",
+        "recipe": "scripts/synth.mjs: stabCm7"
+      },
+      "measured": {
+        "durationSeconds": 1,
+        "channels": 1,
+        "sampleRate": 48000,
+        "sizeKb": 94,
+        "peakDb": -1,
+        "rmsDb": -20.2,
+        "attackMs": 25,
+        "decaySeconds": 0.79,
+        "brightnessHz": 470,
+        "brightness": "dark"
+      }
+    },
+    {
+      "id": "loop-drums-120",
+      "file": "samples/loops/drums-120.wav",
+      "name": "House Beat 120",
+      "kind": "loop",
+      "category": "drums",
+      "bpm": 120,
+      "bars": 2,
+      "timeSignature": "4/4",
+      "tags": [
+        "electronic",
+        "house",
+        "four on the floor",
+        "driving"
+      ],
+      "description": "Kick on every beat, clap on 2 and 4, closed hats on 8ths, open hats on the offbeats; Circuit kit sounds.",
+      "devices": [
+        "Audio Track"
+      ],
+      "source": {
+        "origin": "synthesized",
+        "license": "CC0-1.0",
+        "recipe": "scripts/synth.mjs: drums120"
+      },
+      "measured": {
+        "durationSeconds": 4,
+        "channels": 1,
+        "sampleRate": 48000,
+        "sizeKb": 375,
+        "peakDb": -1,
+        "rmsDb": -13.6,
+        "decaySeconds": 3.5,
+        "brightnessHz": 504,
+        "brightness": "dark",
+        "loopSeconds": 4
+      }
+    },
+    {
+      "id": "loop-drums-90",
+      "file": "samples/loops/drums-90.wav",
+      "name": "Boom Bap 90",
+      "kind": "loop",
+      "category": "drums",
+      "bpm": 90,
+      "bars": 2,
+      "timeSignature": "4/4",
+      "tags": [
+        "electronic",
+        "hip-hop",
+        "boom bap",
+        "laid-back"
+      ],
+      "description": "808 kick on a syncopated pattern, snare on 2 and 4, 8th-note hats; Circuit kit sounds.",
+      "devices": [
+        "Audio Track"
+      ],
+      "source": {
+        "origin": "synthesized",
+        "license": "CC0-1.0",
+        "recipe": "scripts/synth.mjs: drums90"
+      },
+      "measured": {
+        "durationSeconds": 5.333,
+        "channels": 1,
+        "sampleRate": 48000,
+        "sizeKb": 500,
+        "peakDb": -1,
+        "rmsDb": -17.2,
+        "decaySeconds": 3.32,
+        "brightnessHz": 638,
+        "brightness": "warm",
+        "loopSeconds": 5.333
+      }
+    },
+    {
+      "id": "loop-perc-120",
+      "file": "samples/loops/perc-120.wav",
+      "name": "Percussion Groove 120",
+      "kind": "loop",
+      "category": "percussion",
+      "bpm": 120,
+      "bars": 2,
+      "timeSignature": "4/4",
+      "tags": [
+        "electronic",
+        "syncopated",
+        "layer",
+        "house"
+      ],
+      "description": "Rims, cowbell and two toms in a syncopated pattern, to layer over a beat.",
+      "devices": [
+        "Audio Track"
+      ],
+      "source": {
+        "origin": "synthesized",
+        "license": "CC0-1.0",
+        "recipe": "scripts/synth.mjs: perc120"
+      },
+      "measured": {
+        "durationSeconds": 4,
+        "channels": 1,
+        "sampleRate": 48000,
+        "sizeKb": 375,
+        "peakDb": -1,
+        "rmsDb": -20.8,
+        "decaySeconds": 0.37,
+        "brightnessHz": 591,
+        "brightness": "dark",
+        "loopSeconds": 4
+      }
+    },
+    {
+      "id": "loop-bass-120",
+      "file": "samples/loops/bass-120.wav",
+      "name": "Bassline in A minor 120",
+      "kind": "loop",
+      "category": "bass",
+      "bpm": 120,
+      "bars": 2,
+      "timeSignature": "4/4",
+      "key": "A minor",
+      "chords": [
+        "Am",
+        "F G"
+      ],
+      "tags": [
+        "electronic",
+        "groovy",
+        "syncopated",
+        "house"
+      ],
+      "description": "Syncopated saw bassline: A for one bar, then F and G.",
+      "devices": [
+        "Audio Track"
+      ],
+      "source": {
+        "origin": "synthesized",
+        "license": "CC0-1.0",
+        "recipe": "scripts/synth.mjs: bass120"
+      },
+      "measured": {
+        "durationSeconds": 4,
+        "channels": 1,
+        "sampleRate": 48000,
+        "sizeKb": 375,
+        "peakDb": -1,
+        "rmsDb": -15.3,
+        "decaySeconds": 1.6,
+        "brightnessHz": 258,
+        "brightness": "dark",
+        "loopSeconds": 4
+      }
+    },
+    {
+      "id": "loop-chords-120",
+      "file": "samples/loops/chords-120.wav",
+      "name": "Chords in A minor 120",
+      "kind": "loop",
+      "category": "chords",
+      "bpm": 120,
+      "bars": 4,
+      "timeSignature": "4/4",
+      "key": "A minor",
+      "chords": [
+        "Am",
+        "F",
+        "C",
+        "G"
+      ],
+      "tags": [
+        "electronic",
+        "warm",
+        "wide",
+        "pop",
+        "emotional"
+      ],
+      "description": "Warm pad chords, one per bar: Am, F, C, G.",
+      "devices": [
+        "Audio Track"
+      ],
+      "source": {
+        "origin": "synthesized",
+        "license": "CC0-1.0",
+        "recipe": "scripts/synth.mjs: chords120"
+      },
+      "measured": {
+        "durationSeconds": 8,
+        "channels": 2,
+        "sampleRate": 48000,
+        "sizeKb": 1500,
+        "peakDb": -1,
+        "rmsDb": -14.6,
+        "decaySeconds": 7.32,
+        "brightnessHz": 356,
+        "brightness": "dark",
+        "loopSeconds": 8
+      }
+    },
+    {
+      "id": "vinyl-crackle",
+      "file": "samples/textures/vinyl-crackle.wav",
+      "name": "Vinyl Crackle",
+      "kind": "texture",
+      "category": "vinyl",
+      "tags": [
+        "lo-fi",
+        "dusty",
+        "nostalgic",
+        "background",
+        "loop"
+      ],
+      "description": "Record surface noise: soft hiss, fine crackle and the odd low pop. Loops seamlessly at any tempo; sits under a mix at -20 to -30 dB.",
+      "devices": [
+        "Audio Track"
+      ],
+      "source": {
+        "origin": "synthesized",
+        "license": "CC0-1.0",
+        "recipe": "scripts/synth.mjs: vinyl"
+      },
+      "measured": {
+        "durationSeconds": 8,
+        "channels": 2,
+        "sampleRate": 48000,
+        "sizeKb": 1500,
+        "peakDb": -1,
+        "rmsDb": -39.2,
+        "decaySeconds": 1.91,
+        "brightnessHz": 5110,
+        "brightness": "bright"
+      }
+    },
+    {
+      "id": "ir-room",
+      "file": "samples/impulse-responses/room.wav",
+      "name": "Small Room",
+      "kind": "impulse response",
+      "category": "room",
+      "tags": [
+        "short",
+        "natural",
+        "tight",
+        "intimate"
+      ],
+      "description": "Small room with early reflections and a 0.45 s decay; puts a dry sound in a space without washing it out.",
+      "devices": [
+        "Convolver"
+      ],
+      "source": {
+        "origin": "synthesized",
+        "license": "CC0-1.0",
+        "recipe": "scripts/synth.mjs: irRoom"
+      },
+      "measured": {
+        "durationSeconds": 0.8,
+        "channels": 2,
+        "sampleRate": 48000,
+        "sizeKb": 150,
+        "peakDb": -0.1,
+        "rmsDb": -30,
+        "attackMs": 0,
+        "decaySeconds": 0.22,
+        "brightnessHz": 8697,
+        "brightness": "bright"
+      }
+    },
+    {
+      "id": "ir-plate",
+      "file": "samples/impulse-responses/plate.wav",
+      "name": "Bright Plate",
+      "kind": "impulse response",
+      "category": "plate",
+      "tags": [
+        "bright",
+        "dense",
+        "smooth",
+        "vocals",
+        "snare"
+      ],
+      "description": "Dense, bright plate-style reverb, 1.8 s decay, no pre-delay.",
+      "devices": [
+        "Convolver"
+      ],
+      "source": {
+        "origin": "synthesized",
+        "license": "CC0-1.0",
+        "recipe": "scripts/synth.mjs: irPlate"
+      },
+      "measured": {
+        "durationSeconds": 2.5,
+        "channels": 2,
+        "sampleRate": 48000,
+        "sizeKb": 469,
+        "peakDb": -0.1,
+        "rmsDb": -25.7,
+        "attackMs": 0,
+        "decaySeconds": 0.92,
+        "brightnessHz": 11088,
+        "brightness": "bright"
+      }
+    },
+    {
+      "id": "ir-hall",
+      "file": "samples/impulse-responses/hall.wav",
+      "name": "Large Hall",
+      "kind": "impulse response",
+      "category": "hall",
+      "tags": [
+        "long",
+        "lush",
+        "cinematic",
+        "ambient"
+      ],
+      "description": "Large hall, 2.8 s decay with 20 ms pre-delay; highs fade first, so it darkens as it decays.",
+      "devices": [
+        "Convolver"
+      ],
+      "source": {
+        "origin": "synthesized",
+        "license": "CC0-1.0",
+        "recipe": "scripts/synth.mjs: irHall"
+      },
+      "measured": {
+        "durationSeconds": 4,
+        "channels": 2,
+        "sampleRate": 48000,
+        "sizeKb": 750,
+        "peakDb": -0.1,
+        "rmsDb": -31.3,
+        "attackMs": 0,
+        "decaySeconds": 1.4,
+        "brightnessHz": 8420,
+        "brightness": "bright"
+      }
+    },
+    {
+      "id": "ir-cabinet",
+      "file": "samples/impulse-responses/cabinet.wav",
+      "name": "Speaker Cabinet",
+      "kind": "impulse response",
+      "category": "cabinet",
+      "tags": [
+        "lo-fi",
+        "midrange",
+        "boxy",
+        "telephone"
+      ],
+      "description": "Speaker-cabinet filter (90 Hz to 4.2 kHz, mid hump); boxy, lo-fi tone rather than a space. Use with dry at -inf.",
+      "devices": [
+        "Convolver"
+      ],
+      "source": {
+        "origin": "synthesized",
+        "license": "CC0-1.0",
+        "recipe": "scripts/synth.mjs: irCabinet"
+      },
+      "measured": {
+        "durationSeconds": 0.03,
+        "channels": 1,
+        "sampleRate": 48000,
+        "sizeKb": 3,
+        "peakDb": -0.1,
+        "rmsDb": -24.5,
+        "attackMs": 0,
+        "decaySeconds": 0,
+        "brightnessHz": 0,
+        "brightness": "dark"
+      }
+    }
+  ]
+}
