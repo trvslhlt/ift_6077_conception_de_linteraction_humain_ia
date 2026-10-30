@@ -1,0 +1,4 @@
+# Allowlist. The image clones openDAW itself and needs only the patch from here.
+# src/ is bind-mounted at run time (compose.yaml), not baked in.
+*
+!opendaw.patch

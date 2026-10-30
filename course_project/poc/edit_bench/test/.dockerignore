@@ -1,0 +1,5 @@
+# Allowlist: only what test/Dockerfile copies.
+*
+!package.json
+!package-lock.json
+!smoke.mjs

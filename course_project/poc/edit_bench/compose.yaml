@@ -1,0 +1,37 @@
+# Edit bench POC. Drive it through the Makefile, which also selects the buildx builder.
+# Every container, network and image here belongs to the compose project "opendaw-edit-bench".
+# There are no volumes: openDAW keeps projects and preferences in the browser (see README.md).
+name: opendaw-edit-bench
+
+services:
+  studio:
+    build:
+      context: .
+      target: dev
+    ports:
+      # Bound to localhost only. The port is part of the browser origin that owns the saved projects.
+      - "127.0.0.1:${PORT:-8080}:8080"
+    volumes:
+      # Our code, live, at the path opendaw.patch imports from (kept as team_view: the bench extends the team view).
+      - ./src:/src/packages/app/studio/src/team_view:ro
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 60s
+      start_interval: 1s
+
+  smoke:
+    build: test
+    profiles: [test]
+    # Shares the studio's network namespace, so the page is served from localhost (a secure context).
+    network_mode: service:studio
+    environment:
+      EDIT_RATE_SECONDS: ${EDIT_RATE_SECONDS:-3}
+    volumes:
+      # The test writes each run's measurements here (git-ignored).
+      - ./results:/test/results
+    depends_on:
+      studio:
+        condition: service_healthy

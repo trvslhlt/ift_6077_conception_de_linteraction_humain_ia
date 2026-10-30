@@ -1,0 +1,64 @@
+# Everything Docker creates for this POC is in compose project "opendaw-edit-bench" (compose.yaml):
+# containers, network, images. `make clean` removes all of it and nothing else.
+# Builds use the repo's shared buildx builder (docker/builder.mk), which `make clean` leaves alone.
+
+PROJECT := opendaw-edit-bench
+REPO_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))../../..)
+PORT ?= 8080
+URL := http://localhost:$(PORT)
+TYPES_DIR := .opendaw
+
+export PORT
+COMPOSE := docker compose --profile test
+
+.PHONY: help builder build up down restart logs status open shell test types usage clean
+
+help: ## List targets
+	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
+
+include $(REPO_ROOT)/docker/builder.mk
+
+build: builder ## Build the dev studio and test images (openDAW itself comes from the shared cache)
+	$(COMPOSE) build
+	@docker image prune -f --filter label=com.docker.compose.project=$(PROJECT) >/dev/null
+
+up: build ## Start the studio (Vite dev server, src/ live) and wait until it is healthy
+	$(COMPOSE) up -d --wait studio
+	@echo "openDAW running at $(URL) (edit bench: the floating robot button)"
+
+down: ## Stop and remove the containers and network
+	$(COMPOSE) down --remove-orphans
+
+restart: down up ## Recreate the studio container
+
+logs: ## Follow Vite's output
+	$(COMPOSE) logs -f studio
+
+status: ## Show container state and check the page responds
+	@$(COMPOSE) ps
+	@curl -fsS -o /dev/null -w 'HTTP %{http_code}\n' $(URL) || echo "not responding at $(URL)"
+
+open: ## Open the studio in the default browser
+	open $(URL)
+
+shell: ## Shell into the running studio container
+	$(COMPOSE) exec studio sh
+
+test: build ## Run the bench checks in headless Chromium (starts the studio if needed)
+	$(COMPOSE) run --rm smoke
+
+types: build ## Copy openDAW's source and types out of the image into .opendaw/, for the editor (see tsconfig.json)
+	rm -rf $(TYPES_DIR) && mkdir -p $(TYPES_DIR)
+	docker run --rm --entrypoint tar $(PROJECT)-studio -C /src -c \
+		--exclude=./.git --exclude=./crates --exclude=./packages/app/studio/dist --exclude='*.wasm' . \
+		| tar -x -C $(TYPES_DIR)
+	ln -sfn $(TYPES_DIR)/node_modules node_modules
+	@du -sh $(TYPES_DIR)
+
+usage: ## Show disk used by this POC's images (shared build cache: `make -C docker usage` from the repo root)
+	@docker image ls --filter label=com.docker.compose.project=$(PROJECT)
+
+clean: ## Remove all containers, images and network of this POC (not the shared builder), and .opendaw/
+	$(COMPOSE) down --remove-orphans --rmi local
+	rm -rf $(TYPES_DIR) node_modules
+	-docker image prune -f --filter label=com.docker.compose.project=$(PROJECT)

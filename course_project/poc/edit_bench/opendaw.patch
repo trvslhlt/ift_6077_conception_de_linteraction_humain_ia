@@ -1,0 +1,78 @@
+diff --git a/packages/app/studio/src/ui/App.tsx b/packages/app/studio/src/ui/App.tsx
+index 7ea008a..1df33e9 100644
+--- a/packages/app/studio/src/ui/App.tsx
++++ b/packages/app/studio/src/ui/App.tsx
+@@ -31,6 +31,7 @@ import {DevicePreviewPage} from "@/ui/pages/DevicePreviewPage"
+ import {DevicePreviewRoute} from "@/service/StudioNavigation"
+ import {SampleEditorPage} from "@/ui/pages/SampleEditorPage"
+ import {SampleEditorRoute} from "@/service/SampleEditorService"
++import {TeamHost} from "@/team_view/TeamHost"
+ 
+ const StandaloneRoutes: ReadonlySet<string> = new Set([SampleEditorRoute])
+ 
+@@ -96,6 +97,7 @@ export const App = (service: StudioService) => {
+                 ]}
+             />
+             <ChatOverlay lifecycle={terminator} service={service}/>
++            <TeamHost lifecycle={terminator} service={service}/>
+             {footer}
+         </Frag>
+     )
+diff --git a/packages/app/studio/vite.config.ts b/packages/app/studio/vite.config.ts
+index 8e0e82c..144d37c 100644
+--- a/packages/app/studio/vite.config.ts
++++ b/packages/app/studio/vite.config.ts
+@@ -32,6 +32,8 @@ export default defineConfig(({command}) => {
+             }
+         },
+         optimizeDeps: {
++            // Found only after the first page load otherwise, which makes Vite reload the page mid-boot.
++            include: ["markdown-it", "markdown-it-table"],
+             exclude: ["@ffmpeg/ffmpeg", "@ffmpeg/util", "monaco-editor", "onnxruntime-web",
+                 "@opendaw/studio-icons", "@opendaw/studio-markdown", "@opendaw/studio-scrollbars"]
+         },
+diff --git a/packages/app/studio/src/ui/components/VolumeSlider.tsx b/packages/app/studio/src/ui/components/VolumeSlider.tsx
+index 458e2fc..96a92cc 100644
+--- a/packages/app/studio/src/ui/components/VolumeSlider.tsx
++++ b/packages/app/studio/src/ui/components/VolumeSlider.tsx
+@@ -170,6 +170,7 @@ export const VolumeSlider = ({lifecycle, editing, parameter, markers = DefaultVo
+             dragLifecycle.own(ValueDragging.installUnitValueRelativeDragging((event: PointerEvent) => Option.wrap({
+                 start: (): unitValue => {
+                     editing.mark()
++                    wrapper.dispatchEvent(new CustomEvent("parameter-hold", {bubbles: true, detail: {parameter, held: true}}))
+                     if (event.target === thumb) {
+                         return parameter.getUnitValue()
+                     } else {
+@@ -181,7 +182,9 @@ export const VolumeSlider = ({lifecycle, editing, parameter, markers = DefaultVo
+                 modify: (value: unitValue) => editing.modify(() => parameter.setUnitValue(value), false),
+                 cancel: (prevValue: unitValue) => editing.modify(() => parameter.setUnitValue(prevValue), false),
+                 finalise: (_prevValue: unitValue, _newValue: unitValue): void => editing.mark(),
+-                finally: (): void => {}
++                finally: (): void => {
++                    wrapper.dispatchEvent(new CustomEvent("parameter-hold", {bubbles: true, detail: {parameter, held: false}}))
++                }
+             }), wrapper, {
+                 trackLength: trackLength - snapLength,
+                 snap: {snapLength, threshold: parameter.valueMapping.x(0.0)},
+diff --git a/packages/app/studio/src/ui/wrapper/RelativeUnitValueDragging.tsx b/packages/app/studio/src/ui/wrapper/RelativeUnitValueDragging.tsx
+index 7e2514d..03a776a 100644
+--- a/packages/app/studio/src/ui/wrapper/RelativeUnitValueDragging.tsx
++++ b/packages/app/studio/src/ui/wrapper/RelativeUnitValueDragging.tsx
+@@ -74,12 +74,16 @@ export const RelativeUnitValueDragging = ({
+             start: (): unitValue => {
+                 editing.mark()
+                 element.classList.add("modifying")
++                element.dispatchEvent(new CustomEvent("parameter-hold", {bubbles: true, detail: {parameter, held: true}}))
+                 return parameter.getUnitValue()
+             },
+             modify: (value: unitValue) => editing.modify(() => parameter.setUnitValue(value), false),
+             cancel: (prevValue: unitValue) => editing.modify(() => parameter.setUnitValue(prevValue), false),
+             finalise: (_prevValue: unitValue, _newValue: unitValue): void => editing.mark(),
+-            finally: (): void => element.classList.remove("modifying")
++            finally: (): void => {
++                element.classList.remove("modifying")
++                element.dispatchEvent(new CustomEvent("parameter-hold", {bubbles: true, detail: {parameter, held: false}}))
++            }
+         }), element, options),
+         StudioPreferences.catchupAndSubscribe((() => {
+             const terminator = lifecycle.own(new Terminator())
