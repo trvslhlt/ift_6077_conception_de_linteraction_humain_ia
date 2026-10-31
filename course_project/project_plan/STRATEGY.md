@@ -4,6 +4,31 @@ Decisions about how we build the system, and why. openDAW facts they rely on are
 Markers refer to OPENDAW.md's "Checks" (run with `poc/edit_bench`): *(check N)* means the check confirmed the
 decision; *(check N, headless)* means it rests on headless numbers still to be repeated in a real browser.
 
+## Changing openDAW
+
+openDAW is pinned to one commit for the life of the project, so a patch never has to follow upstream changes. The
+remaining risk is breaking what already works, and that is testable: openDAW's own test suite runs in our build
+(the studio app's 222 tests passed with our patch, ~90 s), and our smoke test exercises the paths we rely on.
+So changes to openDAW are allowed, under rules, rather than off limits:
+
+- **Our layer first.** The team view and the bus reach the open project's objects directly (`project`,
+  `project.api`, adapters, `liveStreamReceiver`, `engine`), and so far that has covered everything except the
+  hold signal: devices, notes, automation, samples, recording, meters, offline renders. A patch is for what has no
+  path at all.
+- **Patches add hooks; they don't change behaviour.** An event, a data attribute, an exported handle (as the hold
+  signal's +9 lines). No changes to existing behaviour, to the box schema (`forge-boxes`: the saved project
+  format) or to the engine (Rust/WASM, `core-processors`: the audio thread, where breakage is audible and slow to
+  rebuild).
+- **Every hunk is listed with its reason** in the POC's README ("What the patch touches"), including why no API
+  path existed.
+- **Tests gate it.** The build runs openDAW's tests for every package a patch touches, plus our smoke test; a
+  failure blocks it. To add: a `make test-opendaw` target.
+- **Kept small.** Today: 4 files, about 15 lines. A need that would take more than ~100 lines is a sign to rethink
+  the design first.
+
+Likely next candidate: marking controls with their parameter address (a data attribute on knobs and faders), so
+the team view can point at a control for visible presence (FEATURES.md).
+
 ## Where things run
 
 - **Speech stays outside openDAW.** Capture and speech-to-text belong to the team/AI layer, not openDAW. openDAW
@@ -202,7 +227,8 @@ waiting for a safe landing point (up to a whole 8-bar loop, ~23 s) and deliberat
 ## Session record
 
 - **A checkpoint when the team view opens, and a change log for the whole session.** The checkpoint is the project
-  in openDAW's own format, saved alongside rather than as a second project. The log is every change with who made
+  in openDAW's own format (`project.toArrayBuffer()`, restored with `Project.load`), saved alongside rather than as
+  a second project; openDAW has no autosave. The log is every change with who made
   it (user, which agent, undo) and when. Together they restore, compare and replay a session, and are the study's
   data. Undo history alone loses things: in the live POC a click on the loop button cleared the redo stack.
 

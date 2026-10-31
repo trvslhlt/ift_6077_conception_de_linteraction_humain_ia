@@ -2,7 +2,8 @@
 // from project_plan/OPENDAW.md ("Checks") through window.editBench:
 //   8.   the device catalog (saved to results/catalog.json);
 //   4+5. an agent editing every 250 ms while a knob is dragged (direct, append, queue), and the held signal;
-//   3.   automation written during playback; 7. effects and instruments changed during playback; 2. lead time;
+//   3.   automation written during playback; 7. effects and instruments changed during playback; 10. open
+//        behaviour questions; 2. lead time;
 //   1.   edit rate (EDIT_RATE_SECONDS per case).
 // Checks with an expected outcome PASS or FAIL; measurements are printed and saved to results/ (bind-mounted).
 // Headless numbers are indicative only: run the bench from its buttons in a real browser for the figures we report.
@@ -164,6 +165,18 @@ try {
     check("every swapped instrument sounds within 1.5 s", devices.swaps.every(row => row.msToSound !== null),
         devices.swaps.filter(row => row.msToSound === null).map(row => row.to).join(", "))
     check("one undo restores a device and its lane", devices.lanes.every(lane => lane.undoRestores))
+
+    console.log("\n10. open questions")
+    const questions = await page.evaluate(() => window.editBench.questions())
+    results.questions = questions
+    const rec = questions.recording
+    console.log(`      recording: automation recording on by default ${rec.automationEnabledByDefault}; adapter writes -> `
+        + `${rec.adapterWrites.regions} region(s), ${rec.adapterWrites.events} points; field writes -> lane ${rec.fieldWrites.lane}`)
+    console.log(`      recording over an agent lane: before ${rec.overLane.before.join(", ")}; after ${rec.overLane.after.join(", ")}`)
+    console.log(`      timeline end (${questions.timelineEnd.endBar}): playing after ${questions.timelineEnd.playingAfter}, at ${questions.timelineEnd.positionAfter}`)
+    for (const row of questions.loopBoundary) {console.log(`      note ${row.note}: heard ${row.heard}`)}
+    for (const row of questions.samplers) {console.log(`      ${row.device}: sound after ${row.msToSound ?? "never"} ms, ${row.gaps} gaps (longest ${row.longestGapMs} ms)`)}
+    check("open questions ran", true)
 
     console.log("\n2. lead time (ms ahead of engine.position as the main thread sees it)")
     const lead = await page.evaluate(() => window.editBench.leadTime())

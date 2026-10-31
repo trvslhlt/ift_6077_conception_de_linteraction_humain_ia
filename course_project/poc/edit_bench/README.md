@@ -35,6 +35,7 @@ buttons in a real browser, in a scratch project: each check adds its own instrum
 | 5 | Held line / `holds()` | shows the parameters held right now, from the patch below; `holds()` lists each hold and whether its address matched the updates it caused |
 | 7 | Devices / `devices()` | inserts then removes each effect agents may add (`src/Allowed.ts`) on a held note, then swaps a pulsing synth through each allowed instrument, then compares three ways to change an instrument (swap, crossfading layers with and without wrapping first, new track), measuring gaps, level dips and timing from the engine's output (`OutputTap`); then checks whether an automation lane survives its device being replaced or deleted, and whether undo restores it |
 | 8 | Catalog / `catalog()` | creates, reads and deletes every instrument and effect (stopped), listing each one's descriptions, automatable parameters (name, range, default, stepped values) and other settings; `make test` saves it to `results/catalog.json` |
+| 10 | Open questions / `questions()` | while openDAW records: an agent's adapter writes, field writes, and writes over an agent's lane; playback past the timeline's end; notes crossing a loop's end; time until Nano, Playfield and Convolver sound after a sample (generated, imported through openDAW's sample service) is assigned |
 
 Check 6 (the study draft offline) waits for the draft.
 
@@ -68,7 +69,7 @@ hunk is team_view's unchanged.
 - `src/BenchPanel.tsx`: the bench's buttons and output; defines `window.editBench`
 - `src/Bench.ts`: shared helpers: a synth rig, transport, automation writing, `PerfProbe`
 - `src/EditRate.ts`, `src/LeadTime.ts`, `src/Automation.ts`, `src/DragUndo.ts`, `src/Holds.ts`, `src/DeviceChanges.ts`,
-  `src/Catalog.ts`: checks 1–5, 7 and 8 (`src/InstrumentChange.ts`: check 7's instrument change comparison)
+  `src/Catalog.ts`, `src/OpenQuestions.ts`: checks 1–5, 7, 8 and 10 (`src/InstrumentChange.ts`: check 7's instrument change comparison)
 - `src/Allowed.ts`: the instruments and effects agents may add (project_plan/STRATEGY.md)
 - `src/OutputTap.ts`: reads the engine's output through an AnalyserNode. openDAW keeps the engine node private, so
   it wraps `AudioNode.prototype.connect` to catch the node connecting to the speakers

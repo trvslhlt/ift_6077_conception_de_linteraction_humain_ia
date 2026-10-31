@@ -9,6 +9,7 @@ import {runLeadTime} from "./LeadTime"
 import {runAutomation} from "./Automation"
 import {runDeviceChanges} from "./DeviceChanges"
 import {runCatalog} from "./Catalog"
+import {runOpenQuestions} from "./OpenQuestions"
 import {AgentLoop, Strategy} from "./DragUndo"
 import {Holds} from "./Holds"
 
@@ -28,6 +29,7 @@ export type EditBenchApi = {
     automation(): Promise<unknown>
     devices(): Promise<unknown>
     catalog(): Promise<unknown>
+    questions(): Promise<unknown>
     startAgent(strategy: Strategy): void
     stopAgent(): unknown
     holds(): unknown
@@ -54,11 +56,12 @@ export const BenchPanel = ({lifecycle, service}: Construct): HTMLElement => {
     const automation = button("bench-automation", "3. Automation")
     const devices = button("bench-devices", "7. Devices")
     const catalog = button("bench-catalog", "8. Catalog")
+    const questions = button("bench-questions", "10. Open questions")
     const agentToggle = button("bench-agent", "4. Start agent")
     const strategy: HTMLSelectElement = (
         <select data-testid="bench-strategy">{Strategies.map(name => <option value={name}>{name}</option>)}</select>
     )
-    const runButtons = [editRate, leadTime, automation, devices, catalog]
+    const runButtons = [editRate, leadTime, automation, devices, catalog, questions]
     const log = (line: string): void => {
         output.textContent += `${line}\n`
         output.scrollTop = output.scrollHeight
@@ -90,6 +93,7 @@ export const BenchPanel = ({lifecycle, service}: Construct): HTMLElement => {
                     automation: () => exclusive(() => runAutomation(project, log)),
                     devices: () => exclusive(() => runDeviceChanges(project, service.audioContext.sampleRate, log)),
                     catalog: () => exclusive(() => runCatalog(project, log)),
+                    questions: () => exclusive(() => runOpenQuestions(project, log)),
                     startAgent: name => {
                         if (agent !== null) {return}
                         agent = new AgentLoop(project, holds, name)
@@ -126,6 +130,7 @@ export const BenchPanel = ({lifecycle, service}: Construct): HTMLElement => {
                 automation.onclick = () => api.automation()
                 devices.onclick = () => api.devices()
                 catalog.onclick = () => api.catalog()
+                questions.onclick = () => api.questions()
                 agentToggle.onclick = () => agent === null
                     ? api.startAgent(Strategies.find(name => name === strategy.value) ?? "direct")
                     : api.stopAgent()

@@ -164,14 +164,25 @@ its own edit ("the bass I added is inaudible below 150 Hz on laptop speakers"). 
 was present, unmuted and at -5 dB was inaudible to the producer: notes at 49–82 Hz. Design notes are in
 STRATEGY.md ("What agents know", the Listening part). Likely high impact on how capable the team feels.
 
-## Session view: keep the whole performance
+## Timeline-first: keep the whole performance
 
-**What.** Instead of a loop that overwrites itself, the performance is captured so it can be edited afterwards,
-as with Ableton's session view: parts are clips that can be launched and varied, and what was played (each clip
-launch, each change, at its time) is recorded into the arrangement. Every change then lives at a place on the
-timeline. openDAW has clips (`NoteClipBox`, `api.createNoteClip`) and clip sequencing in its engine; whether it
-records launches into the arrangement is to be checked. A simpler first step: play forward with the loop off, the
-agent extending each part ahead of the playhead and writing each bar's version, changes included, in place.
+**What.** Instead of a loop that overwrites itself, the performance is captured on the timeline so it can be
+edited afterwards: notes and automation at the place they happened. Decided (2026-10-30): work in openDAW's
+timeline, not clips. The performance needs automation recorded, not only parts placed, and the timeline holds
+both.
+
+**How.** The loop is off and the playhead runs forward. Agents write ahead of the playhead: each part is extended
+bar by bar (or phrase by phrase) with that bar's version, changes included, and their parameter changes go in as
+automation lanes (STRATEGY.md, "Changes over time"). The producer records: openDAW's own recording turns every
+parameter move into automation while it records (`core/src/capture/RecordAutomation.ts`: it listens to
+`parameterFieldAdapters.subscribeWrites`, and a pause over 100 ms holds the value). Checked (check 10): agents'
+writes through parameter adapters are recorded the same way (writes straight to a box field aren't), recording
+over an agent's lane replaces only the span it recorded, and playback runs on past the timeline's end.
+
+**Clips, for reference.** openDAW has clips and clip sequencing, but doesn't record clip playback into the
+arrangement: MIDI recording captures only the MIDI input (a controller or the on-screen keyboard), so recording
+while a clip plays makes an empty "Take" (checked 2026-10-30). Clip launches are observable
+(`engine.subscribeClipNotification`), should we come back to clips.
 
 **The starting state.** When the team view opens, the bus saves a checkpoint of the project in openDAW's own
 format (not a copy as a second project), and keeps the change log (who changed what, when) for the whole session.
