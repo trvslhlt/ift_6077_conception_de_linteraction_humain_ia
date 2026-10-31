@@ -31,7 +31,8 @@ the team view can point at a control for visible presence (FEATURES.md).
 
 ## Where things run
 
-- **Speech stays outside openDAW.** Capture and speech-to-text belong to the team/AI layer, not openDAW. openDAW
+- **Speech stays outside openDAW, and is a stretch goal** (inputs are text, controls and demonstration; FEATURES.md).
+  Capture and speech-to-text belong to the team/AI layer, not openDAW. openDAW
   only ever receives edits. This keeps speech-to-text free of the studio page's cross-origin isolation (COOP/COEP)
   rules.
 - **Model calls go through a local proxy, not straight from the browser.** The proxy holds the API key and is where
@@ -54,7 +55,7 @@ demonstration signal in itself.
 
 ## What agents know
 
-Agents never see openDAW's API. What they know comes from the bus's agent-facing interface, the **agentTeamAPI**
+The contracts are specified in [AGENT_TEAM_API.md](AGENT_TEAM_API.md). Agents never see openDAW's API. What they know comes from the bus's agent-facing interface, the **agentTeamAPI**
 (tentative name), in five parts that change at different rates:
 
 | Part | Content | Changes | How agents get it |
@@ -86,9 +87,9 @@ Agents never see openDAW's API. What they know comes from the bus's agent-facing
   user holds it. Devices whose parameters the catalog can't list (layers, scripts, WebCLAP) are read this way.
 - **Changes carry who made them** (user, which agent, or undo), using the origin tagging in OPENDAW.md ("Telling
   our changes from the user's").
-- **Open: whether playback state is its own part.** The playhead position changes every frame, and neither it nor
-  play/stop is project data or undoable (tempo is project data). The likely answer is a separate query, sent with
-  each request's context so the agent knows where the playhead is; to decide with the bus's design.
+- **Playback state is its own query** (decided in AGENT_TEAM_API.md): not project data, not in the change stream.
+  Every message carries the time and playhead position, and each model call that can produce a request gets the
+  playback state in its context.
 
 - **Agents can listen, not only read the project.** A mixing agent (and any agent checking its own edit) needs what
   is actually heard, which the project data can't tell: a bass line that is in the project, unmuted, at -5 dB, was

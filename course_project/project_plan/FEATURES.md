@@ -1,7 +1,19 @@
 # Features
 
 Features we intend to build but haven't designed in detail. How we build things is in [STRATEGY.md](STRATEGY.md);
-openDAW facts are in [OPENDAW.md](OPENDAW.md).
+openDAW facts are in [OPENDAW.md](OPENDAW.md); the agents' interface is in [AGENT_TEAM_API.md](AGENT_TEAM_API.md).
+
+**Decided (2026-10-31), ahead of the interaction design:**
+
+- **Inputs: text, controls and demonstration.** Speech is a stretch goal, added outside the DAW (speech-to-text
+  feeding the same text channel).
+- **A prep conversation comes first.** Before playing, the producer and the team talk through the session in the
+  team chat; it sets up the agents, the project and the controls each agent will be steered with.
+- **For both producing and performing.** A performance is captured on the timeline (see "Timeline-first"), so all,
+  or at least most, of what happens in it can be edited afterwards.
+- **Two kinds of control** (see "Intent controls"): macros, which drive parameters and appear both in openDAW and
+  in the team view, one to one; and intent controls, only in the team view, which change the direction given to the
+  agents rather than any parameter. Intent controls are a core part of the idea.
 
 ## Project overview when the team view opens
 
@@ -146,15 +158,16 @@ Demonstration log:
 
 **What.** Before a performance the producer and the team talk it through in the team chat, and each agent sets up
 the controls it will be steered with during the performance: ordinary macros (a knob driving parameters, e.g.
-"dust" moving several Crusher and filter settings at once) and **intent controls**, dials whose meaning only the
-agent can carry out. Example: the composer agent's "impressionistic" dial changes which notes it chooses (more
+"dust" moving several Crusher and filter settings at once) and **intent controls**, dials (or buttons, switches)
+whose meaning only the agent can carry out. A macro is a true macro: it appears in openDAW and in the team view,
+mapped one to one. An intent control appears only in the team view and maps to no parameter: it changes the
+direction given to the agents, at the level of intent, not of implementation. Example: the composer agent's "impressionistic" dial changes which notes it chooses (more
 extended and suspended chords, parallel motion, fewer resolutions), which no parameter mapping can do. During the
 performance the producer steers by moving dials instead of typing requests; agents act within those bounds.
 
 **How it relates.** Macros are value writes every frame (STRATEGY.md, "Changes over time"); intent controls are
 read by the agent when it prepares its next move, so they work at the speed of the slow or fast tier (STRATEGY.md,
-"Responsiveness"). Where the dials live (team view, or openDAW's own macro controls) is open, given the rule of
-changing openDAW as little as possible.
+"Responsiveness"). Both kinds are in the agentTeamAPI's Controls part (AGENT_TEAM_API.md).
 
 ## Agents listen
 
