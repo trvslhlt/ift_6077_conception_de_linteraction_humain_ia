@@ -11,7 +11,7 @@ TYPES_DIR := .opendaw
 export PORT
 COMPOSE := docker compose --profile test
 
-.PHONY: help builder build up down restart logs status open shell test types usage clean
+.PHONY: help builder build up down restart logs status open shell test experiment types usage clean
 
 help: ## List targets
 	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
@@ -46,6 +46,9 @@ shell: ## Shell into the running studio container
 
 test: build ## Run the bench checks in headless Chromium (starts the studio if needed)
 	$(COMPOSE) run --rm smoke
+
+experiment: build ## Run one experiment from project_plan/EXPERIMENTS.md headless: EXPERIMENT=C|D [TRIALS=100]
+	$(COMPOSE) run --rm -e EXPERIMENT=$(EXPERIMENT) -e TRIALS=$(TRIALS) smoke node experiment.mjs
 
 types: build ## Copy openDAW's source and types out of the image into .opendaw/, for the editor (see tsconfig.json)
 	rm -rf $(TYPES_DIR) && mkdir -p $(TYPES_DIR)

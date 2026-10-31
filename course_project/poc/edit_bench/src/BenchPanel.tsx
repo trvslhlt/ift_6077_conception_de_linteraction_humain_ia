@@ -10,6 +10,7 @@ import {runAutomation} from "./Automation"
 import {runDeviceChanges} from "./DeviceChanges"
 import {runCatalog} from "./Catalog"
 import {runOpenQuestions} from "./OpenQuestions"
+import {runConvolverResponse, runLoopMisses} from "./Experiments"
 import {AgentLoop, Strategy} from "./DragUndo"
 import {Holds} from "./Holds"
 
@@ -30,6 +31,8 @@ export type EditBenchApi = {
     devices(): Promise<unknown>
     catalog(): Promise<unknown>
     questions(): Promise<unknown>
+    // Experiments from project_plan/EXPERIMENTS.md; no buttons (minutes long, and not checks).
+    experiment(name: "C" | "D", trials?: number): Promise<unknown>
     startAgent(strategy: Strategy): void
     stopAgent(): unknown
     holds(): unknown
@@ -94,6 +97,8 @@ export const BenchPanel = ({lifecycle, service}: Construct): HTMLElement => {
                     devices: () => exclusive(() => runDeviceChanges(project, service.audioContext.sampleRate, log)),
                     catalog: () => exclusive(() => runCatalog(project, log)),
                     questions: () => exclusive(() => runOpenQuestions(project, log)),
+                    experiment: (name, trials) => exclusive<unknown>(() => name === "C"
+                        ? runLoopMisses(project, log, trials) : runConvolverResponse(project, log)),
                     startAgent: name => {
                         if (agent !== null) {return}
                         agent = new AgentLoop(project, holds, name)

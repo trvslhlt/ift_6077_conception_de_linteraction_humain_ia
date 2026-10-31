@@ -14,6 +14,7 @@ Copied from `../team_view` and changed: the robot button opens the **edit bench*
 make up       # build and start the studio (Vite dev server, src/ live)
 make open     # open http://localhost:8080, then New Project, then the floating robot button
 make test     # run every check in headless Chromium; prints PASS/FAIL and measurements, saves results/*.json
+make experiment EXPERIMENT=C   # one experiment from ../../project_plan/EXPERIMENTS.md (C or D), headless
 make down     # stop and remove the containers and network
 make clean    # remove everything this POC created in Docker (not the shared builder)
 ```
@@ -70,10 +71,11 @@ hunk is team_view's unchanged.
 - `src/Bench.ts`: shared helpers: a synth rig, transport, automation writing, `PerfProbe`
 - `src/EditRate.ts`, `src/LeadTime.ts`, `src/Automation.ts`, `src/DragUndo.ts`, `src/Holds.ts`, `src/DeviceChanges.ts`,
   `src/Catalog.ts`, `src/OpenQuestions.ts`: checks 1–5, 7, 8 and 10 (`src/InstrumentChange.ts`: check 7's instrument change comparison)
+- `src/Experiments.ts`: experiments C and D (`window.editBench.experiment("C" | "D")`, no buttons)
 - `src/Allowed.ts`: the instruments and effects agents may add (project_plan/STRATEGY.md)
 - `src/OutputTap.ts`: reads the engine's output through an AnalyserNode. openDAW keeps the engine node private, so
   it wraps `AudioNode.prototype.connect` to catch the node connecting to the speakers
 - `src/TeamHost.tsx`, `src/TeamOverlay.tsx`: from team_view (the overlay shows `BenchPanel`)
-- `test/smoke.mjs`: runs the checks headless; `results/`: its JSON output (git-ignored)
+- `test/smoke.mjs`: runs the checks headless; `test/experiment.mjs`: runs one experiment; `test/studio.mjs`: opens a new project and the bench, for both; `results/`: its JSON output (git-ignored)
 - `Dockerfile`, `compose.yaml`, `Makefile`, `tsconfig.json`: as in team_view. `make types` gives editor types; a
   symlink `.opendaw -> ../team_view/.opendaw` also works, since `src/` doesn't use the patched files

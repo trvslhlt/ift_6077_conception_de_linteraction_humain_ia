@@ -10,6 +10,7 @@
 // Run via `make test`; it shares the studio container's network, so the page is at localhost.
 import {chromium} from "playwright"
 import {mkdirSync, writeFileSync} from "node:fs"
+import {openBench} from "./studio.mjs"
 
 const URL = process.env.URL ?? "http://localhost:8080/"
 const TIMEOUT = 60000
@@ -66,18 +67,8 @@ const dragKnob = async () => {
 }
 
 try {
-    // The dev server transforms modules on first request, so the first load is slow.
-    const response = await page.goto(URL, {waitUntil: "networkidle", timeout: 3 * TIMEOUT})
+    const response = await openBench(page, URL, TIMEOUT)
     check("page loads", response?.ok() === true, `HTTP ${response?.status()}`)
-    await page.getByText("New Project", {exact: true}).click()
-    await page.getByText("Add instrument").first().waitFor()
-    // A fresh browser gets the welcome tour dialog; Escape closes it.
-    await page.getByText("Welcome to openDAW").waitFor()
-    await page.keyboard.press("Escape")
-    await page.getByText("Welcome to openDAW").waitFor({state: "hidden"})
-    await page.getByTestId("team-toggle").click()
-    await page.getByTestId("bench-panel").waitFor()
-    await page.waitForFunction(() => window.editBench !== undefined)
     check("bench opens", true)
 
     console.log("\n8. device catalog")

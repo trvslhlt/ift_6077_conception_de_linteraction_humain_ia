@@ -140,11 +140,7 @@ const samplerQuestions = async (project: Project, log: Log): Promise<ReadonlyArr
     const tap = OutputTap.create()
     const tone = await importSample(project, "bench tone", wav(1, t => Math.sin(2 * Math.PI * 440 * t) * Math.exp(-t * 3)))
     const ir = await importSample(project, "bench impulse", wav(0.5, (t, i) => (i === 0 ? 1 : (Math.random() * 2 - 1) * 0.5) * Math.exp(-t * 8)))
-    const fileBox = (sample: Sample): AudioFileBox => project.boxGraph.findBox<AudioFileBox>(UUID.parse(sample.uuid))
-        .unwrapOrElse(() => AudioFileBox.create(project.boxGraph, UUID.parse(sample.uuid), box => {
-            box.fileName.setValue(sample.name)
-            box.endInSeconds.setValue(sample.duration)
-        }))
+    const fileBox = (sample: Sample): AudioFileBox => fileBoxOf(project, sample)
     const pulse = (rig: { region: Rig["region"] }, pitch: number) => project.editing.modify(() => {
         for (let eighth = 0; eighth < Bars * 8; eighth++) {
             project.api.createNoteEvent({owner: rig.region, position: eighth * PPQN.Quarter / 2, duration: PPQN.SemiQuaver, pitch, velocity: 0.9})
@@ -213,11 +209,19 @@ const samplerQuestions = async (project: Project, log: Log): Promise<ReadonlyArr
     }
 }
 
-const importSample = (project: Project, name: string, arrayBuffer: ArrayBuffer): Promise<Sample> =>
+// The project's AudioFileBox for an imported sample, created if missing (its uuid is the sample's).
+export const fileBoxOf = (project: Project, sample: Sample): AudioFileBox =>
+    project.boxGraph.findBox<AudioFileBox>(UUID.parse(sample.uuid))
+        .unwrapOrElse(() => AudioFileBox.create(project.boxGraph, UUID.parse(sample.uuid), box => {
+            box.fileName.setValue(sample.name)
+            box.endInSeconds.setValue(sample.duration)
+        }))
+
+export const importSample = (project: Project, name: string, arrayBuffer: ArrayBuffer): Promise<Sample> =>
     project.env.sampleService.importFile({name, bpm: 0, arrayBuffer})
 
 // A mono 16-bit WAV of `seconds` at 48 kHz.
-const wav = (seconds: number, signal: (t: number, i: number) => number): ArrayBuffer => {
+export const wav = (seconds: number, signal: (t: number, i: number) => number): ArrayBuffer => {
     const rate = 48000, frames = Math.round(seconds * rate)
     const view = new DataView(new ArrayBuffer(44 + frames * 2))
     const text = (at: number, value: string) => [...value].forEach((char, i) => view.setUint8(at + i, char.charCodeAt(0)))

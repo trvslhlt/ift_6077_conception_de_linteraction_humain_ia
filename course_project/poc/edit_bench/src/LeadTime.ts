@@ -86,7 +86,7 @@ const until = async (condition: () => boolean): Promise<void> => {
 
 // The engine reports a unit's sounding notes as a 128-bit set. Which address it uses (instrument or audio unit) is
 // one of the things this check finds out, so it listens on both.
-class Listener {
+export class Listener {
     readonly #terminator = new Terminator()
     readonly #heard = new Set<number>()
     #heardAt = ""

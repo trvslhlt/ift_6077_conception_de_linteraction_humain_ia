@@ -3,5 +3,5 @@ FROM mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b201
 WORKDIR /test
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
-COPY smoke.mjs ./
+COPY *.mjs ./
 CMD ["node", "smoke.mjs"]

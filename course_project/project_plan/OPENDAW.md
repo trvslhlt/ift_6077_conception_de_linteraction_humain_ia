@@ -179,12 +179,16 @@ Answered 2026-10-31 from the source and check 10 (headless, two runs).
 - **Playback doesn't stop at the end of the timeline.** With the loop off, the playhead ran on past bar 129 (the
   timeline's 128-bar length), so playing forward needs no timeline management.
 - **Notes crossing a looping region's end are heard** (3 of 3, with mid-loop controls also 3 of 3). That rules it
-  out as the cause of check 2's occasional loop miss, which stays unexplained.
+  out as the cause of check 2's occasional loop miss. So are accumulated notes, inserts into the loop's next pass,
+  and the note-state stream missing played notes (experiment C, [EXPERIMENTS.md](EXPERIMENTS.md)): 300 of 300 loop
+  inserts at 300 ms were heard. Misses at 50 ms or more happen about once in 400–800 inserts, of any kind, and only
+  in the full test run; unexplained, deferred.
 - **Samplers.** After a sample is assigned during playback (imported through `project.env.sampleService`):
   Nano sounded 150 ms later when its sample wasn't loaded yet (decode and transfer to the engine), Playfield 24–37 ms
-  later with a sample already loaded. Inserting a Convolver with an impulse response changed the level within
-  3–5 ms, with no gaps; whether the response itself was already applied then isn't separated from the
-  dry/wet change. Assign samples a beat or more ahead of when they must sound.
+  later with a sample already loaded. A Convolver applies its impulse response from the first note after it is
+  inserted (within ~200 ms, the resolution measured), whether or not the response was already loaded, and the dry
+  signal continues without a gap (experiment D). Assign samples a beat or more ahead of when they must sound;
+  a Convolver can be inserted like any effect.
 - **Listening is built in.** Per channel: `project.liveStreamReceiver.subscribeFloats(audioUnitAddress, ...)`
   gives peaks (the mixer's meters). Master: `EngineAddresses.PEAKS`, `LOUDNESS`, `SPECTRUM`, `GONIO`, `WAVEFORM`
   (openDAW's analysis cards). Offline: `OfflineEngineRenderer.start/renderSection` renders the mix or stems (per
@@ -331,17 +335,17 @@ Source: `studio/adapters/src/` (`IndexedBoxAdapterCollection.ts`, `timeline/Regi
 ## Checks
 
 Implemented in `poc/edit_bench` (see its README); results are in the sections above. `make test` there runs all but 6 and 9
-headless.
+headless. The experiments designed to answer what these checks left open are in [EXPERIMENTS.md](EXPERIMENTS.md).
 
 | # | Check | Status |
 |---|---|---|
 | 1 | Edit rate: velocity changes to 10/100/1000 notes per bar; one parameter at 30/60/120 Hz; automation points at the same rates | Done headless (3 s per case). **To do:** repeat in a real browser for 30 s per case, listening for dropouts; find what makes a single `modify()` on a large region cost 24+ ms |
-| 2 | Lead time: insert, change an existing note, insert into a looping region, at 0–300 ms ahead | Done headless: 30–50 ms; one run missed 1 of 3 loop inserts at 300 ms, after hearing all from 30 ms (`make test` fails then). **To do:** repeat in a real browser; find the occasional loop miss (not notes crossing the loop end: check 10). Pitch change stands in for velocity change, since the engine doesn't report velocity |
+| 2 | Lead time: insert, change an existing note, insert into a looping region, at 0–300 ms ahead | Done headless: 30–50 ms. Rare misses (about 1 in 400–800 inserts at 50 ms or more, any kind) fail `make test` when they happen; experiment C ruled out the loop-specific causes and the miss doesn't reproduce in isolation; deferred. Pitch change stands in for velocity change, since the engine doesn't report velocity |
 | 3 | Automation added during playback: linear, curve, tempo, and on a parameter touched this pass | Done: all as expected. Checked through the value the engine applies, not by listening. Confirmed by hand in a real browser (live POC): grabbing a knob that has a lane turns the lane off until stop |
 | 4 | Agent edits during a drag: direct, `append()`, queue while held | Done: queue is the only one that keeps the drag its own undo step |
 | 5 | Held signal patch | Done: +9 lines in 2 files; fires on a grab without movement; address matches the updates |
 | 6 | Study draft loads and sounds with the network blocked (Playwright `route` abort for non-localhost requests) | **Blocked:** no study draft yet |
 | 7 | Effects and instruments changed during playback: insert/remove the 16 allowed effects, swap through the 5 allowed instruments, swap vs. layer crossfade vs. new track, lanes on a replaced or deleted device | Done headless: effects heard within one callback, no gaps (Maximizer: one 2.7 ms gap); a swap or a wrap into layers cuts the sound until the next note; a crossfade on an already-wrapped track and a new track are gapless; lanes are deleted with their device, undo restores both. **To do:** listen in a real browser (click on a cut, the crossfade's dip); instruments that need samples; why deleting a layer costs up to 320 ms |
 | 8 | Device catalog: every instrument and effect, with its descriptions, parameters (name, range, default, values when stepped) and settings, read from openDAW | Done headless: 41 devices, 395 parameters, none failed; 33 allowed for agents, with 392 parameters; saved to `results/catalog.json`. **To do:** decide the hand-written notes per device (character, typical use) |
-| 9 | Library samples in openDAW: import `sample_library/` into the browser's sample storage, load sounds into Playfield pads, Nano, an audio track and Convolver during playback; time until heard, gaps | Partly done by hand in a real browser (live POC): the vinyl crackle imported with `project.env.sampleService.importFile({name, bpm: 0, arrayBuffer})` (no uuid: openDAW derives it from the file's SHA-256, so re-imports reuse it), an `AudioFileBox` with that uuid (its class taken from a box already in the project), and `api.createNotStretchedRegion` on a new Audio Track (`InstrumentFactories.Tape`), seconds time base, looped by setting `duration` beyond `loopDuration`. Heard; survived save and page reload with the project's automation and arrangement. Headless (check 10): Nano 150 ms until heard with a sample not yet loaded, Playfield 24–37 ms with it loaded, Convolver 3–5 ms level change. **To do:** the library's own sounds in each, automated |
+| 9 | Library samples in openDAW: import `sample_library/` into the browser's sample storage, load sounds into Playfield pads, Nano, an audio track and Convolver during playback; time until heard, gaps | Partly done by hand in a real browser (live POC): the vinyl crackle imported with `project.env.sampleService.importFile({name, bpm: 0, arrayBuffer})` (no uuid: openDAW derives it from the file's SHA-256, so re-imports reuse it), an `AudioFileBox` with that uuid (its class taken from a box already in the project), and `api.createNotStretchedRegion` on a new Audio Track (`InstrumentFactories.Tape`), seconds time base, looped by setting `duration` beyond `loopDuration`. Heard; survived save and page reload with the project's automation and arrangement. Headless (check 10): Nano 150 ms until heard with a sample not yet loaded, Playfield 24–37 ms with it loaded, Convolver: its response applies from the first note after the insert, loaded or not (experiment D). **To do:** the library's own sounds in each, automated |
 | 10 | Open behaviour questions: automation recording of agents' writes and over agents' lanes, the timeline's end, notes crossing a loop's end, samplers' time until heard | Done headless: see "Recording, playback range, listening, saving" |

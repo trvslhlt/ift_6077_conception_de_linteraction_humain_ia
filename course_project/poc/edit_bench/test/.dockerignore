@@ -2,4 +2,4 @@
 *
 !package.json
 !package-lock.json
-!smoke.mjs
+!*.mjs
