@@ -14,6 +14,77 @@ openDAW facts are in [OPENDAW.md](OPENDAW.md); the agents' interface is in [AGEN
 - **Two kinds of control** (see "Intent controls"): macros, which drive parameters and appear both in openDAW and
   in the team view, one to one; and intent controls, only in the team view, which change the direction given to the
   agents rather than any parameter. Intent controls are a core part of the idea.
+- **Team members and roles** (see "The team"). One role per member; every role is ready each session, and a
+  member is shown only while it's doing work. Roles can be made and retired during a performance. The orchestrator
+  is only the front door. "Team member" is the producer's view; "agent" is the implementation.
+
+## The team: members and their roles
+
+**Terms.** A **team member** is what the producer experiences: someone with a role, shown in the team view, whom
+they talk to and steer. An **agent** is how a member is built: a model, a prompt, tools, a connection to the bus.
+One agent per member, one role per agent. Design and study materials talk about team members; "agent" is for the
+implementation (STRATEGY.md, AGENT_TEAM_API.md).
+
+**What.** There is a set of roles. Producers aren't asked to choose members, since they may not know what each
+role does, and they don't get a view crowded with members who have nothing to do. Every role in the set is ready
+in every session; a member appears in the team view only while it's doing work.
+
+**Roles** (a starting set; it grows, and new roles can be made during a session):
+
+| Role | Does |
+|---|---|
+| **Orchestrator** | The front door, and only that. The producer's default partner in the chat: understands the request, passes it to the right members, and reports back. Does no musical work and doesn't manage the others' work (members coordinate among themselves; agentTeamAPI, Team), so it stays quick to answer. Always shown. |
+| *Writing* | |
+| Composer | Music-theoretical decisions and note choice: harmony, melody, voicing. |
+| Bass programmer | The bass line: its notes, rhythm against the kick, and its sound. |
+| Drum programmer | Like the composer, specialized in digital percussion: patterns, groove, fills, kits. |
+| Arranger | The song's structure over time: sections, what plays when, builds and drops, transitions. |
+| Transcriber | Turns demonstrations (a hummed line, a tapped rhythm, a played sketch) into notes for the others to use. |
+| *Sound* | |
+| Instrument designer | Builds and tweaks instruments: patches (Vaporisateur's oscillators, filters, envelopes, modulation), layered instruments, a Playfield kit from samples. |
+| Effect designer | Effects as part of a sound: a track's own chain (Crusher, Delay, a filter sweep), and effect sounds of their own (risers, impacts). |
+| Sampler | Picks samples from the library, chops them, and sequences the pieces. |
+| Mix engineer | Balance between parts: levels, EQ, dynamics, sidechain; listens to the output (see "Agents listen"). |
+| Spatialization engineer | Where parts sit in space: panning, stereo width, depth, the shared reverbs and delays that parts are sent to. |
+| Mastering engineer | The whole: overall tonal balance and loudness, the master chain (Maximizer), consistency between sections. |
+| *Performing* | |
+| Performer | Plays the project live: mutes and drops, filter sweeps, riding macros, firing cues, in time with the producer. |
+| Groove | Timing and feel across all parts: swing, humanizing, push and pull against the grid. |
+| *Around the music* | |
+| Critic | Listens to the whole and says what works and what doesn't, against the goal or a reference style. Gives notes; makes no edits. |
+| Assistant engineer | Housekeeping: naming and coloring tracks, routing and buses, cleaning up unused parts, keeping the wishlist tidy. |
+| Tutor | When the producer asks *how* to do something, guides them through doing it themselves, in words and by naming the controls to use. Teaches rather than edits. |
+
+**How it works.**
+
+1. **Prep conversation.** The producer tells the orchestrator the goal ("finish this lofi beat", "jam on a techno
+   loop", "learn to sidechain"); the members it concerns pick it up and set their intent controls.
+2. **Members appear when they work** and fade from view when idle: a pending change, a claim, a message to the
+   producer, or being addressed brings one into view. The producer can address any role by name ("ask the
+   critic"), shown or not.
+3. **Roles are made and retired during the session, performance included.** When a need has no role ("a string
+   arranger for the bridge", "someone to handle the vocal chops' pitch"), the orchestrator makes one from a short
+   description, and retires it when the need passes. The set's roles are never retired, only hidden.
+4. **Each member is shown on its own:** its role, what it's doing, its intent controls, and its pending changes
+   (see "Visible presence").
+
+**The tutor starts in the team view.** It names the control and where to find it ("the Cutoff knob on
+Vaporisateur, in the device panel at the bottom"). Pointing at controls inside openDAW waits until the tutor shows
+it's useful.
+
+**For the study.** Every role in the set starts every session, so the team is the same for all participants;
+what varies is who shows up. Logged: when each member appears and leaves the view, and which roles were made
+during sessions (what producers needed that the set lacked). Choosing a subset of roles per goal stays possible
+after the study.
+
+**Open.**
+- Cost: ready members spend nothing until reached through the orchestrator, but members that volunteer (the critic
+  after a change, the mix engineer when a part clips) watch the change stream. Which roles may volunteer, and how
+  often.
+- How long an idle member stays in view, and whether the producer can see the whole team on request.
+- Whether made-up roles keep across sessions, like the wishlist.
+- Where neighboring roles' territory ends (a delay on one track vs. a shared one; EQ in a sound's chain vs. in the
+  mix): left to the members to settle as conflicts, or written into each role's brief.
 
 ## Project overview when the team view opens
 
@@ -214,3 +285,43 @@ the team view: tracks the team is working on, each with the agent, the pending c
 **What.** A larger change (a new part, a new instrument) arrives as something playable before it is accepted: a
 muted alternate track, or an A/B switch the producer flips on the beat. Accepting becomes a musical act rather
 than a "yes" in the chat. Possibly; to try after the operation library exists.
+
+## Naming what's missing: the team's wishlist
+
+**What.** When a request needs something the team doesn't have, the agent says so instead of quietly substituting.
+Example: "in the style of Boards of Canada" calls for detuned, warbling tape and old analog synths. The agent says
+which of those it can get close to and with what (Vaporisateur with slow pitch drift from an LFO, Crusher, the
+library's vinyl crackle), which it can't (real tape saturation and wow; there is no tape-emulation effect among the
+allowed devices), and what would close the gap (a tape plugin, or a sample pack of tape-processed chords). The
+limitation becomes useful information: the producer learns what the setup can and can't do, and decides whether to
+accept the substitute, change direction, or add the missing piece.
+
+**How it works.**
+
+1. **Notice.** Agents plan from the catalog and the sample library (agentTeamAPI, Options), so a gap shows up when
+   a plan needs a device, sound or kind of processing that has no entry, or only an off-limits one (WebCLAP plugins,
+   Tone3000 amp models, soundfonts, which have no .sf2 files yet). The model's knowledge of the reference supplies
+   what the style needs; the catalog says what's there.
+2. **Say it once, briefly.** What's missing, the closest substitute and how close it gets, and what would add the
+   real thing. Not repeated on every request: the gap goes on the **wishlist** (below), and is raised again only
+   when it's what stands in the way.
+3. **Suggest adding it.** Within this project, adding means the producer imports samples or a soundfont, or
+   installs a plugin themselves; agents only suggest. A device added this way stays off limits to agents unless it
+   comes with documentation they can use (STRATEGY.md, "Agents change devices"); a sample becomes usable once it's
+   in the library with metadata.
+
+**The wishlist.** The team keeps a running list of what it's missing, kept across sessions with the project. Each
+entry: what's missing, which requests needed it, the substitute used meanwhile, and what would add it (a plugin, a
+sample pack, a soundfont). Agents add to it and check it before naming a gap again; the producer can open it any
+time, strike entries ("don't need tape"), or add one. An entry is crossed off when the missing piece arrives, and
+the agents say what it changes ("tape plugin installed: I can redo the chords' wobble properly").
+
+**After this project.** The agent fetches what it needs itself: finds and installs a plugin, downloads a CC0 sample
+pack, generates the missing sound, and adds what it learned about it to the catalog. Out of scope here: the study
+runs offline and with a fixed set of devices. The wishlist is then the agent's shopping list.
+
+**For the study.** The wishlist is data on what producers wanted that the system couldn't give, and on
+whether naming a limitation (rather than substituting silently) changes how much they trust the team.
+
+**Open.** How confident the agent should be before calling something a gap (a style's "specific instrument" is
+often a habit, not a requirement), and where the wishlist lives in the team view.

@@ -379,7 +379,30 @@ type TeamMessage = {
     re?: string                           // a request id or message seq it refers to
 }
 type Claim = {from: Actor, refs: Ref[], until?: string | "released", reason?: string}  // "I'm working on t3's mix"
+type Role = {
+    id: string                 // "composer", "string-arranger"
+    name: string               // shown to the producer: "Composer"
+    brief: string              // what it does; the agent's prompt is built from it
+    operations: string[]       // operations it may request; [] for the tutor and the critic
+    controls: Control[]        // its default intent controls
+    volunteers: boolean        // watches the change stream and may act unasked
+    made?: {by: Actor, t: number, why: string}   // a role made during the session
+}
+type Member = {agent: Actor, role: string, shown: boolean, retired?: number}   // agent: "agent:composer"
 ```
+
+- **Terms.** A team member is what the producer sees and talks to; an agent is its implementation. One agent per
+  member, one role per agent, so `Member` ties the two and an `Actor` names both. Agent ids name the role
+  (`agent:composer`).
+- **Every role in the set starts each session** (FEATURES.md, "The team"). `roles()` and `team()` return them.
+  The bus computes `shown`: true while the member has a pending request, a claim, or a recent message to the
+  producer, or was just addressed. Showing and hiding go in the change stream and the session record (`member`).
+- **Roles can be made and retired at any time**, performance included: the orchestrator calls `makeRole(role)` and
+  `retireRole(id)` (only made roles retire). The bus refuses an operation not in the member's role, so a tutor
+  can't edit.
+- **The orchestrator is only the front door.** Chat from the producer with no `to` goes to it; it passes requests
+  on as team messages and reports back. It has no operations and doesn't coordinate the others' work: members do
+  that among themselves, below. The producer can also address any member directly.
 
 - **Claims say who is working on what.** An agent claims refs before working on them; others see the claims in
   `state.claims()` and in the change stream. A request on a ref another agent has claimed fails with `conflict`,
@@ -388,6 +411,10 @@ type Claim = {from: Actor, refs: Ref[], until?: string | "released", reason?: st
 - **Coordinated actions use the request timing already there.** A shared cue (`{on: "cue", cue: "fade-out"}`)
   fires several agents' prepared requests together, and `{after: id}` chains one agent's request after another's.
   The composer and the mix engineer each prepare their part on the same cue, and agree on it by message.
+- **The wishlist** (FEATURES.md, "Naming what's missing") is shared team state:
+  `wishlist()` returns its entries `{id, missing, neededBy: string[], substitute?, wouldAdd, struck: boolean}`, and
+  `wish(entry)`, `strike(id)` change it. Changes to it go in the change stream and the session record (`wish`), and
+  it is saved with the project, outside openDAW's file.
 - **The producer sees the team's conversation** in the team view (whether all of it or a summary is a design
   question), and can join it like any agent.
 
@@ -397,7 +424,7 @@ What the session keeps, for restoring, comparing and replaying it, and as the st
 
 ```
 sessions/<session id>/
-  session.json        id, start time, openDAW commit, project name, agents and their setup, controls defined
+  session.json        id, start time, openDAW commit, project name, roles and members, controls defined
   checkpoint.bin      the project when the team view opened (project.toArrayBuffer())
   log.jsonl           every event, in order
   updates.bin         openDAW's raw updates per transaction (Update.write), keyed by seq
@@ -406,7 +433,7 @@ sessions/<session id>/
 - **`log.jsonl` has one JSON object per line**, each with `seq`, `t` and `type`, one of:
   - `request`, `status`, `cancel`, `cue`;
   - `change`, `transport`, `hold`;
-  - `chat`: messages between the producer and agents; `team`: messages between agents; `claim`;
+  - `chat`: messages between the producer and agents; `team`: messages between agents; `claim`; `wish`; `member`;
   - `control`;
   - `model`: a model call's id, agent, tier, latency and token counts; the full call is in the proxy's own log.
 - **`seq` is shared by the log and `updates.bin`**, so any logged change can be tied to its exact openDAW updates.
