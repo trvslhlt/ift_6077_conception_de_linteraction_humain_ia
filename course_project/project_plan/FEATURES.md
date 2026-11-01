@@ -14,7 +14,7 @@ openDAW facts are in [OPENDAW.md](OPENDAW.md); the agents' interface is in [AGEN
 - **Two kinds of control** (see "Intent controls"): macros, which drive parameters and appear both in openDAW and
   in the team view, one to one; and intent controls, only in the team view, which change the direction given to the
   agents rather than any parameter. Intent controls are a core part of the idea.
-- **Team members and roles** (see "The team"). One role per member; every role is ready each session, and a
+- **Team members and roles** (see "The team"). Every role is ready each session, and a
   member is shown only while it's doing work. Roles can be made and retired during a performance. The orchestrator
   is only the front door. "Team member" is the producer's view; "agent" is the implementation.
 
@@ -22,7 +22,8 @@ openDAW facts are in [OPENDAW.md](OPENDAW.md); the agents' interface is in [AGEN
 
 **Terms.** A **team member** is what the producer experiences: someone with a role, shown in the team view, whom
 they talk to and steer. An **agent** is how a member is built: a model, a prompt, tools, a connection to the bus.
-One agent per member, one role per agent. Design and study materials talk about team members; "agent" is for the
+One agent per member; an agent may hold more than one role (which policy is better isn't known yet, so
+neither is required). Design and study materials talk about team members; "agent" is for the
 implementation (STRATEGY.md, AGENT_TEAM_API.md).
 
 **What.** There is a set of roles. Producers aren't asked to choose members, since they may not know what each
@@ -51,6 +52,7 @@ in every session; a member appears in the team view only while it's doing work.
 | Performer | Plays the project live: mutes and drops, filter sweeps, riding macros, firing cues, in time with the producer. |
 | Groove | Timing and feel across all parts: swing, humanizing, push and pull against the grid. |
 | *Around the music* | |
+| Researcher | Searches the web for a reference ("a song like X", an artist, a genre, a technique) and sums it up for the other roles: tempo, key and harmony for the composer, instruments and sounds for the instrument designer, structure for the arranger, mix and space for the engineers. Its summary also tells what the team lacks (see "the team's wishlist"). |
 | Critic | Listens to the whole and says what works and what doesn't, against the goal or a reference style. Gives notes; makes no edits. |
 | Assistant engineer | Housekeeping: naming and coloring tracks, routing and buses, cleaning up unused parts, keeping the wishlist tidy. |
 | Tutor | When the producer asks *how* to do something, guides them through doing it themselves, in words and by naming the controls to use. Teaches rather than edits. |
@@ -68,6 +70,10 @@ in every session; a member appears in the team view only while it's doing work.
 4. **Each member is shown on its own:** its role, what it's doing, its intent controls, and its pending changes
    (see "Visible presence").
 
+**The researcher searches the web** through the proxy, which holds the model calls (STRATEGY.md, "Where things
+run"). Its searches and the pages it used are logged with the model call, so a session's research can be checked
+later even after the pages change. The studio itself stays local (OPENDAW.md, check 6); only agents reach out.
+
 **The tutor starts in the team view.** It names the control and where to find it ("the Cutoff knob on
 Vaporisateur, in the device panel at the bottom"). Pointing at controls inside openDAW waits until the tutor shows
 it's useful.
@@ -83,6 +89,8 @@ after the study.
   often.
 - How long an idle member stays in view, and whether the producer can see the whole team on request.
 - Whether made-up roles keep across sessions, like the wishlist.
+- Whether an agent should hold one role or several, and if several, which roles go together and whether the
+  producer sees one member per role or per agent.
 - Where neighboring roles' territory ends (a delay on one track vs. a shared one; EQ in a sound's chain vs. in the
   mix): left to the members to settle as conflicts, or written into each role's brief.
 
@@ -317,8 +325,9 @@ time, strike entries ("don't need tape"), or add one. An entry is crossed off wh
 the agents say what it changes ("tape plugin installed: I can redo the chords' wobble properly").
 
 **After this project.** The agent fetches what it needs itself: finds and installs a plugin, downloads a CC0 sample
-pack, generates the missing sound, and adds what it learned about it to the catalog. Out of scope here: the study
-runs offline and with a fixed set of devices. The wishlist is then the agent's shopping list.
+pack, generates the missing sound, and adds what it learned about it to the catalog. Out of scope here, to keep the
+project small and its moving parts few. (A rigorous study would also want every participant to have the same
+tools; this project is shaped like a study but isn't held to that.) The wishlist is then the agent's shopping list.
 
 **For the study.** The wishlist is data on what producers wanted that the system couldn't give, and on
 whether naming a limitation (rather than substituting silently) changes how much they trust the team.

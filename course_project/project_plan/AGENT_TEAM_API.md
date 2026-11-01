@@ -388,12 +388,13 @@ type Role = {
     volunteers: boolean        // watches the change stream and may act unasked
     made?: {by: Actor, t: number, why: string}   // a role made during the session
 }
-type Member = {agent: Actor, role: string, shown: boolean, retired?: number}   // agent: "agent:composer"
+type Member = {agent: Actor, roles: string[], shown: boolean, retired?: number}   // agent: "agent:composer"
 ```
 
 - **Terms.** A team member is what the producer sees and talks to; an agent is its implementation. One agent per
-  member, one role per agent, so `Member` ties the two and an `Actor` names both. Agent ids name the role
-  (`agent:composer`).
+  member, so `Member` ties the two and an `Actor` names both. An agent may hold several roles (FEATURES.md leaves
+  the policy open), so `roles` is a list and the bus allows the union of their operations. Agent ids are
+  stable names (`agent:composer`), not a list of roles.
 - **Every role in the set starts each session** (FEATURES.md, "The team"). `roles()` and `team()` return them.
   The bus computes `shown`: true while the member has a pending request, a claim, or a recent message to the
   producer, or was just addressed. Showing and hiding go in the change stream and the session record (`member`).
@@ -435,7 +436,7 @@ sessions/<session id>/
   - `change`, `transport`, `hold`;
   - `chat`: messages between the producer and agents; `team`: messages between agents; `claim`; `wish`; `member`;
   - `control`;
-  - `model`: a model call's id, agent, tier, latency and token counts; the full call is in the proxy's own log.
+  - `model`: a model call's id, agent, tier, latency, token counts, and any web searches (query, pages used); the full call is in the proxy's own log.
 - **`seq` is shared by the log and `updates.bin`**, so any logged change can be tied to its exact openDAW updates.
 - **Replay:** load the checkpoint, then apply `updates.bin` in order. Exact, because openDAW's updates
   serialize. Compare: any two points in the log.
