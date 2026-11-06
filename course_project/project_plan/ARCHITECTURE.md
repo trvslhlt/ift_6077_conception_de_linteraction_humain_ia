@@ -1,6 +1,7 @@
 # TakeDo architecture: sketches
 
-Three high-level shapes for TakeDo, to pick one before the detailed design. Sketch of 2026-11-05. The fixed
+Three high-level shapes for TakeDo, to pick one before the detailed design. Sketch of 2026-11-05; B was chosen on
+2026-11-06. The fixed
 inputs are in [STRATEGY.md](STRATEGY.md) and [TAKEDO_API.md](TAKEDO_API.md):
 
 - the agents run in a local backend process (Node for now), and openDAW stays in the page;
@@ -66,7 +67,7 @@ operation's `plan`, runs in the page.
   - Agents can only be tested with a browser running.
   - The session record still has to be streamed out to the backend.
 
-## B. The page as an adapter, coordination in the backend (recommended)
+## B. The page as an adapter, coordination in the backend (chosen 2026-11-06)
 
 ```
  backend (Node)                                                page (openDAW studio)
@@ -113,7 +114,7 @@ The page does only what needs openDAW's objects: read, apply, report. Everything
 - **Against:**
   - `plan()` needs state, so the coordinator reads snapshots over the socket. Reads are cheap locally, but a plan
     can go stale between the read and the landing. The applier rejects a plan whose `seq` is behind a change to
-    its targets (`superseded` before applying), and the member re-plans.
+    its targets (`failed` with `stale`), and the coordinator re-plans once (TAKEDO_API.md, "Operations").
   - The API's "bus" becomes two halves, and the draft's overview needs redrawing.
 
 ## C. One planner, many faces
@@ -146,7 +147,7 @@ act, and writes their requests and their lines in the chat in one call. The fast
 
 ## Recommendation
 
-B. It is A with the work moved off the page's main thread, and the backend was already the decided home for the
+B, chosen 2026-11-06; TAKEDO_API.md's overview now follows it. It is A with the work moved off the page's main thread, and the backend was already the decided home for the
 agents. Two things to keep from the others:
 
 - **From A:** the page keeps the last word on holds and gestures, so the producer's priority never depends on the
