@@ -15,7 +15,7 @@ openDAW facts are in [OPENDAW.md](OPENDAW.md); the agents' interface is in [AGEN
   in the team view, one to one; and intent controls, only in the team view, which change the direction given to the
   agents rather than any parameter. Intent controls are a core part of the idea.
 - **Team members and roles** (see "The team"). Every role is ready each session, and a
-  member is shown only while it's doing work. Roles can be made and retired during a performance. The orchestrator
+  member is shown only while it's doing work. Roles can be made and retired during a performance. The team lead
   is only the front door. "Team member" is the producer's view; "agent" is the implementation.
 
 ## The team: members and their roles
@@ -30,11 +30,12 @@ implementation (STRATEGY.md, AGENT_TEAM_API.md).
 role does, and they don't get a view crowded with members who have nothing to do. Every role in the set is ready
 in every session; a member appears in the team view only while it's doing work.
 
-**Roles** (a starting set; it grows, and new roles can be made during a session):
+**Roles** (a starting set, not settled; it grows, and new roles can be made during a session). Some roles may be
+abstract and get a concrete instance per session: a *musician* role played as a pianist or a guitarist.
 
 | Role | Does |
 |---|---|
-| **Orchestrator** | The front door, and only that. The producer's default partner in the chat: understands the request, passes it to the right members, and reports back. Does no musical work and doesn't manage the others' work (members coordinate among themselves; agentTeamAPI, Team), so it stays quick to answer. Always shown. |
+| **Team lead** | The front door, and only that. The producer's default partner in the chat: understands the request, passes it to the right members, and reports back. Does no musical work and doesn't manage the others' work (members coordinate among themselves; agentTeamAPI, Team), so it stays quick to answer. Always shown. |
 | *Writing* | |
 | Composer | Music-theoretical decisions and note choice: harmony, melody, voicing. |
 | Bass programmer | The bass line: its notes, rhythm against the kick, and its sound. |
@@ -59,13 +60,13 @@ in every session; a member appears in the team view only while it's doing work.
 
 **How it works.**
 
-1. **Prep conversation.** The producer tells the orchestrator the goal ("finish this lofi beat", "jam on a techno
+1. **Prep conversation.** The producer tells the team lead the goal ("finish this lofi beat", "jam on a techno
    loop", "learn to sidechain"); the members it concerns pick it up and set their intent controls.
 2. **Members appear when they work** and fade from view when idle: a pending change, a claim, a message to the
    producer, or being addressed brings one into view. The producer can address any role by name ("ask the
    critic"), shown or not.
 3. **Roles are made and retired during the session, performance included.** When a need has no role ("a string
-   arranger for the bridge", "someone to handle the vocal chops' pitch"), the orchestrator makes one from a short
+   arranger for the bridge", "someone to handle the vocal chops' pitch"), the team lead makes one from a short
    description, and retires it when the need passes. The set's roles are never retired, only hidden.
 4. **Each member is shown on its own:** its role, what it's doing, its intent controls, and its pending changes
    (see "Visible presence").
@@ -84,7 +85,7 @@ during sessions (what producers needed that the set lacked). Choosing a subset o
 after the study.
 
 **Open.**
-- Cost: ready members spend nothing until reached through the orchestrator, but members that volunteer (the critic
+- Cost: ready members spend nothing until reached through the team lead, but members that volunteer (the critic
   after a change, the mix engineer when a part clips) watch the change stream. Which roles may volunteer, and how
   often.
 - How long an idle member stays in view, and whether the producer can see the whole team on request.

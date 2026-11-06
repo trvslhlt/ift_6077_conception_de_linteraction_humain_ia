@@ -1,0 +1,726 @@
+<title>Team View Prototype</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a fake DAW fills the window; the team view docks on the right (full screen on phones). */
+:root {
+  --bg: #eef1f3; --surface: #ffffff; --sunk: #e3e8eb; --line: #cfd7dc;
+  --fg: #1b2328; --muted: #5d6b74; --accent: #2f9e6a; --accent-soft: #c9efd9;
+  --lead: #2f9e6a; --drums: #c2562f; --inst: #6b55c9; --mix: #1f7fb0; --other: #8a6d1d;
+  --playhead: #d23c3c; --pending: #8796a0;
+  --display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --body: "Figtree", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #12171a; --surface: #1a2125; --sunk: #0d1113; --line: #2b353b;
+  --fg: #e3e9ec; --muted: #8e9ca4; --accent: #5fd39a; --accent-soft: #1d3a2c;
+  --lead: #5fd39a; --drums: #ec8a63; --inst: #a594f0; --mix: #5bb6e6; --other: #d7b456;
+  --playhead: #ff6b6b; --pending: #6c7b84; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #12171a; --surface: #1a2125; --sunk: #0d1113; --line: #2b353b;
+  --fg: #e3e9ec; --muted: #8e9ca4; --accent: #5fd39a; --accent-soft: #1d3a2c;
+  --lead: #5fd39a; --drums: #ec8a63; --inst: #a594f0; --mix: #5bb6e6; --other: #d7b456;
+  --playhead: #ff6b6b; --pending: #6c7b84; color-scheme: dark }
+
+html, body { height: 100%; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--fg); font: 14px/1.45 var(--body); }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+.app { height: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr); grid-template-columns: minmax(0, 1fr); }
+.transport { display: flex; flex-wrap: wrap; align-items: center; gap: 12px;
+  padding-block: 8px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  background: var(--surface); border-bottom: 1px solid var(--line); }
+.transport .name { font-family: var(--display); font-size: 16px; }
+.tbtn { width: 34px; height: 30px; border-radius: 6px; border: 1px solid var(--line); background: var(--sunk); display: grid; place-items: center; }
+.tbtn[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); }
+.tbtn svg { width: 14px; height: 14px; fill: currentColor; }
+.pos { font-size: 15px; min-width: 64px; }
+.meta { color: var(--muted); font-size: 12px; }
+.spacer { flex: 1; }
+.linkbtn { background: none; border: 0; color: var(--muted); text-decoration: underline; padding: 0; font-size: 12px; }
+
+.main { display: flex; min-height: 0; min-width: 0; }
+.daw { flex: 1; min-width: 0; display: flex; flex-direction: column; position: relative; }
+.timeline { flex: 1; overflow: auto; }
+.grid { min-width: 900px; position: relative; }
+.row { display: grid; grid-template-columns: 150px 1fr; border-bottom: 1px solid var(--line); }
+.row .head { padding: 8px 10px; background: var(--surface); border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 2px; }
+.row .head b { font-weight: 600; }
+.row .head small { color: var(--muted); font-size: 11px; }
+.mute { align-self: flex-start; margin-top: 2px; font-size: 10px; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--line); background: var(--sunk); }
+.mute[aria-pressed="true"] { background: var(--drums); color: var(--surface); border-color: var(--drums); }
+.lane { position: relative; height: 58px; background:
+  repeating-linear-gradient(90deg, transparent 0 calc(100% / 8 - 1px), var(--line) calc(100% / 8 - 1px) calc(100% / 8)); }
+.ruler .lane { height: 24px; background: var(--surface); }
+.ruler .head { padding: 3px 10px; }
+.tick { position: absolute; top: 4px; font-size: 10px; color: var(--muted); transform: translateX(3px); }
+.seg { position: absolute; top: 8px; bottom: 8px; border-radius: 4px; padding: 3px 6px; font-size: 11px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  background: var(--sunk); border: 1px solid var(--line); border-left: 3px solid var(--c, var(--muted)); }
+.row.muted .seg { opacity: .35; }
+.mark { position: absolute; top: 3px; width: 10px; height: 10px; margin-left: -5px; transform: rotate(45deg); background: var(--c); border: 1px solid var(--surface); }
+.ghost { position: absolute; top: 5px; bottom: 5px; border: 2px dashed var(--c); border-radius: 5px; width: calc(100% / 32); margin-left: -1px; }
+.playhead { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--playhead); left: 150px; pointer-events: none; }
+
+.devices { border-top: 1px solid var(--line); background: var(--surface); display: flex; flex-wrap: wrap; gap: 24px; align-items: center;
+  padding-block: 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: 96px; }
+.device { display: flex; flex-direction: column; gap: 4px; min-width: 200px; }
+.device label { font-size: 12px; color: var(--muted); }
+.device input[type=range] { width: 220px; max-width: 100%; accent-color: var(--inst); }
+.hint { color: var(--muted); font-size: 12px; max-width: 34ch; }
+
+.fab { position: absolute; right: max(16px, env(safe-area-inset-right, 0px)); bottom: 14px; width: 64px; height: 64px; border-radius: 14px;
+  border: 1px solid var(--accent); background: var(--accent-soft); display: grid; place-items: center; font-size: 11px; font-weight: 600; text-align: center; line-height: 1.15; }
+.fab[hidden] { display: none; }
+
+.team { width: min(760px, 62%); border-left: 1px solid var(--line); background: var(--bg); display: flex; flex-direction: column; min-width: 0; }
+.team-head { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--surface); }
+.team-head h2 { margin: 0; font: 600 18px var(--display); }
+.chip { font-size: 11px; letter-spacing: .04em; text-transform: uppercase; padding: 2px 8px; border-radius: 99px; background: var(--sunk); color: var(--muted); }
+.close { margin-left: auto; background: none; border: 1px solid var(--line); border-radius: 6px; padding: 2px 10px; }
+.team-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 300px; }
+.stage { overflow: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.overview { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+.overview h3, .stage h3 { margin: 0 0 6px; font: 600 13px var(--body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+.overview p { margin: 0 0 4px; max-width: 65ch; }
+.overview.compact p:not(:first-of-type) { display: none; }
+.empty { color: var(--muted); border: 1px dashed var(--line); border-radius: 8px; padding: 14px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-top: 4px solid var(--c); border-radius: 8px; padding: 10px 12px;
+  display: flex; flex-direction: column; gap: 8px; animation: in .35s ease-out; min-width: 0; }
+@keyframes in { from { transform: translateY(6px); opacity: .4; } }
+.card .who { font-weight: 600; }
+.card .dir { font-size: 13px; }
+.card .for { font-size: 11px; color: var(--muted); }
+.ctl label { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+.ctl input { width: 100%; accent-color: var(--c); }
+.ends { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+.heard { font-size: 12px; color: var(--muted); font-style: italic; }
+.dirs { display: grid; gap: 10px; }
+.diritem { --c: var(--lead); background: var(--surface); border: 1px solid var(--line); border-top: 4px solid var(--c); border-radius: 8px;
+  padding: 10px 12px; display: grid; gap: 8px; min-width: 0; animation: in .35s ease-out; }
+.diritem .dtext { font-weight: 600; overflow-wrap: anywhere; }
+.deleg { display: flex; flex-wrap: wrap; gap: 4px; }
+.tag { font-size: 11px; padding: 1px 7px; border-radius: 99px; border: 1px solid var(--c); }
+.drow { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.cancel, .edit { font-size: 12px; background: none; border: 1px solid var(--line); border-radius: 5px; padding: 1px 8px; flex: none; }
+.drow .btns { display: flex; gap: 6px; }
+.diritem .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.reftag { font-size: 11px; color: var(--muted); flex: none; }
+.was { font-size: 11px; color: var(--muted); }
+.ref { color: var(--accent); font-weight: 600; }
+.next { background: var(--sunk); border-radius: 6px; padding: 6px 8px; font-size: 12px; display: grid; gap: 4px; }
+.next .bar { height: 3px; background: var(--line); border-radius: 2px; overflow: hidden; }
+.next .bar i { display: block; height: 100%; background: var(--c); }
+.next .row2 { display: flex; justify-content: space-between; align-items: center; gap: 6px; color: var(--muted); }
+.skip { font-size: 11px; background: none; border: 1px solid var(--line); border-radius: 4px; padding: 0 6px; }
+.idle { font-size: 12px; color: var(--muted); }
+
+.chat { display: flex; flex-direction: column; border-left: 1px solid var(--line); background: var(--surface); min-height: 0; min-width: 0; }
+.log { flex: 1; overflow: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+.msg { max-width: 100%; overflow-wrap: anywhere; }
+.msg b { color: var(--c, var(--fg)); }
+.msg.me { align-self: flex-end; text-align: right; background: var(--sunk); padding: 6px 10px; border-radius: 10px 10px 2px 10px; }
+.msg.me .to { display: block; font-size: 11px; color: var(--muted); }
+.msg.activity { font-size: 12px; color: var(--muted); }
+.msg.activity .mono { font-size: 11px; }
+.choices { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.choices button, .suggest { font-size: 12px; border: 1px solid var(--accent); background: var(--accent-soft); border-radius: 99px; padding: 3px 10px; text-align: left; }
+.composer { border-top: 1px solid var(--line); padding: 8px 10px; position: relative; }
+.composer form { display: flex; gap: 6px; }
+.composer input { flex: 1; min-width: 0; border: 1px solid var(--line); background: var(--bg); border-radius: 6px; padding: 7px 9px; }
+.composer button[type=submit] { border: 0; border-radius: 6px; background: var(--accent); color: var(--surface); padding: 0 12px; font-weight: 600; }
+.composer .tip { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.mentions { position: absolute; left: 10px; right: 10px; bottom: 100%; background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+  box-shadow: 0 6px 20px rgb(0 0 0 / .15); max-height: 260px; overflow: auto; padding: 4px; }
+.mentions h4 { margin: 6px 8px 2px; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.mentions button { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 5px 8px; border-radius: 5px; }
+.mentions button small { color: var(--muted); }
+.mentions button.on, .mentions button:hover { background: var(--sunk); }
+
+@media (max-width: 820px) {
+  .team { position: fixed; inset: 0; width: auto; z-index: 5; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .team-body { grid-template-columns: 1fr; grid-template-rows: auto minmax(320px, 1fr); overflow: auto; }
+  .stage { overflow: visible; }
+  .chat { border-left: 0; border-top: 1px solid var(--line); }
+}
+@media (prefers-reduced-motion: reduce) { .card, .diritem { animation: none; } }
+</style>
+
+<div class="app">
+  <div class="transport">
+    <span class="name">lofi_sketch</span>
+    <button class="tbtn" id="rewind" aria-label="Back to bar 1"><svg viewBox="0 0 16 16"><path d="M2 2h2v12H2zM14 2v12L5 8z"/></svg></button>
+    <button class="tbtn" id="play" aria-label="Play" aria-pressed="false"><svg viewBox="0 0 16 16" id="playIcon"><path d="M3 2l11 6-11 6z"/></svg></button>
+    <span class="pos mono" id="pos">1.1.1</span>
+    <span class="meta mono">96 BPM · 4/4 · loop off</span>
+    <span class="spacer"></span>
+    <span class="meta">Prototype: the team is scripted</span>
+    <button class="linkbtn" id="reset">Start over</button>
+  </div>
+  <div class="main">
+    <div class="daw">
+      <div class="timeline"><div class="grid" id="grid"></div></div>
+      <div class="devices">
+        <div class="device">
+          <label for="cutoff">Keys · Filter cutoff <span class="mono" id="cutoffVal">35%</span></label>
+          <input type="range" id="cutoff" min="0" max="100" value="35">
+        </div>
+        <p class="hint">Your hands in the DAW: move the cutoff to demonstrate something, or mute a track. The team sees it.</p>
+      </div>
+      <button class="fab" id="fab" hidden>Open<br>team</button>
+    </div>
+    <section class="team" id="team" aria-label="Team view">
+      <div class="team-head">
+        <h2>Team</h2>
+        <span class="chip" id="mode" title="The team's mode. Shown to see whether it ever matters to the producer.">Ready</span>
+        <button class="close" id="close">Hide</button>
+      </div>
+      <div class="team-body">
+        <div class="stage">
+          <div class="overview" id="overview">
+            <h3>This project</h3>
+            <p><b>Music:</b> 32 bars in A minor at 96 BPM, 4/4. A four-chord Rhodes loop (Am7, Dm9, G7, Cmaj7) over a dusty, swung beat.</p>
+            <p><b>Style:</b> lo-fi hip hop: lazy swing, soft transients, vinyl crackle. Groove and chords are done; nothing on top yet.</p>
+            <p><b>Tracks:</b> Drums (Playfield, dusty kit), Keys (Vaporisateur, Rhodes patch, Crusher), Bass (sub), Vinyl (sample).</p>
+            <p><b>Playback:</b> stopped at bar 1.</p>
+          </div>
+          <div id="dirsWrap"></div>
+          <div id="cardsWrap"><p class="empty">Team members show up here once the Team Lead brings them in.</p></div>
+        </div>
+        <div class="chat">
+          <div class="log" id="log" aria-live="polite"></div>
+          <div class="composer">
+            <div class="mentions" id="mentions" hidden></div>
+            <form id="form">
+              <input id="input" autocomplete="off" placeholder="Message the Team Lead, or @ a member">
+              <button type="submit">Send</button>
+            </form>
+            <div class="tip">Goes to the Team Lead. Type @ to pick anyone, # to refer to a direction.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+const BPM = 96, BAR_MS = 60000 / BPM * 4, BARS = 32;
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+// Roles. `steps` are the changes a member works through; labels read its control's current value, so moving a
+// control relabels a pending change before it lands.
+const ROLES = {
+  lead: { name: 'Team Lead', c: 'lead' },
+  drums: { name: 'Drum programmer', c: 'drums',
+    dir: 'Move the groove from a swung, dusty beat to a straight four-on-the-floor, one step at a time.',
+    ctl: { label: 'Pattern', min: 0, max: 100, value: 40, lo: 'sparse', hi: 'busy' },
+    heard: v => v > 60 ? 'Busier: shakers and ghost notes from here on.' : v < 30 ? 'Sparser: just kick, clap and hats.' : 'Keeping the pattern moderate.',
+    steps: [
+      v => ({ track: 'drums', label: 'Pull the swing back to 30%', seg: 'Less swing' }),
+      v => ({ track: 'drums', label: 'Kick on every beat', seg: 'Four on the floor' }),
+      v => ({ track: 'drums', label: v > 60 ? 'Offbeat open hats + shaker' : 'Offbeat open hats', seg: v > 60 ? '4otf, hats, shaker' : '4otf + hats' }),
+      v => ({ track: 'drums', label: v < 30 ? 'Clap on 2 and 4' : 'Clap on 2 and 4, ghost snares', seg: 'House kit' }),
+    ] },
+  inst: { name: 'Instrument designer', c: 'inst',
+    dir: 'Designing synths from a range of time periods.',
+    ctl: { label: 'Era', min: 1980, max: 2000, value: 1988, lo: '1980', hi: '2000' },
+    heard: v => `Next sounds come from the ${era(v).name} palette.`,
+    steps: [
+      v => ({ track: 'keys', label: `Swap the Rhodes for an ${era(v).keys}`, seg: era(v).keys }),
+      v => ({ track: 'pad', label: `Add a ${era(v).pad} under the chords`, seg: era(v).pad }),
+      v => ({ track: 'keys', label: `Open the ${era(v).keys} filter on the offbeats`, seg: `${era(v).keys}, brighter` }),
+    ] },
+  mix: { name: 'Mix engineer', c: 'mix',
+    dir: 'Keep the kick and bass clear as the low end gets heavier.',
+    ctl: { label: 'Character', min: 0, max: 100, value: 30, lo: 'dusty', hi: 'clean' },
+    heard: v => v > 50 ? 'Cleaning up: less crackle, crisper top end.' : 'Keeping the dust; just making room for the kick.',
+    steps: [
+      v => ({ track: 'keys', label: 'Cut the keys below 150 Hz', mark: true }),
+      v => ({ track: 'keys', label: 'Sidechain keys to the kick', mark: true }),
+      v => ({ track: 'vinyl', label: v > 50 ? 'Fade the vinyl crackle out' : 'Vinyl crackle 3 dB down', mark: true }),
+      v => ({ track: 'drums', label: 'Kick up 2 dB', mark: true }),
+    ] },
+  bass: { name: 'Bass programmer', c: 'other',
+    dir: 'Turn the sub into a house bassline that locks to the kick.',
+    ctl: { label: 'Movement', min: 0, max: 100, value: 50, lo: 'steady', hi: 'bouncy' },
+    heard: v => v > 50 ? 'More octave jumps and slides.' : 'Holding the bass steady under the kick.',
+    steps: [
+      v => ({ track: 'bass', label: 'Bass on the offbeats', seg: 'Offbeat bass' }),
+      v => ({ track: 'bass', label: v > 50 ? 'Octave jumps with slides' : 'Octave jumps', seg: 'Octave bass' }),
+    ] },
+  composer: { name: 'Composer', c: 'other',
+    dir: 'Keep the four chords and colour them for house.',
+    ctl: { label: 'Harmony', min: 0, max: 100, value: 50, lo: 'plain', hi: 'jazzy' },
+    heard: v => v > 50 ? 'Leaning into ninths and elevenths.' : 'Keeping the chords simple.',
+    steps: [ v => ({ track: 'keys', label: v > 50 ? 'Ninths on Dm and G' : 'Triads on Dm and G', mark: true }),
+             v => ({ track: 'keys', label: 'Chords as offbeat stabs', mark: true }) ] },
+  arranger: { name: 'Arranger', c: 'other',
+    dir: 'Shape the 32 bars into an intro, a build and a drop.',
+    ctl: { label: 'Drama', min: 0, max: 100, value: 50, lo: 'subtle', hi: 'big' },
+    heard: v => v > 50 ? 'Bigger drop, longer breakdown.' : 'Keeping the sections close together.',
+    steps: [ v => ({ track: 'drums', label: 'Drop the drums for 2 bars', mark: true }),
+             v => ({ track: 'drums', label: 'Bring everything back in', mark: true }) ] },
+  effects: { name: 'Effect designer', c: 'other',
+    dir: 'Risers, sweeps and the keys’ effect chain.',
+    ctl: { label: 'Motion', min: 0, max: 100, value: 50, lo: 'still', hi: 'moving' },
+    heard: v => v > 50 ? 'More sweeps and risers.' : 'Fewer effects moving.',
+    steps: [ v => ({ track: 'keys', label: 'Riser into the next section', mark: true }) ] },
+  critic: { name: 'Critic', c: 'other',
+    dir: 'Listens against the goal and gives notes. Makes no edits.',
+    ctl: { label: 'Bluntness', min: 0, max: 100, value: 50, lo: 'gentle', hi: 'blunt' },
+    heard: v => v > 50 ? 'I’ll be blunt.' : 'I’ll go easy.', steps: [] },
+};
+function era(v) {
+  if (v < 1986) return { name: 'early-80s', keys: 'DX7 e-piano', pad: 'Juno string pad' };
+  if (v < 1993) return { name: 'late-80s', keys: 'M1 piano stab', pad: 'M1 organ pad' };
+  return { name: '90s rave', keys: 'rave stab', pad: 'hoover pad' };
+}
+
+const TRACK_DEFS = [
+  ['drums', 'Drums', 'Playfield · dusty kit', 'Swung boom-bap'],
+  ['keys', 'Keys', 'Vaporisateur · Crusher', 'Rhodes loop'],
+  ['bass', 'Bass', 'Vaporisateur', 'Sub, root notes'],
+  ['vinyl', 'Vinyl', 'Sample', 'Crackle'],
+];
+
+let S, gen = 0;
+function init() {
+  clearTimeout(S?.demoTimer);
+  S = { gen: ++gen, pos: 1, playing: false, played: false, last: 0, team: [], dirs: [], vals: {}, heard: {}, step: {}, nextAt: {},
+        pending: [], landed: [], tracks: {}, muted: {}, open: true, demo: null, critAt: 9, seq: 0 };
+  for (const [id, name, dev, seg] of TRACK_DEFS) S.tracks[id] = { name, dev, segs: [{ from: 1, label: seg, c: null }], marks: [] };
+  $('log').innerHTML = ''; $('dirsWrap').innerHTML = '';
+  $('cutoff').value = 35; $('cutoffVal').textContent = '35%';
+  $('cardsWrap').innerHTML = '<p class="empty">Team members show up here once the Team Lead brings them in.</p>';
+  $('overview').classList.remove('compact');
+  say('lead', 'What do you want to do?', [['Slowly evolve this from a lo-fi beat into a house track.', t => send(t)]]);
+  setOpen(true); renderDaw(); renderTransport(); renderMode();
+}
+
+// ---------- chat ----------
+function say(role, text, choices) {
+  const r = ROLES[role], el = document.createElement('div');
+  el.className = 'msg'; el.style.setProperty('--c', `var(--${r.c})`);
+  el.innerHTML = `<b>${esc(r.name)}:</b> ${esc(text)}`;
+  if (choices) {
+    const box = document.createElement('div'); box.className = 'choices';
+    for (const [label, fn] of choices) {
+      const b = document.createElement('button'); b.type = 'button'; b.textContent = label;
+      b.onclick = () => { box.remove(); fn(label); }; box.appendChild(b);
+    }
+    el.appendChild(box);
+  }
+  append(el);
+}
+function activity(role, text) {
+  const el = document.createElement('div'); el.className = 'msg activity';
+  el.innerHTML = `<span class="mono">bar ${Math.floor(S.pos)}</span> · ${esc(ROLES[role].name)}: ${esc(text)}`;
+  append(el);
+}
+function mine(text, to) {
+  const el = document.createElement('div'); el.className = 'msg me';
+  el.innerHTML = `<span class="to">to ${esc(ROLES[to].name)}</span>${esc(text).replace(/([@#]\w+)/g, '<span class="ref">$1</span>')}`;
+  append(el);
+}
+function append(el) { const log = $('log'); log.appendChild(el); log.scrollTop = log.scrollHeight; }
+// Replies are delayed; "Start over" drops the ones still waiting.
+const later = (ms, fn) => { const g = S.gen; setTimeout(() => g === S.gen && fn(), ms); };
+
+const handle = k => ROLES[k].name.toLowerCase().replace(/ /g, '_');
+// "@member" at the start picks who it's for; "#tag" anywhere refers to a direction.
+function parse(text) {
+  const t = text.trim(), m = t.match(/^@(\w+)\s*/);
+  const to = m && Object.keys(ROLES).find(k => handle(k) === m[1].toLowerCase());
+  const body = to ? t.slice(m[0].length) : t;
+  const tm = body.match(/#(\w+)/), dir = tm && S.dirs.find(d => d.tag === tm[1].toLowerCase());
+  return { to: to || 'lead', body, dir, rest: dir ? body.replace(tm[0], '').trim() : body };
+}
+const ROUTES = [
+  [/kick|drum|hat|clap|groove|swing|snare|beat/i, 'drums'],
+  [/bass/i, 'bass'],
+  [/synth|sound|pad|keys|rhodes|piano|80s|90s|era|stab/i, 'inst'],
+  [/loud|quiet|mix|level|muddy|crackle|vinyl|clean|dust/i, 'mix'],
+  [/chord|harmony|melody|note/i, 'composer'],
+  [/drop|build|section|intro|break|arrange/i, 'arranger'],
+  [/riser|sweep|effect|reverb|delay/i, 'effects'],
+  [/think|opinion|feedback|how (is|does)|working\?/i, 'critic'],
+];
+
+function send(text) {
+  const { to, body, dir, rest } = parse(text);
+  mine(body || text, to);
+  if (dir && to === 'lead') return later(600, () => amend(dir, rest));
+  if (!S.team.length && to === 'lead') return later(600, () => startTeam(body));
+  if (to === 'lead') {
+    // A message to the Team Lead becomes a direction it holds and splits among members; the critic only gives notes.
+    const route = ROUTES.find(([re]) => re.test(body));
+    if (!route) {
+      const members = S.team.filter(r => r !== 'critic');
+      return later(600, () => {
+        const d = direct(body, members);
+        say('lead', `Got it: #${d.tag}. Everyone will work that in.`);
+      });
+    }
+    const who = route[1];
+    later(600, () => {
+      const d = who === 'critic' ? null : direct(body, [who]);
+      const ref = d ? ` (#${d.tag})` : '';
+      say('lead', S.team.includes(who) ? `Passing that to the ${ROLES[who].name}${ref}.` : `Bringing in a ${ROLES[who].name} for that${ref}.`);
+      join(who);
+      later(900, () => respond(who, body, d?.id));
+    });
+  } else {
+    if (!S.team.includes(to)) later(500, () => { say('lead', `Bringing in a ${ROLES[to].name}.`); join(to); });
+    later(1300, () => respond(to, body));
+  }
+}
+function respond(role, body, dir) {
+  if (role === 'critic') return say('critic', critique());
+  const bar = Math.floor(S.pos) + (S.playing ? 2 : 1);
+  queue(role, { track: ROLES[role].steps[0]?.(0).track || 'keys', label: `“${body}”`, mark: true, custom: true }, bar, dir);
+  say(role, `On it. Lands at bar ${bar}${S.playing ? '' : ' when you press play'}.`);
+}
+function critique() {
+  const n = S.landed.length;
+  if (!n) return 'Nothing has changed yet. The loop is solid; the swing will be the hardest thing to let go of.';
+  const lastDrum = S.landed.filter(l => l.role === 'drums').pop();
+  return lastDrum && /every beat/.test(lastDrum.label)
+    ? 'The straight kick under the dusty keys is a nice in-between. The keys still sound lo-fi; that’s now the thing holding it back.'
+    : `${n} change${n > 1 ? 's' : ''} in, and it still reads as lo-fi. The drums need to straighten before anything else will land.`;
+}
+
+function startTeam(goal) {
+  say('lead', 'Let me bring in the people this needs.');
+  const d = direct(goal, ['drums', 'inst', 'mix'], { goal: true, ctl: { label: 'Pace', value: 30, lo: 'slow', hi: 'fast' },
+    parts: { drums: 'the groove', inst: 'the sounds', mix: 'the low end' } });
+  ['drums', 'inst', 'mix'].forEach((r, i) => later(500 + i * 450, () => join(r)));
+  later(2100, () => say('lead', `Your goal is #${d.tag}, under Directions, with a pace you can change. Each member has said what they’ll do and what you can steer. Press play when ready.`));
+}
+
+// ---------- directions held by the Team Lead ----------
+function direct(text, members, opts = {}) {
+  const d = { id: ++S.seq, tag: slug(text), text, members, ctl: { label: 'Strength', value: 50, lo: 'a hint', hi: 'a lot' }, ...opts };
+  S.dirs.push(d); renderDirs(); renderCards();
+  return d;
+}
+// The first three words, unique among directions; it stays the same when the direction is edited.
+function slug(text) {
+  const base = text.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(Boolean).slice(0, 3).join('_') || 'direction';
+  let tag = base, n = 2;
+  while (S.dirs.some(d => d.tag === tag)) tag = `${base}_${n++}`;
+  return tag;
+}
+// Changes to a direction come through the chat: "@team_lead #tag faster", "... cancel it", or new wording.
+function amend(d, words) {
+  const w = words.toLowerCase();
+  if (!w) return say('lead', `What should change about #${d.tag}?`);
+  if (/\b(cancel|stop|drop|forget)\b/.test(w)) return cancelDir(d);
+  const up = /\b(faster|speed up|quicker|more|stronger|push)\b/.test(w), down = /\b(slower|slow down|less|softer|gentler|ease)\b/.test(w);
+  if (up !== down) {
+    d.ctl.value = Math.max(0, Math.min(100, d.ctl.value + (up ? 25 : -25)));
+    hearDir(d);
+    say('lead', `#${d.tag}: ${d.ctl.label.toLowerCase()} ${up ? 'up' : 'down'} to ${d.ctl.value}.`);
+  } else {
+    d.was = d.text; d.text = words;
+    say('lead', `Updated #${d.tag}. I’ve told ${d.members.map(r => ROLES[r].name).join(', ')}; their next changes follow the new wording.`);
+  }
+  renderDirs();
+}
+function hearDir(d) {
+  const v = d.ctl.value;
+  d.heard = d.goal ? `Heard: each member changes something every ${gap()} bar${gap() > 1 ? 's' : ''}.`
+                   : `Heard: ${v > 60 ? 'leaning into it' : v < 40 ? 'just a touch' : 'a fair amount'}.`;
+}
+// Bars between one member's changes, from the goal's pace.
+function gap() {
+  const g = S.dirs.find(d => d.goal);
+  return g ? Math.round(4 - 3 * g.ctl.value / 100) : 3;
+}
+function renderDirs() {
+  const wrap = $('dirsWrap');
+  if (!S.dirs.length) { wrap.innerHTML = ''; return; }
+  wrap.innerHTML = '<h3>Directions, held by the Team Lead</h3><div class="dirs" id="dirs"></div>';
+  for (const d of S.dirs) {
+    const el = document.createElement('article'); el.className = 'diritem';
+    el.innerHTML = `<div class="top"><span class="dtext">${esc(d.text)}</span><span class="reftag mono">#${esc(d.tag)}</span></div>
+      ${d.was ? `<div class="was">Was: ${esc(d.was)}</div>` : ''}
+      <div class="deleg">${d.members.map(r => `<span class="tag" style="--c:var(--${ROLES[r].c})">${esc(ROLES[r].name)}${d.parts?.[r] ? `: ${esc(d.parts[r])}` : ''}</span>`).join('')}</div>
+      <div class="ctl"><label for="d-${d.id}">${esc(d.ctl.label)} <span class="mono" id="dv-${d.id}">${d.ctl.value}</span></label>
+        <input type="range" id="d-${d.id}" min="0" max="100" value="${d.ctl.value}">
+        <div class="ends"><span>${esc(d.ctl.lo)}</span><span>${esc(d.ctl.hi)}</span></div></div>
+      <div class="drow"><span class="heard">${esc(d.heard || '')}</span>
+        <span class="btns"><button class="edit" type="button">Edit</button><button class="cancel" type="button">Cancel</button></span></div>`;
+    $('dirs').appendChild(el);
+    const range = el.querySelector('input');
+    range.oninput = () => { d.ctl.value = +range.value; $(`dv-${d.id}`).textContent = range.value; };
+    range.onchange = () => { hearDir(d); el.querySelector('.heard').textContent = d.heard; };
+    el.querySelector('.cancel').onclick = () => cancelDir(d);
+    // No editing UI of its own: Edit starts a chat message about this direction.
+    el.querySelector('.edit').onclick = () => {
+      input.value = `@team_lead #${d.tag} `; input.focus(); input.setSelectionRange(input.value.length, input.value.length);
+    };
+  }
+}
+function cancelDir(d) {
+  S.dirs = S.dirs.filter(x => x !== d);
+  S.pending = S.pending.filter(p => p.dir !== d.id);
+  say('lead', `Cancelled “${d.text}”. ${d.members.map(r => ROLES[r].name).join(', ')} stopped working on it. What already landed stays; undo it in the DAW or ask me to.`);
+  renderDirs(); renderCards(); renderDaw();
+}
+
+// ---------- team ----------
+function join(role) {
+  if (S.team.includes(role)) return;
+  S.team.push(role);
+  S.vals[role] = ROLES[role].ctl?.value; S.step[role] = 0;
+  S.nextAt[role] = Math.floor(S.pos) + 1 + S.team.length;
+  $('overview').classList.add('compact');
+  renderCards(); renderMode();
+}
+function queue(role, change, bar, dir) {
+  S.pending.push({ id: ++S.seq, role, bar, from: S.pos, fixed: change, dir });
+  renderCards(); renderDaw();
+}
+function labelOf(p) { return p.fixed || ROLES[p.role].steps[p.step](S.vals[p.role]); }
+
+function renderCards() {
+  const wrap = $('cardsWrap');
+  if (!S.team.length) return;
+  wrap.innerHTML = '<h3>Team</h3><div class="cards" id="cards"></div>';
+  for (const role of S.team) {
+    const r = ROLES[role], el = document.createElement('article');
+    el.className = 'card'; el.style.setProperty('--c', `var(--${r.c})`);
+    const ctl = r.ctl, v = S.vals[role];
+    const fors = S.dirs.filter(d => d.members.includes(role)).map(d => d.parts?.[role] || d.text);
+    el.innerHTML = `<div class="who">${esc(r.name)}</div>
+      <div class="for">${fors.length ? 'From the Team Lead: ' + esc(fors.join(' · ')) : 'No direction from the Team Lead'}</div>
+      <div class="dir">${esc(r.dir)}</div>
+      <div class="ctl"><label for="ctl-${role}">${esc(ctl.label)} <span class="mono" id="v-${role}">${v}</span></label>
+        <input type="range" id="ctl-${role}" min="${ctl.min}" max="${ctl.max}" value="${v}">
+        <div class="ends"><span>${esc(ctl.lo)}</span><span>${esc(ctl.hi)}</span></div></div>
+      <div class="heard" id="heard-${role}">${esc(S.heard[role] || '')}</div>
+      <div id="next-${role}"></div>`;
+    $('cards').appendChild(el);
+    const input = el.querySelector('input');
+    input.oninput = () => { S.vals[role] = +input.value; $(`v-${role}`).textContent = input.value; renderNext(role); renderDaw(); };
+    input.onchange = () => { S.heard[role] = 'Heard: ' + r.heard(S.vals[role]); $(`heard-${role}`).textContent = S.heard[role]; };
+    renderNext(role);
+  }
+}
+function renderNext(role) {
+  const box = $(`next-${role}`); if (!box) return;
+  const p = S.pending.find(p => p.role === role);
+  if (!p) {
+    const done = S.step[role] >= ROLES[role].steps.length;
+    const directed = S.dirs.some(d => d.members.includes(role));
+    box.innerHTML = `<div class="idle">${role === 'critic' ? 'Listening.' : !directed ? 'Idle until it gets a direction.' : done ?'Done with the plan. Waiting for direction.' : S.playing ? 'Preparing the next change.' : 'Waits for playback.'}</div>`;
+    return;
+  }
+  box.innerHTML = `<div class="next"><span>Next: ${esc(labelOf(p).label)}</span>
+    <div class="bar"><i id="prog-${p.id}"></i></div>
+    <div class="row2"><span class="mono" id="cd-${p.id}"></span><button class="skip" type="button">Skip</button></div></div>`;
+  box.querySelector('.skip').onclick = () => {
+    S.pending = S.pending.filter(q => q !== p);
+    if (!p.fixed) S.step[role]++;
+    S.nextAt[role] = Math.floor(S.pos) + gap();
+    activity(role, `skipped “${labelOf(p).label}”`);
+    renderNext(role); renderDaw();
+  };
+  tickCountdowns();
+}
+function tickCountdowns() {
+  for (const p of S.pending) {
+    const cd = $(`cd-${p.id}`), pr = $(`prog-${p.id}`); if (!cd) continue;
+    const left = Math.max(0, p.bar - S.pos);
+    cd.textContent = `bar ${p.bar} · in ${left.toFixed(1)} bars`;
+    const span = Math.max(0.01, p.bar - p.from);
+    pr.style.width = `${Math.min(100, (1 - left / span) * 100)}%`;
+  }
+}
+
+// ---------- the scripted performance ----------
+function onBar(bar) {
+  for (const p of [...S.pending].filter(p => p.bar <= bar)) land(p);
+  for (const role of S.team) {
+    const r = ROLES[role], d = S.dirs.find(d => d.members.includes(role));
+    if (!d || S.pending.some(p => p.role === role) || S.step[role] >= r.steps.length || bar < S.nextAt[role]) continue;
+    S.pending.push({ id: ++S.seq, role, step: S.step[role], bar: bar + 2, from: S.pos, dir: d.id });
+    renderNext(role);
+  }
+  if (S.team.includes('critic') && bar >= S.critAt) { S.critAt = bar + 8; say('critic', critique()); }
+  renderDaw();
+}
+function land(p) {
+  S.pending = S.pending.filter(q => q !== p);
+  const ch = labelOf(p), role = p.role;
+  if (!p.fixed) S.step[role]++;
+  S.nextAt[role] = p.bar + gap();
+  if (!S.tracks[ch.track]) {
+    S.tracks[ch.track] = { name: 'Pad', dev: 'Vaporisateur · new', segs: [], marks: [] };
+  }
+  const t = S.tracks[ch.track];
+  if (ch.mark) t.marks.push({ at: p.bar, label: ch.label, c: ROLES[role].c });
+  else t.segs.push({ from: p.bar, label: ch.seg, c: ROLES[role].c });
+  S.landed.push({ role, label: ch.label, bar: p.bar });
+  activity(role, ch.label);
+  renderNext(role);
+}
+
+function frame(now) {
+  if (!S.playing) return;
+  const prev = S.pos;
+  S.pos += (now - S.last) / BAR_MS; S.last = now;
+  if (S.pos >= BARS + 1) { S.pos = BARS + 1; stop(); return; }
+  if (Math.floor(S.pos) !== Math.floor(prev)) onBar(Math.floor(S.pos));
+  renderTransport(); tickCountdowns();
+  requestAnimationFrame(frame);
+}
+function play() {
+  if (S.pos >= BARS + 1) S.pos = 1;
+  S.playing = true; S.played = S.team.length > 0; S.last = performance.now();
+  onBar(Math.floor(S.pos));
+  S.team.forEach(renderNext); renderTransport(); renderMode();
+  requestAnimationFrame(frame);
+}
+function stop() {
+  S.playing = false; renderTransport(); renderMode(); S.team.forEach(renderNext);
+  if (!S.team.length) return;
+  const recent = S.landed.slice(-4).map(l => `${l.label.toLowerCase()} (bar ${l.bar})`);
+  say('lead', recent.length
+    ? `Stopped at bar ${Math.floor(S.pos)}. Latest: ${recent.join('; ')}. Keep going, undo something, or change direction?`
+    : `Stopped at bar ${Math.floor(S.pos)}. Nothing landed yet.`);
+}
+
+// ---------- DAW ----------
+function renderDaw() {
+  const g = $('grid'); let html = '<div class="row ruler"><div class="head meta">Bar</div><div class="lane">';
+  for (let b = 1; b <= BARS; b += 4) html += `<span class="tick mono" style="left:${(b - 1) / BARS * 100}%">${b}</span>`;
+  html += '</div></div>';
+  for (const [id, t] of Object.entries(S.tracks)) {
+    const segs = [...t.segs].sort((a, b) => a.from - b.from);
+    html += `<div class="row${S.muted[id] ? ' muted' : ''}"><div class="head"><b>${esc(t.name)}</b><small>${esc(t.dev)}</small>
+      <button class="mute" type="button" data-t="${id}" aria-pressed="${!!S.muted[id]}">M</button></div><div class="lane">`;
+    segs.forEach((s, i) => {
+      const to = segs[i + 1]?.from ?? BARS + 1;
+      html += `<div class="seg" title="${esc(s.label)}" style="left:${(s.from - 1) / BARS * 100}%;width:${(to - s.from) / BARS * 100}%;${s.c ? `--c:var(--${s.c})` : ''}">${esc(s.label)}</div>`;
+    });
+    for (const m of t.marks) html += `<span class="mark" title="${esc(m.label)}" style="left:${(m.at - 1) / BARS * 100}%;--c:var(--${m.c})"></span>`;
+    for (const p of S.pending) {
+      const ch = labelOf(p);
+      if (ch.track === id)
+        html += `<span class="ghost" title="Pending: ${esc(ch.label)}" style="left:${(p.bar - 1) / BARS * 100}%;--c:var(--${ROLES[p.role].c})"></span>`;
+    }
+    html += '</div></div>';
+  }
+  html += '<div class="playhead" id="ph"></div>';
+  g.innerHTML = html;
+  g.querySelectorAll('.mute').forEach(b => b.onclick = () => toggleMute(b.dataset.t));
+  placePlayhead();
+}
+function placePlayhead() {
+  const ph = $('ph'); if (!ph) return;
+  ph.style.left = `calc(150px + (100% - 150px) * ${(S.pos - 1) / BARS})`;
+}
+function renderTransport() {
+  const beat = (S.pos % 1) * 4, b = Math.floor(S.pos);
+  $('pos').textContent = `${Math.min(b, BARS)}.${Math.floor(beat) + 1}.${Math.floor((beat % 1) * 4) + 1}`;
+  $('play').setAttribute('aria-pressed', S.playing); $('play').setAttribute('aria-label', S.playing ? 'Stop' : 'Play');
+  $('playIcon').innerHTML = S.playing ? '<path d="M3 3h10v10H3z"/>' : '<path d="M3 2l11 6-11 6z"/>';
+  placePlayhead();
+}
+function renderMode() {
+  $('mode').textContent = S.playing ? 'Performing' : !S.team.length ? 'Ready' : S.played ? 'Reviewing' : 'Planning';
+}
+function toggleMute(id) {
+  S.muted[id] = !S.muted[id]; renderDaw();
+  if (S.team.includes('mix'))
+    say('mix', S.muted[id] ? `You muted the ${S.tracks[id].name} at bar ${Math.floor(S.pos)}. I’ll leave it alone until it’s back.`
+                           : `${S.tracks[id].name} is back. Picking up where I left off.`);
+}
+
+// Demonstration: a burst of moves on the cutoff, then a pause, earns an offer.
+$('cutoff').addEventListener('input', e => {
+  const v = +e.target.value; $('cutoffVal').textContent = v + '%';
+  if (!S.demo) S.demo = { from: S.demoBase ?? 35, bar: Math.floor(S.pos) };
+  S.demo.to = v; clearTimeout(S.demoTimer);
+  S.demoTimer = setTimeout(() => {
+    const d = S.demo; S.demo = null; S.demoBase = d.to;
+    if (Math.abs(d.to - d.from) < 10) return;
+    const who = S.team.includes('inst') ? 'inst' : 'lead';
+    const target = Math.ceil(S.pos / 8) * 8 + 1;
+    const dir = d.to > d.from ? 'opened' : 'closed';
+    say(who, `You ${dir} the Keys filter from ${d.from}% to ${d.to}% around bar ${d.bar}. Make that a sweep into every 8 bars, starting bar ${Math.min(target, BARS)}?`, [
+      ['Yes, do that', () => { join('inst'); queue('inst', { track: 'keys', label: `Filter sweep ${d.from}→${d.to}%, every 8 bars`, mark: true }, Math.min(target, BARS)); say('inst', `Queued for bar ${Math.min(target, BARS)}.`); }],
+      ['Just once, here', () => say(who, 'Leaving it as you played it.')],
+    ]);
+  }, 1200);
+});
+
+// ---------- @ members and # directions ----------
+const input = $('input'), menu = $('mentions');
+let mi = 0;
+function token() {
+  const before = input.value.slice(0, input.selectionStart), m = before.match(/(^|\s)([@#])(\w*)$/);
+  return m && { kind: m[2], q: m[3].toLowerCase(), start: before.length - 1 - m[3].length, end: before.length };
+}
+function menuGroups(t) {
+  if (t.kind === '#') return [['Directions', S.dirs.filter(d => d.tag.startsWith(t.q)).map(d => ({ ins: '#' + d.tag, label: '#' + d.tag, sub: d.text }))]];
+  const all = Object.keys(ROLES).filter(k => handle(k).startsWith(t.q));
+  const item = k => ({ ins: '@' + handle(k), label: ROLES[k].name, sub: ROLES[k].dir });
+  return [['On the team', all.filter(k => k === 'lead' || S.team.includes(k)).map(item)],
+          ['Not on the team yet: mentioning brings them in', all.filter(k => k !== 'lead' && !S.team.includes(k)).map(item)]];
+}
+function menuItems() { const t = token(); return t ? menuGroups(t).flatMap(g => g[1]) : []; }
+function renderMentions() {
+  const t = token(), items = menuItems();
+  if (!items.length) { menu.hidden = true; return; }
+  mi = Math.min(mi, items.length - 1);
+  let html = '', i = 0;
+  for (const [title, list] of menuGroups(t)) {
+    if (!list.length) continue;
+    html += `<h4>${esc(title)}</h4>` + list.map(it => `<button type="button" data-i="${i}" class="${i++ === mi ? 'on' : ''}">${esc(it.label)} ${it.sub ? `<small>${esc(it.sub)}</small>` : ''}</button>`).join('');
+  }
+  menu.innerHTML = html; menu.hidden = false;
+  menu.querySelectorAll('button').forEach(b => b.onmousedown = e => { e.preventDefault(); pick(items[+b.dataset.i]); });
+}
+function pick(it) {
+  const t = token(); if (!t) return;
+  input.value = input.value.slice(0, t.start) + it.ins + ' ' + input.value.slice(t.end);
+  const at = t.start + it.ins.length + 1;
+  input.setSelectionRange(at, at); menu.hidden = true; input.focus();
+}
+input.addEventListener('input', () => { mi = 0; renderMentions(); });
+input.addEventListener('keydown', e => {
+  if (menu.hidden) return;
+  const items = menuItems(); if (!items.length) return;
+  if (e.key === 'ArrowDown') { mi = (mi + 1) % items.length; renderMentions(); e.preventDefault(); }
+  else if (e.key === 'ArrowUp') { mi = (mi - 1 + items.length) % items.length; renderMentions(); e.preventDefault(); }
+  else if (e.key === 'Enter' || e.key === 'Tab') { pick(items[mi]); e.preventDefault(); }
+  else if (e.key === 'Escape') menu.hidden = true;
+});
+input.addEventListener('blur', () => menu.hidden = true);
+$('form').addEventListener('submit', e => {
+  e.preventDefault(); const t = input.value.trim(); if (!t) return;
+  input.value = ''; menu.hidden = true; send(t);
+});
+
+// ---------- chrome ----------
+function setOpen(open) { S.open = open; $('team').hidden = !open; $('fab').hidden = open; }
+$('fab').onclick = () => setOpen(true);
+$('close').onclick = () => setOpen(false);
+$('play').onclick = () => S.playing ? stop() : play();
+$('rewind').onclick = () => { S.pos = 1; renderTransport(); };
+$('reset').onclick = () => init();
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space' && !/INPUT|BUTTON/.test(document.activeElement.tagName)) { e.preventDefault(); $('play').click(); }
+});
+init();
+</script>

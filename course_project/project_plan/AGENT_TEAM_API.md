@@ -398,10 +398,10 @@ type Member = {agent: Actor, roles: string[], shown: boolean, retired?: number} 
 - **Every role in the set starts each session** (FEATURES.md, "The team"). `roles()` and `team()` return them.
   The bus computes `shown`: true while the member has a pending request, a claim, or a recent message to the
   producer, or was just addressed. Showing and hiding go in the change stream and the session record (`member`).
-- **Roles can be made and retired at any time**, performance included: the orchestrator calls `makeRole(role)` and
+- **Roles can be made and retired at any time**, performance included: the team lead calls `makeRole(role)` and
   `retireRole(id)` (only made roles retire). The bus refuses an operation not in the member's role, so a tutor
   can't edit.
-- **The orchestrator is only the front door.** Chat from the producer with no `to` goes to it; it passes requests
+- **The team lead is only the front door.** Chat from the producer with no `to` goes to it; it passes requests
   on as team messages and reports back. It has no operations and doesn't coordinate the others' work: members do
   that among themselves, below. The producer can also address any member directly.
 
