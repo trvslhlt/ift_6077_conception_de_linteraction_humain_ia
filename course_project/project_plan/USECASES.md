@@ -5,4 +5,8 @@
     - tune the vibe while studying: "that last melody was calming. explore that for a while"
 4. vitrual band via demonstration/performance
     - you play a midi piano and the band responds, follows, lead you in new directions
-5. 
+5. active critique
+    - show don't tell
+    - offer fixes to issues instead of stopping at identifying them
+
+* Many of these point to a strong fork in the initial prompt. The initial framing will decide what kind of work the agents do.

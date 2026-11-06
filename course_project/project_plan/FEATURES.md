@@ -126,6 +126,10 @@ user correct the agents' reading before asking for anything ("it's not electro, 
 3. The overview shows when the view opens and stays as it is. When the project has changed since, a "refresh"
    button appears; the playback line updates live, since it needs no model.
 
+**Built (2026-11-06, `takedo/`):** three model lines (Music, Style, Tracks) from Claude Haiku 5.5; the page writes
+the playback line itself, live, and shows "refresh" once the project has changed. Device descriptions come from
+`takedo/catalog/devices.json`.
+
 **What it must not do.** Guess what a device sounds like when the catalog doesn't say (an Apparat or Werkstatt
 script, a sampler without a library sound): name the device, not its timbre. Describe what isn't there ("no bass")
 only where it helps the user decide what to ask for next.

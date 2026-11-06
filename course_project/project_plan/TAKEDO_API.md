@@ -395,6 +395,10 @@ type Analysis = {key?: {tonic: string, mode: string, confidence: number}, regist
 | `prepared()` | requests waiting for a cue, with their `reason` |
 | `diff(since: seq, {refs?})` | what changed since `seq`, folded to net changes per ref (start and end values, notes added and removed), with who changed each |
 
+- **Built so far (2026-11-06, `takedo/shared/protocol.ts`):** the outline and full snapshot without `analysis`
+  (the backend computes it, `takedo/backend/src/analysis.ts`) or device refs; `at` also carries `revision`, a count
+  of every update to the project, so "has anything changed since" has an answer before every kind of change is
+  reported.
 - **The snapshot walks the whole project each time**, so a track added meanwhile is never missed (STRATEGY.md,
   "What the state query must return").
 - **`diff` is what a woken member usually reads** (see Changes, "Triggers"). The member keeps the `seq` it last

@@ -1,0 +1,358 @@
+{
+  "//": [
+    "Hand-written notes on openDAW's devices: what a producer weighs when choosing one, which openDAW's API and manual don't say (STRATEGY.md, 'What agents know': the catalog's hand-written lines).",
+    "Keyed by device type as the snapshot names it (the box name without 'DeviceBox' or 'Box'). openDAW's own names, descriptions and parameters come from openDAW, not from here.",
+    "Fields: sound (the timbre or what it does to a sound, typical rather than per preset), roles (what it's used for in a track), genres (where it's commonly heard), evokes (classic gear or sounds it recalls), words (how producers describe what they want when this is the answer), limits (what it can't do, or when to pick something else). opaque: its sound depends on content we can't read (a script, a plugin, a model file); name it, don't describe it.",
+    "Written 2026-11-06 from openDAW's manual pages and general production knowledge, not from listening. A synth's sound depends on its settings: these describe its character and range, not a given patch."
+  ],
+  "devices": {
+    "Vaporisateur": {
+      "kind": "instrument",
+      "sound": "Classic two-oscillator analog-style subtractive synth: saw, square, triangle and sine through a resonant low-pass filter, with unison detune for width. Warm and familiar rather than exotic; can be fat, soft or buzzy depending on waveform and cutoff.",
+      "roles": ["pad", "bass", "lead", "chords", "pluck", "sub bass"],
+      "genres": ["house", "techno", "synth-pop", "synthwave", "trance", "ambient", "hip-hop", "pop"],
+      "evokes": ["Juno- and Minimoog-style analog polysynths and monosynths"],
+      "words": ["warm", "analog", "fat", "lush", "detuned", "supersaw", "filter sweep", "classic synth"],
+      "limits": "Not for metallic, bell-like or glassy tones (Tubular or Neon) or acoustic-sounding ones (Korpus). One low-pass filter, so no band-pass or formant colours."
+    },
+    "Cubed": {
+      "kind": "instrument",
+      "sound": "Monophonic acid bass synth in the spirit of the Roland TB-303: one saw or square oscillator into a resonant ladder filter, with accent and slide. Rubbery, squelchy and resonant; screams as resonance and env mod go up.",
+      "roles": ["acid bassline", "bass", "squelchy lead"],
+      "genres": ["acid house", "acid techno", "techno", "trance", "electro", "breakbeat"],
+      "evokes": ["Roland TB-303 (the 'silver box')"],
+      "words": ["acid", "squelchy", "303", "rubbery", "resonant", "wobbly", "screaming"],
+      "limits": "One voice: no chords or pads. Its character comes from accents and slides: from timeline notes, velocity 100+ accents and overlapping notes slide, so flat, separated notes sound tame."
+    },
+    "Neon": {
+      "kind": "instrument",
+      "sound": "Phase-distortion synth after the Casio CZ series: timbre sweeps from a pure cosine to saw, square and resonant shapes without a filter. Bright, glassy, slightly hard-edged digital character; ring mode gives bells and clangs.",
+      "roles": ["keys", "bells", "bass", "lead", "pad", "percussive hits"],
+      "genres": ["synth-pop", "1980s pop", "house", "deep house", "electro", "chiptune-adjacent", "lo-fi"],
+      "evokes": ["Casio CZ-101 and CZ-1000"],
+      "words": ["glassy", "digital", "80s", "bell", "resonant sweep", "crisp", "hollow"],
+      "limits": "Brightness is shaped by envelopes, not a cutoff knob, so 'darker' means changing the DCW amount, not a filter. Less warm than Vaporisateur."
+    },
+    "Tubular": {
+      "kind": "instrument",
+      "sound": "Six-operator FM synth compatible with the Yamaha DX7 (Dexed's engine). Clear, bright, often metallic or bell-like; the classic FM electric piano, tines, mallets, plucked basses and hard digital brass.",
+      "roles": ["electric piano", "bells", "mallets", "bass", "pluck", "lead", "pad"],
+      "genres": ["1980s pop", "synth-pop", "city pop", "R&B", "new jack swing", "ambient", "house", "vaporwave"],
+      "evokes": ["Yamaha DX7 (E.Piano 1, tubular bells, FM bass)"],
+      "words": ["FM", "DX7", "electric piano", "bell", "glassy", "metallic", "tine", "80s ballad", "plucky"],
+      "limits": "Hard to make warm and analog-fat; its sound lives in its operators and algorithm, so it's best changed by loading a patch rather than tweaked. Can sound thin or harsh in the highs."
+    },
+    "Korpus": {
+      "kind": "instrument",
+      "sound": "Physical modelling, no samples: a mallet, pick, bow or breath excites bars, bells, membranes, plates or strings. Organic and acoustic-sounding: marimba, vibraphone, gamelan, glass, bowed and plucked strings, flutes.",
+      "roles": ["mallets", "plucked strings", "bowed pad", "flute lead", "bells", "percussion", "texture"],
+      "genres": ["ambient", "downtempo", "world fusion", "film and game scores", "minimal", "folktronica", "neoclassical"],
+      "evokes": ["marimba, vibraphone, kalimba, gamelan, shakuhachi, glass harmonica, nylon and steel-string guitar"],
+      "words": ["organic", "acoustic", "woody", "plucked", "bowed", "breathy", "mallet", "metallic resonance", "natural"],
+      "limits": "Not a realistic sampled instrument; not for big synth bass or supersaw leads. Its sound changes a lot with the exciter and material, so name the model chosen when describing it."
+    },
+    "Nano": {
+      "kind": "instrument",
+      "sound": "Plays one sample across the keyboard, with a loop and an envelope. Sounds like whatever sample is loaded, repitched: natural near its root key, chipmunk or slowed further away.",
+      "roles": ["one-shot", "sampled instrument", "pad from a loop", "vocal chop", "reversed swell"],
+      "genres": ["hip-hop", "lo-fi", "house", "pop", "experimental"],
+      "evokes": ["early single-sample samplers"],
+      "words": ["sampled", "chopped", "repitched", "lo-fi", "found sound"],
+      "limits": "One sample: no velocity layers or round robin, so realistic pianos or strings need Soundfont. Describe it by its sample, not by the device."
+    },
+    "Playfield": {
+      "kind": "instrument",
+      "sound": "Drum machine and sampler: one sample per pad, each on its own MIDI note. Sounds like its kit; the pad names say which drum is which.",
+      "roles": ["drums", "percussion", "one-shot effects", "stingers"],
+      "genres": ["any"],
+      "evokes": ["MPC- and 808/909-style drum machines, depending on the kit loaded"],
+      "words": ["drums", "kit", "beat", "pads", "808", "909"],
+      "limits": "Its style comes from the kit and the pattern; read the pad names before describing it."
+    },
+    "Soundfont": {
+      "kind": "instrument",
+      "sound": "Plays .sf2 multi-sample instruments: pianos, strings, brass, organs and General MIDI sets. Realistic within the quality of the soundfont; GM sets can sound dated.",
+      "roles": ["piano", "strings", "brass", "organ", "orchestral", "General MIDI"],
+      "genres": ["any", "orchestral sketches", "game music", "retro MIDI"],
+      "evokes": ["General MIDI sound modules"],
+      "words": ["realistic", "acoustic", "orchestral", "piano", "General MIDI"],
+      "limits": "Needs a soundfont file and preset; describe it by the preset name. No soundfonts in the study's sample library yet."
+    },
+    "Tape": {
+      "kind": "instrument",
+      "sound": "The audio track: plays recorded or imported audio regions as they are. No sound of its own.",
+      "roles": ["recorded audio", "loops", "vocals", "stems"],
+      "genres": ["any"],
+      "evokes": [],
+      "words": ["audio", "recording", "loop", "stem"],
+      "limits": "Describe it by its regions' samples. Not played by notes."
+    },
+    "InstrumentComposite": {
+      "kind": "instrument",
+      "sound": "Layers several instruments on the same notes, each with its own effects and level. Sounds like the sum of its layers.",
+      "roles": ["layered sound", "stacked pad", "pad plus sub", "split processing"],
+      "genres": ["any"],
+      "evokes": ["Ableton instrument racks", "stacked synth patches"],
+      "words": ["layered", "stacked", "thicker", "bigger"],
+      "limits": "Describe it by its layers."
+    },
+    "Apparat": {
+      "kind": "instrument", "opaque": true,
+      "sound": "A user-written script instrument; its sound depends entirely on the script.",
+      "roles": [], "genres": [], "evokes": [], "words": [],
+      "limits": "Name the script, never describe its sound."
+    },
+    "MIDIOutput": {
+      "kind": "instrument", "opaque": true,
+      "sound": "Sends notes to external MIDI hardware; makes no sound in openDAW.",
+      "roles": [], "genres": [], "evokes": [], "words": [],
+      "limits": "The sound is whatever hardware is connected."
+    },
+    "WclapInstrument": {
+      "kind": "instrument", "opaque": true,
+      "sound": "A third-party CLAP plugin instrument; its sound depends on the plugin.",
+      "roles": [], "genres": [], "evokes": [], "words": [],
+      "limits": "Name the plugin, never describe its sound."
+    },
+
+    "Arpeggio": {
+      "kind": "midi effect",
+      "sound": "Turns held chords into tempo-synced note patterns (up, down, up-down, random).",
+      "roles": ["arpeggio", "sequenced bass from held notes", "rhythmic chord breakup"],
+      "genres": ["trance", "synthwave", "synth-pop", "progressive house", "Berlin-school electronic", "film scores"],
+      "evokes": ["Juno and Jupiter arpeggiators", "Stranger Things-style synth arps"],
+      "words": ["arpeggiated", "rolling", "sequenced", "sparkling", "pulsing", "busier"],
+      "limits": "Needs held chords or notes to work with; turns sustained parts into busy ones."
+    },
+    "Pitch": {
+      "kind": "midi effect",
+      "sound": "Transposes notes by octaves, semitones and cents before the instrument.",
+      "roles": ["transpose", "octave shift", "fixed-interval harmony", "detune"],
+      "genres": ["any"],
+      "evokes": [],
+      "words": ["up an octave", "down an octave", "transpose", "higher", "lower"],
+      "limits": "Moves every note by the same interval; not key-aware harmony."
+    },
+    "Velocity": {
+      "kind": "midi effect",
+      "sound": "Pulls note velocities toward a target, offsets them and adds random variation.",
+      "roles": ["dynamics control", "humanize", "even out", "crescendo by automation"],
+      "genres": ["any"],
+      "evokes": [],
+      "words": ["more dynamic", "flatter", "even", "humanize", "softer", "harder hitting", "less robotic"],
+      "limits": "Changes only how hard notes hit; how much that's heard depends on the instrument's velocity response."
+    },
+    "Zeitgeist": {
+      "kind": "midi effect",
+      "sound": "Swing and shuffle: pushes off-beat notes later for a groove.",
+      "roles": ["swing", "shuffle", "groove", "humanize timing"],
+      "genres": ["hip-hop", "boom bap", "lo-fi", "UK garage", "deep house", "funk", "jazz"],
+      "evokes": ["MPC swing", "Dilla-style loose timing (in part)"],
+      "words": ["swing", "shuffle", "groovy", "looser", "bouncy", "less stiff", "laid back"],
+      "limits": "Moves timing only; doesn't add notes or change velocity."
+    },
+    "Spielwerk": {
+      "kind": "midi effect", "opaque": true,
+      "sound": "A user-written script MIDI effect; what it does depends on the script.",
+      "roles": [], "genres": [], "evokes": [], "words": [],
+      "limits": "Name the script, never describe what it does."
+    },
+    "WclapMidiEffect": {
+      "kind": "midi effect", "opaque": true,
+      "sound": "A third-party CLAP note effect; what it does depends on the plugin.",
+      "roles": [], "genres": [], "evokes": [], "words": [],
+      "limits": "Name the plugin."
+    },
+
+    "Compressor": {
+      "kind": "audio effect",
+      "sound": "Evens out dynamics; with fast settings adds punch, with sidechain ducks one part under another.",
+      "roles": ["control dynamics", "glue a bus", "punch on drums", "parallel compression", "sidechain ducking"],
+      "genres": ["any", "EDM and house (sidechain pumping)"],
+      "evokes": ["sidechain pump under a four-on-the-floor kick"],
+      "words": ["punchy", "glued", "tighter", "controlled", "pumping", "ducking", "squashed", "more upfront"],
+      "limits": "Doesn't make a quiet part louder overall by itself (that's the fader); heavy settings flatten transients."
+    },
+    "Maximizer": {
+      "kind": "audio effect",
+      "sound": "Brickwall limiter with make-up gain: louder and denser, peaks held at the ceiling.",
+      "roles": ["master loudness", "peak control"],
+      "genres": ["any", "EDM", "pop", "hip-hop"],
+      "evokes": ["mastering limiters"],
+      "words": ["louder", "loud master", "denser", "radio-ready"],
+      "limits": "Pushed hard it squashes transients and sounds flat or distorted. Usually last on the master."
+    },
+    "Gate": {
+      "kind": "audio effect",
+      "sound": "Cuts the signal below a threshold: removes noise and tails, or chops a sound rhythmically with a sidechain.",
+      "roles": ["tighten drums", "remove noise", "rhythmic gating", "gated reverb"],
+      "genres": ["1980s pop and rock (gated reverb snare)", "trance (gated pads)", "techno"],
+      "evokes": ["Phil Collins-style gated drums", "trance gates"],
+      "words": ["tighter", "choppy", "gated", "stuttering", "cleaner tails"],
+      "limits": "Doesn't change tone; set badly it chatters or cuts notes short."
+    },
+    "Revamp": {
+      "kind": "audio effect",
+      "sound": "Seven-band parametric EQ (high-pass, shelves, three bells, low-pass): changes tonal balance cleanly.",
+      "roles": ["brighter or darker", "remove rumble", "make room in a mix", "telephone or lo-fi band-limit"],
+      "genres": ["any"],
+      "evokes": [],
+      "words": ["brighter", "darker", "muddy", "boomy", "thin", "harsh", "airy", "warmer", "telephone", "muffled", "clearer"],
+      "limits": "Shapes existing tone only; can't add harmonics a sound doesn't have (use Waveshaper or Fold for that)."
+    },
+    "StereoTool": {
+      "kind": "audio effect",
+      "sound": "Volume, pan, stereo width and phase utilities; no colour of its own.",
+      "roles": ["width", "mono the bass", "pan", "gain staging", "phase fix"],
+      "genres": ["any"],
+      "evokes": [],
+      "words": ["wider", "narrower", "mono", "centered", "spread out"],
+      "limits": "Can widen only what already has stereo difference; a mono source stays mono."
+    },
+    "Tidal": {
+      "kind": "audio effect",
+      "sound": "Tempo-synced tremolo and auto-pan: rhythmic volume or pan movement, smooth to choppy.",
+      "roles": ["tremolo", "auto-pan", "rhythmic gating", "fake sidechain pump"],
+      "genres": ["house", "trance", "chillout", "surf and indie (tremolo)", "lo-fi"],
+      "evokes": ["amp tremolo", "Rhodes auto-pan"],
+      "words": ["pulsing", "throbbing", "moving", "wobbling", "choppy", "breathing", "pumping"],
+      "limits": "Moves volume and pan only, not tone."
+    },
+    "Delay": {
+      "kind": "audio effect",
+      "sound": "Tempo-synced stereo echo with ping-pong, filtered feedback and modulation: from slapback to long dub trails.",
+      "roles": ["echo", "ping-pong", "dub throw", "slapback", "width", "chorus-like movement"],
+      "genres": ["dub", "reggae", "dub techno", "ambient", "trance", "pop vocals", "psychedelic"],
+      "evokes": ["tape echo and dub sound-system delays"],
+      "words": ["echo", "spacey", "dubby", "trails", "bouncing", "wider", "more space"],
+      "limits": "High feedback builds up and can run away; long delays blur busy parts."
+    },
+    "Reverb": {
+      "kind": "audio effect",
+      "sound": "Light Freeverb-style algorithmic reverb: plain, slightly metallic room-to-hall space at low CPU.",
+      "roles": ["room ambience", "general space", "short drum room"],
+      "genres": ["any"],
+      "evokes": ["simple digital reverbs"],
+      "words": ["roomy", "more space", "ambience", "further back"],
+      "limits": "Less lush and dense than Dattorro; long tails sound grainier."
+    },
+    "DattorroReverb": {
+      "kind": "audio effect",
+      "sound": "Dense, smooth plate-style reverb with modulated tails, up to infinite decay. Lush and shimmering.",
+      "roles": ["vocal plate", "lush pad space", "drum plate", "ambient wash", "infinite freeze"],
+      "genres": ["ambient", "shoegaze", "dream pop", "cinematic", "downtempo", "trip-hop", "synthwave"],
+      "evokes": ["EMT plate reverbs", "Lexicon-style halls"],
+      "words": ["lush", "dreamy", "washy", "spacious", "ethereal", "huge", "shimmering", "wet", "far away"],
+      "limits": "Muddies low parts (bass, kick) if put on them; long tails blur a busy mix."
+    },
+    "Convolver": {
+      "kind": "audio effect",
+      "sound": "Convolution with an impulse response: real rooms, halls, springs, plates or cabinets, as realistic as the IR. Can also be a creative texture.",
+      "roles": ["real room", "spring reverb", "cabinet sim", "tonal texture", "reverse swell"],
+      "genres": ["any", "surf and dub (spring)", "acoustic and orchestral (real spaces)"],
+      "evokes": ["recorded spaces and hardware reverbs"],
+      "words": ["realistic room", "spring", "church", "hall", "cabinet", "natural space"],
+      "limits": "Sounds like its impulse response; describe it by the IR. About four times Dattorro's CPU."
+    },
+    "Crusher": {
+      "kind": "audio effect",
+      "sound": "Bit-depth and sample-rate reduction: gritty, aliased, digital lo-fi, from subtle grain to 8-bit destruction.",
+      "roles": ["lo-fi texture", "digital distortion", "8-bit sound", "drum grit"],
+      "genres": ["lo-fi hip-hop", "chiptune", "glitch", "IDM", "breakcore", "hyperpop"],
+      "evokes": ["early samplers (SP-1200, S950 grit)", "video game consoles"],
+      "words": ["lo-fi", "gritty", "crunchy", "dusty", "8-bit", "digital", "broken", "degraded"],
+      "limits": "Harsh and fizzy rather than warm; for warm saturation use Waveshaper (Tanh or Asymmetric)."
+    },
+    "Waveshaper": {
+      "kind": "audio effect",
+      "sound": "Saturation and distortion by transfer curve: soft tube-like warmth (Tanh, Arctan, Asymmetric) to harsh buzz (Hardclip).",
+      "roles": ["warmth", "saturation", "distortion", "drive on bass", "presence"],
+      "genres": ["any", "techno", "industrial", "rock", "hip-hop (saturated 808s)"],
+      "evokes": ["tube and tape saturation", "distortion pedals"],
+      "words": ["warmer", "driven", "saturated", "dirty", "fuzzy", "distorted", "grit", "thicker", "analog"],
+      "limits": "Adds harmonics and loudness; heavy settings lose low-end tightness."
+    },
+    "Fold": {
+      "kind": "audio effect",
+      "sound": "Wavefolding: folds peaks back for complex, metallic, bell-like harmonics, unlike clipping.",
+      "roles": ["harmonic richness", "metallic distortion", "west coast timbre", "aggressive bass"],
+      "genres": ["experimental electronic", "techno", "IDM", "dubstep and bass music", "modular synth music"],
+      "evokes": ["Buchla west coast synthesis", "Serge wavefolders"],
+      "words": ["metallic", "harmonic", "complex", "aggressive", "snarling", "west coast"],
+      "limits": "Changes timbre drastically; not a subtle warmth effect."
+    },
+    "Autotune": {
+      "kind": "audio effect",
+      "sound": "Pitch correction to a key and scale, from transparent tuning to the hard robotic stepped effect.",
+      "roles": ["vocal tuning", "robotic vocal effect", "monophonic instrument tuning"],
+      "genres": ["hip-hop", "trap", "pop", "R&B", "hyperpop", "dancehall"],
+      "evokes": ["Cher's 'Believe'", "T-Pain", "modern trap vocals"],
+      "words": ["autotuned", "robotic", "tuned", "T-Pain"],
+      "limits": "Needs a single, monophonic voice or instrument; chords and drums confuse it."
+    },
+    "Vocoder": {
+      "kind": "audio effect",
+      "sound": "Imprints one sound's spectral shape (usually a voice) on another (usually a synth): talking synths and robot voices.",
+      "roles": ["robot voice", "talking synth", "spectral texture"],
+      "genres": ["electro", "synth-pop", "funk", "French house", "1970s and 80s electronic"],
+      "evokes": ["Kraftwerk", "Daft Punk", "talk box-style funk"],
+      "words": ["robotic", "talking", "vocoded", "robot voice"],
+      "limits": "Needs a carrier and a modulator; with no modulator signal it's silent or flat."
+    },
+    "NeuralAmp": {
+      "kind": "audio effect", "opaque": true,
+      "sound": "Neural models of amps, pedals and cabinets; sounds like the model loaded.",
+      "roles": ["amp sim", "drive", "pedal sim"],
+      "genres": ["rock", "metal", "blues", "indie"],
+      "evokes": ["real guitar amps and pedals"],
+      "words": ["amp", "crunch", "overdrive", "guitar tone"],
+      "limits": "Name the model loaded; off limits to agents (models come from tone3000.com)."
+    },
+    "AudioEffectComposite": {
+      "kind": "audio effect",
+      "sound": "Runs several effect chains in parallel and blends them back; sounds like its branches.",
+      "roles": ["parallel compression", "parallel distortion", "layered reverbs or delays"],
+      "genres": ["any"],
+      "evokes": ["New York parallel compression"],
+      "words": ["parallel", "blend"],
+      "limits": "Describe it by its branches."
+    },
+    "StereoComposite": {
+      "kind": "audio effect",
+      "sound": "Processes left and right through separate chains; sounds like its branches.",
+      "roles": ["asymmetric width", "per-side effects"],
+      "genres": ["any"],
+      "evokes": [],
+      "words": ["wider", "asymmetric", "unbalanced"],
+      "limits": "Describe it by its branches."
+    },
+    "FrequencySplit": {
+      "kind": "audio effect",
+      "sound": "Splits into 2–4 frequency bands with a chain each; sounds like its bands' effects.",
+      "roles": ["multiband compression", "distort only the mids", "mono lows and wide highs"],
+      "genres": ["any", "bass music", "EDM mastering"],
+      "evokes": ["multiband processors"],
+      "words": ["multiband", "tame the low end", "only the highs"],
+      "limits": "Describe it by its bands."
+    },
+    "AudioSink": {
+      "kind": "audio effect",
+      "sound": "Routing only: sends the signal at its point in the chain to a bus. No sound of its own.",
+      "roles": ["send to bus", "split a chain"],
+      "genres": [], "evokes": [], "words": [],
+      "limits": "Not a sound change."
+    },
+    "Werkstatt": {
+      "kind": "audio effect", "opaque": true,
+      "sound": "A user-written script effect; what it does depends on the script.",
+      "roles": [], "genres": [], "evokes": [], "words": [],
+      "limits": "Name the script, never describe what it does."
+    },
+    "Wclap": {
+      "kind": "audio effect", "opaque": true,
+      "sound": "A third-party CLAP effect plugin; what it does depends on the plugin.",
+      "roles": [], "genres": [], "evokes": [], "words": [],
+      "limits": "Name the plugin."
+    }
+  }
+}

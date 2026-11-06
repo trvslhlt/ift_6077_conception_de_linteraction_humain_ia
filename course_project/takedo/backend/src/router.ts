@@ -11,10 +11,10 @@ export const Roster = {
     composer: "harmony, chords, melody; can write chord and melody notes on the keys and on added parts",
     drum_programmer: "drum patterns; can change the drum pattern from a bar on",
     bass_programmer: "the bass line; can write the bass notes and swap the bass sound",
-    arranger: "song structure over time, builds and drops; can mute and unmute tracks from a bar on",
+    arranger: "song structure over time, builds and drops; can mute and unmute tracks at chosen bars",
     instrument_designer: "how instruments sound; can swap the keys' sound for a preset and add new parts with a preset",
-    effect_designer: "effects on a sound, risers and sweeps; can set or ramp the keys' Crusher and Filter",
-    mix_engineer: "balance between parts; can set or ramp each track's volume",
+    effect_designer: "effects on a sound; can add or remove reverb, delay, EQ, filter, distortion, crushing, compression or tremolo on any track and set or ramp their settings",
+    mix_engineer: "balance between parts; can set or ramp each track's volume and pan",
     researcher: "looks up a reference song, artist or genre and summarizes it for the team; makes no edits",
     critic: "listens and gives an opinion; makes no edits",
 } as const

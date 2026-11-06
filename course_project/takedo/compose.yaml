@@ -36,6 +36,7 @@ services:
       - ./backend/src:/app/backend/src:ro
       - ./shared:/app/shared:ro
       - ./config:/app/config:ro
+      - ./catalog:/app/catalog:ro
       - ./sessions:/app/sessions
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/health').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]

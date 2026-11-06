@@ -1,5 +1,5 @@
 // TakeDo smoke test: boots the studio in headless Chromium, opens a new project and the team view, and checks the
-// page reaches the backend: welcome, a ping round trip, and reconnecting after the socket drops.
+// page reaches the backend (welcome, ping, reconnecting), the Team Lead's overview, and the mix engineer's edits.
 // Run via `make test`; it shares the studio container's network, so the page is at localhost.
 import {chromium} from "playwright"
 
@@ -19,8 +19,15 @@ page.setDefaultTimeout(TIMEOUT)
 
 const problems = []
 page.on("pageerror", error => problems.push(`pageerror: ${error.message}`))
-page.on("console", message => {if (message.type() === "error") problems.push(`console: ${message.text()}`)})
-page.on("response", response => {if (response.status() >= 400) problems.push(`http ${response.status()}: ${response.url()}`)})
+// Requests to other origins are openDAW's own (e.g. api.opendaw.studio's user count) and fail with the network; not ours.
+const ours = url => url === undefined || url === "" || url.startsWith(new globalThis.URL(URL).origin)
+page.on("console", message => {
+    const url = message.location().url
+    if (message.type() === "error" && ours(url)) {problems.push(`console: ${message.text()} ${url ?? ""}`)}
+})
+page.on("response", response => {
+    if (response.status() >= 400 && ours(response.url())) {problems.push(`http ${response.status()}: ${response.url()}`)}
+})
 
 const waitForStatus = (value, timeout = 10000) => page.waitForFunction(
     value => document.querySelector("[data-testid=takedo-status]")?.dataset.status === value, value, {timeout})
@@ -39,13 +46,60 @@ try {
     await page.getByText("Welcome to openDAW").waitFor({state: "hidden"})
     check("new project opens", true)
 
+    // Two parts with a bar of notes each, before the view opens: Keys (Tubular, FM) play Am then F, Drums four on the floor.
+    await page.evaluate(() => {
+        window.takedo.debug.addSynth("Drums", [[0, 36, 1], [4, 36, 1], [8, 36, 1], [12, 36, 1]])
+        window.takedo.debug.addSynth("Keys", [[0, 57, 8], [0, 60, 8], [0, 64, 8], [8, 53, 8], [8, 57, 8], [8, 60, 8]], "Tubular")
+    })
+
+    const overviewStarted = Date.now()
     await page.getByTestId("takedo-toggle").click()
     await page.getByTestId("takedo-panel").waitFor()
     check("team view opens", true)
+    const layout = await page.evaluate(() => {
+        const view = document.querySelector("[data-testid=takedo-view]").getBoundingClientRect()
+        const chat = document.querySelector("[data-testid=takedo-chat]").getBoundingClientRect()
+        const overview = document.querySelector("[data-testid=takedo-status]").getBoundingClientRect()
+        return {view: view.width / innerWidth, tall: view.height / innerHeight, chatBeside: chat.left > overview.right,
+            chat: chat.width / view.width}
+    })
+    check("team view fills the window, chat in its own column",
+        layout.view > 0.9 && layout.tall > 0.7 && layout.chatBeside && layout.chat > 0.5,
+        `view ${Math.round(layout.view * 100)}% × ${Math.round(layout.tall * 100)}%, chat ${Math.round(layout.chat * 100)}% of it`)
 
     await waitForStatus("open")
     const session = await page.getByTestId("takedo-session").textContent()
     check("backend welcomes the page", /session [0-9a-f-]{36}/.test(session), session)
+
+    // The Team Lead's overview (one Claude call): Music, Style and Tracks lines, plus the page's live playback line.
+    const overviewLines = () => page.evaluate(() =>
+        [...document.querySelectorAll("[data-testid=takedo-overview-body] [data-testid=takedo-overview-line]")]
+            .map(line => ({label: line.dataset.label, text: line.textContent})))
+    const waitForOverview = () => page.waitForFunction(() =>
+        ["done", "failed"].includes(document.querySelector("[data-testid=takedo-overview]")?.dataset.state),
+        null, {timeout: 60000})
+    await waitForOverview()
+    const lines = await overviewLines()
+    const tracksLine = lines.find(line => line.label === "Tracks")?.text ?? ""
+    check("overview written when the view opens",
+        ["Music", "Style", "Tracks"].every(label => lines.some(line => line.label === label))
+            && tracksLine.includes("Drums") && tracksLine.includes("Keys"),
+        `${Date.now() - overviewStarted} ms`)
+    // Only the catalog says Tubular is an FM synth (openDAW's brief and our notes); the snapshot just names the device.
+    check("overview uses the device catalog", /\bFM\b|DX7/.test(tracksLine), tracksLine)
+    lines.forEach(line => console.log(`      ${line.text}`))
+    await page.getByTestId("takedo-overview-playback").filter({hasText: "stopped"}).waitFor({timeout: 2000})
+    check("overview shows live playback", true)
+
+    // A change since the overview offers a refresh; the refreshed overview includes it.
+    await page.evaluate(() => window.takedo.debug.addSynth("Pad", [[0, 69, 16], [0, 72, 16]]))
+    await page.getByTestId("takedo-overview-refresh").waitFor({state: "visible", timeout: 2000})
+    await page.getByTestId("takedo-overview-refresh").click()
+    await page.waitForFunction(() =>
+        document.querySelector("[data-testid=takedo-overview]")?.dataset.state === "writing", null, {timeout: 2000})
+    await waitForOverview()
+    const refreshed = (await overviewLines()).find(line => line.label === "Tracks")?.text ?? ""
+    check("refreshed overview includes a new track", refreshed.includes("Pad"), refreshed)
 
     const trips = []
     for (let i = 0; i < 20; i++) {trips.push(await page.evaluate(() => window.takedo.connection.ping()))}
@@ -75,23 +129,22 @@ try {
     check("reconnects after the socket drops", again !== session && /session /.test(again), again)
 
     // ---------- one message through B: chat → Jev → mix engineer → claim → ramp in the page → reply ----------
-    await page.evaluate(() => {
-        window.takedo.debug.addSynth("Drums")
-        window.takedo.debug.addSynth("Keys")
-    })
     const volume = name => page.evaluate(name =>
         window.takedo.adapter.snapshot().tracks.find(track => track.name === name).mix.volume, name)
-    const memberLines = () => page.locator(`[data-testid=takedo-chat] li[data-from="agent:mix_engineer"]`)
-    const say = async text => {
-        const before = await memberLines().count()
+    const memberLines = (agent = "mix_engineer") => page.locator(`[data-testid=takedo-chat] li[data-from="agent:${agent}"]`)
+    // Sends a message and waits for the next line from each of the given members (their reply, after their edits).
+    const say = async (text, agents = ["mix_engineer"], timeout = 20000) => {
+        const before = await Promise.all(agents.map(agent => memberLines(agent).count()))
         const start = Date.now()
         await page.getByTestId("takedo-input").fill(text)
         await page.getByTestId("takedo-input").press("Enter")
-        await page.waitForFunction(count =>
-            document.querySelectorAll(`[data-testid=takedo-chat] li[data-from="agent:mix_engineer"]`).length > count,
-            before, {timeout: 20000})
-        return {text: await memberLines().last().textContent(), ms: Date.now() - start}
+        await Promise.all(agents.map((agent, index) => page.waitForFunction(([agent, count]) =>
+            document.querySelectorAll(`[data-testid=takedo-chat] li[data-from="agent:${agent}"]`).length > count,
+            [agent, before[index]], {timeout})))
+        const texts = await Promise.all(agents.map(agent => memberLines(agent).last().textContent()))
+        return {text: texts.join(" | "), ms: Date.now() - start}
     }
+    const track = name => page.evaluate(name => window.takedo.adapter.snapshot().tracks.find(track => track.name === name), name)
     await page.evaluate(() => window.opendaw.engine.play())
     const drumsBefore = await volume("Drums")
     const quieter = await say("@mix_engineer the drums are too loud")
@@ -128,6 +181,62 @@ try {
         `"${held.text}"`)
     await page.evaluate(() =>
         document.dispatchEvent(new CustomEvent("parameter-hold", {detail: {parameter: window.__drumsVolume, held: false}})))
+
+    // ---------- mentions: autocomplete from the team, styled in the input and in the chat ----------
+    await page.getByTestId("takedo-input").fill("")
+    await page.getByTestId("takedo-input").pressSequentially("@")
+    const options = await page.getByTestId("takedo-mention-option").evaluateAll(items => items.map(item => item.dataset.role))
+    check("@ lists the team", ["team_lead", "mix_engineer", "arranger", "effect_designer"].every(role => options.includes(role)),
+        options.join(", "))
+    await page.getByTestId("takedo-input").pressSequentially("ar")
+    const narrowed = await page.getByTestId("takedo-mention-option").evaluateAll(items => items.map(item => item.dataset.role))
+    await page.getByTestId("takedo-input").press("Tab")
+    const completed = await page.getByTestId("takedo-input").inputValue()
+    check("autocomplete completes a mention", narrowed.length === 1 && completed === "@arranger ",
+        `${narrowed.join(", ")} → "${completed}"`)
+    check("mention styled while typing",
+        await page.locator("[data-testid=takedo-mention][data-role=arranger]").count() === 1)
+
+    // ---------- the arranger (Claude): mute at the next bar, back two bars later ----------
+    await page.evaluate(() => {
+        window.__keysMuted = false
+        window.__muteWatch = setInterval(() => {
+            if (window.takedo.adapter.snapshot().tracks.find(track => track.name === "Keys").mix.mute) {window.__keysMuted = true}
+        }, 50)
+    })
+    const arranged = await say("@arranger drop the keys out at the next bar and bring them back two bars later",
+        ["arranger"], 40000)
+    const keysMuted = await page.evaluate(() => {
+        clearInterval(window.__muteWatch)
+        return window.__keysMuted
+    })
+    check("@arranger: keys dropped out and came back", keysMuted && !(await track("Keys")).mix.mute,
+        `${arranged.ms} ms: "${arranged.text}"`)
+    check("mention styled in the chat",
+        await page.locator("[data-testid=takedo-chat] li[data-from=user] [data-testid=takedo-mention][data-role=arranger]").count() > 0)
+
+    // ---------- the effect designer (Claude, with the catalog): an effect chosen by sound ----------
+    const reverbed = await say("@effect_designer give the keys a big lush reverb", ["effect_designer"], 40000)
+    const keysEffects = (await track("Keys")).effects
+    check("@effect_designer: reverb added to the keys",
+        keysEffects.some(effect => ["DattorroReverb", "Reverb", "Convolver"].includes(effect.key)),
+        `${keysEffects.map(effect => effect.key).join(", ") || "none"} in ${reverbed.ms} ms: "${reverbed.text}"`)
+
+    // ---------- the Team Lead (Claude) splits one direction between two members ----------
+    const drumsBeforeLead = await volume("Drums")
+    const led = await say("@team_lead bring the drums down a bit and put an echo on the keys",
+        ["team_lead", "mix_engineer", "effect_designer"], 60000)
+    const keysAfterLead = (await track("Keys")).effects.map(effect => effect.key)
+    check("@team_lead: drums down and a delay on the keys",
+        await volume("Drums") < drumsBeforeLead - 0.5 && keysAfterLead.includes("Delay"),
+        `${led.ms} ms: "${led.text}"`)
+
+    // Asked for something in a role's area that isn't built: the Team Lead names the role and says it isn't built yet.
+    const unbuilt = await say("@team_lead keep extending the clips so we can work on it indefinitely", ["team_lead"])
+    check("@team_lead: an unbuilt operation is named as such, with its role",
+        /arranger/i.test(unbuilt.text) && /(isn.t|not) (built|available) yet|not built|yet/i.test(unbuilt.text),
+        `"${unbuilt.text}"`)
+    if (process.env.SCREENSHOT) {await page.screenshot({path: process.env.SCREENSHOT})}
 
     // A hidden tab: animation frames stop, so landing and ramping must not depend on them (page/Clock.ts).
     // The message is sent from the backend's side of things, as typed before switching: fill, switch, then Enter.

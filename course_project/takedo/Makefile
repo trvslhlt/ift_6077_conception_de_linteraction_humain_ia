@@ -11,7 +11,7 @@ TYPES_DIR := .opendaw
 export PORT
 COMPOSE := docker compose --profile test
 
-.PHONY: help builder build up down restart logs status open shell test check types usage clean
+.PHONY: help builder build up down restart logs status open shell test catalog check types usage clean
 
 help: ## List targets
 	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
@@ -48,6 +48,10 @@ shell: ## Shell into the running backend container
 test: build ## Run the smoke test in headless Chromium (starts the studio and backend if needed)
 	mkdir -p sessions
 	$(COMPOSE) run --rm smoke
+
+catalog: build ## Regenerate catalog/generated.json from openDAW (every device's descriptions and parameters)
+	$(COMPOSE) run --rm -v $(CURDIR)/catalog:/out \
+		-e OPENDAW_REF=$$(sed -n 's/^ARG OPENDAW_REF=//p' Dockerfile) smoke node catalog.mjs
 
 check: ## Type-check the backend and shared code (needs `npm ci` in backend/ once)
 	cd backend && npx tsc --noEmit

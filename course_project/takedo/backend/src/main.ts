@@ -6,6 +6,7 @@ import {
     type BackendToPage, decode, encode, type PageToBackend, ProtocolVersion, SocketPath
 } from "../../shared/protocol.ts"
 import {Coordinator} from "./coordinator.ts"
+import {loadCatalog} from "./catalog.ts"
 import {Gateway, loadConfig} from "./gateway.ts"
 import {SessionLog} from "./sessionLog.ts"
 
@@ -16,8 +17,10 @@ import {SessionLog} from "./sessionLog.ts"
 const Port = Number(process.env.PORT ?? 8787)
 const SessionsDir = process.env.SESSIONS_DIR ?? "../sessions"
 const ModelsConfig = process.env.MODELS_CONFIG ?? "../config/models.json"
+const CatalogDir = process.env.CATALOG_DIR ?? "../catalog"
 
 const gateway = new Gateway(loadConfig(ModelsConfig))
+const catalog = loadCatalog(`${CatalogDir}/devices.json`, `${CatalogDir}/generated.json`)
 
 const log = (event: string, detail: object = {}): void =>
     console.log(JSON.stringify({t: new Date().toISOString(), event, ...detail}))
@@ -63,8 +66,9 @@ sockets.on("connection", (socket: WebSocket) => {
                 const stamp = new Date().toISOString().replace(/[:.]/g, "-")
                 const sessionLog = new SessionLog(join(SessionsDir, `${stamp}_${session.slice(0, 8)}`), session,
                     {protocol: ProtocolVersion, jev: gateway.available("fast_path")})
-                coordinator = new Coordinator(reply => send(socket, reply), gateway, sessionLog)
+                coordinator = new Coordinator(reply => send(socket, reply), gateway, catalog, sessionLog)
                 send(socket, {type: "welcome", session, protocol: ProtocolVersion, startedAt: new Date().toISOString()})
+                coordinator.start()
                 log("hello", {session, client: message.client})
                 return
             }

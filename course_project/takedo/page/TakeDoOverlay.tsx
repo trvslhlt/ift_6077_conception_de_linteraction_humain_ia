@@ -1,13 +1,13 @@
 import {createElement} from "@opendaw/lib-jsx"
-import {Lifecycle} from "@opendaw/lib-std"
+import {DefaultObservableValue, Lifecycle} from "@opendaw/lib-std"
 import {IconSymbol} from "@opendaw/studio-enums"
 import {Icon} from "@/ui/components/Icon"
 import type {StudioService} from "@/service/StudioService"
 import {TakeDoPanel} from "./TakeDoPanel"
 
 // Floats above the whole studio, outside openDAW's layout: a robot button that opens and closes TakeDo's team view, with
-// a small button on each of its corners that moves it to that corner of the window. The team view opens beside it,
-// on top of the DAW. Corner and open state survive reloads (localStorage, per browser).
+// a small button on each of its corners that moves it to that corner of the window. The team view fills the window
+// beside it, translucent, so the DAW's activity shows through. Corner and open state survive reloads (localStorage, per browser).
 
 type Construct = { lifecycle: Lifecycle, service: StudioService }
 type Vertical = "top" | "bottom"
@@ -45,8 +45,17 @@ const place = (element: HTMLElement, corner: Corner, offset: number): void => {
     element.style[horizontal] = `${Inset[horizontal]}px`
 }
 
+// The view fills the window inside the insets, short of the robot's corner on its side, so the robot stays clickable.
+const fill = (element: HTMLElement, corner: Corner): void => {
+    const [vertical] = sides(corner)
+    Object.assign(element.style, {top: `${Inset.top}px`, bottom: `${Inset.bottom}px`, left: `${Inset.left}px`,
+        right: `${Inset.right}px`})
+    element.style[vertical] = `${Inset[vertical] + WidgetSize + Gap}px`
+}
+
 export const TakeDoOverlay = ({lifecycle, service}: Construct): HTMLElement => {
     const state = load()
+    const visible = lifecycle.own(new DefaultObservableValue<boolean>(state.open))
     const robot: HTMLButtonElement = (
         <button data-testid="takedo-toggle" title="TakeDo"
                 style={{
@@ -85,12 +94,10 @@ export const TakeDoOverlay = ({lifecycle, service}: Construct): HTMLElement => {
         <div data-testid="takedo-view"
              style={{
                  position: "fixed", zIndex: ZIndex, flexDirection: "column",
-                 width: "min(440px, calc(100vw - 24px))",
-                 height: `min(60vh, calc(100vh - ${Inset.top + Inset.bottom + WidgetSize + Gap}px))`,
-                 background: "rgba(22, 25, 29, 0.97)", border: "1px solid #444", borderRadius: "8px",
+                 background: "rgba(22, 25, 29, 0.82)", border: "1px solid #444", borderRadius: "8px",
                  boxShadow: "0 8px 32px rgba(0, 0, 0, 0.6)", color: "#cfd8dc"
              }}>
-            <TakeDoPanel lifecycle={lifecycle} service={service}/>
+            <TakeDoPanel lifecycle={lifecycle} service={service} visible={visible}/>
         </div>
     )
     robot.onclick = () => {
@@ -99,8 +106,9 @@ export const TakeDoOverlay = ({lifecycle, service}: Construct): HTMLElement => {
     }
     const update = (): void => {
         place(widget, state.corner, 0)
-        place(view, state.corner, WidgetSize + Gap)
+        fill(view, state.corner)
         view.style.display = state.open ? "flex" : "none"
+        visible.setValue(state.open)
         robot.style.border = state.open ? "2px solid #7fd" : "2px solid #555"
         moveButtons.forEach((button, index) =>
             button.style.visibility = Corners[index] === state.corner ? "hidden" : "visible")

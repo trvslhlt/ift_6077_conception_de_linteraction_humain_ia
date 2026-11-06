@@ -60,6 +60,30 @@ Agents never edit the project directly. They send requests to the change bus, an
 The position in the undo history lets an agent see later whether the user undid its edit, which is a
 demonstration signal in itself.
 
+### Keep the open path: anything openDAW can do (goal, 2026-11-06)
+
+The first live experiment (`poc/edit_bench/live/eval.mjs`: Claude Code running JavaScript in the open studio tab over
+the DevTools protocol) was, in the producer's words, "magically flexible": whatever was asked, the agent read the
+project, wrote code against openDAW's own API, ran it, looked at the result and fixed it. The fixed operations
+TakeDo has since built are faster, attributable and safe, but each missing one is a "not built yet". TakeDo should
+end up as flexible as that experiment again; the operations are the fast lane, not the limit.
+
+The likely shape, to design when we build it:
+
+- **A script operation on the bus.** A member (or a "studio programmer" the Team Lead can call) writes a short
+  script against openDAW's API; the adapter runs it inside one `editing.modify`, tagged with the agent (one undo
+  step, attributed in the change stream), landing on a beat or bar like any other request.
+- **Read and try in a loop, as Claude Code did:** a read-only `eval` tool for looking around the project, the
+  script tool for edits, errors and the resulting changes fed back, a few rounds at most. A stronger model than
+  Haiku may be needed for code; measure.
+- **The bus's guarantees still hold:** human priority (a script that writes a held parameter is refused, checked from
+  the updates it made before they're kept or by a dry run), and the reply lists what changed. What happens to a
+  `modify` that throws midway needs checking before relying on it.
+- **Promote what recurs:** scripts that keep being written (extend clips, duplicate a section) become fixed
+  operations, for speed and for the fast tier.
+- Open: whether scripts may touch anything (devices off limits, settings, the timeline) or only the project; speed
+  (a script plan is slow-tier, seconds); how the producer sees what a script did.
+
 ## What agents know
 
 The contracts are specified in [TAKEDO_API.md](TAKEDO_API.md). Agents never see openDAW's API. What they know comes from the **TakeDoAPI**, the project's human-agent
@@ -76,9 +100,13 @@ collaboration layer (TAKEDO_API.md, "What this is"), in five parts that change a
 - **The catalog is generated from openDAW, not written by hand.** openDAW's factories and parameter adapters give
   every device's name, descriptions, parameters, ranges, units and stepped values. The build creates each device
   in a scratch project, reads it, and writes the catalog to a checked-in file, regenerated when the openDAW pin
-  changes. *(check 8, headless)*
+  changes. *(check 8, headless)* In TakeDo: `make catalog` writes `takedo/catalog/generated.json` (2026-11-06: 41 device
+  types, 33 allowed, 395 parameters).
 - **We add one or two hand-written lines per device on its character and typical use** ("Dattorro: lush plate,
   good on pads"). openDAW can't supply these, and they're what turn "make it dreamier" into a device choice.
+  Written (2026-11-06) as `takedo/catalog/devices.json` for every device type: sound, roles, genres, the gear it
+  evokes, the words producers use for it, and limits, from the manual and general knowledge, not from listening;
+  devices whose sound depends on a script, plugin or model file are marked opaque.
 - **The catalog holds only the allowed devices.** Off-limits devices don't appear, so agents can't pick them.
 - **Device names and descriptions go in the system prompt; parameters and manuals come from lookups.** For the
   allowed devices the list is ~1.2k tokens; with every parameter it is ~12k, Tubular alone ~5.5k.
