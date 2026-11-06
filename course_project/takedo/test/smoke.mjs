@@ -13,7 +13,8 @@ const check = (name, ok, detail = "") => {
 }
 
 const browser = await chromium.launch({args: ["--autoplay-policy=no-user-gesture-required"]})
-const page = await browser.newPage({viewport: {width: 1440, height: 900}})
+const context = await browser.newContext({viewport: {width: 1440, height: 900}})
+const page = await context.newPage()
 page.setDefaultTimeout(TIMEOUT)
 
 const problems = []
@@ -73,13 +74,83 @@ try {
     const again = await page.getByTestId("takedo-session").textContent()
     check("reconnects after the socket drops", again !== session && /session /.test(again), again)
 
-    check("engine still plays", await page.evaluate(async () => {
-        window.opendaw.engine.play()
-        await new Promise(resolve => setTimeout(resolve, 500))
-        const playing = window.opendaw.engine.isPlaying()
-        window.opendaw.engine.stop()
-        return playing
-    }))
+    // ---------- one message through B: chat → Jev → mix engineer → claim → ramp in the page → reply ----------
+    await page.evaluate(() => {
+        window.takedo.debug.addSynth("Drums")
+        window.takedo.debug.addSynth("Keys")
+    })
+    const volume = name => page.evaluate(name =>
+        window.takedo.adapter.snapshot().tracks.find(track => track.name === name).mix.volume, name)
+    const memberLines = () => page.locator(`[data-testid=takedo-chat] li[data-from="agent:mix_engineer"]`)
+    const say = async text => {
+        const before = await memberLines().count()
+        const start = Date.now()
+        await page.getByTestId("takedo-input").fill(text)
+        await page.getByTestId("takedo-input").press("Enter")
+        await page.waitForFunction(count =>
+            document.querySelectorAll(`[data-testid=takedo-chat] li[data-from="agent:mix_engineer"]`).length > count,
+            before, {timeout: 20000})
+        return {text: await memberLines().last().textContent(), ms: Date.now() - start}
+    }
+    await page.evaluate(() => window.opendaw.engine.play())
+    const drumsBefore = await volume("Drums")
+    const quieter = await say("@mix_engineer the drums are too loud")
+    const drumsAfter = await volume("Drums")
+    check("@mix_engineer: drums turned down during playback", drumsAfter < drumsBefore - 0.5,
+        `${drumsBefore} → ${drumsAfter.toFixed(1)} dB in ${quieter.ms} ms: "${quieter.text}"`)
+    check("engine kept playing", await page.evaluate(() => window.opendaw.engine.isPlaying()))
+    check("member card shows the change",
+        (await page.getByTestId("takedo-card-agentmix_engineer").textContent()).includes("done"))
+
+    // One undo step for the whole ramp. openDAW's shortcut needs focus outside the chat input.
+    await page.locator("body").click({position: {x: 400, y: 300}})
+    await page.locator("body").press("ControlOrMeta+z")
+    await page.waitForTimeout(200)
+    const undone = await volume("Drums")
+    check("one undo restores the volume", Math.abs(undone - drumsBefore) < 0.05, `${undone} dB`)
+
+    const keysBefore = await volume("Keys")
+    const louder = await say("the keys are a bit too quiet")
+    const keysAfter = await volume("Keys")
+    check("unaddressed message routed to the mix engineer, keys up", keysAfter > keysBefore + 0.5,
+        `${keysBefore} → ${keysAfter.toFixed(1)} dB in ${louder.ms} ms: "${louder.text}"`)
+
+    // The producer holds the Drums fader: the request is dropped, not applied.
+    await page.evaluate(() => {
+        const project = window.takedo.service.projectProfileService.getValue().unwrap().project
+        const unit = project.rootBoxAdapter.audioUnits.adapters().find(unit => unit.label === "Drums")
+        window.__drumsVolume = unit.namedParameter.volume
+        document.dispatchEvent(new CustomEvent("parameter-hold", {detail: {parameter: window.__drumsVolume, held: true}}))
+    })
+    const heldBefore = await volume("Drums")
+    const held = await say("@mix_engineer drums down a little")
+    check("held fader: request dropped", held.text.includes("holding") && await volume("Drums") === heldBefore,
+        `"${held.text}"`)
+    await page.evaluate(() =>
+        document.dispatchEvent(new CustomEvent("parameter-hold", {detail: {parameter: window.__drumsVolume, held: false}})))
+
+    // A hidden tab: animation frames stop, so landing and ramping must not depend on them (page/Clock.ts).
+    // The message is sent from the backend's side of things, as typed before switching: fill, switch, then Enter.
+    const other = await page.context().newPage()
+    await other.goto("about:blank")
+    await other.bringToFront()
+    const hidden = await page.evaluate(() => document.visibilityState)
+    if (hidden !== "hidden") {
+        console.log(`SKIP  edit lands while the tab is hidden  (headless reports the tab as ${hidden})`)
+    } else {
+        const before = await volume("Keys")
+        const start = Date.now()
+        await page.evaluate(() => window.takedo.connection.send({type: "chat", text: "@mix_engineer keys down a bit"}))
+        await page.waitForFunction(before =>
+            window.takedo.adapter.snapshot().tracks.find(track => track.name === "Keys").mix.volume < before - 0.5,
+            before, {timeout: 10000, polling: 100}).catch(() => {})
+        const after = await volume("Keys")
+        check("edit lands while the tab is hidden", after < before - 0.5,
+            `${before.toFixed(1)} → ${after.toFixed(1)} dB in ${Date.now() - start} ms`)
+    }
+    await other.close()
+    await page.bringToFront()
+    await page.evaluate(() => window.opendaw.engine.stop())
 
     check("no page errors or failed requests", problems.length === 0, problems.slice(0, 5).join("; "))
 } catch (error) {

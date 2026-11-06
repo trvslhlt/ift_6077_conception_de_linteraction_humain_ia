@@ -1,0 +1,6 @@
+{
+  "//": "Which provider and model does each job (project_plan/ARCHITECTURE.md, 'The model is a setting'). model null: the provider's default.",
+  "jobs": {
+    "fast_path": {"provider": "typesafe", "model": null}
+  }
+}

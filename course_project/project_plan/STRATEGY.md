@@ -152,6 +152,11 @@ took to describe a project musically, stylistically and technically (FEATURES.md
 
 ## Changes over time: write automation
 
+**Open, deferred (2026-11-06): looping and non-looping sessions likely need different rules.** In a loop, automation
+written "from now on" plays again from the loop's start, so a lasting change ("the kick is too loud") comes back.
+TakeDo's first operation therefore writes values, like a knob drag (takedo/README.md), and refuses parameters that
+have a lane. Which changes are value writes and which are automation, per mode, is to decide later.
+
 - **Agents change parameters by writing automation, not by setting values.** Automation is project data the user
   can see and edit, the engine plays ramps exactly with no per-frame writes from us, and it avoids openDAW turning off
   a parameter's automation once its value is written during playback. Ramps written during playback are followed on
@@ -241,6 +246,31 @@ waiting for a safe landing point (up to a whole 8-bar loop, ~23 s) and deliberat
   - **several members:** the Team Lead (language model, 2–5 s) writes each one's piece: what the producer wants
     from it and why, not settings, and each member also gets the producer's own words;
   - **no member clearly needed:** the Team Lead asks one short question.
+- **Ordinary code libraries do the domain work; models choose** (2026-11-06). Where a solved problem has a
+  library, agents get it as code, not as model knowledge. The first is [tonal](https://github.com/tonaljs/tonal)
+  (music theory, MIT, no dependencies; to pin at 6.5.1), in the backend, for the composer:
+  - **analysis** in the state: key, chord names per bar, scale degrees, register (see "Analysis code does, not
+    the model");
+  - **tools** for the language model: chord notes from a name, voicing and register; a progression from Roman
+    numerals in a key; scales; snapping notes to a scale; transposing. The model names harmony, and code writes
+    exact notes;
+  - **options** for Jev to choose from: substitutions for a progression, voicings along an intent dial. This is
+    what makes a composer's control quick rather than slow (INTERACTION.md), and it works with no language model
+    at all.
+
+  Other libraries are to add the same way as members need them. Candidates, from
+  [awesome-music-programming](https://github.com/zoejane/awesome-music-programming) (reviewed 2026-11-06; check
+  licences before use, several are AGPL):
+  - **Strudel's pattern core** (Tidal mini-notation, JS): drum and note patterns written compactly by the model
+    (`"bd ~ sd ~, hh*8"`) and expanded to notes by code; pattern variants as Jev options. The strongest fit.
+  - **Essentia.js** (WASM): key, tempo, onsets and timbre from offline renders, for the Listening part and for
+    measuring the sample library.
+  - **VexFlow**: notation in the team view, to show a prepared part before it lands.
+  - **Magenta.js** (MusicVAE, GrooVAE): interpolating patterns along a dial, humanizing. Largely unmaintained and
+    heavy; only if simpler options fall short.
+
+  Out of scope: audio generators (agents edit a project), other synths and live-coding environments (openDAW makes
+  the sound), notation editors.
 - **Agents don't assume every resource is there** (raised 2026-11-05; for the detailed design). Model spend and the
   laptop's CPU and memory limit TakeDo, so the design names what can be dropped when they run short and how
   the team degrades: fewer or cheaper model calls, Jev or code instead of a language model, live meters instead of

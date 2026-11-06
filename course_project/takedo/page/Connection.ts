@@ -18,6 +18,7 @@ const RetryMs = [250, 500, 1000, 2000, 5000]
 
 export class Connection implements Terminable {
     readonly #notifier = new Notifier<ConnectionState>()
+    readonly #messages = new Notifier<BackendToPage>()
     readonly #pings = new Map<number, (ms: number) => void>()
     #state: ConnectionState = {status: "connecting", session: null, roundTripMs: null, error: null}
     #socket: WebSocket | null = null
@@ -31,6 +32,14 @@ export class Connection implements Terminable {
     get state(): ConnectionState {return this.#state}
 
     subscribe(observer: Observer<ConnectionState>): Subscription {return this.#notifier.subscribe(observer)}
+
+    // Every message from the backend except the connection's own (welcome, pong, error).
+    subscribeMessages(observer: Observer<BackendToPage>): Subscription {return this.#messages.subscribe(observer)}
+
+    // Dropped while not connected: the backend asks again for what it needs after reconnecting.
+    send(message: PageToBackend): void {
+        if (this.#state.status === "open") {this.#send(message)}
+    }
 
     // Resolves with the round trip in ms; rejects if the socket isn't open or closes first.
     ping(): Promise<number> {
@@ -79,6 +88,8 @@ export class Connection implements Terminable {
                 case "error":
                     this.#update({error: message.detail})
                     return
+                default:
+                    this.#messages.notify(message)
             }
         }
         socket.onclose = () => {
