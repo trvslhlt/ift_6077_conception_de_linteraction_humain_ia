@@ -14,6 +14,7 @@ the problem it's about shows up in use. Each deferred one names what would bring
 | C | Why check 2 occasionally misses a note inserted into a looping region | headless | 2 hours | the 200 ms lead; the lead-time check itself | Done: not loop-specific; rest deferred |
 | D | Whether Convolver applies its impulse response at once | headless | 1 hour | when the bus may insert a Convolver | Done: yes |
 | E | Real-browser listening and timing | real browser, a listener | 1 hour of yours, ~half a day to prepare | STRATEGY's timing numbers; equal-power ramps | Deferred |
+| F | What the bus can hear: live readings, offline renders during playback, and whether the summaries catch real problems | headless | ~a day, plus the openDAW rebuild (~15 min, ~10 GB of Docker disk) | the Listening part of the agentTeamAPI | Waiting for the rebuild |
 
 C and D run with `make experiment EXPERIMENT=C|D` (`src/Experiments.ts`; results in `results/experiment-*.json`).
 
@@ -165,3 +166,32 @@ curve.
 
 **To build first:** the in-page WAV recorder, the blind A/B order for step 3, and a "listening" mode of check 7
 that pauses between steps so each can be heard on its own.
+
+## F. What the bus can hear
+
+**Why.** Agents can't hear: Claude and Jev take text and images, not audio. The bus would turn the sound into
+short per-bar summaries per track and for the master: peak, loudness, energy in five bands, the share below what
+laptop speakers (~150 Hz) and phones (~300 Hz) play, clipping, silence, and pairs of tracks crowding the same
+band. Code rules on them wake a member (a part clips, goes silent, or becomes inaudible on laptops); members check
+their own edits by comparing the bars before and after one landed. Whether models judge such summaries well is
+tested without openDAW in `poc/listen_bench`. Design: STRATEGY.md, "What agents know" (the Listening part).
+
+**Known.** openDAW computes the master's loudness, spectrum and peaks for its analysis cards
+(`EngineAddresses.LOUDNESS`, `SPECTRUM`, `PEAKS`), and each channel's peaks for the mixer's meters
+(`liveStreamReceiver.subscribeFloats`); no live spectrum per channel. `OfflineEngineRenderer` renders the mix or
+single tracks over a section without touching playback (OPENDAW.md, "Listening is built in"). `OutputTap` already
+taps the engine's output in `poc/edit_bench`, and `PerfProbe` counts audio blocks over budget.
+
+**Questions.**
+1. **Live readings.** Can the page subscribe to the master's loudness and spectrum and every channel's peaks
+   during playback? At what rate, at what main-thread cost, and how far behind the audio?
+2. **Offline renders during playback.** How long does one track over 8 bars take to render (at 96 BPM, 8 bars
+   last 20 s), how does it scale with tracks and length, and does it cause audio blocks over budget? Does it run
+   on its own thread or compete with the live engine?
+3. **Do the summaries catch real problems?** In a test project: the live POC's bass at 49–82 Hz flagged as
+   inaudible on laptops; a kick and a bass in the same band flagged as crowding; a filter closed on the keys showing
+   as lost highs between the bars before and after; a clipping master; a muted part as silent.
+
+**Outcome.** Whether per-track summaries can come from renders during playback, or only from live peaks plus the
+master (and if so, what the Listening part can promise); the render's budget per bar, which sets how often a
+member can check its edits.

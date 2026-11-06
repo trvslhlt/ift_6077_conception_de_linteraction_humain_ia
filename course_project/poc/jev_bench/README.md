@@ -33,6 +33,7 @@ prints a line per case and a summary per family, and writes everything (answers,
 | `operation_v2` | as `operation`, with the pattern question reworded and up/down asked in a second request, worded for the chosen parameter ("cleaner, less crunchy") | 9, then 1 |
 | `dial_v2` | as `dial`, with code giving the value in words ("all the way toward dusty", "the late 1980s") | 1 choice |
 | `fanout` | a Team Lead direction → which members it needs: one yes/no per member, given the roster from `../llm_bench` | 9 nouls |
+| `fastpath` | a raw message → the fanout's yes/no per member, plus hints: which part, what kind of change, how much, how soon; code takes the fast path when the top member is ≥ 0.8 and all others ≤ 0.5 | 9 nouls, 3 choices, 1 score |
 
 A case counts as right only if every answer it grades is acceptable; some cases accept several answers ("more
 swing": groove or drum programmer). Confidence for a multi-answer case is the least confident of its answers.
@@ -76,6 +77,14 @@ The cases are few and I wrote them; treat the numbers as direction, not measurem
    members; Burial: 8), and a vague one ("make it darker") put everyone near 0.5. Jev also can't write each
    member's piece. So: when one member is far above the rest, route at once with the direction as its piece;
    otherwise hand it to the Team Lead (Claude, 2–5 s).
+8. **The fast path works, with routing and hints in one request** (`fastpath`, 14 of 16, ~110 ms). Every
+   message that took the fast path got the right member and right hints: "kill the vinyl" → arranger, the vinyl,
+   quieter, large (2.5 of 3); "busier drums from the next phrase" → drum programmer, drums, busier, later;
+   "softer" → mix engineer, whole track, quieter. All four broad or vague messages went to the Team Lead. The two
+   misses failed safe: "the keys are too dusty" and "darker keys, slowly" split between the effect designer and
+   the instrument designer (0.70 / 0.66, 0.85 / 0.59), so they took the slow path instead of the wrong member.
+   That's a real overlap between the two roles; sharper roster wording (tone of an existing sound → effect
+   designer; a different sound → instrument designer) is the likely fix.
 6. **Confidence alone won't decide when to escalate.** Wrong answers were below 0.75, but so were many right ones
    ("let's not rush this" → down at 0.44; "the kick is too loud" → unrelated at 0.20). A cut-off at 0.5 would send
    a few right answers to the language model, which is cheap insurance when its cost is a second or two. Set it on

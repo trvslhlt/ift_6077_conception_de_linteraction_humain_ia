@@ -61,6 +61,29 @@ dial and Cancel stay on the card as shortcuts.
 Open: whether directions end on their own ("done: it's house
 now"); how directions that pull against each other get resolved, and whether the producer sees that.
 
+## How fast a control responds, and showing it
+
+- **Intent controls should usually be Jev-interpretable.** Jev chooses rather than invents, so when a member
+  makes a control it also prepares a few options along its range, each described by its character ("hectic:
+  16th hats, ghost snares, a fill every 2 bars"). Moving the control: code puts the position in words ("most of
+  the way toward hectic"), Jev picks the option (~0.1 s), and the edit lands on the next bar. Positions no option
+  covers, or an unsure answer, go to the member (slow path), which prepares more. Options that need new notes
+  are written in the background, a phrase or two ahead. A control whose options always follow the same fixed
+  order is really a macro.
+- **Three styles, named by when you'll hear the change:** instant (macros: as your hand moves), quick (an intent
+  control with options ready: the next bar), slow (an intent control the member has to work out: a phrase or so).
+  A control's style shows the response to the *next* move and can change as the member prepares more options:
+  a slider with labelled marks where options are ready, and an unfinished-looking stretch where they aren't.
+  For a slow control only the last position counts.
+- Feedback: instant controls change the sound; quick ones show "next: … bar 21" at once; slow ones show
+  "working on it", then the plan and a countdown to when it lands.
+- Icons: hare for quick, tortoise for slow (the usual fast/slow symbols on machines); instant controls could go
+  unmarked, since they behave like the DAW's own. On a slider the icon marks the stretch, so the tortoise stretch
+  visibly shrinks as options get prepared. Each icon also has words on hover/focus ("next bar", "a phrase or so")
+  and an accessible label.
+
+Open: whether showing the speed changes how producers use AI controls, and how much they trust them.
+
 ## Modes
 
 The sketch has four: Ready, Planning, Performing, Post-mortem. They bound what the team does (no edits while

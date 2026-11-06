@@ -396,4 +396,62 @@ const fanout = {
     ],
 };
 
-export const FAMILIES = { routing, amend, operation, reading, dial, operation_v2, dial_v2, fanout };
+// ---------- fastpath: route a raw message and judge its hints, in one request ----------
+// STRATEGY.md, "Responsiveness": one member clearly needed → it gets the producer's words plus these judgments,
+// with no language model. Asked together: the fanout's yes/no per member, then which part, what kind of change,
+// how much, how soon. Code takes the fast path when the top member is ≥ FAST_TOP and every other ≤ FAST_REST.
+
+const FAST_TOP = 0.8, FAST_REST = 0.5;
+const PARTS = { t1: "the drums (the whole kit)", t2: "the keys (Rhodes)", t3: "the bass", t4: "the vinyl crackle", whole_mix: "the whole track, all parts together" };
+const CHANGES = { quieter: "quieter, less of it, or gone", louder: "louder, more of it", darker: "darker, duller, more muffled",
+    brighter: "brighter, more open", harsher: "harsher, crunchier, dirtier", cleaner: "cleaner, less dirty or dusty",
+    busier: "busier, more notes or hits", sparser: "sparser, fewer notes or hits", other: "some other kind of change" };
+const SOON = { now: "right away, on the next beat or bar", gradual: "gradually, over a few bars", later: "at a later point: the next phrase, section or a named bar",
+    unspecified: "the message doesn't say when" };
+const premiseOf = "The producer sent `message` to their AI music team while working on `project`. ";
+const fastpath = {
+    describe: "raw message → route + hints (part, change, amount, when), one request",
+    build: c => ({
+        state: { project: PROJECT, team: ROSTER, message: c.msg },
+        questions: {
+            ...Object.fromEntries(Object.keys(ROSTER).map(role => [role,
+                noul(`${premiseOf}Does carrying it out need work from the ${role.replace(/_/g, " ")} (\`team.${role}\`)?`)])),
+            part: choice(`${premiseOf}Which part of the track is it about?`, PARTS),
+            change: choice(`${premiseOf}What kind of change to that part do they want?`, CHANGES),
+            amount: score(`${premiseOf}How large a change do they want?`, AMOUNT),
+            when: choice(`${premiseOf}When should the change happen?`, SOON),
+        },
+    }),
+    grade: (c, a) => {
+        const ranked = Object.keys(ROSTER).map(r => [r, a[r].noul]).sort((x, y) => y[1] - x[1]);
+        const fast = ranked[0][1] >= FAST_TOP && ranked[1][1] <= FAST_REST, misses = [];
+        if (c.fast !== undefined && fast !== c.fast) misses.push(fast ? "fast (want slow)" : `slow (top ${ranked[0][0]} ${ranked[0][1].toFixed(2)}, next ${ranked[1][0]} ${ranked[1][1].toFixed(2)})`);
+        // Hints only matter when the message takes the fast path.
+        if (fast && c.member && !any(c.member).includes(ranked[0][0])) misses.push(`member=${ranked[0][0]}`);
+        if (fast) for (const k of ["part", "change", "when"]) if (c[k] && !any(c[k]).includes(a[k].choice)) misses.push(`${k}=${a[k].choice}`);
+        if (fast && c.amount && (a.amount.score < c.amount[0] || a.amount.score > c.amount[1])) misses.push(`amount=${a.amount.score.toFixed(2)}`);
+        const got = fast ? `→ ${ranked[0][0]}: ${a.part.choice}, ${a.change.choice}, ${a.amount.score.toFixed(1)}, ${a.when.choice}` : "→ Team Lead";
+        return { ok: !misses.length, got: misses.length ? `${got}  ✗ ${misses.join("; ")}` : got,
+            conf: fast ? Math.min(a.part.confidence, a.change.confidence, a.when.confidence) : 1 - ranked[1][1] };
+    },
+    cases: [
+        { msg: "softer", fast: true, member: "mix_engineer", part: ["whole_mix", "t2"], change: "quieter" },
+        { msg: "the kick is too loud", fast: true, member: "mix_engineer", part: "t1", change: "quieter", amount: [0, 1.6], when: ["now", "unspecified"] },
+        { msg: "bring the bass up a bit", fast: true, member: "mix_engineer", part: "t3", change: "louder", amount: [0, 1.3] },
+        { msg: "a bit less vinyl", fast: true, member: "mix_engineer", part: "t4", change: "quieter", amount: [0, 1.3] },
+        { msg: "kill the vinyl", fast: true, member: ["mix_engineer", "arranger"], part: "t4", change: "quieter", amount: [1.8, 3], when: ["now", "unspecified"] },
+        { msg: "open up the keys over the next few bars", fast: true, member: "effect_designer", part: "t2", change: "brighter", when: "gradual" },
+        { msg: "more crunch on the keys", fast: true, member: "effect_designer", part: "t2", change: "harsher" },
+        { msg: "the keys are too dusty", fast: true, member: "effect_designer", part: "t2", change: "cleaner" },
+        { msg: "darker keys, slowly", fast: true, member: "effect_designer", part: "t2", change: "darker", when: "gradual" },
+        { msg: "busier drums from the next phrase", fast: true, member: "drum_programmer", part: "t1", change: "busier", when: "later" },
+        { msg: "lose the drums for a bit", fast: true, member: "arranger", part: "t1", change: ["quieter", "sparser"], when: ["now", "unspecified"] },
+        { msg: "jazzier chords", fast: true, member: "composer", part: "t2", change: "other" },
+        { msg: "make it darker", fast: false },
+        { msg: "slowly evolve this into a house track", fast: false },
+        { msg: "make it sound more like Burial", fast: false },
+        { msg: "make it better", fast: false },
+    ],
+};
+
+export const FAMILIES = { routing, amend, operation, reading, dial, operation_v2, dial_v2, fanout, fastpath };

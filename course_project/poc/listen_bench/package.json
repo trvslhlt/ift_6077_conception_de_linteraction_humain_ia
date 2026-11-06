@@ -1,0 +1,10 @@
+{
+  "name": "listen-bench",
+  "private": true,
+  "type": "module",
+  "description": "Listening test: Jev and Haiku judging audio summaries, raw or in words",
+  "dependencies": {
+    "@anthropic-ai/sdk": "1.1.0",
+    "@typesafe-ai/sdk": "0.7.0"
+  }
+}
