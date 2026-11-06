@@ -219,7 +219,7 @@ waiting for a safe landing point (up to a whole 8-bar loop, ~23 s) and deliberat
   | Tier | What decides | Latency | For |
   |---|---|---|---|
   | slow | a language model | seconds to tens of seconds | new musical material, plans, conversation; prepared ahead |
-  | fast | a System One model (e.g. TypeSafe's Jev) | about a second | picking and filling in an operation, reading a gesture or a dial |
+  | fast | a System One model (e.g. TypeSafe's Jev) | ~0.1 s per request, measured (poc/jev_bench) | picking and filling in an operation, reading a gesture or a dial |
   | instant | code | milliseconds | firing a prepared operation, macros, following the producer's controls |
 
 - **Prepare, then fire on cue.** Slow work is prepared while the current section plays; it lands on the next beat

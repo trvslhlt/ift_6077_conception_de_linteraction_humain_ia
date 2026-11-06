@@ -1,0 +1,11 @@
+{
+  "name": "jev-bench",
+  "version": "1.0.0",
+  "description": "Fast-tier test: Jev on the team view jobs",
+  "scripts": {},
+  "type": "module",
+  "dependencies": {
+    "@typesafe-ai/sdk": "0.7.0"
+  },
+  "private": true
+}

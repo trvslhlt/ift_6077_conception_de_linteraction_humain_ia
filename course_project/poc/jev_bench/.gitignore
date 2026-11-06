@@ -1,0 +1,5 @@
+# API key
+.env
+node_modules
+# Raw runs written by `make run`; findings go in README.md
+results/
