@@ -47,7 +47,7 @@ shell: ## Shell into the running studio container
 test: build ## Run the bench checks in headless Chromium (starts the studio if needed)
 	$(COMPOSE) run --rm smoke
 
-experiment: build ## Run one experiment from project_plan/EXPERIMENTS.md headless: EXPERIMENT=C|D [TRIALS=100]
+experiment: build ## Run one experiment from project_plan/EXPERIMENTS.md headless: EXPERIMENT=C|D|F [TRIALS=100]
 	$(COMPOSE) run --rm -e EXPERIMENT=$(EXPERIMENT) -e TRIALS=$(TRIALS) smoke node experiment.mjs
 
 types: build ## Copy openDAW's source and types out of the image into .opendaw/, for the editor (see tsconfig.json)

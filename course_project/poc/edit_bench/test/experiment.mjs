@@ -1,5 +1,5 @@
 // Runs one experiment from project_plan/EXPERIMENTS.md in headless Chromium, in a new project, and saves its result
-// to results/experiment-<name>-<time>.json. EXPERIMENT is C or D; TRIALS sets C's trials per condition.
+// to results/experiment-<name>-<time>.json. EXPERIMENT is C, D or F; TRIALS sets C's trials per condition.
 // Run via `make experiment EXPERIMENT=C`.
 import {chromium} from "playwright"
 import {mkdirSync, writeFileSync} from "node:fs"
@@ -9,8 +9,8 @@ const URL = process.env.URL ?? "http://localhost:8080/"
 const TIMEOUT = 60000
 const NAME = (process.env.EXPERIMENT ?? "").toUpperCase()
 const TRIALS = process.env.TRIALS ? Number(process.env.TRIALS) : undefined
-if (!["C", "D"].includes(NAME)) {
-    console.error("EXPERIMENT must be C or D")
+if (!["C", "D", "F"].includes(NAME)) {
+    console.error("EXPERIMENT must be C, D or F")
     process.exit(2)
 }
 
@@ -26,7 +26,7 @@ try {
     const result = await page.evaluate(([name, trials]) => window.editBench.experiment(name, trials), [NAME, TRIALS])
     const file = `results/experiment-${NAME}-${startedAt.replace(/[:.]/g, "-")}.json`
     writeFileSync(file, JSON.stringify({experiment: NAME, startedAt, result}, null, 2))
-    console.log(JSON.stringify(NAME === "C" ? result.summary : result, null, 2))
+    console.log(JSON.stringify(NAME === "C" ? result.summary : NAME === "F" ? {...result, renders: {...result.renders, rows: undefined}} : result, null, 2))
     console.log(`saved to ${file}`)
 } catch (error) {
     console.error(`experiment ${NAME} failed: ${error.message.split("\n")[0]}`)

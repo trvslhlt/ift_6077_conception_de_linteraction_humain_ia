@@ -405,10 +405,12 @@ type Member = {agent: Actor, roles: string[], shown: boolean, retired?: number} 
   on as team messages and reports back. It has no operations and doesn't coordinate the others' work: members do
   that among themselves, below. The producer can also address any member directly.
 
-- **Claims say who is working on what.** An agent claims refs before working on them; others see the claims in
-  `state.claims()` and in the change stream. A request on a ref another agent has claimed fails with `conflict`,
-  naming the claimant, so the two can talk it out. Claims are a convention the agents agree on; the bus only
-  enforces them.
+- **Claims are locks** (decided 2026-11-05). An agent claims refs before working on them; others see the claims in
+  `state.claims()` and in the change stream. The bus grants claims one at a time, so when two agents claim the
+  same ref at once the first wins and the second gets `conflict`, naming the holder. A request on a ref the agent
+  hasn't claimed, or another agent holds, fails the same way, so the two can talk it out. A claim ends when it is
+  released or its `until` passes, so a stalled agent can't block the others. The producer is never locked out:
+  the producer's edits and holds go first (Human priority, STRATEGY.md).
 - **Coordinated actions use the request timing already there.** A shared cue (`{on: "cue", cue: "fade-out"}`)
   fires several agents' prepared requests together, and `{after: id}` chains one agent's request after another's.
   The composer and the mix engineer each prepare their part on the same cue, and agree on it by message.
@@ -447,11 +449,10 @@ sessions/<session id>/
 
 ## Open questions
 
-- **Transport between agents and the bus:** agents in the page (simplest; the browser makes the model calls through
-  the proxy) or in a separate process talking to the page over a WebSocket through the proxy. The JSON contracts
-  are the same either way.
-- **Conflicts between agents:** decided that agents work them out between themselves (Team); claims are the
-  draft's mechanism. Open: what happens when an agent ignores a claim, or two claim at once.
+- **Transport between agents and the bus:** decided 2026-11-05: agents run in a separate backend process that
+  talks to the page (STRATEGY.md, "Where things run"). Open: the channel itself, likely a WebSocket.
+- **Conflicts between agents:** decided that agents work them out between themselves (Team), with claims as locks
+  that the bus enforces (above).
 - **Cost of the full snapshot** on a large project: to measure, to decide whether `full` needs paging by track.
 - **Superseding window:** how long after an agent's change a user change on the same target still counts as
   overriding it.

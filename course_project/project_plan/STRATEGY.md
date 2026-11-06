@@ -35,8 +35,12 @@ the team view can point at a control for visible presence (FEATURES.md).
   Capture and speech-to-text belong to the team/AI layer, not openDAW. openDAW
   only ever receives edits. This keeps speech-to-text free of the studio page's cross-origin isolation (COOP/COEP)
   rules.
-- **Model calls go through a local proxy, not straight from the browser.** The proxy holds the API key and is where
-  we log study data.
+- **Agents run in a local backend process, not in the page** (decided 2026-11-05). The page keeps openDAW, the
+  team view and the bus's edits; its main thread is the scarce resource (EXPERIMENTS.md, F). The backend holds
+  the agents, makes the model calls, keeps the API keys and logs study data. Node for now, not a requirement:
+  another runtime is fine if there's a reason.
+- **Spend what the work needs, and nothing for nothing** (2026-11-05). The model budget can grow, so cost doesn't
+  cap the design; waste does: no calls whose results go unused when a cheaper tier would do.
 
 ## Agent edits are requests
 
@@ -234,6 +238,11 @@ waiting for a safe landing point (up to a whole 8-bar loop, ~23 s) and deliberat
   - **several members:** the Team Lead (language model, 2–5 s) writes each one's piece: what the producer wants
     from it and why, not settings, and each member also gets the producer's own words;
   - **no member clearly needed:** the Team Lead asks one short question.
+- **Agents don't assume every resource is there** (raised 2026-11-05; for the detailed design). Model spend and the
+  laptop's CPU and memory limit TakeDo, so the design names what can be dropped when they run short and how
+  the team degrades: fewer or cheaper model calls, Jev or code instead of a language model, live meters instead of
+  offline renders, fewer listening passes. When resources are available, agents get richer data and tools.
+  Each agent works with whatever it is given and says so when it is working from less.
 
 ## Session record
 

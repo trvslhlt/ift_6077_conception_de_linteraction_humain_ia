@@ -14,9 +14,9 @@ the problem it's about shows up in use. Each deferred one names what would bring
 | C | Why check 2 occasionally misses a note inserted into a looping region | headless | 2 hours | the 200 ms lead; the lead-time check itself | Done: not loop-specific; rest deferred |
 | D | Whether Convolver applies its impulse response at once | headless | 1 hour | when the bus may insert a Convolver | Done: yes |
 | E | Real-browser listening and timing | real browser, a listener | 1 hour of yours, ~half a day to prepare | STRATEGY's timing numbers; equal-power ramps | Deferred |
-| F | What the bus can hear: live readings, offline renders during playback, and whether the summaries catch real problems | headless | ~a day, plus the openDAW rebuild (~15 min, ~10 GB of Docker disk) | the Listening part of the agentTeamAPI | Waiting for the rebuild |
+| F | What the bus can hear: live readings, offline renders during playback, and whether the summaries catch real problems | headless | ~a day, plus the openDAW rebuild (~15 min, ~10 GB of Docker disk) | the Listening part of the agentTeamAPI | Done: renders work during playback |
 
-C and D run with `make experiment EXPERIMENT=C|D` (`src/Experiments.ts`; results in `results/experiment-*.json`).
+C, D and F run with `make experiment EXPERIMENT=C|D|F` (`src/Experiments.ts`, `src/Listening.ts`; results in `results/experiment-*.json`).
 
 ## Deferred, and what would bring each back
 
@@ -195,3 +195,34 @@ taps the engine's output in `poc/edit_bench`, and `PerfProbe` counts audio block
 **Outcome.** Whether per-track summaries can come from renders during playback, or only from live peaks plus the
 master (and if so, what the Listening part can promise); the render's budget per bar, which sets how often a
 member can check its edits.
+
+**Result (2026-11-05, headless Chromium in Docker on the M-series laptop, 48 kHz, 120 BPM so 8 bars = 16 s;
+`src/Listening.ts`, `make experiment EXPERIMENT=F`).** Per-track summaries can come from renders during playback.
+1. **Live readings: yes, at 60 per second each, ~22 ms behind the output.** Master peaks (peak and RMS per side),
+   loudness (5 values: momentary, short-term, integrated, ..., true peak), the 512-bin spectrum and every channel's
+   peaks all arrive once per animation frame. Subscribing to all seven cost nothing measurable: no audio blocks over
+   budget (max 0.36 ms of 2.67), 26 ms of handler time over 5 s. A channel's meter shows a part 13–29 ms (mean 22)
+   after the output does. Limit: the spectrum's bins are 47 Hz wide, so 3 bins cover everything below 150 Hz; the
+   live spectrum can't tell sub from low, which is where the laptop question lives.
+2. **Offline renders: ~0.8 s for a track over 8 bars, without disturbing playback.** Totals (3 each): one track, 8
+   bars 0.84 s (19× real time); four tracks, 8 bars 1.2 s; one track, 32 bars 2.6 s; master mix, 8 bars 1.05 s.
+   About 0.35 s of each is fixed: copying the project and starting the renderer's worker. The render runs in its own
+   worker. Over 12 renders, 2 audio blocks went over budget (one with a 115 ms main-thread task, likely the copy) and
+   no output gaps; the 5 s baseline had 1. The renderer must get `project.copy()`, as openDAW's freeze does: given
+   the live project it fails ("Already connected") because it attaches the project's meter receiver. With the copy,
+   live meters are untouched (60 readings/s during a render, none silent). Mutes are honoured in stems.
+3. **The summaries catch the planted problems: 5 of 6 cases.** Code computes level, peak, five bands and the share
+   below 150 Hz from each stem (4096-point FFT); code rules flag. Bass at 49–82 Hz: 97% below 150 Hz, flagged. Kick
+   and bass in the same band within 3 dB: flagged as crowding. Keys' filter from 6 kHz to 600 Hz: highs −23 dB, mids
+   −20 dB, level −15 dB between before and after. Every part +12 dB: master peak +3.7 dB, flagged as clipping (and
+   so was a +0.2 dB master in the crowding case). Keys muted: silent, flagged. The miss: the bass up an octave with
+   its filter at 1 kHz still had 72% below 150 Hz (fundamentals 98–165 Hz) and stayed flagged; that is a fair
+   reading of a borderline bass, so the threshold is a judgment call, and the before/after (97% → 72%, low mids
+   +22 dB) is what a member checking its edit would use. The test kick (a synth note at 65 Hz) was flagged in
+   every case, correctly for that sound.
+   Analysis took ~300 ms of main-thread JS per case (four stems and the master, 8 bars): in a worker, it should be.
+
+**What this means for the Listening part.** Live meters for instant facts (clipping, silence, levels, every
+frame); renders for anything about bands or before/after, at ~1 s per 8 bars plus analysis in a worker. A member
+checking its edit waits for the bars to play, then about a second. Renders are also the first thing to drop when
+the laptop is busy (STRATEGY.md, "Agents don't assume every resource is there"): live meters are nearly free.

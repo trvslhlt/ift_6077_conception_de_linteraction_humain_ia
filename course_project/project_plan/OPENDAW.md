@@ -191,8 +191,10 @@ Answered 2026-10-31 from the source and check 10 (headless, two runs).
   a Convolver can be inserted like any effect.
 - **Listening is built in.** Per channel: `project.liveStreamReceiver.subscribeFloats(audioUnitAddress, ...)`
   gives peaks (the mixer's meters). Master: `EngineAddresses.PEAKS`, `LOUDNESS`, `SPECTRUM`, `GONIO`, `WAVEFORM`
-  (openDAW's analysis cards). Offline: `OfflineEngineRenderer.start/renderSection` renders the mix or stems (per
-  track, `ExportConfiguration`) without touching playback; `AudioBounce` bounces regions pre- or post-fader;
+  (openDAW's analysis cards). Offline: `OfflineEngineRenderer` renders the mix or stems (per track,
+  `ExportConfiguration`) in its own worker. During playback, give it `project.copy()` and drive `create`/`step`
+  directly: on the live project it fails ("Already connected", it attaches the meter receiver), and
+  `start`/`renderSection` toggle the source's loop area (EXPERIMENTS.md, F); `AudioBounce` bounces regions pre- or post-fader;
   `AutoEq` derives a corrective EQ from a rendered mix.
 - **Saving.** `project.toArrayBuffer()` encodes the whole project (`ProjectSkeleton.encode`); `Project.load(env,
   buffer)` restores it; `ProjectProfile.save()` writes to OPFS. Samples stay in OPFS by uuid. No autosave found in
