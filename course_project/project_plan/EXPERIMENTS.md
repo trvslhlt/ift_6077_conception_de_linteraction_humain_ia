@@ -14,7 +14,7 @@ the problem it's about shows up in use. Each deferred one names what would bring
 | C | Why check 2 occasionally misses a note inserted into a looping region | headless | 2 hours | the 200 ms lead; the lead-time check itself | Done: not loop-specific; rest deferred |
 | D | Whether Convolver applies its impulse response at once | headless | 1 hour | when the bus may insert a Convolver | Done: yes |
 | E | Real-browser listening and timing | real browser, a listener | 1 hour of yours, ~half a day to prepare | STRATEGY's timing numbers; equal-power ramps | Deferred |
-| F | What the bus can hear: live readings, offline renders during playback, and whether the summaries catch real problems | headless | ~a day, plus the openDAW rebuild (~15 min, ~10 GB of Docker disk) | the Listening part of the agentTeamAPI | Done: renders work during playback |
+| F | What the bus can hear: live readings, offline renders during playback, and whether the summaries catch real problems | headless | ~a day, plus the openDAW rebuild (~15 min, ~10 GB of Docker disk) | the Listening part of the TakeDoAPI | Done: renders work during playback |
 
 C, D and F run with `make experiment EXPERIMENT=C|D|F` (`src/Experiments.ts`, `src/Listening.ts`; results in `results/experiment-*.json`).
 

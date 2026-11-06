@@ -27,7 +27,7 @@ The sketch's example: evolve a lo-fi beat into a house track.
    in three ways, mixed freely:
    - **Chat.** Goes to the team lead by default; `@member` addresses one member ("@mix_engineer the kick is
      too loud"). The team lead answers or passes it on and says so.
-   - **Controls.** Each card's controls are directions, not parameter changes (AGENT_TEAM_API.md, "Controls"):
+   - **Controls.** Each card's controls are directions, not parameter changes (TAKEDO_API.md, "Controls"):
      moving the era dial to 1995 changes what the instrument designer does next. The card should show it was
      heard (a "next: …" line).
    - **The DAW.** Playing along or demonstrating ("like that"). The change log shows the team what changed; the

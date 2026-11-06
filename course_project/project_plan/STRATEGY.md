@@ -41,6 +41,9 @@ the team view can point at a control for visible presence (FEATURES.md).
   another runtime is fine if there's a reason.
 - **Spend what the work needs, and nothing for nothing** (2026-11-05). The model budget can grow, so cost doesn't
   cap the design; waste does: no calls whose results go unused when a cheaper tier would do.
+- **Models can be swapped without touching the design** (2026-11-06). Each job's model, for example Claude or
+  DeepSeek, is set in config, and one adapter per provider sits behind the backend's model gateway
+  (ARCHITECTURE.md).
 
 ## Agent edits are requests
 
@@ -59,8 +62,8 @@ demonstration signal in itself.
 
 ## What agents know
 
-The contracts are specified in [AGENT_TEAM_API.md](AGENT_TEAM_API.md). Agents never see openDAW's API. What they know comes from the bus's agent-facing interface, the **agentTeamAPI**
-(tentative name), in five parts that change at different rates:
+The contracts are specified in [TAKEDO_API.md](TAKEDO_API.md). Agents never see openDAW's API. What they know comes from the **TakeDoAPI**, the project's human-agent
+collaboration layer (TAKEDO_API.md, "What this is"), in five parts that change at different rates:
 
 | Part | Content | Changes | How agents get it |
 |---|---|---|---|
@@ -91,7 +94,7 @@ The contracts are specified in [AGENT_TEAM_API.md](AGENT_TEAM_API.md). Agents ne
   user holds it. Devices whose parameters the catalog can't list (layers, scripts, WebCLAP) are read this way.
 - **Changes carry who made them** (user, which agent, or undo), using the origin tagging in OPENDAW.md ("Telling
   our changes from the user's").
-- **Playback state is its own query** (decided in AGENT_TEAM_API.md): not project data, not in the change stream.
+- **Playback state is its own query** (decided in TAKEDO_API.md): not project data, not in the change stream.
   Every message carries the time and playhead position, and each model call that can produce a request gets the
   playback state in its context.
 
@@ -216,7 +219,7 @@ waiting for a safe landing point (up to a whole 8-bar loop, ~23 s) and deliberat
 
 - **Agents act through a library of predefined operations, not openDAW's whole surface.** Each operation is a
   tool call with parameters (ramp a parameter, swap an instrument, add a part, vary a pattern, ...) that the bus
-  carries out with code already written and tested. This library is the Requests part of the agentTeamAPI; agents
+  carries out with code already written and tested. This library is the Requests part of the TakeDoAPI; agents
   never write openDAW code.
 - **Three speeds:**
 

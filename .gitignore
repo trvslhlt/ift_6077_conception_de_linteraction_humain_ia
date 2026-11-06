@@ -12,6 +12,9 @@ build/
 *.synctex.gz
 *.toc
 
+# Personal working notes
+/_SKETCHPAD/
+
 # macOS
 .DS_Store
 

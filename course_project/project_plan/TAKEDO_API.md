@@ -1,9 +1,109 @@
-# agentTeamAPI (draft)
+# TakeDoAPI (draft)
 
 The contracts between the agents and the open openDAW project: what agents can ask for, what they can read, what
 they are told, and what the session keeps. Draft of 2026-10-31, written before the interaction design. It specifies
 the structures and protocols, not the list of operations, which waits for that design. Why things are this way is in
-[STRATEGY.md](STRATEGY.md); openDAW facts are in [OPENDAW.md](OPENDAW.md).
+[STRATEGY.md](STRATEGY.md); openDAW facts are in [OPENDAW.md](OPENDAW.md). How it is split between the page and the
+backend is in [ARCHITECTURE.md](ARCHITECTURE.md).
+
+## What this is
+
+The TakeDoAPI is TakeDo's **human-agent collaboration layer**: a **mediation layer for mixed-initiative work on a
+shared artifact** (named 2026-11-06). Here the artifact is an openDAW project, and a **live** one: it moves on its
+own during playback while people and agents edit it (see "What TakeDo adds" below). People and agents both act on
+it. Agents read, watch and act only through this layer. People can also edit the project directly, and the layer
+observes those edits. The layer:
+
+- attributes every change to whoever made it;
+- decides between conflicting changes, with the human first;
+- keeps everyone aware of what is happening;
+- records everything.
+
+The pattern is not specific to music. Any software where a UI and agents edit the same thing (a document, a
+design canvas, a spreadsheet, a codebase, a robot's controls) needs the same seven properties:
+
+| Property | In general | In TakeDo |
+|---|---|---|
+| One shared view | agents act only through the layer; the human may also act directly, and the layer observes it, so everyone works from the same picture | agents and the team view never touch openDAW; the producer's openDAW edits are observed |
+| Domain vocabulary | agents speak in the domain's operations and display values, not the app's internals | the operation library; refs instead of box UUIDs; dB, Hz, bars.beats |
+| Attribution | every change says who made it and how | `Actor` and `Via` on every change |
+| Human priority | the person is never locked out; agents settle conflicts among themselves | holds and gestures; claims as locks between agents |
+| Awareness | a change stream, read by code, which wakes models with thin triggers | Changes, member inboxes, demonstration detection |
+| Timing | a change lands when it is safe and meaningful | at least 200 ms ahead of the playhead, on a beat, bar or cue |
+| Record | a replayable log, which is also study data | the session record |
+
+**The human is on both sides of the layer** (2026-11-06). Agents only ever act through it; the producer reaches the
+project three ways:
+
+| How | Example | Through the layer? | Who carries it out |
+|---|---|---|---|
+| Direct | dragging a knob or turning a macro in openDAW, playing notes | no, but observed: it reaches agents through the change stream | the producer |
+| Pass-through | a macro dial in the team view (if adopted; see the shared-macro question in ARCHITECTURE.md) | yes, applied at once as the producer's own edit | the producer, via the layer |
+| Delegated | chat, intent controls, editing a direction | yes, as a direction | agents |
+
+Direct edits tell agents what happened (who did what, demonstrations). Delegated input tells them what the producer
+wants. The general version of the property is one shared view rather than one path: the human keeps direct access,
+and the layer sees everything.
+
+**Related work, to name in the report** (check citations before using them):
+
+- **Direct manipulation vs. interface agents** (the Shneiderman–Maes debate, 1997): the classic either/or. TakeDo
+  doesn't choose: the producer uses both at once on the same artifact, and the layer is what lets them coexist.
+
+- **Mixed-initiative interfaces** (Horvitz, 1999): humans and agents both take initiative. This is the closest HCI
+  framing.
+- **Groupware and CSCW:**
+  - workspace awareness (Dourish & Bellotti);
+  - floor control and locking;
+  - co-editing by several people at once (operational transforms, CRDTs).
+- **Blackboard architectures** from classic AI: specialists read and write a shared workspace under one control
+  component. In TakeDo these are the team members and the coordinator.
+- **Shared autonomy** in robotics: blending a human's input with an agent's. Producer priority and macros shared
+  by the producer and a member are this problem.
+- **Command–query separation and event sourcing:** the split between reading, watching and acting; the replayable
+  log.
+- **Agent protocols:**
+  - MCP's resources, tools and notifications match read, act and watch, but MCP assumes the agent is the only
+    actor.
+  - Agent-UI protocols (e.g. CopilotKit's AG-UI) sync agent state to a front end, but don't decide between
+    conflicting edits.
+
+**What TakeDo adds: the artifact keeps changing while everyone works.** Playback moves whether anyone acts or not,
+so timing and human priority are much sharper than in a document editor, where the artifact sits still between
+edits. That makes a real-time medium a demanding case of the general pattern, and gives the report something general
+to say beyond music.
+
+### Shape, from first principles
+
+Worked out in the working notes (2026-11-06). The parts below follow from this outline:
+
+```
+Actors: producer · agents · bus (housekeeping) — openDAW emits events, it doesn't decide
+Read
+  - resources: static catalog + made in the session (presets, sample slices)
+  - operations: what can be done, and what each does
+  - project state: snapshot / describe / diff since last look
+  - playback state: its own query; every message stamped with time and position
+Watch
+  - rich change stream (who, how, values) → read by code
+  - thin triggers ("t3 changed by the producer") → wake models, which then query
+Act
+  - request a change → replies (applied / dropped / queued / failed / superseded)
+Also: Listening, Controls, Team
+```
+
+Three points in it are not yet reflected in the sections below:
+
+- **Resources made during the session.** A preset or sample slice made during the session is a new resource. It
+  gets a ref and a label, arrives as an event in the change stream, and appears in lookups such as `find_samples`.
+  Options is otherwise fixed per openDAW pin.
+- **Rich events for code, thin triggers for models.** Some things only the stream has: who changed what, in what
+  order (a demonstration is "Bits 12 → 5 → 1, then a pause"), and the overrides behind `superseded`. So the stream
+  stays rich, but only code reads it. A model is woken with a short trigger, plus a diff since it last looked or a
+  fresh snapshot.
+- **Actors cause changes; openDAW emits them.** Some changes come from openDAW itself, not from a decision:
+  playback, recording, automation, a lane switched off after a manual move. They are attributed to whoever caused
+  them, e.g. recording to `user` with `via: "recording"`.
 
 ## Overview
 

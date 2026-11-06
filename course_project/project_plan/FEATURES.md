@@ -1,7 +1,7 @@
 # Features
 
 Features we intend to build but haven't designed in detail. How we build things is in [STRATEGY.md](STRATEGY.md);
-openDAW facts are in [OPENDAW.md](OPENDAW.md); the agents' interface is in [AGENT_TEAM_API.md](AGENT_TEAM_API.md).
+openDAW facts are in [OPENDAW.md](OPENDAW.md); the agents' interface is in [TAKEDO_API.md](TAKEDO_API.md).
 
 **Decided (2026-10-31), ahead of the interaction design:**
 
@@ -24,7 +24,7 @@ openDAW facts are in [OPENDAW.md](OPENDAW.md); the agents' interface is in [AGEN
 they talk to and steer. An **agent** is how a member is built: a model, a prompt, tools, a connection to the bus.
 One agent per member; an agent may hold more than one role (which policy is better isn't known yet, so
 neither is required). Design and study materials talk about team members; "agent" is for the
-implementation (STRATEGY.md, AGENT_TEAM_API.md).
+implementation (STRATEGY.md, TAKEDO_API.md).
 
 **What.** There is a set of roles. Producers aren't asked to choose members, since they may not know what each
 role does, and they don't get a view crowded with members who have nothing to do. Every role in the set is ready
@@ -35,7 +35,7 @@ abstract and get a concrete instance per session: a *musician* role played as a 
 
 | Role | Does |
 |---|---|
-| **Team lead** | The front door, and only that. The producer's default partner in the chat: understands the request, passes it to the right members, and reports back. Does no musical work and doesn't manage the others' work (members coordinate among themselves; agentTeamAPI, Team), so it stays quick to answer. Always shown. |
+| **Team lead** | The front door, and only that. The producer's default partner in the chat: understands the request, passes it to the right members, and reports back. Does no musical work and doesn't manage the others' work (members coordinate among themselves; TakeDoAPI, Team), so it stays quick to answer. Always shown. |
 | *Writing* | |
 | Composer | Music-theoretical decisions and note choice: harmony, melody, voicing. |
 | Bass programmer | The bass line: its notes, rhythm against the kick, and its sound. |
@@ -113,7 +113,7 @@ user correct the agents' reading before asking for anything ("it's not electro, 
 
 **How it works.**
 
-1. On opening, the bus builds a **snapshot** of the project in code: the agentTeamAPI's state query (STRATEGY.md,
+1. On opening, the bus builds a **snapshot** of the project in code: the TakeDoAPI's state query (STRATEGY.md,
    "What the state query must return"), from the box graph, not with ad-hoc queries
    (in the POC, hand-written queries missed a track added meanwhile and the master's effect). For each track: name,
    instrument (device type and preset or kit name), effects, mute, solo and level; each region's position, length,
@@ -176,7 +176,7 @@ inaudible. The producer's earlier, unrecorded tweaks to the same device (Mix, Cr
 
 **How it works.**
 
-1. **Notice.** There is no "watch" and "done": the agentTeamAPI's change log already records everything the producer
+1. **Notice.** There is no "watch" and "done": the TakeDoAPI's change log already records everything the producer
    does (time, playhead position, playing or stopped, what changed, from and to as display values). When it sees a
    burst of moves on one control followed by a pause, the team view offers to turn it into something ("turn that
    into a pattern?"), so the producer never has to remember to start and stop an observation. Speech that points
@@ -247,7 +247,7 @@ performance the producer steers by moving dials instead of typing requests; agen
 
 **How it relates.** Macros are value writes every frame (STRATEGY.md, "Changes over time"); intent controls are
 read by the agent when it prepares its next move, so they work at the speed of the slow or fast tier (STRATEGY.md,
-"Responsiveness"). Both kinds are in the agentTeamAPI's Controls part (AGENT_TEAM_API.md).
+"Responsiveness"). Both kinds are in the TakeDoAPI's Controls part (TAKEDO_API.md).
 
 ## Agents listen
 
@@ -307,7 +307,7 @@ accept the substitute, change direction, or add the missing piece.
 
 **How it works.**
 
-1. **Notice.** Agents plan from the catalog and the sample library (agentTeamAPI, Options), so a gap shows up when
+1. **Notice.** Agents plan from the catalog and the sample library (TakeDoAPI, Options), so a gap shows up when
    a plan needs a device, sound or kind of processing that has no entry, or only an off-limits one (WebCLAP plugins,
    Tone3000 amp models, soundfonts, which have no .sf2 files yet). The model's knowledge of the reference supplies
    what the style needs; the catalog says what's there.

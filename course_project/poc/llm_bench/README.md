@@ -57,7 +57,7 @@ The cases are few and I wrote them; treat the numbers as direction, not measurem
    should reach the producer (the wishlist, FEATURES.md).
 4. **Members step on each other.** In the house direction the arranger also changed the drum pattern and swapped
    the bass preset, and three members ramped the keys' parameters at bar 10; for "make it darker" the composer
-   also rewrote the bass. The bus should refuse operations outside a member's role (AGENT_TEAM_API.md, "Team") and
+   also rewrote the bass. The bus should refuse operations outside a member's role (TAKEDO_API.md, "Team") and
    claims should cover targets, as planned; this confirms it's needed, not optional.
 5. **Writing notes is the slow part, and it's output-bound.** 30–110 notes as JSON is 2,000–5,000 output tokens:
    15–40 s, and low effort barely helps. At 96 BPM an 8-bar phrase lasts 20 s, so new material has to be prepared
