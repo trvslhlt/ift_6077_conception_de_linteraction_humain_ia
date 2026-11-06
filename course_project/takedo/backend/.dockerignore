@@ -1,0 +1,4 @@
+# Allowlist: the image needs only the dependency manifests. src/ is bind-mounted; .env never enters a build.
+*
+!package.json
+!package-lock.json

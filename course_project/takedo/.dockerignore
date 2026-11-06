@@ -1,0 +1,4 @@
+# Allowlist. The studio image clones openDAW itself and needs only the patch from here.
+# page/ and shared/ are bind-mounted at run time (compose.yaml), not baked in; .env never enters a build.
+*
+!opendaw.patch

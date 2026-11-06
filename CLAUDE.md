@@ -2,6 +2,7 @@
 
 Course project: AI agents that turn a producer's spoken/text notes into edits in openDAW, during playback.
 The proposal is `course_project/project_proposal/final_proposal/main.tex`; the runnable openDAW baseline is `course_project/poc/hello_world/`.
+The integrated prototype is `course_project/takedo/` (page + Node backend); the POCs under `course_project/poc/` are frozen references and benches, copied from, never imported.
 
 ## LaTeX
 

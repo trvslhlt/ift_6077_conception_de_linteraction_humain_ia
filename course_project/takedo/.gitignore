@@ -1,0 +1,9 @@
+# API keys and local overrides for compose (PORT, ...)
+.env
+backend/node_modules/
+test/node_modules/
+# Session records written by the backend
+sessions/
+# Editor types copied out of the studio image by `make types`
+.opendaw/
+node_modules

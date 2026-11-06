@@ -1,0 +1,5 @@
+{
+  "//": "Marks shared/ as ES modules for the backend (Node) and its type check; it has no dependencies.",
+  "private": true,
+  "type": "module"
+}

@@ -1,0 +1,56 @@
+# TakeDo. Drive it through the Makefile, which also selects the buildx builder.
+# Every container, network and image here belongs to the compose project "takedo".
+# No volumes: openDAW keeps projects and preferences in the browser; session records go to ./sessions (bind mount).
+name: takedo
+
+services:
+  studio:
+    build:
+      context: .
+      target: dev
+    ports:
+      # Bound to localhost only. The port is part of the browser origin that owns the saved projects.
+      - "127.0.0.1:${PORT:-8080}:8080"
+    environment:
+      # Vite proxies the page's /takedo socket here (opendaw.patch, vite.config.ts).
+      TAKEDO_BACKEND: http://backend:8787
+    volumes:
+      # Our code, live, at the paths opendaw.patch and the page's imports use.
+      - ./page:/src/packages/app/studio/src/takedo:ro
+      - ./shared:/src/packages/app/studio/src/takedo_shared:ro
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 60s
+      start_interval: 1s
+
+  backend:
+    build: backend
+    # Not published: the page reaches it through the studio's proxy, on the compose network.
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - ./backend/src:/app/backend/src:ro
+      - ./shared:/app/shared:ro
+      - ./sessions:/app/sessions
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/health').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+      start_interval: 1s
+
+  smoke:
+    build: test
+    profiles: [test]
+    # Shares the studio's network namespace, so the page is served from localhost (a secure context).
+    network_mode: service:studio
+    depends_on:
+      studio:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
