@@ -32,6 +32,7 @@ prints a line per case and a summary per family, and writes everything (answers,
 | `dial` | an intent dial's value → which candidate sound, voicing or mix move fits | 1 choice |
 | `operation_v2` | as `operation`, with the pattern question reworded and up/down asked in a second request, worded for the chosen parameter ("cleaner, less crunchy") | 9, then 1 |
 | `dial_v2` | as `dial`, with code giving the value in words ("all the way toward dusty", "the late 1980s") | 1 choice |
+| `fanout` | a Team Lead direction → which members it needs: one yes/no per member, given the roster from `../llm_bench` | 9 nouls |
 
 A case counts as right only if every answer it grades is acceptable; some cases accept several answers ("more
 swing": groove or drum programmer). Confidence for a multi-answer case is the least confident of its answers.
@@ -69,6 +70,12 @@ The cases are few and I wrote them; treat the numbers as direction, not measurem
    Worded by code ("all the way toward dusty"), the Harmony and Character dials were 5 of 5. The era dial stayed
    weak (1989 → DX7, 1999 → M1) because it asks Jev to know when gear came out: that belongs in the catalog as
    data, and Jev picks among sounds already filtered to the era.
+7. **Routing a direction to members: a fast path for narrow ones only** (`fanout`, 4 of 7, ~105 ms). Narrow
+   directions came out clean: "the kick is too loud" → mix engineer 0.95, everyone else ≤ 0.11; "jazzier chords"
+   → composer 0.97, everyone else ≤ 0.20. Broad ones put nearly everyone above 0.5 (the house direction: 7
+   members; Burial: 8), and a vague one ("make it darker") put everyone near 0.5. Jev also can't write each
+   member's piece. So: when one member is far above the rest, route at once with the direction as its piece;
+   otherwise hand it to the Team Lead (Claude, 2–5 s).
 6. **Confidence alone won't decide when to escalate.** Wrong answers were below 0.75, but so were many right ones
    ("let's not rush this" → down at 0.44; "the kick is too loud" → unrelated at 0.20). A cut-off at 0.5 would send
    a few right answers to the language model, which is cheap insurance when its cost is a second or two. Set it on

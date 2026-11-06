@@ -224,6 +224,16 @@ waiting for a safe landing point (up to a whole 8-bar loop, ~23 s) and deliberat
 
 - **Prepare, then fire on cue.** Slow work is prepared while the current section plays; it lands on the next beat
   or bar when the producer cues it (or when its condition is met), not at the next loop restart.
+- **A message takes the slow path only when it needs to** (decided 2026-11-05; measured in poc/jev_bench and
+  poc/llm_bench). Jev scores which members a message needs (~0.1 s), then:
+  - **one member clearly needed** ("the kick is too loud"): the member gets the producer's words as they are, with
+    no Team Lead text, plus what the same Jev request judged (which target, how much, how soon), each with its
+    probability, as hints the member may overrule; if its job is one operation, those judgments are its
+    arguments and Jev fills it in the same request (~0.2 s). The team view can show the judgments in words
+    ("→ Mix engineer: the keys, a little, gradually") so a misreading can be corrected;
+  - **several members:** the Team Lead (language model, 2–5 s) writes each one's piece: what the producer wants
+    from it and why, not settings, and each member also gets the producer's own words;
+  - **no member clearly needed:** the Team Lead asks one short question.
 
 ## Session record
 

@@ -1,6 +1,6 @@
 // The fast-tier jobs we'd give Jev, each as a family of graded cases. A case's `want` lists every acceptable answer.
 // The project, roles and directions are the interaction prototype's (../interaction_prototype/).
-import { choice, score } from "@typesafe-ai/sdk";
+import { choice, noul, score } from "@typesafe-ai/sdk";
 
 const any = v => (Array.isArray(v) ? v : [v]);
 const pick = (a, want) => ({ ok: any(want).includes(a.choice), got: a.choice, conf: a.confidence });
@@ -353,4 +353,47 @@ const dial_v2 = {
     cases: dial.cases,
 };
 
-export const FAMILIES = { routing, amend, operation, reading, dial, operation_v2, dial_v2 };
+// ---------- fanout: which members a Team Lead direction needs, one yes/no per member ----------
+// The roster is ../llm_bench/cases.mjs's: each member's area and what its operations can do. All questions go in one
+// request; code takes every member above 0.5. Graded like the Claude Team Lead's member set (llm_bench LEAD_CASES).
+
+const ROSTER = {
+    composer: "harmony, chords, melody; can write chord and melody notes on the keys and on added parts",
+    drum_programmer: "drum patterns; can change the drum pattern from a bar on",
+    bass_programmer: "the bass line; can write the bass notes and swap the bass sound",
+    arranger: "song structure over time, builds and drops; can mute and unmute tracks from a bar on",
+    instrument_designer: "how instruments sound; can swap the keys' sound for a preset and add new parts with a preset",
+    effect_designer: "effects on a sound, risers and sweeps; can set or ramp the keys' Crusher and Filter",
+    mix_engineer: "balance between parts; can set or ramp each track's volume",
+    researcher: "looks up a reference song, artist or genre and summarizes it for the team; makes no edits",
+    critic: "listens and gives an opinion; makes no edits",
+};
+const fanout = {
+    describe: "Team Lead direction → which members it needs (a yes/no per member)",
+    build: c => ({
+        state: { project: PROJECT, direction: c.direction, team: ROSTER },
+        questions: Object.fromEntries(Object.entries(ROSTER).map(([role]) => [role,
+            noul(`The producer gave their AI music team the direction in \`direction\` while working on \`project\`. Does carrying it out need work from the ${role.replace(/_/g, " ")} (\`team.${role}\`)?`)])),
+    }),
+    grade: (c, a) => {
+        const roles = Object.keys(ROSTER).filter(r => a[r].noul > 0.5), issues = [];
+        for (const g of c.need) if (!g.some(r => roles.includes(r))) issues.push(`missing ${g.join("|")}`);
+        if (roles.length > c.max) issues.push(`${roles.length} members`);
+        if (c.min && roles.length < c.min) issues.push(`${roles.length} members`);
+        // Confidence: how far the closest call is from 0.5, scaled to 0..1.
+        const conf = Math.min(...Object.keys(ROSTER).map(r => Math.abs(a[r].noul - 0.5) * 2));
+        return { ok: !issues.length, got: roles.join(",") + (issues.length ? ` (${issues.join("; ")})` : ""), conf };
+    },
+    // As llm_bench LEAD_CASES, minus "make it better" (Claude asks a question there; this question can't).
+    cases: [
+        { name: "evolve lo-fi into house", direction: "Slowly evolve this from a lo-fi beat into a house track", need: [["drum_programmer"], ["instrument_designer", "effect_designer"], ["bass_programmer", "mix_engineer"]], max: 6 },
+        { name: "make it darker", direction: "make it darker", need: [["instrument_designer", "composer", "effect_designer", "mix_engineer"]], min: 2, max: 4 },
+        { name: "jazzier chords please", direction: "jazzier chords please", need: [["composer"]], max: 2 },
+        { name: "build up to a drop at bar 17", direction: "build up to a drop at bar 17", need: [["arranger"]], max: 4 },
+        { name: "make it sound more like Burial", direction: "make it sound more like Burial", need: [["researcher", "drum_programmer", "instrument_designer"]], max: 6 },
+        { name: "the kick is too loud", direction: "the kick is too loud", need: [["mix_engineer"]], max: 1 },
+        { name: "strip it back for the next 8 bars", direction: "strip it back for the next 8 bars", need: [["arranger"]], max: 2 },
+    ],
+};
+
+export const FAMILIES = { routing, amend, operation, reading, dial, operation_v2, dial_v2, fanout };
