@@ -16,7 +16,9 @@ import type {Hints} from "./router.ts"
 export const Limits = "use only openDAW's built-in devices that the catalog allows (nothing installed or loaded from outside: no plugins, no scriptable or neural devices, no external MIDI); leave the transport, playback and settings to the producer; delete tracks only when asked."
 
 
-export type Task = { message: string, piece: string | null, hints: Hints | null }
+// history: the chat before this message, oldest first, for a message that refers back ("do the rest").
+export type Task = { message: string, piece: string | null, hints: Hints | null,
+    history?: ReadonlyArray<{ from: string, text: string }> }
 export type Member = {
     readonly agent: Actor, readonly role: string, readonly name: string
     readonly area: string                           // what the role covers
@@ -77,8 +79,9 @@ const carryOut = async (context: Coordinator, member: Member, steps: Step[], sna
 }
 
 // One step on its own, for a member that reports back to its model rather than the chat (the utility): claim, slide if
-// late, request, release. Returns what happened, as the reply would say it.
-export const performStep = async (context: Coordinator, agent: Actor, step: Step, reason: string): Promise<string> => {
+// late, request, release. Returns what happened, as the reply would say it; onStatus sees the step's progress.
+export const performStep = async (context: Coordinator, agent: Actor, step: Step, reason: string,
+                                  onStatus: (status: Status) => void = () => {}): Promise<string> => {
     const now = await context.snapshot()
     const slid = now === null ? 0 : slide([step], now)
     const claimed = context.claim(agent, [target(step.plan)], reason)
@@ -86,7 +89,10 @@ export const performStep = async (context: Coordinator, agent: Actor, step: Step
     try {
         let landsAt = ""
         const status = await context.request(agent, step.plan, step.when, now?.at.seq ?? 0, reason,
-            update => {landsAt = update.landsAt ?? landsAt})
+            update => {
+                landsAt = update.landsAt ?? landsAt
+                onStatus(update)
+            })
         return [`${describe(step, status, landsAt)}${slid > 0 ? ` (${slid} bar${slid > 1 ? "s" : ""} later than planned)` : ""}`,
             ...await followUp(context, agent, step, status, reason)].join("; ")
     } finally {
@@ -128,7 +134,7 @@ You get the producer's message, and your piece of it when the Team Lead split it
 - Make 1 to 6 calls, only in your own area, and only what was asked.
 - Values are in each parameter's own units, within its range.
 - Your job is your piece when you have one (the rest of the producer's message is other members' work: leave it to them), else the whole message.
-- Hand off anything in your job that your tools don't cover with one hand_off call (the rest, said as an instruction specific to this project), rather than leaving it out or saying it can't be done: the Team Lead does it directly in openDAW.
+- If you have a hand_off tool, hand off anything in your job that your tools don't cover with one hand_off call (the rest, said as an instruction specific to this project), rather than leaving it out or saying it can't be done: the Team Lead does it directly in openDAW.
 - Don't explain your plan; the calls are the plan.`
 
 const loopBars = (snapshot: Snapshot) => {
@@ -174,8 +180,9 @@ export abstract class LlmMember implements Member {
             producer_message: task.message, ...(task.piece !== null ? {your_piece: task.piece} : {}),
             project: projectFor(snapshot, this.withParams), ...this.context(snapshot)
         })
-        // Any member hands off what its tools don't cover, its piece from the Team Lead included: never left undone.
-        const tools = [...this.tools(snapshot), HandOff]
+        // Only a member asked directly hands off: given a piece, it would hand off other members' pieces too (tried
+        // 2026-11-07: a second Delay on the keys), and the Team Lead gives the utility what no member's tools cover.
+        const tools = [...this.tools(snapshot), ...(task.piece === null ? [HandOff] : [])]
         const {calls, text} = await context.gateway.calls("member", memberSystem(this.name, this.area, this.can), input, tools,
             context.modelLog(), this.agent, (name, input) => this.lookup(name, input as Record<string, unknown>))
         const steps: Step[] = []

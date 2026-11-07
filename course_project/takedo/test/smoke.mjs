@@ -254,6 +254,9 @@ try {
 
     // The open path: something no member has an operation for goes to the utility, which does it with a script.
     const extended = await say("@team_lead extend all the clips so they run for 16 bars", ["team_lead", "utility"], 120000)
+    // The reply can come before a script scheduled for a later bar lands.
+    await page.waitForFunction(() => window.takedo.adapter.snapshot().tracks.every(track => (track.bars?.to ?? 0) >= 16),
+        null, {timeout: 30000}).catch(() => {})
     const ends = (await page.evaluate(() => window.takedo.adapter.snapshot().tracks.map(track => [track.name, track.bars?.to ?? 0])))
     check("@team_lead → utility: every clip extended to 16 bars by script",
         ends.every(([, to]) => to >= 16), `${ends.map(([name, to]) => `${name} to bar ${to}`).join(", ")} in ${extended.ms} ms: "${extended.text}"`)

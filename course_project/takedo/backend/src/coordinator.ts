@@ -15,6 +15,7 @@ import {Utility} from "./utility.ts"
 // Talks to the page's adapter for state (snapshot queries) and to apply plans.
 
 const ClaimMs = 30000
+const HistoryLines = 12
 // Who's in play. "utility": the utility alone takes every message, with no Jev routing and no Team Lead split, while
 // the basics of agents working in openDAW get worked out (it keeps the members' fixed operations as its tools);
 // "team": the full team. Decided 2026-11-07, to bring the roles back one at a time once the utility works well.
@@ -32,6 +33,7 @@ export class Coordinator {
     readonly #requests = new Map<string, (status: Status) => void>()
     readonly #looks = new Map<number, (result: { ok: boolean, value: string }) => void>()
     readonly #members: ReadonlyArray<Member>
+    readonly #history: Array<{ from: string, text: string }> = []   // the chat so far, for messages that refer back
     #nextQuery = 0
     #project: string | null = null
     #viewOpen = false
@@ -173,6 +175,7 @@ export class Coordinator {
 
     say(agent: Actor, text: string): void {
         const line = {id: randomUUID(), t: Date.now(), from: agent, to: "user" as Actor, text}
+        this.#remember(agent, text)
         this.#log.write("chat", line)
         this.#send({type: "chat", line})
     }
@@ -184,12 +187,20 @@ export class Coordinator {
 
     modelLog(): ModelLog {return entry => this.#log.write("model", entry)}
 
+    // Agents' lines as the producer sees them (the utility as the Team Lead).
+    #remember(from: Actor, text: string): void {
+        this.#history.push({from: from === "agent:utility" ? "team_lead" : from.replace("agent:", ""), text})
+        this.#history.splice(0, this.#history.length - HistoryLines)
+    }
+
     // ---------- chat and routing ----------
 
     // @member: straight to it (with Jev's hints if it wants them). @team_lead: the Team Lead splits it. Otherwise Jev
     // routes: one member clearly needed gets it with the hints, anything else goes to the Team Lead.
     async #chat(text: string): Promise<void> {
         const line = {id: randomUUID(), t: Date.now(), from: "user" as Actor, text}
+        const history = this.#history.slice(-HistoryLines)
+        this.#remember("user", text)
         this.#log.write("chat", line)
         this.#send({type: "chat", line})
         const mention = /^@(\w+)\s*/.exec(text)
@@ -203,7 +214,7 @@ export class Coordinator {
         if (snapshot === null) {return this.say("agent:team_lead", "Open a project first.")}
         const utility = this.#members.find(member => member.role === "utility")
         if (Roster === "utility" && utility !== undefined) {
-            return utility.handle(this, {message, piece: null, hints: null}, snapshot)
+            return utility.handle(this, {message, piece: null, hints: null, history}, snapshot)
         }
         // A role nobody fills yet is still work the team does: the Team Lead takes it.
         const addressed = named === null ? null : this.#members.find(member => member.role === named)
