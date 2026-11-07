@@ -22,8 +22,10 @@ import type {Connection} from "./Connection"
 // Scope so far: snapshots read tracks, devices (effects with their parameters), regions and notes. Edits: set or ramp
 // a track's or the master's mix controls and any audio effect parameter; add or remove an audio effect. A ramp is
 // applied the way a knob drag is (unmarked writes each clock tick, then one mark), so it is one undo step and needs no
-// automation lane. A parameter that has a lane is refused: writing its value during playback would switch the lane off
-// until stop (STRATEGY.md, "Changes over time"). Value changes are reported; added and removed effects aren't yet.
+// automation lane. While the producer records, openDAW records these writes as automation by itself, so a take keeps
+// the agents' changes (STRATEGY.md, "Changes over time"). A parameter that has a lane is refused outside recording:
+// writing its value during playback would switch the lane off until stop. Value changes are reported; added and
+// removed effects aren't yet.
 
 const LeadMs = 200              // edits land at least this far ahead of the playhead (STRATEGY.md, "Timing")
 const GestureFoldMs = 300       // value changes on a ref with no further change for this long form one change event
@@ -218,7 +220,8 @@ export class Adapter implements Terminable {
         const param = this.#param(plan.ref)
         if (param === null) {return this.#status(request, {state: "failed", reason: "unknown_ref", detail: plan.ref})}
         const {parameter} = param
-        if (parameter.track.nonEmpty()) {
+        // While openDAW records, a write is recorded over the lane (only the recorded span is replaced), so it's allowed.
+        if (parameter.track.nonEmpty() && !this.#project.engine.isRecording.getValue()) {
             return this.#status(request, {state: "failed", reason: "not_allowed",
                 detail: "this parameter has an automation lane; writing it would switch the lane off until stop"})
         }

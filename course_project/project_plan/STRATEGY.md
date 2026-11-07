@@ -196,11 +196,18 @@ written "from now on" plays again from the loop's start, so a lasting change ("t
 TakeDo's first operation therefore writes values, like a knob drag (takedo/README.md), and refuses parameters that
 have a lane. Which changes are value writes and which are automation, per mode, is to decide later.
 
-**Loop mode, decided (2026-11-06):** a lasting change is a live value write (what every operation does now);
-automation is for changes meant to repeat with the loop ("open the filter over the second half every pass", "drop
-the hats in bar 4 of each pass"), and for parameters that already have a lane, which need their lane edited (not
-built; refused for now). Live values aren't on the timeline, so keeping the performance (FEATURES.md,
-"Timeline-first") will need recording takes, not automation. Non-loop mode is still open.
+**One rule for every session, decided (2026-11-06):** a change is a live value write (what every operation does
+now), looping or not; automation is written only when the change itself is a pattern in time ("open the filter over
+the second half every pass", "drop the hats in bar 4 of each pass"; not built). Keeping a performance needs no
+automation writing of our own: when the producer presses openDAW's record button, openDAW records every write made
+through a parameter adapter as automation (on by default, OPENDAW.md, "Recording"), the agents' included, and recording
+over a lane replaces only the recorded span. Checked with TakeDo's own edits in the smoke test: the mix engineer's
+change during a take became a lane. So the adapter allows writes to parameters with lanes while recording, and
+scripts must write parameters through their adapters (a write to a box field isn't recorded).
+
+Open: after a take, every parameter that moved has a lane, and outside recording the bus refuses live writes to it
+(they'd switch the lane off until stop), so "keys a bit louder" after a take is refused. Editing the lane from the
+playhead on, or an offset, would fix it.
 
 - **Agents change parameters by writing automation, not by setting values.** Automation is project data the user
   can see and edit, the engine plays ramps exactly with no per-frame writes from us, and it avoids openDAW turning off

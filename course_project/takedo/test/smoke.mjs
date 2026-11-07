@@ -182,6 +182,26 @@ try {
     await page.evaluate(() =>
         document.dispatchEvent(new CustomEvent("parameter-hold", {detail: {parameter: window.__drumsVolume, held: false}})))
 
+    // ---------- recording: openDAW records the agents' live value changes as automation by itself ----------
+    await page.evaluate(async () => {
+        const project = window.takedo.service.projectProfileService.getValue().unwrap().project
+        project.startRecording(false)
+        while (!project.engine.isRecording.getValue()) {await new Promise(resolve => setTimeout(resolve, 20))}
+    })
+    const recorded = await say("@mix_engineer the keys are too loud")
+    await page.evaluate(async () => {
+        const project = window.takedo.service.projectProfileService.getValue().unwrap().project
+        project.stopRecording()
+        while (project.engine.isRecording.getValue()) {await new Promise(resolve => setTimeout(resolve, 20))}
+        if (!project.engine.isPlaying.getValue()) {window.opendaw.engine.play()}
+    })
+    const keysLanes = (await track("Keys")).lanes
+    check("while recording, the agent's change is recorded as automation", keysLanes.length === 1,
+        `lanes ${JSON.stringify(keysLanes)}: "${recorded.text}"`)
+    const afterTake = await say("@mix_engineer the keys are a bit too quiet")
+    check("after the take, its lane is left alone (no live write over automation)",
+        afterTake.text.includes("not_allowed"), `"${afterTake.text}"`)
+
     // ---------- mentions: autocomplete from the team, styled in the input and in the chat ----------
     await page.getByTestId("takedo-input").fill("")
     await page.getByTestId("takedo-input").pressSequentially("@")
