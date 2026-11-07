@@ -7,7 +7,8 @@ import {TakeDoPanel} from "./TakeDoPanel"
 
 // Floats above the whole studio, outside openDAW's layout: a robot button that opens and closes TakeDo's team view, with
 // a small button on each of its corners that moves it to that corner of the window. The team view fills the window
-// beside it, translucent, so the DAW's activity shows through. Corner and open state survive reloads (localStorage, per browser).
+// beside it, translucent, so the DAW's activity shows through. The corner survives reloads (localStorage, per browser); the
+// view starts closed.
 
 type Construct = { lifecycle: Lifecycle, service: StudioService }
 type Vertical = "top" | "bottom"
@@ -27,7 +28,8 @@ const StorageKey = "takedo-view"
 const load = (): State => {
     try {
         const stored = JSON.parse(localStorage.getItem(StorageKey) ?? "null")
-        if (Corners.includes(stored?.corner)) {return {corner: stored.corner, open: stored.open === true}}
+        // Always closed on load: the studio comes first; the robot button opens the view.
+        if (Corners.includes(stored?.corner)) {return {corner: stored.corner, open: false}}
     } catch {/* no storage: defaults */}
     return {corner: "bottom-right", open: false}
 }

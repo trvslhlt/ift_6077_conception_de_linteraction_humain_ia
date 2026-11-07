@@ -270,6 +270,9 @@ try {
     // volume tool (which a script can't do: it changes things at one instant).
     const made = await say("@utility add a new Vaporisateur track called Lead with a bar of notes at -30 dB, then fade it up to 0 dB over 8 beats",
         ["utility"], 120000)
+    // The reply comes once the fade is scheduled; it lands and runs after.
+    await page.waitForFunction(() => (window.takedo.adapter.snapshot().tracks.find(track => track.name === "Lead")?.mix.volume ?? -60) > -1,
+        null, {timeout: 30000}).catch(() => {})
     const lead = await track("Lead")
     check("@utility: a scripted track, faded in by a fixed operation",
         lead !== undefined && lead.mix.volume > -1, `${lead === undefined ? "no Lead track" : `Lead at ${lead.mix.volume.toFixed(1)} dB`} in ${made.ms} ms: "${made.text}"`)

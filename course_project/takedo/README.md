@@ -171,7 +171,9 @@ Known gaps in what's built:
   edits). Roles come back one at a time with `ROSTER=team`, which the smoke test uses. It sees the last 12 chat
   lines, so "go on" or "do all of it" refers back. An edit for a later bar answers "scheduled" at once and lands on
   its own, so a staged plan is timed from one playhead instead of waiting out each ramp; a later failure is fed back
-  to it, or said to the producer after its reply.
+  to it, or said to the producer after its reply. On Opus 5.5 (an experiment, config/models.json) it did a real
+  lofi transformation but stopped after each 8 rounds; now 30 rounds per message, one conversation with the model
+  across the session (cached, so a round pays full price only for what's new), one message at a time.
 - **Landing in a loop** (2026-11-07): a bar inside the loop lands the next time the playhead reaches it (the loop's
   start included: it used to wait forever, since the playhead only reaches it by wrapping); a bar past the loop's end
   counts bars of playing, as if the loop were unrolled, so a plan's later steps keep their spacing. Each card lists

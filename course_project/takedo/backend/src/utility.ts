@@ -13,17 +13,19 @@ import {Limits, type LlmMember, type Member, performStep, projectFor, type Task}
 // can be targeted next round. Slow-tier work, seconds to tens of seconds; the Team Lead hands it out so its own
 // reply isn't held up.
 
-const MaxRounds = 8
+// Rounds per message: a whole transformation takes looks, scripts and fixed operations, and running out made it stop
+// halfway and offer the rest (2026-11-07, every message hit 8).
+const MaxRounds = 30
 
 // One task's edits: what landed (for the card and the reply), what's still landing, and failures nobody's heard yet.
 type Work = { done: string[], pending: Promise<string>[], late: string[] }
 
-const System = `You are the utility on an AI music production team (the producer sees you as the Team Lead: speak as "I", and never call yourself the utility) working live in openDAW (a web DAW) with a producer, usually while the track plays. You can do anything openDAW supports, working on the project directly with JavaScript. You get the producer's message, the conversation so far (\`conversation\`: what they asked before and what you said and did; "go on", "do the rest" or "all of it" refer to it), and your task when the work was split (do only that part).
+const System = `You are the utility on an AI music production team (the producer sees you as the Team Lead: speak as "I", and never call yourself the utility) working live in openDAW (a web DAW) with a producer, usually while the track plays. You can do anything openDAW supports, working on the project directly with JavaScript. Your conversation carries on across the producer's messages, so what you learned about the project and openDAW still holds (each message brings a fresh project summary). You get the producer's message, the chat before you joined, if any (\`conversation\`); "go on", "do the rest" or "all of it" refer to what came before, and your task when the work was split (do only that part).
 
 A direction toward a style, genre or feel ("make it lofi", "evolve this into dub") asks for the whole transformation, not a first step. Work out what that style needs here: drums (pattern, swing, ghost notes, velocities), harmony (chords, voicings, extensions), each part's sound (instrument choice and settings, a new track when a part's instrument can't get there), effects and mix. Do all of it. When it should happen gradually, stage it: changes timed across the bars it names (or 8 to 16 bars), each stage small, all scheduled before you call done.
 
 Tools:
-- The team's fixed operations (volume, pan, mute, add_effect, effect_params, set_param, remove_effect): use them for anything they cover. They land on the bar you choose, ramp over time (a script can't: it changes things at one instant), and are checked against the producer's controls before they run. Targets are refs from the project summary; a track or effect your script just made appears in them the round after. To ramp an effect you're adding, use add_effect's then.
+- The team's fixed operations (volume, pan, mute, add_effect, effect_params, set_param, remove_effect): use them for anything they cover. They land on the bar you choose, ramp over time (a script can't: it changes things at one instant), and are checked against the producer's controls before they run. Targets are refs from the project summary or snapshot(); a track or effect your script just made has one once that edit has landed. To ramp an effect you're adding, use add_effect's then.
 - look: run read-only JavaScript to inspect the project. Writes fail here.
 - run: change the project with a short script, for what no fixed operation does. It runs inside one edit: one undo step for the producer, rolled back entirely if it throws. It lands on the bar you choose (0: as soon as possible).
 - An edit for a later bar (fixed operation or script) answers "Scheduled" at once and lands on its own: carry on with the next one, so a staged plan is all timed from the same playhead. Failures come back in a later round ("Since then, failed: …"). A look sees only what has landed.
@@ -38,11 +40,13 @@ Both run a function body with \`takedo\` in scope (its parts are also plain name
 - lib: {std, dsp: {PPQN}, adapters, core}: openDAW's libraries (lib.adapters.InstrumentFactories.Named, lib.core.EffectFactories.AudioNamed, lib.dsp.PPQN.Quarter = 960).
 - ref("t1") → that track's AudioUnitBoxAdapter, ref("t1.fx1") → an effect's adapter, ref("r3") → a region's adapter: the refs in the project summary.
 - bar: pulses per bar; ppqn("5.1.1") → pulses; pos(pulses) → "5.1.1". Positions are 1-based bars.beats.sixteenths.
-- snapshot(): the project summary, fresh; snapshot().playback has the playhead and loop. Nothing else is in scope (no \`playback\`, \`tracks\` or \`project_summary\` variables).
+- snapshot(): the project, fresh, in the adapter's shape (not quite the summary's): playback (playhead, loop), timeline, tracks[] with ref, name, mix.{volume (dB), pan, mute}, effects[] (key, name, ref, params[] with ref, name, value, display), regions; master.{volume, effects}. Nothing else is in scope (no \`playback\`, \`tracks\` or \`project_summary\` variables).
 
 Recipes that work (inside run):
 - A new named track with a bar of notes: const {audioUnitBox, trackBox, instrumentBox} = api.createInstrument(lib.adapters.InstrumentFactories.Vaporisateur); instrumentBox.label.setValue("Lead"); const region = api.createNoteRegion({trackBox, position: 0, duration: bar, name: "Lead"}); api.createNoteEvent({owner: region, position: 0, duration: lib.dsp.PPQN.Quarter, pitch: 60, velocity: 0.8});
 - A track's name is its instrument's label: ref("t1").inputAdapter.unwrap().labelField.setValue("Bass").
+- An instrument's settings: ref("t2").inputAdapter.unwrap().namedParameter (e.g. Cubed: cutoff, resonance, envMod, decay, accent; Vaporisateur: cutoff, resonance, attack, decay, sustain, release, …); set them with .setValue(v). A drum machine (Playfield) has none: its sounds are samples by pad.
+- A track made in this script has no adapter yet (ref and audioUnits.adapters() don't find it until the edit ends): set its level with audioUnitBox.volume.setValue(dB) and its instrument's settings on instrumentBox's fields (instrumentBox.cutoff.setValue(2200)), with the names namedParameter shows on a track of that instrument.
 - A level at once: ref("t1").namedParameter.volume.setValue(-12) (dB); for a fade over time, use the volume tool instead. Always set parameter values through openDAW's parameter objects like this (namedParameter, or an effect's parameter adapters), never a box's field directly: when the producer records, only those writes become automation. Structural edits (regions, notes, devices) are unaffected.
 - Lengthen a region and loop its content: r.box.loopDuration.setValue(r.loopDuration); r.box.duration.setValue(16 * bar).
 
@@ -71,6 +75,20 @@ const OwnTools: Anthropic.Tool[] = [
     tool("done", "Finish, telling the producer what you did.", {summary: {type: "string"}})
 ]
 
+// A member's tool with its lists of the project's refs (tracks, parameters, effects on it) opened to any ref.
+const RefFields = new Set(["track", "param"])
+const anyRef = (tool: Anthropic.Tool): Anthropic.Tool => {
+    const properties = Object.fromEntries(Object.entries(tool.input_schema.properties as Record<string, Record<string, unknown>>)
+        .map(([name, property]) => {
+            if (!(RefFields.has(name) || (tool.name === "remove_effect" && name === "effect")) || property.enum === undefined) {
+                return [name, property]
+            }
+            const {enum: _refs, ...rest} = property
+            return [name, {...rest, description: "A ref from the project summary (t1, master, t1.fx1, t1.fx1.mix, …)"}]
+        }))
+    return {...tool, input_schema: {...tool.input_schema, properties}}
+}
+
 export class Utility implements Member {
     readonly agent: Actor = "agent:utility"
     readonly role = "utility"
@@ -81,6 +99,12 @@ export class Utility implements Member {
 
     readonly #team: ReadonlyArray<LlmMember>
     readonly #devices: Record<string, string[]>
+    // The conversation with the model across the producer's messages, so it keeps what it learned about the project
+    // and openDAW (as Claude Code does working live); one session's, cached by the gateway.
+    #messages: Anthropic.MessageParam[] = []
+    #queue: Promise<void> = Promise.resolve()
+    #unheard: string[] = []   // failures after a reply, for the model with the next message
+    readonly #tools = new Map<string, { tool: Anthropic.Tool, owner: LlmMember }>()
 
     // team: the members whose fixed operations it borrows; catalog: which devices it may add.
     constructor(team: ReadonlyArray<LlmMember>, catalog: Catalog) {
@@ -93,55 +117,81 @@ export class Utility implements Member {
     // The generalist: every operation, scripts included.
     may(_plan: Plan): boolean {return true}
 
-    // The members' tools for this snapshot, each with the member that owns it (first owner wins on a name clash).
+    // The members' tools, each with the member that owns it (first owner wins on a name clash). The tool list is the
+    // start of the cached prompt, so it must not change as the project does: these copies take any ref where the
+    // members' list the project's (the owner's step and the adapter check it), and a tool once offered stays.
     #borrowed(snapshot: Snapshot): Map<string, { tool: Anthropic.Tool, owner: LlmMember }> {
-        const tools = new Map<string, { tool: Anthropic.Tool, owner: LlmMember }>()
         this.#team.forEach(owner => owner.tools(snapshot).forEach(tool => {
-            if (!tools.has(tool.name)) {tools.set(tool.name, {tool, owner})}
+            if (!this.#tools.has(tool.name)) {this.#tools.set(tool.name, {tool: anyRef(tool), owner})}
         }))
-        return tools
+        return this.#tools
     }
 
 
-    async handle(context: Coordinator, task: Task, snapshot: Snapshot): Promise<void> {
+    // One task at a time: they share the conversation.
+    handle(context: Coordinator, task: Task, snapshot: Snapshot): Promise<void> {
+        const next = this.#queue.then(() => this.#work(context, task, snapshot))
+        this.#queue = next.catch(() => {})
+        return next
+    }
+
+    async #work(context: Coordinator, task: Task, snapshot: Snapshot): Promise<void> {
         context.card({agent: this.agent, name: this.name, doing: "looking…"})
-        const messages: Anthropic.MessageParam[] = [{role: "user", content: JSON.stringify({
-            ...(task.history !== undefined && task.history.length > 0 ? {conversation: task.history} : {}),
+        const fresh = this.#messages.length === 0
+        const messages = this.#messages
+        this.#ask([{type: "text", text: JSON.stringify({
+            ...(fresh && task.history !== undefined && task.history.length > 0 ? {conversation: task.history} : {}),
+            ...(this.#unheard.length > 0 ? {failed_after_your_last_reply: this.#unheard.splice(0)} : {}),
             producer_message: task.message, ...(task.piece !== null ? {your_task: task.piece} : {}),
             project: {...projectFor(snapshot, true), regions: snapshot.tracks.map(track => ({track: track.ref,
                 regions: track.regions.map(({ref, name, from, to, loop}) => ({ref, name, from, to, loop}))}))},
-            devices: this.#devices,
-            ...Object.assign({}, ...this.#team.map(member => member.context(snapshot)))
-        })}]
+            ...(fresh ? {devices: this.#devices, ...Object.assign({}, ...this.#team.map(member => member.context(snapshot)))} : {})
+        })}])
         const work: Work = {done: [], pending: [], late: []}
         let current = snapshot
-        for (let round = 0; round < MaxRounds; round++) {
-            if (round > 0) {current = (await context.snapshot()) ?? current}
-            const borrowed = this.#borrowed(current)
-            const tools = [...[...borrowed.values()].map(entry => entry.tool), ...OwnTools]
-            const response = await context.gateway.turn("utility", System, messages, tools, context.modelLog(), this.agent)
-            messages.push({role: "assistant", content: response.content})
-            const uses = response.content.flatMap(block => block.type === "tool_use" ? [block] : [])
-            if (uses.length === 0) {
-                const text = response.content.flatMap(block => block.type === "text" ? [block.text] : []).join(" ")
-                return this.#finish(context, text, work)
+        try {
+            for (let round = 0; round < MaxRounds; round++) {
+                if (round > 0) {current = (await context.snapshot()) ?? current}
+                const borrowed = this.#borrowed(current)
+                const tools = [...[...borrowed.values()].map(entry => entry.tool), ...OwnTools]
+                const response = await context.gateway.turn("utility", System, messages, tools, context.modelLog(), this.agent)
+                messages.push({role: "assistant", content: response.content})
+                const uses = response.content.flatMap(block => block.type === "tool_use" ? [block] : [])
+                if (uses.length === 0) {
+                    const text = response.content.flatMap(block => block.type === "text" ? [block.text] : []).join(" ")
+                    return await this.#finish(context, text, work)
+                }
+                const results: Anthropic.ToolResultBlockParam[] = []
+                let summary: string | null = null
+                for (const use of uses) {
+                    const input = use.input as Record<string, unknown>
+                    const content = summary !== null ? "Not run: you called done before it."
+                        : use.name === "done" ? (summary = String(input.summary), "Said to the producer.")
+                        : use.name === "look" ? await this.#look(context, String(input.code))
+                        : use.name === "run" ? await this.#run(context, String(input.description), String(input.code), Number(input.at_bar), work)
+                        : await this.#operate(context, use.name, input, current, borrowed, task, work)
+                    results.push({type: "tool_result", tool_use_id: use.id, content})
+                }
+                const notes = summary !== null ? [] : [
+                    ...(work.late.length > 0 ? [`Since then, failed: ${work.late.splice(0).join("; ")}.`] : []),
+                    ...(round === MaxRounds - 2 ? ["Last round: call done now, saying what you changed and what's left undone."] : [])]
+                this.#ask([...results, ...notes.map(text => ({type: "text" as const, text}))])
+                if (summary !== null) {return await this.#finish(context, summary, work)}
             }
-            const results: Anthropic.ToolResultBlockParam[] = []
-            for (const use of uses) {
-                const input = use.input as Record<string, unknown>
-                if (use.name === "done") {return this.#finish(context, String(input.summary), work)}
-                const content = use.name === "look" ? await this.#look(context, String(input.code))
-                    : use.name === "run" ? await this.#run(context, String(input.description), String(input.code), Number(input.at_bar), work)
-                    : await this.#operate(context, use.name, input, current, borrowed, task, work)
-                results.push({type: "tool_result", tool_use_id: use.id, content})
-            }
-            const notes = [
-                ...(work.late.length > 0 ? [`Since then, failed: ${work.late.splice(0).join("; ")}.`] : []),
-                ...(round === MaxRounds - 2 ? ["Last round: call done now, saying what you changed and what's left undone."] : [])]
-            messages.push({role: "user", content: [...results, ...notes.map(text => ({type: "text" as const, text}))]})
+            return await this.#finish(context, work.done.length > 0 ? `${work.done.join("; ")}. I stopped there, before finishing.`
+                : "I stopped before changing anything: I couldn't work out how.", work)
+        } catch (error) {
+            this.#messages = []   // a turn left half-answered can't be continued
+            throw error
         }
-        return this.#finish(context, work.done.length > 0 ? `${work.done.join("; ")}. I stopped there, before finishing.`
-            : "I stopped before changing anything: I couldn't work out how.", work)
+    }
+
+    // Adds to the user's side of the conversation: a new turn, or the open one (a task ends on tool results, which
+    // the next task's message joins).
+    #ask(content: Array<Anthropic.TextBlockParam | Anthropic.ToolResultBlockParam>): void {
+        const last = this.#messages.at(-1)
+        if (last?.role === "user" && Array.isArray(last.content)) {last.content.push(...content)}
+        else {this.#messages.push({role: "user", content})}
     }
 
     // Starts an edit that may land bars from now without waiting for it, so the next one is planned from about the same
@@ -216,11 +266,16 @@ export class Utility implements Member {
         })
     }
 
-    // Says the summary at once; the card follows the edits still landing, and anything that fails after is said too.
+    // Says the summary at once and frees the utility for the next message; the card follows the edits still landing,
+    // and anything that fails after is said too, and told to the model with the next message.
     async #finish(context: Coordinator, summary: string, work: Work): Promise<void> {
         context.say(this.agent, summary.trim() || (work.done.length > 0 ? `${work.done.join("; ")}.` : "I didn't change anything."))
-        await Promise.all(work.pending)
-        context.card({agent: this.agent, name: this.name, doing: work.done.length > 0 ? `${work.done.join("; ")} (done)` : "idle"})
-        if (work.late.length > 0) {context.say(this.agent, `Not done after all: ${work.late.map(line => line.replace(/\.+$/, "")).join("; ")}.`)}
+        void Promise.all(work.pending).then(() => {
+            context.card({agent: this.agent, name: this.name, doing: work.done.length > 0 ? `${work.done.join("; ")} (done)` : "idle"})
+            if (work.late.length === 0) {return}
+            const late = work.late.map(line => line.replace(/\.+$/, "")).join("; ")
+            context.say(this.agent, `Not done after all: ${late}.`)
+            this.#unheard.push(late)
+        })
     }
 }

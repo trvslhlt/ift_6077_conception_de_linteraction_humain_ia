@@ -13,7 +13,7 @@ type JobConfig =
     | { provider: "anthropic", model: string, effort?: Effort, maxTokens?: number }
 type Config = { jobs: Record<string, JobConfig> }
 export type ModelLog = (entry: { job: string, provider: string, model: string, ms: number, inputTokens: number,
-    outputTokens?: number, agent?: string, error?: string }) => void
+    outputTokens?: number, cacheRead?: number, cacheWrite?: number, agent?: string, error?: string }) => void
 
 export const loadConfig = (path: string): Config => JSON.parse(readFileSync(path, "utf8"))
 
@@ -105,11 +105,12 @@ export class Gateway {
     // One turn of a conversation the caller keeps (a tool loop it runs itself, e.g. the utility's look-and-try).
     turn(job: string, system: string, messages: Anthropic.MessageParam[], tools: Anthropic.Tool[], log: ModelLog,
          agent?: string): Promise<Anthropic.Message> {
-        return this.#create(job, {system, messages, tools}, log, agent)
+        return this.#create(job, {system, messages, tools}, log, agent, undefined, true)
     }
 
     async #create(job: string, params: Pick<Anthropic.MessageCreateParamsNonStreaming, "system" | "messages" | "tools">,
-                  log: ModelLog, agent?: string, format?: Anthropic.JSONOutputFormat): Promise<Anthropic.Message> {
+                  log: ModelLog, agent?: string, format?: Anthropic.JSONOutputFormat,
+                  cache?: true): Promise<Anthropic.Message> {
         const config = this.#job(job, "anthropic")
         if (this.#anthropic === null) {throw new Error("ANTHROPIC_API_KEY is not set (takedo/.env)")}
         const start = performance.now()
@@ -117,10 +118,13 @@ export class Gateway {
             const output = {...(config.effort ? {effort: config.effort} : {}), ...(format ? {format} : {})}
             const response = await this.#anthropic.messages.create({
                 model: config.model, max_tokens: config.maxTokens ?? 4000, ...params,
+                // A conversation re-sent each round: cache it, so a round pays full price only for what's new.
+                ...(cache ? {cache_control: {type: "ephemeral" as const}} : {}),
                 ...(Object.keys(output).length > 0 ? {output_config: output} : {})
             })
             log({job, provider: config.provider, model: response.model, ms: Math.round(performance.now() - start),
-                inputTokens: response.usage.input_tokens, outputTokens: response.usage.output_tokens, agent})
+                inputTokens: response.usage.input_tokens, outputTokens: response.usage.output_tokens,
+                cacheRead: response.usage.cache_read_input_tokens ?? 0, cacheWrite: response.usage.cache_creation_input_tokens ?? 0, agent})
             if (response.stop_reason === "refusal") {throw new Error("the model declined")}
             if (response.stop_reason === "max_tokens") {throw new Error("the model ran out of tokens")}
             return response
