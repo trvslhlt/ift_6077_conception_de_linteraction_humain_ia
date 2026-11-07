@@ -8,13 +8,19 @@ import type {Hints} from "./router.ts"
 // maybe Jev's hints) into steps: plans with a landing, carried out through the bus with claims, in parallel. The mix
 // engineer's common case runs on Jev's hints alone (code turns them into a ramp); everything else goes through one
 // Claude call whose strict tool calls are the plan (as in poc/llm_bench). Each member gets only its own tools, and
-// the coordinator refuses plans outside its area (`may`).
+// the coordinator refuses plans outside its area (`may`). Members are the fast lane, not the limit: whatever a member's
+// tools don't cover it hands off, and the Team Lead's hands (the utility) do it with code (STRATEGY.md, "Keep the open
+// path").
+
+// What the team won't do, decided for now; everything else openDAW supports is fair game.
+export const Limits = "use only openDAW's built-in devices that the catalog allows (nothing installed or loaded from outside: no plugins, no scriptable or neural devices, no external MIDI); leave the transport, playback and settings to the producer; delete tracks only when asked."
+
 
 export type Task = { message: string, piece: string | null, hints: Hints | null }
 export type Member = {
     readonly agent: Actor, readonly role: string, readonly name: string
-    readonly area: string                           // what the role covers, built or not
-    readonly can: string                            // what it can do so far: the operations built for it
+    readonly area: string                           // what the role covers
+    readonly can: string                            // its fast operations: what it does quickly and cheaply
     readonly wantsHints: boolean                    // whether a message addressed to it is worth a Jev call first
     may(plan: Plan): boolean
     handle(context: Coordinator, task: Task, snapshot: Snapshot): Promise<void>
@@ -100,14 +106,16 @@ const tool = (name: string, description: string, properties: Record<string, unkn
 const AtBar = {type: "integer", description: "The bar the edit lands on (its downbeat); 0 for the next bar"}
 const OverBeats = {type: "integer", enum: [0, 1, 2, 4, 8, 16, 32], description: "How long the change takes; 0 is instant"}
 const whenFor = (bar: number): When => bar > 0 ? {at: "bar", bar} : {at: "next", unit: "bar"}
+const HandOff = tool("hand_off", "Hand the part of the request your tools don't cover to the Team Lead, who does it in openDAW directly.", {
+    rest: {type: "string", description: "What's left to do, as an instruction specific to this project"}})
 
-const memberSystem = (name: string, area: string, can: string): string => `You are the ${name} on an AI music production team working live in openDAW with a producer, usually while the track plays. Your area: ${area}. What you can do so far (the tools): ${can}.
+const memberSystem = (name: string, area: string, can: string): string => `You are the ${name} on an AI music production team working live in openDAW with a producer, usually while the track plays. Your area: ${area}. Your fast operations (the tools): ${can}.
 
 You get the producer's message, and your piece of it when the Team Lead split it among the team. Plan your edits as tool calls.
 - Each call is one edit that lands on the downbeat of the bar you choose (at_bar), or the next bar (0). The playhead is at \`playback.bar\`: land at playback.bar + 1 or later. When the loop is on, only bars inside it are ever reached; a bar before the playhead in the loop lands on the next pass.
 - Make 1 to 6 calls, only in your own area, and only what was asked.
 - Values are in each parameter's own units, within its range.
-- If no tool can do what's asked, make no call and say in one sentence which operation you'd need ("I'd need to lengthen regions"); it's a gap in what's built, not in your role.
+- Your job is your piece when you have one (the rest of the producer's message is other members' work: leave it to them), else the whole message. Anything in it that your tools don't cover, hand off with one hand_off call (the rest, said as an instruction specific to this project), rather than leaving it out or saying it can't be done: the Team Lead does it directly in openDAW.
 - Don't explain your plan; the calls are the plan.`
 
 const loopBars = (snapshot: Snapshot) => {
@@ -153,22 +161,29 @@ export abstract class LlmMember implements Member {
             producer_message: task.message, ...(task.piece !== null ? {your_piece: task.piece} : {}),
             project: projectFor(snapshot, this.withParams), ...this.context(snapshot)
         })
-        const tools = this.tools(snapshot)
+        const tools = [...this.tools(snapshot), HandOff]
         const {calls, text} = await context.gateway.calls("member", memberSystem(this.name, this.area, this.can), input, tools,
             context.modelLog(), this.agent, (name, input) => this.lookup(name, input as Record<string, unknown>))
         const steps: Step[] = []
         const problems: string[] = []
+        const rest: string[] = []
         for (const call of calls) {
-            const step = this.step(call.name, call.input as Record<string, unknown>, snapshot)
+            const input = call.input as Record<string, unknown>
+            if (call.name === HandOff.name) {rest.push(String(input.rest)); continue}
+            const step = this.step(call.name, input, snapshot)
             if (typeof step === "string") {problems.push(step)} else {steps.push(step)}
         }
+        // A hand-off runs alongside this member's own steps.
+        const handedOff = rest.length > 0 ? context.handOff(this, task, rest.join("; ")) : Promise.resolve()
         if (steps.length === 0) {
             context.card({agent: this.agent, name: this.name, doing: "idle"})
+            if (rest.length > 0) {return handedOff}
             return context.say(this.agent, [text.trim(), ...problems].filter(line => line !== "").join(" ")
                 || "I couldn't find anything to do there.")
         }
         await carryOut(context, this, steps, snapshot, task.piece ?? task.message)
         if (problems.length > 0) {context.say(this.agent, `Left out: ${problems.join("; ")}.`)}
+        await handedOff
     }
 }
 

@@ -1,10 +1,11 @@
 import type Anthropic from "@anthropic-ai/sdk"
 import type {Actor, Plan, Snapshot, When} from "../../shared/protocol.ts"
 import type {Coordinator} from "./coordinator.ts"
-import {type LlmMember, type Member, performStep, projectFor, type Task} from "./members.ts"
+import type {Catalog} from "./catalog.ts"
+import {Limits, type LlmMember, type Member, performStep, projectFor, type Task} from "./members.ts"
 
-// The utility (STRATEGY.md, "Keep the open path"): whatever the other members can't do yet, done in openDAW directly
-// with code, the way the first live experiment did it (poc/edit_bench/live/eval.mjs). It looks around with read-only
+// The utility (STRATEGY.md, "Keep the open path"): anything openDAW can do that the members' fast operations don't
+// cover, done in openDAW directly with code, the way the first live experiment did it (poc/edit_bench/live/eval.mjs). It looks around with read-only
 // JavaScript, edits with scripts (each one edit, one undo step, attributed to it, refused for controls the producer
 // holds), sees the result or the error, and tries again, for a few rounds. It also has every member's fixed
 // operations as tools, borrowed from them, for whatever they cover: those land on bars, ramp over time and are
@@ -14,7 +15,7 @@ import {type LlmMember, type Member, performStep, projectFor, type Task} from ".
 
 const MaxRounds = 8
 
-const System = `You are the utility on an AI music production team (the producer sees you as the Team Lead: speak as "I", and never call yourself the utility) working live in openDAW (a web DAW) with a producer, usually while the track plays. You take on what the other members can't do yet, working on the project directly with JavaScript.
+const System = `You are the utility on an AI music production team (the producer sees you as the Team Lead: speak as "I", and never call yourself the utility) working live in openDAW (a web DAW) with a producer, usually while the track plays. You can do anything openDAW supports, working on the project directly with JavaScript; you get whatever the other members' fast operations don't cover.
 
 Tools:
 - The team's fixed operations (volume, pan, mute, add_effect, effect_params, set_param, remove_effect): use them for anything they cover. They land on the bar you choose, ramp over time (a script can't: it changes things at one instant), and are checked against the producer's controls before they run. Targets are refs from the project summary; a track or effect your script just made appears in them the round after.
@@ -42,7 +43,8 @@ Recipes that work (inside run):
 Rules:
 - Set up anything you create in the same script that creates it (its name, level, mute, notes), so it's never heard half-made; use the fixed tools for changes over time, after.
 - Look before you change anything you haven't seen; keep scripts small and do one job each; check the result with a look when it matters.
-- Change only what the task asks. Never touch playback, the transport or settings; never delete tracks unless asked.
+- Change only what the task asks. Decided limits, for now: ${Limits} \`devices\` lists the devices you may add, by kind, as named in openDAW's factories.
+- Anything else openDAW can do, you can: never answer that it can't be done or wasn't built; look up how and do it.
 - Land changes ahead of the playhead (\`playback.bar\`) when timing matters; structural changes (lengths, new regions) can land as soon as possible.
 - If something fails twice the same way, stop and say what's in the way.`
 
@@ -64,15 +66,19 @@ export class Utility implements Member {
     readonly agent: Actor = "agent:utility"
     readonly role = "utility"
     readonly name = "Utility"
-    readonly area = "anything the other members can't do yet"
-    readonly can = "read the project and change it directly with short openDAW scripts (extend or duplicate clips, add tracks or regions, rework notes, anything openDAW can do); slow, seconds to tens of seconds"
+    readonly area = "anything openDAW can do"
+    readonly can = "read the project and change it directly with short openDAW scripts (extend or duplicate clips, add tracks or regions, write or rework notes, anything openDAW supports); slower and costlier, seconds to tens of seconds"
     readonly wantsHints = false
 
     readonly #team: ReadonlyArray<LlmMember>
+    readonly #devices: Record<string, string[]>
 
-    // team: the members whose fixed operations it borrows.
-    constructor(team: ReadonlyArray<LlmMember>) {
+    // team: the members whose fixed operations it borrows; catalog: which devices it may add.
+    constructor(team: ReadonlyArray<LlmMember>, catalog: Catalog) {
         this.#team = team
+        this.#devices = {}
+        catalog.devices().filter(device => device.allowed)
+            .forEach(device => (this.#devices[device.kind] ??= []).push(device.factory))
     }
 
     // The generalist: every operation, scripts included.
@@ -93,6 +99,7 @@ export class Utility implements Member {
             producer_message: task.message, ...(task.piece !== null ? {your_task: task.piece} : {}),
             project: {...projectFor(snapshot, true), regions: snapshot.tracks.map(track => ({track: track.ref,
                 regions: track.regions.map(({ref, name, from, to, loop}) => ({ref, name, from, to, loop}))}))},
+            devices: this.#devices,
             ...Object.assign({}, ...this.#team.map(member => member.context(snapshot)))
         })}]
         const done: string[] = []

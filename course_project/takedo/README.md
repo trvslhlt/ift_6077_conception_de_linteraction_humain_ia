@@ -142,7 +142,7 @@ API keys go in `.env` (git-ignored, and never in a build context): `TYPESAFE_API
   Direction to edit is 4–7 s, so "the next bar" usually lands a bar or two later than the model chose.
 
 - 2026-11-06: the open path. `@team_lead extend all the clips so they run for 16 bars` went to the utility (and was
-  logged as an arranger wish); on Haiku it looked at the regions, set their lengths in one script, checked and
+  logged as work done by hand); on Haiku it looked at the regions, set their lengths in one script, checked and
   reported, in 9 s. A script that set the volume of a fader the producer was holding was undone, and it said why.
   Script plus fixed operation: "add a track called Lead at -30 dB, then fade it up over 8 beats" made the track in
   a script and faded it with the volume tool the next round, in about 20 s.
@@ -160,9 +160,10 @@ Known gaps in what's built:
   Verified in a real browser (2026-11-06): the drums were heard getting quieter while another tab was in front, and
   the reply appeared in the chat on switching back (the page doesn't repaint while hidden).
 - **Undo shows as the producer's gesture**, not `user`/`undo`: wrapping undo and redo isn't built.
-- **Three members.** Volume, pan, mutes and audio effects only: no notes, instruments, MIDI effects or patterns. Jev
-  still scores all nine roles, so a message for a missing one gets "isn't on the team yet"; the Team Lead is told
-  which areas nobody covers.
+- **Three members' fast lanes.** Volume, pan, mutes and audio effects are fast operations; everything else (notes,
+  chords, drum patterns, instruments, MIDI effects, clip lengths) is done by the Team Lead's hands (the utility),
+  with scripts, in seconds to tens of seconds. Jev still scores all nine roles; a message for an unfilled one goes
+  to the Team Lead. How well Haiku writes musical scripts (reharmonizing, swing) isn't measured yet.
 - **Planning delay shows as lateness:** a plan made for "the next bar" slides by the bars that passed while it was
   planned, and the reply says so. Preparing ahead (STRATEGY.md) isn't built.
 - **Scripts are reported as one opaque edit:** the change stream carries their value changes, not regions or notes

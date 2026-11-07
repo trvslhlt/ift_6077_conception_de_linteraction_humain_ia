@@ -17,7 +17,7 @@ export const Roster = {
     mix_engineer: "balance between parts; can set or ramp each track's volume and pan",
     researcher: "looks up a reference song, artist or genre and summarizes it for the team; makes no edits",
     critic: "listens and gives an opinion; makes no edits",
-    utility: "anything the other members can't do yet, such as extending or duplicating clips, adding tracks or regions, or reworking notes; works on the project directly with code",
+    utility: "anything openDAW can do that the others' fast operations don't cover, such as extending or duplicating clips, adding tracks or regions, or reworking notes; works on the project directly with code",
 } as const
 export type Role = keyof typeof Roster
 export const isRole = (name: string): name is Role => Object.hasOwn(Roster, name)

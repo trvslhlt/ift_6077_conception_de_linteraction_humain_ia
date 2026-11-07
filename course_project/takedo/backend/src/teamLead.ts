@@ -2,11 +2,12 @@ import type {Overview, Snapshot} from "../../shared/protocol.ts"
 import {analyse} from "./analysis.ts"
 import {type Catalog, summariesForProject} from "./catalog.ts"
 import type {Gateway, ModelLog} from "./gateway.ts"
-import {type Member, projectFor} from "./members.ts"
+import {Limits, type Member, projectFor} from "./members.ts"
 
 // The Team Lead's language-model work (the slow tier, STRATEGY.md, "Responsiveness"): the project overview shown when
 // the team view opens (FEATURES.md, "Project overview"; the playback line is the page's, live), and splitting a
-// direction among the members (poc/llm_bench, round two: with a roster of what each can do, and what nobody can).
+// direction among the members (poc/llm_bench, round two), with the utility doing whatever no member's fast operations
+// cover (STRATEGY.md, "Keep the open path").
 
 const OverviewSystem = `You describe a music project in openDAW to the producer working on it, as the opening overview of their AI team's view. They know music production; write as a fellow producer would.
 
@@ -52,42 +53,38 @@ export const writeOverview = async (gateway: Gateway, catalog: Catalog, log: Mod
 
 // ---------- splitting a direction ----------
 
-// not_built: what the direction needs that falls in a role's area but has no operation yet (the team's wishlist,
-// FEATURES.md, "Naming what's missing").
-export type LeadPlan = { reply: string, members: Array<{ role: string, piece: string }>,
-    not_built: Array<{ role: string, needs: string }> }
+export type LeadPlan = { reply: string, members: Array<{ role: string, piece: string }> }
 
 const LeadSystem = `You are the Team Lead of an AI music production team working live with a producer in openDAW, usually while the track plays.
 
-You are the front door. You take the producer's direction, split it among the team members whose areas it touches, and tell the producer who is doing what. You do no musical work yourself and don't plan the members' edits; each member turns its piece into edits.
+You are the front door. You take the producer's direction, split it among the team, and tell the producer who is doing what. You don't plan the edits; whoever gets a piece turns it into edits.
 
-- \`team\` lists each member's area (what the role covers) and \`can_now\` (the operations built for it so far). \`not_on_the_team\` lists roles that aren't built at all, with their areas.
-- Give each member only what it can do now. The utility does what nobody else can do yet, directly in openDAW with code: when the direction, or part of it, needs an operation no member has (lengthening clips, new tracks, rewriting notes...), give that part to the utility, and list it in \`not_built\` with the role whose area it is, so it can become that role's own operation later. Prefer a member with the operation; the utility is slower (seconds to tens of seconds). The utility is your own hands and the producer doesn't know it exists: when you give it work, say you'll do it yourself ("I'll extend the clips"), never mention the utility.
-- Only things openDAW itself can't do are impossible (hearing the result, outside services); say so plainly.
-- Give each member one piece: a short instruction in that member's area, specific to this project (name tracks and bars).
-- Bring in only the members the direction needs. A narrow request goes to one member.
+The team can do anything openDAW can do. \`team\` lists who does what:
+- The members each have fast operations for their area (\`fast_at\`): quick, cheap and timed to the bar. Give a member the parts its fast operations cover.
+- The utility is your own hands: it works on the project directly with code and can do anything openDAW supports (new tracks, notes, chords, drum patterns, clip lengths, devices, anything), only slower (seconds to tens of seconds) and costlier. Give it every part no member's fast operations cover. The producer doesn't know it exists: say you'll do that part yourself ("I'll rework the chords"), never mention the utility.
+
+Rules:
+- Never leave part of a direction undone, or tell the producer something can't be done, because no member covers it. The only limits are these, decided for now: ${Limits} Outside openDAW (hearing the result, outside services) is out of reach too; say so plainly.
+- Give each one piece: a short instruction, specific to this project (name tracks and bars).
+- Bring in only who the direction needs. A narrow request goes to one.
 - If the direction is ambiguous in a way that would send the team in different directions, bring in no one and ask one short question instead.
 - If it's a question or a remark rather than a direction, answer it in the reply and bring in no one.
 - The producer reads your reply at a glance while playing: one or two short sentences. Don't mention bar numbers or the playhead unless the producer did.`
 
 export const lead = async (gateway: Gateway, log: ModelLog, snapshot: Snapshot, message: string,
-                           team: ReadonlyArray<Member>, notOnTeam: Record<string, string>): Promise<LeadPlan> => {
+                           team: ReadonlyArray<Member>): Promise<LeadPlan> => {
     const schema = {
-        type: "object", additionalProperties: false, required: ["reply", "members", "not_built"],
+        type: "object", additionalProperties: false, required: ["reply", "members"],
         properties: {
             reply: {type: "string", description: "What the producer reads: one or two short sentences"},
             members: {type: "array", items: {type: "object", additionalProperties: false, required: ["role", "piece"],
                 properties: {role: {type: "string", enum: team.map(member => member.role)},
-                    piece: {type: "string", description: "This member's part of the direction, one sentence"}}}},
-            not_built: {type: "array", items: {type: "object", additionalProperties: false, required: ["role", "needs"],
-                properties: {role: {type: "string", description: "The role whose area it is"},
-                    needs: {type: "string", description: "The operation that would do it, e.g. lengthen a track's regions"}}}}
+                    piece: {type: "string", description: "This one's part of the direction, one sentence"}}}}
         }
     }
     const user = JSON.stringify({
         project: projectFor(snapshot, false),
-        team: Object.fromEntries(team.map(member => [member.role, {area: member.area, can_now: member.can}])),
-        not_on_the_team: notOnTeam,
+        team: Object.fromEntries(team.map(member => [member.role, {area: member.area, fast_at: member.can}])),
         direction: message
     })
     return gateway.structured<LeadPlan>("team_lead", LeadSystem, user, schema, log, "agent:team_lead")

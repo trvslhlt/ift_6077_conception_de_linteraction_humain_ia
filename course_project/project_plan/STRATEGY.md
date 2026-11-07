@@ -85,8 +85,16 @@ The likely shape, to design when we build it:
   (a script plan is slow-tier, seconds); how the producer sees what a script did.
 
 Built (2026-11-06) as the **utility** role (`takedo/backend/src/utility.ts`): the Team Lead gives it whatever no
-member has an operation for, and logs the gap as that role's wish, so recurring scripts point at the next fixed
-operation. It runs on Haiku: extending three clips took one look, one script and one check, about 9 s. Decided
+member's fast operations cover, and a member hands it whatever part of its own piece its tools don't cover (a
+`hand_off` call). Each piece is logged (`by_hand`), so recurring scripts point at the next fixed operation.
+
+Decided with it (2026-11-06): there is no list of what TakeDo can't do. With scripts and a capable enough model it
+can do anything openDAW supports; the roles, Jev, the fixed operations and any music libraries make that faster and
+cheaper, they don't add capabilities. So no reply says "the team can't do that yet" or "that role isn't on the team":
+a message for an unfilled role (`@composer`, or Jev routing to one) goes to the Team Lead, who does it by hand. The
+only limits are decided ones, in one place (`Limits` in `takedo/backend/src/members.ts`): only openDAW's built-in
+devices the catalog allows (nothing installed from outside), the transport and settings stay the producer's, tracks
+are deleted only when asked. It runs on Haiku: extending three clips took one look, one script and one check, about 9 s. Decided
 with it: the fixed layer stays thin, a read side (snapshot, refs, catalog, changes) plus a few timed, fast
 operations; everything else goes through scripts, and an operation is added only when the wishes show demand.
 The utility also has every member's fixed operations as tools (borrowed from the members, so they're defined

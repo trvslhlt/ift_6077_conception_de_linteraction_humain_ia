@@ -6,7 +6,7 @@ import {
 import type {Catalog} from "./catalog.ts"
 import type {Gateway, ModelLog} from "./gateway.ts"
 import {createTeam, type Member, type Task} from "./members.ts"
-import {isRole, type Role, Roster, route} from "./router.ts"
+import {isRole, type Role, route} from "./router.ts"
 import type {SessionLog} from "./sessionLog.ts"
 import {lead, writeOverview} from "./teamLead.ts"
 import {Utility} from "./utility.ts"
@@ -38,7 +38,7 @@ export class Coordinator {
         this.#catalog = catalog
         this.#log = log
         const team = createTeam(catalog)
-        this.#members = [...team, new Utility(team)]
+        this.#members = [...team, new Utility(team, catalog)]
     }
 
     get gateway(): Gateway {return this.#gateway}
@@ -47,9 +47,9 @@ export class Coordinator {
     // the producer sees its work as the Team Lead's (an alias; it keeps its own claims, attribution and log lines).
     start(): void {
         this.#send({type: "team", aliases: {"agent:utility": "agent:team_lead"}, members: [
-            {role: "team_lead", name: "Team lead", area: "the front door: hands your direction to the team, and does what nobody else can yet"},
+            {role: "team_lead", name: "Team lead", area: "the front door: hands your direction to the team, and does the rest itself"},
             ...this.#members.filter(member => member.role !== "utility")
-                .map(({role, name, area, can}) => ({role, name, area: `${area}. So far: ${can}`}))]})
+                .map(({role, name, area, can}) => ({role, name, area: `${area}. Fast at: ${can}`}))]})
     }
 
     receive(message: PageToBackend): void {
@@ -194,11 +194,9 @@ export class Coordinator {
         if (this.#project === null) {return this.say("agent:team_lead", "Open a project first.")}
         const snapshot = await this.snapshot()
         if (snapshot === null) {return this.say("agent:team_lead", "Open a project first.")}
-        if (named === "team_lead") {return this.#lead(message, snapshot)}
+        // A role nobody fills yet is still work the team does: the Team Lead takes it.
         const addressed = named === null ? null : this.#members.find(member => member.role === named)
-        if (addressed === undefined) {
-            return this.say("agent:team_lead", `The ${named!.replace(/_/g, " ")} isn't on the team yet.`)
-        }
+        if (named === "team_lead" || addressed === undefined) {return this.#lead(message, snapshot)}
         if (addressed !== null && !addressed.wantsHints) {
             return addressed.handle(this, {message, piece: null, hints: null}, snapshot)
         }
@@ -208,10 +206,18 @@ export class Coordinator {
         this.#log.write("route", routed)
         if (routed.path === "slow") {return this.#lead(message, snapshot)}
         const member = this.#members.find(member => member.role === routed.member)
-        if (member === undefined) {
-            return this.say("agent:team_lead", `That's for the ${routed.member.replace(/_/g, " ")}, who isn't on the team yet.`)
-        }
+        if (member === undefined) {return this.#lead(message, snapshot)}
         await member.handle(this, {message, piece: null, hints: routed.hints}, snapshot)
+    }
+
+    // What a member's fast operations don't cover, done by the Team Lead's hands (the utility) on a fresh snapshot.
+    async handOff(from: Member, task: Task, rest: string): Promise<void> {
+        const utility = this.#members.find(member => member.role === "utility")
+        const snapshot = await this.snapshot()
+        if (utility === undefined || snapshot === null) {return}
+        this.#log.write("by_hand", {from: from.agent, piece: rest})
+        await utility.handle(this, {message: task.message, piece: rest, hints: null}, snapshot)
+            .catch(error => this.say(utility.agent, `Something went wrong: ${String(error)}`))
     }
 
     // The slow path: the Team Lead replies and hands out pieces; the members work on them in parallel.
@@ -219,12 +225,10 @@ export class Coordinator {
         const missing = this.#gateway.missing("team_lead")
         if (missing !== null) {return this.say("agent:team_lead", `I can't plan that: ${missing}.`)}
         this.card({agent: "agent:team_lead", name: "Team lead", doing: "splitting it up…"})
-        const roles = new Set(this.#members.map(member => member.role))
-        const notOnTeam = Object.fromEntries(Object.entries(Roster).filter(([role]) => !roles.has(role))
-            .map(([role, area]) => [role, area.split(";")[0]]))
-        const plan = await lead(this.#gateway, this.modelLog(), snapshot, message, this.#members, notOnTeam)
+        const plan = await lead(this.#gateway, this.modelLog(), snapshot, message, this.#members)
         this.#log.write("route", {path: "lead", plan})
-        plan.not_built.forEach(wish => this.#log.write("wish", wish))
+        plan.members.filter(entry => entry.role === "utility")
+            .forEach(({piece}) => this.#log.write("by_hand", {from: "agent:team_lead", piece}))
         this.card({agent: "agent:team_lead", name: "Team lead",
             doing: plan.members.length === 0 ? "idle" : `asked ${plan.members.map(entry => entry.role.replace(/_/g, " ")).join(", ")}`})
         this.say("agent:team_lead", plan.reply)
