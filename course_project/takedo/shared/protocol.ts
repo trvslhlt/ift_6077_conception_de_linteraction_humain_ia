@@ -80,8 +80,10 @@ export type Status = {
     request: string, t: number, pos: string
     state: "scheduled" | "queued" | "running" | "applied" | "dropped" | "failed"   // running: a ramp under way
     landsAt?: string
-    // device: one just added. value: what a script returned; updates: how many changes it made.
-    result?: { ref: string, label: string, from?: number, to?: number, device?: Device, value?: string, updates?: number }
+    // device: one just added. value: what a script returned; updates: how many changes it made; corrected: values it
+    // wrote outside openDAW's declared ranges, brought back in (page/Guard.ts).
+    result?: { ref: string, label: string, from?: number, to?: number, device?: Device, value?: string, updates?: number,
+        corrected?: string[] }
     reason?: FailReason
     detail?: string
 }
@@ -113,6 +115,7 @@ export type PageToBackend =
     | { type: "status", status: Status }
     | { type: "change", event: ChangeEvent }
     | { type: "looked", id: number, ok: boolean, value: string }   // a look's result (JSON, truncated) or its error
+    | { type: "engine", undone: string | null }          // the audio engine crashed and is restarting; undone: the agent edit taken back
 
 export type BackendToPage =
     | { type: "welcome", session: string, protocol: number, startedAt: string }

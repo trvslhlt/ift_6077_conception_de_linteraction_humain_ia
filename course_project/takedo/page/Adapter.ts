@@ -1,6 +1,6 @@
 import {Terminable, Terminator} from "@opendaw/lib-std"
 import {PPQN, ppqn} from "@opendaw/lib-dsp"
-import {Box, PrimitiveUpdate, Update} from "@opendaw/lib-box"
+import {Address, Box, PrimitiveUpdate, Update} from "@opendaw/lib-box"
 import {
     AudioRegionBoxAdapter, AudioUnitBoxAdapter, AutomatableParameterFieldAdapter, DeviceBoxAdapter, Devices,
     EffectDeviceBoxAdapter, NoteRegionBoxAdapter, PlayfieldDeviceBoxAdapter, TrackBoxAdapter
@@ -12,6 +12,7 @@ import type {
 } from "@/takedo_shared/protocol"
 import {numeric, primitives} from "./Catalog"
 import {Clock} from "./Clock"
+import {type Correction, guardField} from "./Guard"
 import {runLook, runScript, type ScriptEnv, scriptEnv, serialize} from "./Scripting"
 import type {Connection} from "./Connection"
 
@@ -27,6 +28,7 @@ import type {Connection} from "./Connection"
 // writing its value during playback would switch the lane off until stop. Value changes are reported; added and
 // removed effects aren't yet.
 
+const EngineSettleMs = 3000      // an engine start this soon after the adapter is the project opening, not a restart
 const LeadMs = 200              // edits land at least this far ahead of the playhead (STRATEGY.md, "Timing")
 const GestureFoldMs = 300       // value changes on a ref with no further change for this long form one change event
 
@@ -78,7 +80,10 @@ export class Adapter implements Terminable {
     #seq = 0
     #revision = 0                                               // every box graph update (UI state included)
     #applying: { actor: Actor, request: string } | null = null  // set around our own writes (origin tagging)
-    #touched: Set<string> | null = null                         // addresses a running script changed
+    #lastAgentEdit: { label: string, steps: number } | null = null   // the latest script or added effect, for a crash
+    #historySteps = 0
+    readonly #ramping = new Map<string, string>()               // parameter address → the request ramping it now                                           // changes to the undo history (edits, undos, redos)
+    #touched: Map<string, { address: Address, previous: unknown }> | null = null   // what a running script changed, first value
     #updates = 0                                                // updates a running script made
     readonly #env: ScriptEnv
     readonly #activity = new Set<(activity: Activity) => void>()
@@ -100,6 +105,30 @@ export class Adapter implements Terminable {
         }
         document.addEventListener("parameter-hold", onHold)
         this.#terminator.own({terminate: () => document.removeEventListener("parameter-hold", onHold)})
+        this.#terminator.own(project.editing.subscribe(() => {this.#historySteps++}))
+        this.#watchEngine(project)
+    }
+
+    // After an audio engine error openDAW asks to restart it, then starts a new engine on the same project; a value
+    // that crashed it would crash it again. So on that restart, an agent's script or added effect that is still the
+    // latest undo step (the history hasn't changed since) is undone first, and the backend hears (to tell the producer and the agent). The first start
+    // after this adapter exists is the project opening, not a restart.
+    #watchEngine(project: Project): void {
+        const created = Date.now()
+        const start = project.startAudioWorklet.bind(project)
+        project.startAudioWorklet = (...args: Parameters<Project["startAudioWorklet"]>) => {
+            if (Date.now() - created > EngineSettleMs) {this.#restarting()}
+            return start(...args)
+        }
+        this.#terminator.own({terminate: () => {project.startAudioWorklet = start}})
+    }
+
+    #restarting(): void {
+        const last = this.#lastAgentEdit
+        this.#lastAgentEdit = null
+        const undo = last !== null && last.steps === this.#historySteps
+        if (undo) {this.#project.editing.undo()}
+        this.#connection.send({type: "engine", undone: undo ? last.label : null})
     }
 
     terminate(): void {
@@ -109,6 +138,12 @@ export class Adapter implements Terminable {
     }
 
     get revision(): number {return this.#revision}
+
+    // Off only in the smoke test, to crash the engine on purpose and check the undo on restart.
+    guarding = true
+
+    // The scripts' environment, for live sessions driven from outside (live/eval.mjs).
+    get env(): ScriptEnv {return this.#env}
 
     subscribeActivity(listener: (activity: Activity) => void): Terminable {
         this.#activity.add(listener)
@@ -256,6 +291,7 @@ export class Adapter implements Terminable {
         const param = this.#param(plan.ref)
         if (param === null) {return this.#status(request, {state: "failed", reason: "unknown_ref", detail: plan.ref})}
         const {parameter} = param
+        if (!Number.isFinite(plan.to)) {return this.#status(request, {state: "failed", reason: "invalid_args", detail: `to: ${plan.to}`})}
         // While openDAW records, a write is recorded over the lane (only the recorded span is replaced), so it's allowed.
         if (parameter.track.nonEmpty() && !this.#project.engine.isRecording.getValue()) {
             return this.#status(request, {state: "failed", reason: "not_allowed",
@@ -283,7 +319,10 @@ export class Adapter implements Terminable {
         const from = numeric(parameter.getValue())
         const beats = plan.op === "ramp" && !isStepped(parameter) && this.#project.engine.isPlaying.getValue() ? plan.beats : 0
         if (beats > 0) {this.#status(request, {state: "running", landsAt: this.#pos()})}
-        await this.#ramp(request, parameter, from, to, beats)
+        if (!(await this.#ramp(request, parameter, from, to, beats))) {
+            return this.#status(request, {state: "applied", detail: `handed over at ${this.#pos()} to a later change of this control`,
+                result: {ref: plan.ref, label: param.label, from, to: numeric(parameter.getValue())}})
+        }
         const read = numeric(parameter.getValue())
         if (Math.abs(read - to) > Math.max(0.05, Math.abs(to) * 0.001)) {
             return this.#status(request, {state: "failed", reason: "value_not_taken", detail: `read back ${read}`})
@@ -306,7 +345,7 @@ export class Adapter implements Terminable {
             for (const field of primitives(box.fields())) {
                 const path = box.mapFields(field => field.fieldName, ...field.address.fieldKeys).join("/")
                 const setting = plan.settings.find(setting => setting.param === path)
-                if (setting === undefined) {continue}
+                if (setting === undefined || !Number.isFinite(setting.value)) {continue}
                 parameterFieldAdapters.opt(field.address).ifSome(parameter => parameter.setValue(isSwitch(parameter)
                     ? setting.value !== 0 : parameter.valueMapping.clamp(setting.value)))
             }
@@ -317,6 +356,7 @@ export class Adapter implements Terminable {
         this.#params = null
         const effect = this.#effects(unit).find(effect => effect.adapter === adapter)
         const device = this.#effectsOf(unit).find(device => device.ref === effect?.ref)
+        this.#lastAgentEdit = {label: `${factory.defaultName} on ${unit.label}`, steps: this.#historySteps}
         this.#status(request, {state: "applied",
             result: {ref: effect?.ref ?? plan.track, label: effect?.label ?? factory.defaultName, device}})
     }
@@ -333,11 +373,15 @@ export class Adapter implements Terminable {
     // One edit: rolled back by openDAW if it throws; undone if it changed anything the producer holds.
     async #script(request: Apply, plan: ScriptPlan): Promise<void> {
         if (!(await this.#land(request))) {return}
-        this.#touched = new Set()
+        this.#touched = new Map()
         this.#updates = 0
         let value: unknown
+        let corrections: Correction[] = []
         try {
-            this.#tagged(request, () => this.#project.editing.modify(() => {value = runScript(plan.code, this.#env)}))
+            this.#tagged(request, () => this.#project.editing.modify(() => {
+                value = runScript(plan.code, this.#env)
+                if (this.guarding) {corrections = this.#guard()}
+            }))
         } catch (error) {
             return this.#status(request, {state: "failed", reason: "invalid_args", detail: errorText(error)})
         } finally {
@@ -346,12 +390,32 @@ export class Adapter implements Terminable {
         const touched = this.#touched
         const updates = this.#updates
         this.#touched = null
-        if ([...touched].some(address => this.#held.has(address))) {
+        if ([...touched.keys()].some(address => this.#held.has(address))) {
             this.#project.editing.undo()
             return this.#status(request, {state: "dropped", reason: "held", detail: "it changed a control you're holding"})
         }
+        this.#lastAgentEdit = {label: plan.description, steps: this.#historySteps}
         this.#status(request, {state: "applied",
-            result: {ref: "project", label: plan.description, value: serialize(value), updates}})
+            result: {ref: "project", label: plan.description, value: serialize(value), updates,
+                ...(corrections.length > 0 ? {corrected: corrections.map(({field, from, to}) =>
+                    `${field}: ${from} → ${to} (outside its range)`)} : {})}})
+    }
+
+    // Inside the script's edit: every field it wrote, brought into openDAW's declared range (Guard.ts), named as a
+    // person reads it (the box and the field's path).
+    #guard(): Correction[] {
+        const touched = this.#touched
+        if (touched === null) {return []}
+        const corrections: Correction[] = []
+        for (const {address, previous} of [...touched.values()]) {
+            this.#project.boxGraph.findVertex(address).ifSome(vertex => {
+                const correction = guardField(vertex, previous)
+                if (correction === null) {return}
+                const path = vertex.box.mapFields(field => field.fieldName, ...vertex.address.fieldKeys).join("/")
+                corrections.push({...correction, field: `${vertex.box.name} › ${path}`})
+            })
+        }
+        return corrections
     }
 
     // A ref as a script sees it: the adapter openDAW's UI uses.
@@ -378,9 +442,13 @@ export class Adapter implements Terminable {
     }
 
     // Like a knob drag: one mark before, unmarked writes each clock tick, one mark after, so the ramp is one undo step.
+    // Returns false if a later ramp on the same parameter took over before this one finished.
     async #ramp(request: Apply, parameter: AutomatableParameterFieldAdapter, from: number, to: number,
-                beats: number): Promise<void> {
+                beats: number): Promise<boolean> {
         const {editing, engine} = this.#project
+        const key = parameter.address.toString()
+        this.#ramping.set(key, request.id)
+        const mine = (): boolean => this.#ramping.get(key) === request.id
         const write = (value: number): void => {
             this.#applying = {actor: request.from, request: request.id}
             try {
@@ -393,13 +461,19 @@ export class Adapter implements Terminable {
         const startMs = performance.now()
         const durationMs = beats * 60000 / engine.bpm.getValue()
         while (durationMs > 0) {
+            if (!mine()) {
+                editing.mark()
+                return false
+            }
             const progress = Math.min(1, (performance.now() - startMs) / durationMs)
             write(from + (to - from) * progress)
-            if (progress >= 1 || this.#held.has(parameter.address.toString())) {break}
+            if (progress >= 1 || this.#held.has(key)) {break}
             await this.#clock.tick()
         }
         if (durationMs <= 0) {write(to)}
         editing.mark()
+        if (mine()) {this.#ramping.delete(key)}
+        return true
     }
 
     // Reports scheduled and waits for the landing; false (after reporting failed) if it can't land.
@@ -493,7 +567,10 @@ export class Adapter implements Terminable {
         this.#revision++
         if (this.#touched !== null) {
             this.#updates++
-            if (update instanceof PrimitiveUpdate) {this.#touched.add(update.address.toString())}
+            const key = update instanceof PrimitiveUpdate ? update.address.toString() : null
+            if (update instanceof PrimitiveUpdate && key !== null && !this.#touched.has(key)) {
+                this.#touched.set(key, {address: update.address, previous: update.oldValue})
+            }
         }
         if (!(update instanceof PrimitiveUpdate)) {
             this.#params = null

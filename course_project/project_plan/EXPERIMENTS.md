@@ -15,6 +15,7 @@ the problem it's about shows up in use. Each deferred one names what would bring
 | D | Whether Convolver applies its impulse response at once | headless | 1 hour | when the bus may insert a Convolver | Done: yes |
 | E | Real-browser listening and timing | real browser, a listener | 1 hour of yours, ~half a day to prepare | STRATEGY's timing numbers; equal-power ramps | Deferred |
 | F | What the bus can hear: live readings, offline renders during playback, and whether the summaries catch real problems | headless | ~a day, plus the openDAW rebuild (~15 min, ~10 GB of Docker disk) | the Listening part of the TakeDoAPI | Done: renders work during playback |
+| G | Where the utility falls short of Claude Code working live in openDAW, and why | real browser, the producer listening | ~3 hours; ~$4 of Opus | what the open path needs next (STRATEGY.md, "Keep the open path") | Done: model, then setup |
 
 C, D and F run with `make experiment EXPERIMENT=C|D|F` (`src/Experiments.ts`, `src/Listening.ts`; results in `results/experiment-*.json`).
 
@@ -226,3 +227,52 @@ member can check its edits.
 frame); renders for anything about bands or before/after, at ~1 s per 8 bars plus analysis in a worker. A member
 checking its edit waits for the bars to play, then about a second. Renders are also the first thing to drop when
 the laptop is busy (STRATEGY.md, "Agents don't assume every resource is there"): live meters are nearly free.
+
+## G. The utility against Claude Code, working live (2026-11-07)
+
+**Why.** The first live experiment (Claude Code in the studio tab over DevTools, `poc/edit_bench/live/eval.mjs`) felt
+"magically flexible"; the utility, given the same kind of direction, didn't get there. Was the gap the model or the
+setup around it?
+
+**Method.** One direction on the same project (`01_good_base`: G major, 119 BPM, a 2-bar TR-808 loop and a Cubed
+acid line, the loop on bars 1–4, playing): "Slowly, and without sudden large changes, evolve this into a lofi girl
+beat", then the producer's follow-ups ("keep going", "lower the tempo"). Run by the utility alone (`ROSTER=utility`)
+on Haiku 5.5, then on Opus 5.5, then by Claude Code (Opus 5.5, this repo's session) through `takedo/live/eval.mjs`
+with the utility's own environment: the same script names, and the same bus (`apply`) for timed edits and ramps.
+Logs in `takedo/sessions/`; Claude Code's run is in its own transcript.
+
+**Results.**
+
+| Run | What it did | Model calls, cost | What stopped it |
+|---|---|---|---|
+| Utility, Haiku (07:18) | Effects and one level ride; no notes, no new parts | ~5 per message, cents | Stopped after a first step to offer the next; "do all the steps!" got "I don't have a list of steps" (no chat history) |
+| Utility, Opus, 8 rounds (07:52) | New keys, drums in three stages, bass reworked, master darkened, a melody track | 35 calls, 552k in / 29k out, ~$2.80 | Every message used all 8 rounds; the 7th says "call done now", so it stopped halfway; it re-read the project each message |
+| Utility, Opus, 30 rounds, one conversation, cached (08:20) | The whole transformation in one reply (49 timed edits over ~16 bars), then vinyl hiss, a 4-bar phrase, an 8-bar progression, tempo 119 → 84 on request | 26 calls, ~$1.42 for 3 messages | Nothing; 4 cache misses (tools changed when tracks were added) were 40% of the cost |
+| Utility, Sonnet 5.5, with notebook and source tools (16:19) | Reply 1: filters closing, crushers, darker delay, lazier hats with a ghost kick; "keep going": a Keys track (Am7 → Fmaj7 → G) fading in, reverbs; "lower the tempo": 119 → 85 in five steps, keys eased back | 12 calls, ~$0.17 for 3 messages, 12–15 s per reply | Nothing, but timid: a first pass where Opus did the whole transformation; it left the tempo to the producer until asked; it never used the notebook or the source tools. 2 of 20 edits reported failed: two fades on the same filter overlapped (a bus gap, now fixed) |
+| Claude Code, live | A Tubular programmed as a Rhodes (DX7 values), a sine bass, drums in three stages, the acid tamed in three steps; then the original melody kept as a throughline and doubled, vinyl crackle and hiss, tape wow, a 4-bar drum phrase with a fill, tempo 119 → 82 with a switch to full-time drums; then a staged revert to the exact starting state | ~6 source lookups before the first edit; 3 edit calls for the first direction (one script for both new tracks, one effect, one plan of 20 timed steps); 30 timed steps for the revert | One engine crash: a filter resonance of 0 (below openDAW's minimum) made a Vaporisateur write NaN |
+
+**Findings.**
+1. **First the model, then the setup.** Haiku didn't plan a whole transformation; Opus did, once the setup stopped
+   cutting it off (rounds, memory across messages). The remaining gap to Claude Code is the setup.
+2. **Reading openDAW's source made the musical difference.** Every sound decision came from it: Tubular takes DX7
+   panel values (so a Rhodes patch is possible), Vaporisateur's ranges and noise generator, Delay's and Tidal's step
+   tables. The utility, without it, used a subtractive synth for everything and spent rounds probing the API.
+3. **openDAW declares ranges but doesn't enforce them** (OPENDAW.md). One value outside a range crashed the engine
+   for everyone; only the schema shows the range. Now guarded (STRATEGY.md, "Never crash the engine").
+4. **Read the whole state first, write the plan once, time it from one playhead.** One call scheduling every stage
+   kept the spacing exact; separate calls drift. The utility now does this (edits answer "scheduled" at once).
+5. **A starting snapshot makes "put it back" possible.** Reading everything before the first edit let the revert
+   restore every value to the decimal, staged over 17 bars. The utility keeps no such record.
+6. **Stopped playback collapses a staged plan:** with the transport stopped, every step applied at once (correct,
+   but the plan's shape is lost, and nobody said so).
+7. **Parameterized scripts** (one drum generator, three stages; one synth step, three settings) kept stages
+   consistent and cheap to write.
+
+8. **Sonnet is fast and cheap but does less per message** (~$0.06 a direction, 12–15 s, against Opus's ~$0.50 and
+   ~2 min): it needed "keep going" twice to reach what Opus did in one reply, and it didn't reach for the new tools.
+   Whether the prompt can make it bolder, or the study wants Opus's depth, is open.
+
+**Outcome.** What the utility needs next: a source/schema lookup (or the catalog extended with instrument fields,
+ranges and step tables), the range guard (built), a snapshot taken before an agent's first edit, and a word to the
+producer when a staged plan collapses because playback is stopped. Open: whether Opus's cost is acceptable for the
+study, or how far Sonnet or Haiku get with the improved setup (not measured).

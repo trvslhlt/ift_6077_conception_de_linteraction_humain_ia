@@ -326,6 +326,31 @@ try {
     const activityRows = await page.locator("[data-agent='agent:mix_engineer'] [data-testid='takedo-card-activity'] li").count()
     check("the card lists its edits and where they are", activityRows > 0, `${activityRows} rows`)
 
+    // A script writing values outside openDAW's ranges (resonance 0 made a Vaporisateur write NaN and crashed the
+    // engine, 2026-11-07) gets them corrected inside its edit, and the engine keeps playing.
+    const guarded = await page.evaluate(() => new Promise(resolve => {
+        const {adapter} = window.takedo
+        const id = crypto.randomUUID()
+        const subscription = adapter.subscribeActivity(({request, status}) => {
+            if (request.id !== id || !["applied", "failed", "dropped"].includes(status.state)) {return}
+            subscription.terminate()
+            resolve(status)
+        })
+        const code = `const made = api.createInstrument(lib.adapters.InstrumentFactories.Vaporisateur)
+            made.instrumentBox.label.setValue("Guarded"); made.audioUnitBox.volume.setValue(-60)
+            made.instrumentBox.resonance.setValue(0); made.instrumentBox.unisonCount.setValue(2)
+            made.instrumentBox.cutoff.setValue(NaN)
+            const region = api.createNoteRegion({trackBox: made.trackBox, position: 0, duration: bar, name: "Guarded"})
+            api.createNoteEvent({owner: region, position: 0, duration: 960, pitch: 60, velocity: 0.5})`
+        adapter.apply({id, from: "agent:utility", plan: {op: "script", code, description: "out-of-range synth"}, when: {at: "asap"},
+            seq: adapter.snapshot().at.seq})
+    }))
+    await page.waitForTimeout(1500)
+    const stillPlaying = await page.evaluate(() => window.takedo.service.engine.isPlaying.getValue())
+    check("out-of-range values in a script are corrected, engine keeps playing",
+        guarded.state === "applied" && (guarded.result?.corrected?.length ?? 0) === 3 && stillPlaying,
+        JSON.stringify(guarded.result?.corrected ?? guarded))
+
     if (process.env.SCREENSHOT) {await page.screenshot({path: process.env.SCREENSHOT})}
 
     // A hidden tab: animation frames stop, so landing and ramping must not depend on them (page/Clock.ts).
@@ -352,6 +377,45 @@ try {
     await page.evaluate(() => window.opendaw.engine.stop())
 
     check("no page errors or failed requests", problems.length === 0, problems.slice(0, 5).join("; "))
+
+    // A crash on purpose, last (it logs errors): with the guard off, a script gives a playing synth resonance 0, which
+    // makes it write NaN, and openDAW's engine stops and offers to restart. On the restart the script, still the latest
+    // undo step, is undone first, so the new engine doesn't crash again, and the Team Lead says so.
+    await page.evaluate(() => window.opendaw.engine.play())
+    await page.evaluate(() => {
+        const {adapter} = window.takedo
+        adapter.guarding = false
+        const code = `const made = api.createInstrument(lib.adapters.InstrumentFactories.Vaporisateur)
+            made.instrumentBox.label.setValue("Crash"); made.audioUnitBox.volume.setValue(-30)
+            made.instrumentBox.resonance.setValue(0)
+            const region = api.createNoteRegion({trackBox: made.trackBox, position: 0, duration: 64 * bar, loopDuration: bar, name: "Crash"})
+            for (let beat = 0; beat < 4; beat++) api.createNoteEvent({owner: region, position: beat * 960, duration: 480, pitch: 60, velocity: 0.8})`
+        adapter.apply({id: crypto.randomUUID(), from: "agent:utility", plan: {op: "script", code, description: "crash on purpose"},
+            when: {at: "asap"}, seq: adapter.snapshot().at.seq})
+    })
+    const restart = page.getByText("Restart Engine")
+    const crashed = await restart.waitFor({timeout: 15000}).then(() => true, () => false)
+    await page.evaluate(() => {window.takedo.adapter.guarding = true})
+    // Pressed in the page: Playwright's click on the label timed out (2026-11-07).
+    if (crashed) {
+        await page.evaluate(() => {   // openDAW's buttons are an <input type="button"> named by a <label for>
+            const label = [...document.querySelectorAll("label")].find(label => /Restart Engine/.test(label.textContent ?? ""))
+            document.getElementById(label?.htmlFor ?? "")?.click()
+        })
+    }
+    const told = await page.waitForFunction(() => [...document.querySelectorAll("[data-testid=takedo-chat] li")]
+        .some(line => /audio engine crashed/i.test(line.textContent ?? "")), null, {timeout: 15000}).then(() => true, () => false)
+    await page.waitForTimeout(2000)
+    const crashTrack = await page.evaluate(() => window.takedo.adapter.snapshot().tracks.some(track => track.name === "Crash"))
+    await page.evaluate(() => window.opendaw.engine.play())
+    const startPos = await page.evaluate(() => window.opendaw.engine.position())
+    await page.waitForTimeout(3000)
+    const moved = await page.evaluate(start => window.opendaw.engine.position() !== start, startPos)
+    const crashedAgain = await restart.isVisible()
+    check("an engine crash from an agent's script: undone on restart, the producer told, no second crash",
+        crashed && told && !crashTrack && moved && !crashedAgain,
+        JSON.stringify({crashed, told, crashTrackLeft: crashTrack, playingAfter: moved, crashedAgain}))
+    await page.evaluate(() => window.opendaw.engine.stop())
 } catch (error) {
     check("unexpected error", false, error.message.split("\n")[0])
 } finally {

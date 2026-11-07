@@ -40,6 +40,8 @@ services:
       - ./shared:/app/shared:ro
       - ./config:/app/config:ro
       - ./catalog:/app/catalog:ro
+      # openDAW's source as the studio runs it (`make types` copies it out of the image), for the utility to read.
+      - ./.opendaw/packages:/app/.opendaw/packages:ro
       - ./sessions:/app/sessions
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/health').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]

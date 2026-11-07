@@ -2,6 +2,8 @@ import type Anthropic from "@anthropic-ai/sdk"
 import type {Actor, Plan, Snapshot, Status, When} from "../../shared/protocol.ts"
 import type {Coordinator} from "./coordinator.ts"
 import type {Catalog} from "./catalog.ts"
+import {Kinds, type Kind} from "./notebook.ts"
+import type {Source} from "./source.ts"
 import {Limits, type LlmMember, type Member, performStep, projectFor, type Task} from "./members.ts"
 
 // The utility (STRATEGY.md, "Keep the open path"): anything openDAW can do that the members' fast operations don't
@@ -20,9 +22,9 @@ const MaxRounds = 30
 // One task's edits: what landed (for the card and the reply), what's still landing, and failures nobody's heard yet.
 type Work = { done: string[], pending: Promise<string>[], late: string[] }
 
-const System = `You are the utility on an AI music production team (the producer sees you as the Team Lead: speak as "I", and never call yourself the utility) working live in openDAW (a web DAW) with a producer, usually while the track plays. You can do anything openDAW supports, working on the project directly with JavaScript. Your conversation carries on across the producer's messages, so what you learned about the project and openDAW still holds (each message brings a fresh project summary). You get the producer's message, the chat before you joined, if any (\`conversation\`); "go on", "do the rest" or "all of it" refer to what came before, and your task when the work was split (do only that part).
+const System = `You are the utility on an AI music production team (the producer sees you as the Team Lead: speak as "I", and never call yourself the utility) working live in openDAW (a web DAW) with a producer, usually while the track plays. You can do anything openDAW supports, working on the project directly with JavaScript. Your conversation carries on across the producer's messages (each brings a fresh project summary), but it's cleared when it grows long: keep what you'll need later in your notebook. You get the producer's message, the chat before you joined, if any (\`conversation\`); "go on", "do the rest" or "all of it" refer to what came before, and your task when the work was split (do only that part).
 
-A direction toward a style, genre or feel ("make it lofi", "evolve this into dub") asks for the whole transformation, not a first step. Work out what that style needs here: drums (pattern, swing, ghost notes, velocities), harmony (chords, voicings, extensions), each part's sound (instrument choice and settings, a new track when a part's instrument can't get there), effects and mix. Do all of it. When it should happen gradually, stage it: changes timed across the bars it names (or 8 to 16 bars), each stage small, all scheduled before you call done.
+A direction toward a style, genre or feel ("make it lofi", "evolve this into dub") asks for the whole transformation, not a first step. Work out what that style needs here: tempo and feel, drums (pattern, swing, ghost notes, velocities), harmony (chords, voicings, extensions), each part's sound (instrument choice and settings, a new track when a part's instrument can't get there), effects and mix. Do all of it. When it should happen gradually, stage it: changes timed across the bars it names (or 8 to 16 bars), each stage small, all scheduled before you call done.
 
 Tools:
 - The team's fixed operations (volume, pan, mute, add_effect, effect_params, set_param, remove_effect): use them for anything they cover. They land on the bar you choose, ramp over time (a script can't: it changes things at one instant), and are checked against the producer's controls before they run. Targets are refs from the project summary or snapshot(); a track or effect your script just made has one once that edit has landed. To ramp an effect you're adding, use add_effect's then.
@@ -30,6 +32,8 @@ Tools:
 - run: change the project with a short script, for what no fixed operation does. It runs inside one edit: one undo step for the producer, rolled back entirely if it throws. It lands on the bar you choose (0: as soon as possible).
 - An edit for a later bar (fixed operation or script) answers "Scheduled" at once and lands on its own: carry on with the next one, so a staged plan is all timed from the same playhead. Failures come back in a later round ("Since then, failed: …"). A look sees only what has landed.
 - done: finish, with one or two sentences for the producer on what you did (or why you couldn't).
+- source_search, source_read: openDAW's own source, the version that's running. Read it for what the notes below don't say: a device's fields and their ranges (box schemas in packages/studio/forge-boxes/src/schema/devices/), step tables (adapters in packages/studio/adapters/src/devices/), how an API call works, the user manual (packages/app/manual/public/). Look before writing fields you haven't used.
+- remember, recall, forget: your notebook, kept on disk per project and listed with every message (\`notebook\`: key, kind, summary). Your conversation may be cleared between messages; the notebook isn't. Keep in it what you'll want later: the producer's wishes and taste (note), a staged plan and where it stands (plan), parts you wrote as notes (clip), sounds you designed with their settings (sound), scripts worth reusing (script). "start" (state) is the whole project before the agents' first edit this session, kept for you.
 
 Both run a function body with \`takedo\` in scope (its parts are also plain names: project, api, lib, ref, bar, ppqn, pos, snapshot); \`return\` a value to see it (JSON; openDAW objects show as their class name, so return plain data). look's body may await; run's is synchronous.
 
@@ -46,7 +50,7 @@ Recipes that work (inside run):
 - A new named track with a bar of notes: const {audioUnitBox, trackBox, instrumentBox} = api.createInstrument(lib.adapters.InstrumentFactories.Vaporisateur); instrumentBox.label.setValue("Lead"); const region = api.createNoteRegion({trackBox, position: 0, duration: bar, name: "Lead"}); api.createNoteEvent({owner: region, position: 0, duration: lib.dsp.PPQN.Quarter, pitch: 60, velocity: 0.8});
 - A track's name is its instrument's label: ref("t1").inputAdapter.unwrap().labelField.setValue("Bass").
 - An instrument's settings: ref("t2").inputAdapter.unwrap().namedParameter (e.g. Cubed: cutoff, resonance, envMod, decay, accent; Vaporisateur: cutoff, resonance, attack, decay, sustain, release, …); set them with .setValue(v). A drum machine (Playfield) has none: its sounds are samples by pad.
-- A track made in this script has no adapter yet (ref and audioUnits.adapters() don't find it until the edit ends): set its level with audioUnitBox.volume.setValue(dB) and its instrument's settings on instrumentBox's fields (instrumentBox.cutoff.setValue(2200)), with the names namedParameter shows on a track of that instrument.
+- A track made in this script has no adapter yet (ref and audioUnits.adapters() don't find it until the edit ends): set its level with audioUnitBox.volume.setValue(dB) and its instrument's settings on instrumentBox's fields (instrumentBox.cutoff.setValue(2200)), with the names namedParameter shows on a track of that instrument. Every field has a range (the box schema's constraints; a parameter's valueMapping); a value outside it can crash the audio engine, so TakeDo brings it back in and the result lists what it corrected.
 - A level at once: ref("t1").namedParameter.volume.setValue(-12) (dB); for a fade over time, use the volume tool instead. Always set parameter values through openDAW's parameter objects like this (namedParameter, or an effect's parameter adapters), never a box's field directly: when the producer records, only those writes become automation. Structural edits (regions, notes, devices) are unaffected.
 - Lengthen a region and loop its content: r.box.loopDuration.setValue(r.loopDuration); r.box.duration.setValue(16 * bar).
 
@@ -72,8 +76,25 @@ const OwnTools: Anthropic.Tool[] = [
         description: {type: "string", description: "What it does, for the producer, a few words"},
         code: {type: "string"},
         at_bar: {type: "integer", description: "The bar it lands on; 0 for as soon as possible"}}),
-    tool("done", "Finish, telling the producer what you did.", {summary: {type: "string"}})
+    tool("done", "Finish, telling the producer what you did.", {summary: {type: "string"}}),
+    tool("source_search", "Search openDAW's source (TypeScript, and the user manual's pages) for lines matching a regular expression, case-insensitive. Shows path:line: text, at most 40.", {
+        pattern: {type: "string"},
+        within: {type: "string", description: "Only files whose path contains this (\"forge-boxes\", \"Vaporisateur\", \"manual\"); \"\" for all"}}),
+    tool("source_read", "Read lines of one openDAW source file, numbered.", {
+        path: {type: "string", description: "As source_search shows it"},
+        from_line: {type: "integer"}, lines: {type: "integer", description: "At most 150"}}),
+    tool("remember", "Keep something in your notebook, outside your conversation (which may be cleared): replaces the entry with that key.", {
+        key: {type: "string", description: "A short name you'll recognize (\"lofi-plan\", \"rhodes-patch\", \"bridge-chords\")"},
+        kind: {type: "string", enum: [...Kinds]},
+        summary: {type: "string", description: "One line: what it is; shown with every message"},
+        value: {type: "string", description: "The content: text, or JSON (notes, settings, a script)"}}),
+    tool("recall", "Read a notebook entry's content.", {key: {type: "string"}}),
+    tool("forget", "Delete a notebook entry.", {key: {type: "string"}})
 ]
+// What the model's conversation may grow to (input tokens, cached or not) before it's cleared after a message; the
+// notebook and the recent chat carry on.
+const ContextBudget = 60000
+const MaxRecall = 40000
 
 // A member's tool with its lists of the project's refs (tracks, parameters, effects on it) opened to any ref.
 const RefFields = new Set(["track", "param"])
@@ -107,8 +128,13 @@ export class Utility implements Member {
     readonly #tools = new Map<string, { tool: Anthropic.Tool, owner: LlmMember }>()
 
     // team: the members whose fixed operations it borrows; catalog: which devices it may add.
-    constructor(team: ReadonlyArray<LlmMember>, catalog: Catalog) {
+    readonly #source: Source
+    #context = 0          // the conversation's size at the last call, in input tokens
+
+    // source: openDAW's source, for source_search and source_read.
+    constructor(team: ReadonlyArray<LlmMember>, catalog: Catalog, source: Source) {
         this.#team = team
+        this.#source = source
         this.#devices = {}
         catalog.devices().filter(device => device.allowed)
             .forEach(device => (this.#devices[device.kind] ??= []).push(device.factory))
@@ -128,6 +154,9 @@ export class Utility implements Member {
     }
 
 
+    // Something the model should know with the next message (an engine crash and what was undone).
+    notice(text: string): void {this.#unheard.push(text)}
+
     // One task at a time: they share the conversation.
     handle(context: Coordinator, task: Task, snapshot: Snapshot): Promise<void> {
         const next = this.#queue.then(() => this.#work(context, task, snapshot))
@@ -141,10 +170,11 @@ export class Utility implements Member {
         const messages = this.#messages
         this.#ask([{type: "text", text: JSON.stringify({
             ...(fresh && task.history !== undefined && task.history.length > 0 ? {conversation: task.history} : {}),
-            ...(this.#unheard.length > 0 ? {failed_after_your_last_reply: this.#unheard.splice(0)} : {}),
+            ...(this.#unheard.length > 0 ? {since_your_last_reply: this.#unheard.splice(0)} : {}),
             producer_message: task.message, ...(task.piece !== null ? {your_task: task.piece} : {}),
             project: {...projectFor(snapshot, true), regions: snapshot.tracks.map(track => ({track: track.ref,
                 regions: track.regions.map(({ref, name, from, to, loop}) => ({ref, name, from, to, loop}))}))},
+            notebook: context.notebook?.list() ?? [],
             ...(fresh ? {devices: this.#devices, ...Object.assign({}, ...this.#team.map(member => member.context(snapshot)))} : {})
         })}])
         const work: Work = {done: [], pending: [], late: []}
@@ -155,6 +185,8 @@ export class Utility implements Member {
                 const borrowed = this.#borrowed(current)
                 const tools = [...[...borrowed.values()].map(entry => entry.tool), ...OwnTools]
                 const response = await context.gateway.turn("utility", System, messages, tools, context.modelLog(), this.agent)
+                const {usage} = response
+                this.#context = usage.input_tokens + (usage.cache_read_input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0)
                 messages.push({role: "assistant", content: response.content})
                 const uses = response.content.flatMap(block => block.type === "tool_use" ? [block] : [])
                 if (uses.length === 0) {
@@ -168,6 +200,9 @@ export class Utility implements Member {
                     const content = summary !== null ? "Not run: you called done before it."
                         : use.name === "done" ? (summary = String(input.summary), "Said to the producer.")
                         : use.name === "look" ? await this.#look(context, String(input.code))
+                        : use.name === "source_search" ? this.#source.search(String(input.pattern), String(input.within ?? ""))
+                        : use.name === "source_read" ? this.#source.read(String(input.path), Number(input.from_line), Number(input.lines))
+                        : ["remember", "recall", "forget"].includes(use.name) ? this.#notebook(context, use.name, input)
                         : use.name === "run" ? await this.#run(context, String(input.description), String(input.code), Number(input.at_bar), work)
                         : await this.#operate(context, use.name, input, current, borrowed, task, work)
                     results.push({type: "tool_result", tool_use_id: use.id, content})
@@ -183,6 +218,8 @@ export class Utility implements Member {
         } catch (error) {
             this.#messages = []   // a turn left half-answered can't be continued
             throw error
+        } finally {
+            if (this.#context > ContextBudget) {this.#messages = []}
         }
     }
 
@@ -234,6 +271,22 @@ export class Utility implements Member {
             }))
     }
 
+    #notebook(context: Coordinator, name: string, input: Record<string, unknown>): string {
+        const notebook = context.notebook
+        if (notebook === null) {return "No project is open, so there's no notebook."}
+        const key = String(input.key)
+        if (name === "remember") {
+            notebook.set(key, String(input.kind) as Kind, String(input.summary), String(input.value))
+            return `Kept as "${key}".`
+        }
+        if (name === "recall") {
+            const entry = notebook.get(key)
+            if (entry === null) {return `No entry "${key}".`}
+            return entry.value.length > MaxRecall ? `${entry.value.slice(0, MaxRecall)}\n… (cut at ${MaxRecall} characters)` : entry.value
+        }
+        return notebook.delete(key) ? `Forgot "${key}".` : `No entry "${key}".`
+    }
+
     async #look(context: Coordinator, code: string): Promise<string> {
         context.card({agent: this.agent, name: this.name, doing: "looking…"})
         const {ok, value} = await context.look(this.agent, code)
@@ -256,7 +309,8 @@ export class Utility implements Member {
                     })
                 if (status.state === "applied") {
                     work.done.push(`${description}${landsAt ? ` (from ${landsAt})` : ""}`)
-                    return `Applied${landsAt ? ` at ${landsAt}` : ""}: ${status.result?.updates ?? 0} changes. Returned: ${status.result?.value ?? "undefined"}`
+                    const corrected = status.result?.corrected ?? []
+                    return `Applied${landsAt ? ` at ${landsAt}` : ""}: ${status.result?.updates ?? 0} changes. Returned: ${status.result?.value ?? "undefined"}${corrected.length > 0 ? `. Corrected, outside openDAW's ranges (look up a field's range before writing it): ${corrected.join("; ")}` : ""}`
                 }
                 if (status.state === "dropped") {return `${description}: undone, it changed a control the producer is holding. Leave that control alone.`}
                 return `${description}: failed (${status.reason}): ${status.detail ?? ""}. Nothing was changed.`
@@ -275,7 +329,7 @@ export class Utility implements Member {
             if (work.late.length === 0) {return}
             const late = work.late.map(line => line.replace(/\.+$/, "")).join("; ")
             context.say(this.agent, `Not done after all: ${late}.`)
-            this.#unheard.push(late)
+            this.#unheard.push(`Failed: ${late}`)
         })
     }
 }

@@ -12,8 +12,9 @@ import type {Hints} from "./router.ts"
 // tools don't cover it hands off, and the Team Lead's hands (the utility) do it with code (STRATEGY.md, "Keep the open
 // path").
 
-// What the team won't do, decided for now; everything else openDAW supports is fair game.
-export const Limits = "use only openDAW's built-in devices that the catalog allows (nothing installed or loaded from outside: no plugins, no scriptable or neural devices, no external MIDI); leave the transport, playback and settings to the producer; delete tracks only when asked."
+// What the team won't do, decided for now; everything else openDAW supports is fair game, tempo, transport and
+// settings included (nothing is the producer's by default, decided 2026-11-07).
+export const Limits = "use only openDAW's built-in devices that the catalog allows (nothing installed or loaded from outside: no plugins, no scriptable or neural devices, no external MIDI)."
 
 
 // history: the chat before this message, oldest first, for a message that refers back ("do the rest").

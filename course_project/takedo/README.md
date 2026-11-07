@@ -69,6 +69,9 @@ API keys go in `.env` (git-ignored, and never in a build context): `TYPESAFE_API
     (`outline`: tracks, devices, effects, regions, mix, playback; `full` adds notes; Playfield pads by name), the
     hold signal, applying plans (stale and hold checks, landing on the next beat or bar ≥ 200 ms ahead, read-back,
     status replies), and change events (a gesture folded into one, tagged user or agent)
+  - `Guard.ts`: keeps scripts' writes inside openDAW's declared ranges (it declares them but doesn't enforce them):
+    checked inside the script's edit, out-of-range values brought in, NaN restored, each correction in the result.
+    `Adapter.ts` also undoes an agent's latest script or added effect when openDAW restarts the engine after a crash
   - `Catalog.ts`: generates the catalog's openDAW half by creating, reading and deleting every device in the open
     project (from poc/edit_bench); `window.takedo.debug.catalog()`
   - `Scripting.ts`: the open path's environment: what a script or look gets as `takedo` (the project, openDAW's
@@ -93,12 +96,17 @@ API keys go in `.env` (git-ignored, and never in a build context): `TYPESAFE_API
     tools limited to their area (as in `poc/llm_bench`)
   - `utility.ts`: the utility, the open path (STRATEGY.md, "Keep the open path"): whatever no member has an operation
     for, done with JavaScript in the page in a look-and-try loop (read-only looks, scripts as one undoable edit each,
-    results or errors fed back, up to 8 rounds). The producer never sees it by name: the page shows its lines and card
+    results or errors fed back, up to 30 rounds per message, one conversation with the model per session, cached). The producer never sees it by name: the page shows its lines and card
     as the Team Lead's (the backend's team roster sends the alias and leaves it out of @mentions). Has every member's fixed operations as tools (for timing, ramps
     and checks), rebuilt from a fresh snapshot each round
   - `teamLead.ts`: the Team Lead's language-model work: the overview (one Claude call on the full snapshot plus the
     analysis and catalog), and splitting a direction among the members (structured output, with the roster and
     what nobody on the team can do)
+  - `notebook.ts`: the agent's notebook, per project in `sessions/notebooks/`: notes, plans, clips, sounds, scripts,
+    and the project's starting state; listed with every message, recalled by key, so the model's context can be
+    cleared
+  - `source.ts`: openDAW's source for the utility to read (`source_search`, `source_read`), from `.opendaw/packages`
+    (made by `make types`, which `make up` runs if it's missing), mounted read-only
   - `catalog.ts`: loads both halves of `catalog/` and gives a model each device in a project as openDAW's
     name and descriptions plus the hand-written notes; parameters by lookup
   - `analysis.ts`: what models are bad at, in code: key (Krumhansl–Kessler, durations as weights), each part's
@@ -106,6 +114,9 @@ API keys go in `.env` (git-ignored, and never in a build context): `TYPESAFE_API
   - `gateway.ts`: every model call, by job, per `config/models.json` (TypeSafe for judgments, Anthropic for text);
     logs each one with its latency and tokens
   - `sessionLog.ts`: `sessions/<time>_<id>/log.jsonl` and `session.json`
+- `live/eval.mjs`: runs JavaScript in the open TakeDo tab over the DevTools protocol, with the utility's script
+  environment and `apply(plan, when)` for timed edits through the bus, so Claude Code can work live as the utility
+  does (`live/README.md`)
 - `config/models.json`: which provider and model does each job (mounted into the backend)
 - `catalog/`: the device catalog, two files keyed alike by device type as the snapshot names it, mounted into the
   backend, which refuses to start if they disagree about which devices exist
@@ -119,7 +130,8 @@ API keys go in `.env` (git-ignored, and never in a build context): `TYPESAFE_API
   third track is added), ping round trip, reconnecting after a dropped socket; then, during playback: `@mix_engineer the drums are too loud`, one undo
   restoring it, an unaddressed message routed to the mix engineer, and a held fader dropping the request. Calls the
   models for real (3 Jev requests, 3 Claude Haiku overviews: a fraction of a cent), so it needs both keys in `.env`.
-  Failed requests to other origins (openDAW's own `api.opendaw.studio`) are ignored
+  Failed requests to other origins (openDAW's own `api.opendaw.studio`) are ignored. Also: out-of-range values in a
+  script corrected by the guard, and last, a deliberate engine crash (guard off) undone on restart
 - `Dockerfile` (studio; its build stage is hello_world's, so openDAW comes from the shared cache), `backend/Dockerfile`,
   `compose.yaml`, `Makefile`, `tsconfig.json` (editor types for `page/`), `backend/tsconfig.json`
 
@@ -148,7 +160,27 @@ API keys go in `.env` (git-ignored, and never in a build context): `TYPESAFE_API
   Script plus fixed operation: "add a track called Lead at -30 dB, then fade it up over 8 beats" made the track in
   a script and faded it with the volume tool the next round, in about 20 s.
 
+- 2026-11-07: the utility on Opus 5.5, then Claude Code live, on "slowly evolve this into a lofi girl beat"
+  (project_plan/EXPERIMENTS.md, G). The utility needed more rounds, memory across messages and edits that don't
+  block; with them, Opus did the whole transformation in one reply for ~$0.50. Claude Code still did better by
+  reading openDAW's source. One of its scripts crashed the audio engine with an out-of-range value; scripts are now
+  guarded (`page/Guard.ts`, tested in the smoke test with the value that crashed it), and an engine restart after a
+  crash undoes the agent's latest edit first (tested with a real crash, headless). Nothing is the producer's by
+  default any more: tempo and transport are the agents' too. The utility got a notebook and openDAW's source; on
+  Sonnet 5.5 it was 8× cheaper and much faster than Opus but less ambitious, and didn't use either. A ramp that a
+  later ramp on the same control takes over now reports "handed over" instead of failing.
+
 Known gaps in what's built:
+
+- **Crash safety has limits.** Values in range can still crash a device in combination; the undo on engine restart
+  only acts when the agent's edit is still the latest undo step. Tested on a real crash in the smoke test (guard off,
+  resonance 0): undone on restart, the producer told, no second crash.
+- **The utility can read openDAW's source and keep a notebook, but doesn't reach for either yet** (Sonnet, 2026-11-07).
+- **A staged plan sent while the transport is stopped lands all at once,** without a word to the producer.
+- **The headless engine stalled once** in the smoke test (2026-11-07): the playhead froze mid-run while the engine
+  reported playing, so a fade waiting for a bar never landed. A rerun passed; not seen in a real browser.
+- **The utility's conversation is cleared, not summarized,** once past ~60k tokens; what carries over is the notebook
+  and the last 12 chat lines.
 
 - **Ramps are value writes every 10 ms, not automation**, applied the way a knob drag is (one undo step). So a
   parameter that already has an automation lane is refused (writing it would switch the lane off until stop), and
@@ -182,7 +214,8 @@ Known gaps in what's built:
   planned, and the reply says so. Preparing ahead (STRATEGY.md) isn't built.
 - **Scripts are reported as one opaque edit:** the change stream carries their value changes, not regions or notes
   they add or move. They're only as safe as their checks: rolled back if they throw, undone if they touched a held
-  control; nothing stops a script from deleting a track if the model decides to (the prompt forbids it).
+  control, values kept in range; nothing stops a script from deleting a track if the model decides to (the prompt
+  forbids it).
 - **Added and removed effects aren't change events yet** (only value changes are), and their undo is per step.
 - **Changes reach the backend and the log, but no member reacts to them yet** (triggers, `diff`).
 - **The overview describes a device by its catalog notes, not by its settings:** it says what a Tubular typically

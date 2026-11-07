@@ -9,6 +9,8 @@ import {createTeam, type Member, type Task} from "./members.ts"
 import {isRole, type Role, route} from "./router.ts"
 import type {SessionLog} from "./sessionLog.ts"
 import {lead, writeOverview} from "./teamLead.ts"
+import {Notebook} from "./notebook.ts"
+import type {Source} from "./source.ts"
 import {Utility} from "./utility.ts"
 
 // The backend half of the bus (TAKEDO_API.md, "Overview"), one per connected page: claims, plans, chat, routing.
@@ -36,20 +38,29 @@ export class Coordinator {
     readonly #history: Array<{ from: string, text: string }> = []   // the chat so far, for messages that refer back
     #nextQuery = 0
     #project: string | null = null
+    readonly #notebooks: string
+    #notebook: Notebook | null = null       // the open project's
+    #startKept = false                      // whether this session has kept the project's starting state
     #viewOpen = false
     #overview: "none" | "writing" | "done" = "none"   // for the open project; written once, refreshed on request
 
-    constructor(send: (message: BackendToPage) => void, gateway: Gateway, catalog: Catalog, log: SessionLog) {
+    // notebooks: the folder of agents' notebooks, one per project; source: openDAW's source, for the utility to read.
+    constructor(send: (message: BackendToPage) => void, gateway: Gateway, catalog: Catalog, log: SessionLog,
+                notebooks: string, source: Source) {
         this.#send = send
         this.#gateway = gateway
         this.#catalog = catalog
         this.#log = log
+        this.#notebooks = notebooks
         const team = createTeam(catalog)
-        const utility = new Utility(team, catalog)
+        const utility = new Utility(team, catalog, source)
         this.#members = Roster === "team" ? [...team, utility] : [utility]
     }
 
     get gateway(): Gateway {return this.#gateway}
+
+    // The open project's notebook (notebook.ts); null with no project open.
+    get notebook(): Notebook | null {return this.#notebook}
 
     // Tells the page who's on the team (the Team Lead first), for mentions and autocomplete. The utility isn't shown:
     // the producer sees its work as the Team Lead's (an alias; it keeps its own claims, attribution and log lines).
@@ -65,6 +76,8 @@ export class Coordinator {
         switch (message.type) {
             case "project":
                 this.#project = message.open ? (message.name ?? "untitled") : null
+                this.#notebook = this.#project === null ? null : new Notebook(this.#notebooks, this.#project)
+                this.#startKept = false
                 this.#overview = "none"
                 this.#log.write("project", {open: message.open, name: message.name})
                 this.#maybeOverview()
@@ -98,6 +111,15 @@ export class Coordinator {
                 this.#looks.get(message.id)?.({ok: message.ok, value: message.value})
                 this.#looks.delete(message.id)
                 return
+            case "engine": {
+                this.#log.write("engine", {undone: message.undone})
+                const text = message.undone === null
+                    ? "The audio engine crashed and is restarting. No recent change of ours was the latest, so nothing was undone."
+                    : `The audio engine crashed and is restarting. I undid my last change ("${message.undone}"), the likely cause.`
+                this.say("agent:team_lead", text)
+                this.#members.forEach(member => {if (member instanceof Utility) {member.notice(text)}})
+                return
+            }
         }
     }
 
@@ -163,14 +185,25 @@ export class Coordinator {
             return Promise.resolve(status)
         }
         const request: Apply = {id, from: agent, plan, when, seq, reason}
-        this.#log.write("request", request)
-        return new Promise(resolve => {
+        return this.#keepStart().then(() => new Promise<Status>(resolve => {
+            this.#log.write("request", request)
             this.#requests.set(id, status => {
                 onStatus(status)
                 if (Terminal.includes(status.state)) {resolve(status)}
             })
             this.#send({type: "apply", request})
-        })
+        }))
+    }
+
+    // Before the agents' first edit in a session: the whole project, notes included, as it was, in the notebook.
+    async #keepStart(): Promise<void> {
+        const notebook = this.#notebook
+        if (this.#startKept || notebook === null) {return}
+        this.#startKept = true
+        const snapshot = await this.snapshot("full")
+        if (snapshot === null) {return}
+        notebook.set("start", "state", `The whole project before the agents' first edit this session (${new Date().toISOString()}): ` +
+            `${snapshot.tracks.length} tracks at ${snapshot.timeline.bpm} BPM. A snapshot, notes included.`, JSON.stringify(snapshot))
     }
 
     say(agent: Actor, text: string): void {

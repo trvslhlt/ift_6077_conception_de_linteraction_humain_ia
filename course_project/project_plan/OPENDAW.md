@@ -131,6 +131,31 @@ Source: `app/studio/src/ui/wrapper/RelativeUnitValueDragging.tsx` (knobs), `app/
   Tubular's algorithm 0-based (stored 4 = algorithm 5), its operator detune 0–14 for -7..+7, Vaporisateur's
   `filterOrder` 1–4 for 12/24/36/48 dB. `adapter.setPrintValue("24")` on the filter slope did nothing, without an
   error. Write through `valueMapping` (or the raw value, knowing the offset), then read `getPrintValue()` back.
+- **Ranges are declared, not enforced** (2026-11-07, from the source). Each field of a box schema
+  (`packages/studio/forge-boxes/src/schema/`) declares its constraints, and `Float32Field.constraints` /
+  `Int32Field.constraints` expose them at run time: `{min, max, scaling}`, `{values: [...]}`, `"unipolar"`,
+  `"bipolar"`, `"decibel"`, ... But `Constraints.clampFloat32` and `clampInt32` (`lib/box/src/constraints.ts`) are
+  stubs that return the value unchanged (a TODO), so `field.setValue` stores anything, NaN included. Writing a
+  device's box fields directly can put a value outside its range, and some crash the engine: a Vaporisateur with
+  `resonance` 0 (min 0.01) wrote NaN and stopped the audio. Parameter adapters' `valueMapping.clamp` does respect the
+  range; box fields don't. TakeDo guards scripts' writes (STRATEGY.md, "Never crash the engine").
+- **Tubular takes DX7 panel values** (`forge-boxes/.../TubularDeviceBox.ts`, `adapters/.../Tubular/TubularPreset.ts`).
+  Each of `operators.fields()[0..5]` (OP1..OP6, panel order) has `rate1..4`, `level1..4` (0–99), `outputLevel`,
+  `coarse` (0–31), `fine`, `detune` (0–14, 7 centre), `velocitySens` (0–7), `mode` (0 ratio), `enabled`; the box has
+  `algorithm` (0-based), `feedback` (0–7), `lfo`, `pitchEnvelope`, `transpose`, plus `cutoff`, `resonance`, `volume`
+  (unipolar). `TubularPreset.apply(box, voice)` loads a 155-byte DX7 voice. So classic DX7 patches (an electric piano:
+  algorithm 5, three carrier/modulator pairs, one at 14:1 for the tine) can be programmed by value.
+- **Vaporisateur's ranges that matter** (`VaporisateurDeviceBox.ts`): `cutoff` 20–20000 Hz, `resonance` 0.01–10 (Q;
+  0 crashes), `attack`/`decay`/`release` 0.001–5 s, `sustain` 0–1, `unisonCount` only 1, 3 or 5, `unisonDetune`
+  1–1200 ct, `filterOrder` 1–4; `oscillators` is an array of two (`waveform` 0 sine, 1 triangle, 2 saw, 3 square;
+  `volume` in dB, default -inf; `octave` -3..3); `noise` has `attack`/`hold`/`release` 0.001–5 s and `volume` in dB
+  (vinyl crackle: short noise notes; tape hiss: long ones, filtered).
+- **Step tables.** Delay's `delayMusical` and pre-delays are indices into Off, 1/128, 1/96, 1/64, 1/48, 1/32, 1/24,
+  3/64, 1/16, 1/12, 3/32, 1/8, 1/6, 3/16, 1/4, 5/16, 1/3, 3/8, 7/16, 1/2, 1/1 (`DelayDeviceBoxAdapter.Fractions`);
+  with `delayMusical` 0 the delay is `delayMillis`, and `lfoDepth` (ms) at `lfoSpeed` modulates it (dry -96, wet 0:
+  tape wow). Tidal's `rate` is an index into 1/1, 1/2, 1/3, 1/4, 3/16, 1/6, 1/8, ... 1/128 (index 3 = quarter notes).
+- **Tempo:** `project.timelineBox.bpm.setValue(bpm)` inside a `modify()` changes it during playback, heard at once;
+  stepping it a few BPM every two bars sounded smooth (2026-11-07).
 - **Note names: openDAW calls MIDI 60 "C3"** (its piano roll shows MIDI 64 as E3), one octave below scientific naming
   (C4 = 60). Our sample library follows openDAW's.
 
@@ -286,6 +311,17 @@ Source: `lib/box/src/graph.ts`, `box.ts`, `field.ts`, `primitive.ts`, `pointer-h
 | `boxGraph.subscribeTransaction({onBeginTransaction, onEndTransaction(rolledBack)})` | the start and end of each edit. One user gesture produces many updates; this groups them into one "move" |
 | `boxGraph.subscribeEndTransaction(fn)` | once, at the end of the current transaction |
 | `project.editing.subscribe(fn)` | the undo history changed (edit recorded, undo, redo) |
+
+`subscribeToAllUpdates` listeners are called synchronously as each update happens, inside the transaction, so code
+running in the same `modify()` after a script can see everything the script changed and correct it before the edit
+commits (TakeDo's range guard does).
+
+**When the engine fails** (2026-11-07, `studio/core/src/project/Project.ts` `startAudioWorklet`,
+`app/studio/src/service/StudioService.ts`): the engine worklet dispatches `error` (e.g. "VaporisateurDeviceBox ...
+wrote a non-finite sample"); the project's handler tears that engine down and calls `restart.unload`, which shows an
+"Audio-Engine Error" dialog; on "Restart Engine" it calls `project.startAudioWorklet(restart)` again on the same,
+unchanged project. So a value that crashed the engine crashes the new one too, unless something changes it first.
+`EngineFacade` exposes no error event; TakeDo wraps `project.startAudioWorklet` to act on the restart.
 
 Source: `lib/box/src/graph.ts`, `lib/box/src/editing.ts`.
 

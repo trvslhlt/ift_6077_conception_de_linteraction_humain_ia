@@ -24,7 +24,11 @@ build: builder ## Build the studio, backend and test images (openDAW itself come
 	$(COMPOSE) build
 	@docker image prune -f --filter label=com.docker.compose.project=$(PROJECT) >/dev/null
 
-up: build ## Start the studio and the backend (page/, shared/, backend/src/ live) and wait until healthy
+# The backend reads openDAW's source from here (compose.yaml); copied out of the image once, again after `make clean`.
+$(TYPES_DIR)/packages:
+	$(MAKE) types
+
+up: build $(TYPES_DIR)/packages ## Start the studio and the backend (page/, shared/, backend/src/ live) and wait until healthy
 	mkdir -p sessions
 	$(COMPOSE) up -d --wait studio backend
 	@echo "TakeDo running at $(URL) (New Project, then the floating robot button)"
@@ -48,7 +52,7 @@ shell: ## Shell into the running backend container
 	$(COMPOSE) exec backend sh
 
 test: ROSTER = team
-test: build ## Run the smoke test in headless Chromium against the full team (leaves the backend on it; `make up` goes back)
+test: build $(TYPES_DIR)/packages ## Run the smoke test in headless Chromium against the full team (leaves the backend on it; `make up` goes back)
 	mkdir -p sessions
 	$(COMPOSE) up -d --wait studio backend
 	$(COMPOSE) run --rm smoke

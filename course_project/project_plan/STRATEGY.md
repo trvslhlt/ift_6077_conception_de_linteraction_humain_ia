@@ -60,6 +60,26 @@ Agents never edit the project directly. They send requests to the change bus, an
 The position in the undo history lets an agent see later whether the user undid its edit, which is a
 demonstration signal in itself.
 
+### Never crash the engine (decided 2026-11-07, high priority)
+
+An agent's edit must never stop the music. On 2026-11-07 one did: a script gave a Vaporisateur a filter resonance of
+0 (its minimum is 0.01), the filter wrote NaN, and openDAW's audio engine stopped with an "Audio-Engine Error"
+dialog. openDAW declares every field's range in its box schemas but doesn't enforce it (OPENDAW.md, "Ranges are
+declared, not enforced"), so TakeDo does, in layers:
+
+1. **Every value a script writes is checked inside its edit** (`takedo/page/Guard.ts`), before it commits: a value
+   outside its field's declared range is brought into it, NaN or +Infinity goes back to what the field held before.
+   The script's result lists each correction, so the agent learns the range. Gains declared only as "decibel" are
+   checked for being finite, not capped (openDAW allows boost).
+2. **Fixed operations refuse non-finite values** (a ramp's or set's target, an added effect's settings) and clamp
+   to the parameter's range, as before.
+3. **After a crash, openDAW restarts the engine on the same project**, which would crash again on the same value. On
+   that restart, an agent's script or added effect that is still the latest change is undone first, and the chat
+   and the agent are told. Not yet tested on a real crash.
+
+Still open: crashes from values in range (combinations of settings, a device bug) can't be prevented this way; only
+layer 3 helps there, and only when the agent's edit was the latest change.
+
 ### Keep the open path: anything openDAW can do (goal, 2026-11-06)
 
 The first live experiment (`poc/edit_bench/live/eval.mjs`: Claude Code running JavaScript in the open studio tab over
@@ -93,8 +113,9 @@ can do anything openDAW supports; the roles, Jev, the fixed operations and any m
 cheaper, they don't add capabilities. So no reply says "the team can't do that yet" or "that role isn't on the team":
 a message for an unfilled role (`@composer`, or Jev routing to one) goes to the Team Lead, who does it by hand. The
 only limits are decided ones, in one place (`Limits` in `takedo/backend/src/members.ts`): only openDAW's built-in
-devices the catalog allows (nothing installed from outside), the transport and settings stay the producer's, tracks
-are deleted only when asked. It runs on Haiku: extending three clips took one look, one script and one check, about 9 s. Decided
+devices the catalog allows (nothing installed from outside). Nothing is the producer's by default (decided
+2026-11-07, replacing "the transport and settings stay the producer's, tracks are deleted only when asked"): agents
+work freely with every capability, tempo and transport included. It runs on Haiku: extending three clips took one look, one script and one check, about 9 s. Decided
 with it: the fixed layer stays thin, a read side (snapshot, refs, catalog, changes) plus a few timed, fast
 operations; everything else goes through scripts, and an operation is added only when the wishes show demand.
 The utility also has every member's fixed operations as tools (borrowed from the members, so they're defined
@@ -102,6 +123,34 @@ once), rebuilt from a fresh snapshot each round: a script makes a track, the nex
 tool. Decided against making those operations callable from inside scripts: tool calls are checked before they run
 and readable in the log, and the round trip covers what scripts would add (targets a script just made); revisit if
 the logs show scripts followed by operations on what they made, often.
+
+**Measured against Claude Code working live (2026-11-07, EXPERIMENTS.md, G).** On the same lofi direction, the
+utility on Haiku stopped after a first step; on Opus it stopped at its round limit and re-read the project every
+message. With 30 rounds, one conversation across the session (cached) and edits that answer "scheduled" at once so
+a staged plan is timed from one playhead, Opus did the whole transformation in one reply, for ~$0.50 a direction.
+Claude Code still did better, for reasons in the setup, not the model:
+- **It read openDAW's source** for what the API doesn't say: an instrument's fields and their ranges, Tubular's DX7
+  values, Delay's and Tidal's step tables. The utility should get this as a lookup (box schemas, ranges, enum
+  labels), or the catalog should carry instruments' fields as it carries effects' parameters.
+- **It read the whole starting state before the first edit**, so "put it back" restored every value. TakeDo should
+  keep a snapshot from before an agent's first edit in a session.
+- **It noticed when the transport was stopped**: a staged plan then collapses to one instant. The agent should say
+  so, or hold the plan until playback starts.
+- Decided with it: the utility runs alone (`ROSTER=utility`) until these basics hold; the roles come back one at a
+  time after, and Jev comes back before the roles, once TakeDo works well on the language model alone.
+
+**Built from it (2026-11-07):**
+- **The agent's notebook** (`takedo/backend/src/notebook.ts`): state the agent keeps outside its model context, per
+  project on disk: notes on the conversation and the producer's taste, staged plans and where they stand, clips,
+  sounds it designed, reusable scripts, and the whole project as it was before the agents' first edit of the session
+  ("start", kept automatically). The model sees the list with every message and recalls entries by key, so its
+  conversation can be cleared when it grows (past ~60k tokens), and named things ("the sweep", "the bridge chords")
+  can later be the targets of fast paths (Jev).
+- **Reading openDAW's source** (`takedo/backend/src/source.ts`): `source_search` (a regular expression over the
+  pinned tree's TypeScript and the user manual) and `source_read` (numbered lines), indexed in memory from the tree
+  `make types` copies out of the studio image.
+- First measurement, on Sonnet 5.5: neither was used unprompted (EXPERIMENTS.md, G). Making the agent reach for
+  them is the next step.
 
 ## What agents know
 
