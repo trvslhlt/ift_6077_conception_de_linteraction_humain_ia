@@ -8,10 +8,11 @@ import {
 import {EffectFactories, type EffectFactory, type Project} from "@opendaw/studio-core"
 import type {
     Actor, AddEffectPlan, Apply, BackendToPage, Change, Content, Detail, Device, FailReason, Note, ParamState, Playback, Region,
-    RemoveEffectPlan, Snapshot, Status, Track
+    RemoveEffectPlan, ScriptPlan, Snapshot, Status, Track
 } from "@/takedo_shared/protocol"
 import {numeric, primitives} from "./Catalog"
 import {Clock} from "./Clock"
+import {runLook, runScript, type ScriptEnv, scriptEnv, serialize} from "./Scripting"
 import type {Connection} from "./Connection"
 
 // The page half of the bus (TAKEDO_API.md, "Overview"): the only TakeDo code that touches openDAW. Holds the ref map,
@@ -50,6 +51,8 @@ const print = (parameter: AutomatableParameterFieldAdapter): string => {
 }
 const effectFactory = (name: string): EffectFactory | null =>
     (EffectFactories.AudioNamed as Record<string, EffectFactory>)[name] ?? null
+const errorText = (error: unknown): string =>
+    error instanceof Error ? `${error.name}: ${error.message}` : String(error)
 type Pending = { change: Change, actor: Actor, request?: string, timer: ReturnType<typeof setTimeout> }
 
 export class Adapter implements Terminable {
@@ -70,10 +73,15 @@ export class Adapter implements Terminable {
     #seq = 0
     #revision = 0                                               // every box graph update (UI state included)
     #applying: { actor: Actor, request: string } | null = null  // set around our own writes (origin tagging)
+    #touched: Set<string> | null = null                         // addresses a running script changed
+    #updates = 0                                                // updates a running script made
+    readonly #env: ScriptEnv
 
     constructor(project: Project, connection: Connection) {
         this.#project = project
         this.#connection = connection
+        this.#env = scriptEnv(project, ref => this.#resolve(ref), () => this.snapshot(), () => this.#bar(),
+            position => this.#pos(position))
         this.#terminator.own(connection.subscribeMessages(message => this.#receive(message)))
         this.#terminator.own(project.boxGraph.subscribeToAllUpdates({onUpdate: update => this.#observe(update)}))
         const onHold = (event: Event): void => {
@@ -188,6 +196,11 @@ export class Adapter implements Terminable {
             case "query":
                 this.#connection.send({type: "result", id: message.id, snapshot: this.snapshot(message.detail)})
                 return
+            case "look":
+                runLook(message.code, this.#env)
+                    .then(value => this.#connection.send({type: "looked", id: message.id, ok: true, value: serialize(value)}))
+                    .catch(error => this.#connection.send({type: "looked", id: message.id, ok: false, value: errorText(error)}))
+                return
             case "apply":
                 this.#apply(message.request).catch(error =>
                     this.#status(message.request, {state: "failed", reason: "opendaw_error", detail: String(error)}))
@@ -201,6 +214,7 @@ export class Adapter implements Terminable {
         const {plan} = request
         if (plan.op === "add_effect") {return this.#addEffect(request, plan)}
         if (plan.op === "remove_effect") {return this.#removeEffect(request, plan)}
+        if (plan.op === "script") {return this.#script(request, plan)}
         const param = this.#param(plan.ref)
         if (param === null) {return this.#status(request, {state: "failed", reason: "unknown_ref", detail: plan.ref})}
         const {parameter} = param
@@ -276,6 +290,43 @@ export class Adapter implements Terminable {
         this.#status(request, {state: "applied", result: {ref: plan.ref, label: effect.label}})
     }
 
+    // One edit: rolled back by openDAW if it throws; undone if it changed anything the producer holds.
+    async #script(request: Apply, plan: ScriptPlan): Promise<void> {
+        if (!(await this.#land(request))) {return}
+        this.#touched = new Set()
+        this.#updates = 0
+        let value: unknown
+        try {
+            this.#tagged(request, () => this.#project.editing.modify(() => {value = runScript(plan.code, this.#env)}))
+        } catch (error) {
+            return this.#status(request, {state: "failed", reason: "invalid_args", detail: errorText(error)})
+        } finally {
+            this.#params = null
+        }
+        const touched = this.#touched
+        const updates = this.#updates
+        this.#touched = null
+        if ([...touched].some(address => this.#held.has(address))) {
+            this.#project.editing.undo()
+            return this.#status(request, {state: "dropped", reason: "held", detail: "it changed a control you're holding"})
+        }
+        this.#status(request, {state: "applied",
+            result: {ref: "project", label: plan.description, value: serialize(value), updates}})
+    }
+
+    // A ref as a script sees it: the adapter openDAW's UI uses.
+    #resolve(ref: string): unknown {
+        if (/^r\d+$/.test(ref)) {
+            const key = [...this.#regionRefs].find(([, value]) => value === ref)?.[0]
+            return this.#units().flatMap(unit => unit.tracks.values().flatMap(track => track.regions.collection.asArray()))
+                .find(region => region.address.toString() === key) ?? null
+        }
+        if (/\.fx\d+$/.test(ref)) {
+            return this.#units().flatMap(unit => this.#effects(unit)).find(effect => effect.ref === ref)?.adapter ?? null
+        }
+        return this.#units().find(unit => this.#trackRef(unit) === ref) ?? null
+    }
+
     // Runs an edit tagged as the requesting agent's (origin tagging).
     #tagged<R>(request: Apply, edit: () => R): R {
         this.#applying = {actor: request.from, request: request.id}
@@ -314,7 +365,7 @@ export class Adapter implements Terminable {
     // Reports scheduled and waits for the landing; false (after reporting failed) if it can't land.
     async #land(request: Apply): Promise<boolean> {
         const {engine} = this.#project
-        if (!engine.isPlaying.getValue()) {
+        if (!engine.isPlaying.getValue() || request.when.at === "asap") {
             this.#status(request, {state: "scheduled", landsAt: this.#pos()})
             return true
         }
@@ -334,8 +385,9 @@ export class Adapter implements Terminable {
         return true
     }
 
-    // The next beat or bar at least LeadMs ahead of the playhead, or a given bar. In a loop, a landing past the loop's
-    // end wraps to its start, and a bar outside the loop is refused (the playhead would never reach it).
+    // The next beat or bar at least LeadMs ahead of the playhead, or a given bar; asap is now (nothing waits for it).
+    // In a loop, a landing past the loop's end wraps to its start, and a bar outside the loop is refused (the playhead
+    // would never reach it).
     #landing(request: Apply): Landing {
         const {engine, timelineBox: {loopArea}} = this.#project
         const position = engine.position.getValue()
@@ -351,7 +403,7 @@ export class Adapter implements Terminable {
             if (!looping && at < earliest) {return {error: "too_late", detail: `bar ${when.bar} has passed`}}
             return {at}
         }
-        if (when.at === "asap") {return {at: earliest}}
+        if (when.at === "asap") {return {at: position}}
         const unit = when.unit === "bar" ? this.#bar() : PPQN.Quarter
         const at = Math.ceil(earliest / unit) * unit
         return {at: looping && at >= loopTo ? loopFrom : at}
@@ -365,6 +417,10 @@ export class Adapter implements Terminable {
 
     #observe(update: Update): void {
         this.#revision++
+        if (this.#touched !== null) {
+            this.#updates++
+            if (update instanceof PrimitiveUpdate) {this.#touched.add(update.address.toString())}
+        }
         if (!(update instanceof PrimitiveUpdate)) {
             this.#params = null
             return

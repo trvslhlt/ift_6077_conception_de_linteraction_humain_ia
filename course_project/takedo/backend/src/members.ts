@@ -20,7 +20,7 @@ export type Member = {
     handle(context: Coordinator, task: Task, snapshot: Snapshot): Promise<void>
 }
 
-type Step = { plan: Plan, when: When, says: string }   // says: what it did, for the reply ("Keys muted")
+export type Step = { plan: Plan, when: When, says: string }   // says: what it did, for the reply ("Keys muted")
 
 const MinDb = -60, MaxDb = 6
 const db = (value: number): string => value <= MinDb ? "-inf dB" : `${value > 0 ? "+" : ""}${value.toFixed(1)} dB`
@@ -33,7 +33,10 @@ const slide = (steps: Step[], now: Snapshot): number => {
     if (now.playback.loop.on || !now.playback.playing) {return 0}
     const bars = steps.flatMap(step => step.when.at === "bar" ? [step.when.bar] : [])
     if (bars.length === 0) {return 0}
-    const by = now.playback.bar + 1 - Math.min(...bars)
+    // In the bar's last beat the next downbeat is too close to land on (the adapter keeps a lead), so aim one later.
+    const beat = Number(now.playback.pos.split(".")[1] ?? 1)
+    const first = now.playback.bar + (beat >= now.timeline.signature[0] ? 2 : 1)
+    const by = first - Math.min(...bars)
     if (by <= 0) {return 0}
     steps.forEach(step => {if (step.when.at === "bar") {step.when = {at: "bar", bar: step.when.bar + by}}})
     return by
@@ -62,6 +65,23 @@ const carryOut = async (context: Coordinator, member: Member, steps: Step[], sna
         context.say(member.agent, `${results.join("; ")}.${slid > 0 ? ` (${slid} bar${slid > 1 ? "s" : ""} later than planned: the playhead moved on while I planned.)` : ""}`)
     } finally {
         context.release(member.agent, targets)
+    }
+}
+
+// One step on its own, for a member that reports back to its model rather than the chat (the utility): claim, slide if
+// late, request, release. Returns what happened, as the reply would say it.
+export const performStep = async (context: Coordinator, agent: Actor, step: Step, reason: string): Promise<string> => {
+    const now = await context.snapshot()
+    const slid = now === null ? 0 : slide([step], now)
+    const claimed = context.claim(agent, [target(step.plan)], reason)
+    if (!claimed.ok) {return `${step.says}: not done, ${claimed.holder.replace("agent:", "")} is working on it`}
+    try {
+        let landsAt = ""
+        const status = await context.request(agent, step.plan, step.when, now?.at.seq ?? 0, reason,
+            update => {landsAt = update.landsAt ?? landsAt})
+        return `${describe(step, status, landsAt)}${slid > 0 ? ` (${slid} bar${slid > 1 ? "s" : ""} later than planned)` : ""}`
+    } finally {
+        context.release(agent, [target(step.plan)])
     }
 }
 
@@ -110,7 +130,7 @@ export const projectFor = (snapshot: Snapshot, withParams: boolean) => ({
         effects: snapshot.master.effects.map(effect => ({ref: effect.ref, device: effect.key, name: effect.name}))}
 })
 
-abstract class LlmMember implements Member {
+export abstract class LlmMember implements Member {
     abstract readonly agent: Actor
     abstract readonly role: string
     abstract readonly name: string
@@ -119,12 +139,12 @@ abstract class LlmMember implements Member {
     readonly wantsHints: boolean = false
 
     abstract may(plan: Plan): boolean
-    protected abstract tools(snapshot: Snapshot): Anthropic.Tool[]
+    abstract tools(snapshot: Snapshot): Anthropic.Tool[]
     // A tool call → a step, or why it can't be one.
-    protected abstract step(name: string, input: Record<string, unknown>, snapshot: Snapshot): Step | string
-    protected context(_snapshot: Snapshot): object {return {}}
+    abstract step(name: string, input: Record<string, unknown>, snapshot: Snapshot): Step | string
+    context(_snapshot: Snapshot): object {return {}}
     // Answers a lookup tool (information, not an edit); null for the plan's own tools.
-    protected lookup(_name: string, _input: Record<string, unknown>): string | null {return null}
+    lookup(_name: string, _input: Record<string, unknown>): string | null {return null}
     protected withParams = false
 
     async handle(context: Coordinator, task: Task, snapshot: Snapshot): Promise<void> {
@@ -188,7 +208,7 @@ export class MixEngineer extends LlmMember {
             says: `${label} ${hints.change}: ${db(from)} → ${db(to)}`}], snapshot, `${hints.change} ${label}`)
     }
 
-    protected tools(snapshot: Snapshot): Anthropic.Tool[] {
+    tools(snapshot: Snapshot): Anthropic.Tool[] {
         const tracks = ["master", ...snapshot.tracks.map(track => track.ref)]
         return [
             tool("volume", "Set or ramp a track's (or the master's) volume.", {
@@ -200,7 +220,7 @@ export class MixEngineer extends LlmMember {
         ]
     }
 
-    protected step(name: string, input: Record<string, unknown>, snapshot: Snapshot): Step | string {
+    step(name: string, input: Record<string, unknown>, snapshot: Snapshot): Step | string {
         const track = String(input.track), beats = Number(input.over_beats), bar = Number(input.at_bar)
         if (name === "volume") {
             const to = Math.min(MaxDb, Math.max(MinDb, Number(input.to_db)))
@@ -227,12 +247,12 @@ export class Arranger extends LlmMember {
 
     may(plan: Plan): boolean {return plan.op === "set" && /^t\d+\.mix\.mute$/.test(plan.ref)}
 
-    protected tools(snapshot: Snapshot): Anthropic.Tool[] {
+    tools(snapshot: Snapshot): Anthropic.Tool[] {
         return [tool("mute", "Mute or unmute a track from a bar on. To drop a part for a while, mute it at one bar and unmute it at a later one.", {
             track: {type: "string", enum: snapshot.tracks.map(track => track.ref)}, muted: {type: "boolean"}, at_bar: AtBar})]
     }
 
-    protected step(name: string, input: Record<string, unknown>, snapshot: Snapshot): Step | string {
+    step(name: string, input: Record<string, unknown>, snapshot: Snapshot): Step | string {
         if (name !== "mute") {return `unknown tool ${name}`}
         const track = String(input.track), muted = input.muted === true
         return {plan: {op: "set", ref: `${track}.mix.mute`, to: muted ? 1 : 0}, when: whenFor(Number(input.at_bar)),
@@ -272,14 +292,14 @@ export class EffectDesigner extends LlmMember {
     }
 
     // What it can add and what each sounds like; parameters only for the effects it looks up (effect_params).
-    protected context(_snapshot: Snapshot): object {
+    context(_snapshot: Snapshot): object {
         return {effects_you_can_add: Object.fromEntries(this.#choices().map(device => {
             const notes = this.#catalog.summary(device.key)
             return [device.key, {name: device.name, brief: device.brief, sound: notes?.sound, words: notes?.words}]
         }))}
     }
 
-    protected lookup(name: string, input: Record<string, unknown>): string | null {
+    lookup(name: string, input: Record<string, unknown>): string | null {
         if (name !== "effect_params") {return null}
         const device = this.#catalog.device(String(input.effect))
         if (device === null) {return `No effect ${String(input.effect)}.`}
@@ -287,7 +307,7 @@ export class EffectDesigner extends LlmMember {
             `${param.name}: ${param.range[0]} to ${param.range[1]} (shows ${param.min} to ${param.max}), default ${param.value}`])))
     }
 
-    protected tools(snapshot: Snapshot): Anthropic.Tool[] {
+    tools(snapshot: Snapshot): Anthropic.Tool[] {
         const tracks = ["master", ...snapshot.tracks.map(track => track.ref)]
         const effects = [...snapshot.tracks.flatMap(track => track.effects), ...snapshot.master.effects]
         const params = effects.flatMap(effect => effect.params ?? []).map(param => param.ref)
@@ -310,7 +330,7 @@ export class EffectDesigner extends LlmMember {
         return tools
     }
 
-    protected step(name: string, input: Record<string, unknown>, snapshot: Snapshot): Step | string {
+    step(name: string, input: Record<string, unknown>, snapshot: Snapshot): Step | string {
         const bar = Number(input.at_bar)
         if (name === "add_effect") {
             const device = this.#catalog.device(String(input.effect))
@@ -340,4 +360,4 @@ export class EffectDesigner extends LlmMember {
     }
 }
 
-export const createTeam = (catalog: Catalog): Member[] => [new MixEngineer(), new Arranger(), new EffectDesigner(catalog)]
+export const createTeam = (catalog: Catalog): LlmMember[] => [new MixEngineer(), new Arranger(), new EffectDesigner(catalog)]

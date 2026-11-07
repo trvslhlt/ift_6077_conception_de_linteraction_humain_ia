@@ -9,6 +9,7 @@ import {createTeam, type Member, type Task} from "./members.ts"
 import {isRole, type Role, Roster, route} from "./router.ts"
 import type {SessionLog} from "./sessionLog.ts"
 import {lead, writeOverview} from "./teamLead.ts"
+import {Utility} from "./utility.ts"
 
 // The backend half of the bus (TAKEDO_API.md, "Overview"), one per connected page: claims, plans, chat, routing.
 // Talks to the page's adapter for state (snapshot queries) and to apply plans.
@@ -24,6 +25,7 @@ export class Coordinator {
     readonly #claims = new Map<string, { holder: Actor, until: number }>()
     readonly #queries = new Map<number, (snapshot: Snapshot | null) => void>()
     readonly #requests = new Map<string, (status: Status) => void>()
+    readonly #looks = new Map<number, (result: { ok: boolean, value: string }) => void>()
     readonly #members: ReadonlyArray<Member>
     #nextQuery = 0
     #project: string | null = null
@@ -35,16 +37,19 @@ export class Coordinator {
         this.#gateway = gateway
         this.#catalog = catalog
         this.#log = log
-        this.#members = createTeam(catalog)
+        const team = createTeam(catalog)
+        this.#members = [...team, new Utility(team)]
     }
 
     get gateway(): Gateway {return this.#gateway}
 
-    // Tells the page who's on the team (the Team Lead first), for mentions and autocomplete.
+    // Tells the page who's on the team (the Team Lead first), for mentions and autocomplete. The utility isn't shown:
+    // the producer sees its work as the Team Lead's (an alias; it keeps its own claims, attribution and log lines).
     start(): void {
-        this.#send({type: "team", members: [
-            {role: "team_lead", name: "Team lead", area: "the front door: splits a direction among the team"},
-            ...this.#members.map(({role, name, area, can}) => ({role, name, area: `${area}. So far: ${can}`}))]})
+        this.#send({type: "team", aliases: {"agent:utility": "agent:team_lead"}, members: [
+            {role: "team_lead", name: "Team lead", area: "the front door: hands your direction to the team, and does what nobody else can yet"},
+            ...this.#members.filter(member => member.role !== "utility")
+                .map(({role, name, area, can}) => ({role, name, area: `${area}. So far: ${can}`}))]})
     }
 
     receive(message: PageToBackend): void {
@@ -80,6 +85,10 @@ export class Coordinator {
             case "change":
                 this.#change(message.event)
                 return
+            case "looked":
+                this.#looks.get(message.id)?.({ok: message.ok, value: message.value})
+                this.#looks.delete(message.id)
+                return
         }
     }
 
@@ -93,6 +102,19 @@ export class Coordinator {
                 resolve(snapshot)
             })
             this.#send({type: "query", id, query: "snapshot", detail})
+        })
+    }
+
+    // Runs read-only JavaScript in the page (the open path's look); resolves with its JSON result or its error.
+    look(agent: Actor, code: string): Promise<{ ok: boolean, value: string }> {
+        const id = ++this.#nextQuery
+        this.#log.write("look", {agent, code})
+        return new Promise(resolve => {
+            this.#looks.set(id, result => {
+                this.#log.write("look", {agent, ok: result.ok, value: result.value.slice(0, 500)})
+                resolve(result)
+            })
+            this.#send({type: "look", id, code})
         })
     }
 

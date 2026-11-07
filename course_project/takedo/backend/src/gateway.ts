@@ -102,6 +102,12 @@ export class Gateway {
         return {calls, text: texts.join(" ").trim()}
     }
 
+    // One turn of a conversation the caller keeps (a tool loop it runs itself, e.g. the utility's look-and-try).
+    turn(job: string, system: string, messages: Anthropic.MessageParam[], tools: Anthropic.Tool[], log: ModelLog,
+         agent?: string): Promise<Anthropic.Message> {
+        return this.#create(job, {system, messages, tools}, log, agent)
+    }
+
     async #create(job: string, params: Pick<Anthropic.MessageCreateParamsNonStreaming, "system" | "messages" | "tools">,
                   log: ModelLog, agent?: string, format?: Anthropic.JSONOutputFormat): Promise<Anthropic.Message> {
         const config = this.#job(job, "anthropic")

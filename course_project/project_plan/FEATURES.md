@@ -35,7 +35,7 @@ abstract and get a concrete instance per session: a *musician* role played as a 
 
 | Role | Does |
 |---|---|
-| **Team lead** | The front door, and only that. The producer's default partner in the chat: understands the request, passes it to the right members, and reports back. Does no musical work and doesn't manage the others' work (members coordinate among themselves; TakeDoAPI, Team), so it stays quick to answer. Always shown. |
+| **Team lead** | The front door. The producer's default partner in the chat: understands the request, passes it to the right members, and reports back. Doesn't manage the others' work (members coordinate among themselves; TakeDoAPI, Team), so it stays quick to answer. Always shown. What no member can do yet, it does itself, as the producer sees it: inside, that's a separate utility role (scripts against openDAW, takedo/backend/src/utility.ts) shown under the Team Lead's name and card, so the Team Lead's own reply isn't held up. |
 | *Writing* | |
 | Composer | Music-theoretical decisions and note choice: harmony, melody, voicing. |
 | Bass programmer | The bass line: its notes, rhythm against the kick, and its sound. |

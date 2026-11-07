@@ -1,9 +1,10 @@
 {
-  "//": "Which provider and model does each job (project_plan/ARCHITECTURE.md, 'The model is a setting'). model null: the provider's default. Claude jobs use Haiku 5.5 at low effort, the cheapest that did these jobs well (poc/llm_bench, round three).",
+  "//": "Which provider and model does each job (project_plan/ARCHITECTURE.md, 'The model is a setting'). model null: the provider's default. Claude jobs use Haiku 5.5 at low effort, the cheapest that did these jobs well (poc/llm_bench, round three); the utility writes code against openDAW, untested on Haiku until 2026-11-06.",
   "jobs": {
     "fast_path": {"provider": "typesafe", "model": null},
     "overview": {"provider": "anthropic", "model": "claude-haiku-5-5", "effort": "low", "maxTokens": 4000},
     "team_lead": {"provider": "anthropic", "model": "claude-haiku-5-5", "effort": "low", "maxTokens": 4000},
-    "member": {"provider": "anthropic", "model": "claude-haiku-5-5", "effort": "low", "maxTokens": 6000}
+    "member": {"provider": "anthropic", "model": "claude-haiku-5-5", "effort": "low", "maxTokens": 6000},
+    "utility": {"provider": "anthropic", "model": "claude-haiku-5-5", "effort": "low", "maxTokens": 8000}
   }
 }

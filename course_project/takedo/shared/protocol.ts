@@ -5,7 +5,7 @@
 // Shared by the page (Vite, mounted at src/takedo_shared) and the backend (Node, run with type stripping), so this
 // directory holds erasable TypeScript only: types and plain functions, no enums, no parameter properties.
 
-export const ProtocolVersion = 4
+export const ProtocolVersion = 5
 export const SocketPath = "/takedo"
 
 // ---------- TakeDoAPI subset ----------
@@ -64,11 +64,15 @@ export type SetPlan = { op: "set", ref: string, to: number }
 export type AddEffectPlan = { op: "add_effect", track: string, device: string, factory: string,
     settings: Array<{ param: string, value: number }> }
 export type RemoveEffectPlan = { op: "remove_effect", ref: string }
-export type Plan = RampPlan | SetPlan | AddEffectPlan | RemoveEffectPlan
+// The open path (STRATEGY.md, "Keep the open path"): a function body run with `takedo` in scope inside one edit (one
+// undo step, attributed); it may return a JSON-able value. Rolled back if it throws, undone if it touched a held control.
+export type ScriptPlan = { op: "script", code: string, description: string }
+export type Plan = RampPlan | SetPlan | AddEffectPlan | RemoveEffectPlan | ScriptPlan
 export type Apply = { id: string, from: Actor, plan: Plan, when: When, seq: number, reason?: string }
 
 // What a plan changes, for claims: a parameter, an effect, or a track's effect chain (adding to it).
-export const target = (plan: Plan): string => plan.op === "add_effect" ? `${plan.track}.effects` : plan.ref
+export const target = (plan: Plan): string =>
+    plan.op === "add_effect" ? `${plan.track}.effects` : plan.op === "script" ? "project.script" : plan.ref
 
 export type FailReason = "invalid_args" | "unknown_ref" | "not_allowed" | "held" | "out_of_range"
     | "value_not_taken" | "too_late" | "too_large" | "conflict" | "stale" | "opendaw_error"
@@ -76,7 +80,8 @@ export type Status = {
     request: string, t: number, pos: string
     state: "scheduled" | "queued" | "applied" | "dropped" | "failed"
     landsAt?: string
-    result?: { ref: string, label: string, from?: number, to?: number, device?: Device }  // device: one just added
+    // device: one just added. value: what a script returned; updates: how many changes it made.
+    result?: { ref: string, label: string, from?: number, to?: number, device?: Device, value?: string, updates?: number }
     reason?: FailReason
     detail?: string
 }
@@ -107,15 +112,18 @@ export type PageToBackend =
     | { type: "result", id: number, snapshot: Snapshot | null }   // answer to a query; null: no project open
     | { type: "status", status: Status }
     | { type: "change", event: ChangeEvent }
+    | { type: "looked", id: number, ok: boolean, value: string }   // a look's result (JSON, truncated) or its error
 
 export type BackendToPage =
     | { type: "welcome", session: string, protocol: number, startedAt: string }
     | { type: "pong", id: number, sent: number }          // sent: echoed back unchanged
     | { type: "query", id: number, query: "snapshot", detail: Detail }
+    | { type: "look", id: number, code: string }          // read-only JavaScript, an async function body, `takedo` in scope
     | { type: "apply", request: Apply }
     | { type: "chat", line: ChatLine }
     | { type: "card", card: MemberCard }
-    | { type: "team", members: TeamMember[] }
+    // aliases: agents the producer sees as another (the utility appears as the Team Lead; FEATURES.md, "The team")
+    | { type: "team", members: TeamMember[], aliases: Record<string, Actor> }
     | { type: "overview", state: "writing" } | { type: "overview", state: "done", overview: Overview }
     | { type: "overview", state: "failed", detail: string }
     | { type: "error", detail: string }

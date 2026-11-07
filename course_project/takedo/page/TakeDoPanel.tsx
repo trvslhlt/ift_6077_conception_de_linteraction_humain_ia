@@ -149,29 +149,34 @@ export const TakeDoPanel = ({lifecycle, service, visible}: Construct): HTMLEleme
     }
     status.append(document.createTextNode(""), session, " · ", ping, " ", roundTrip)
 
+    // Agents the producer sees as another (the utility as the Team Lead): shown under that name and in its card.
+    let aliases: Record<string, string> = {}
+    const shown = (actor: string): string => aliases[actor] ?? actor
     const addLine = (line: ChatLine): void => {
         const fromUser = line.from === "user"
         chat.append(
-            <li data-from={line.from} style={{alignSelf: fromUser ? "flex-end" : "flex-start", maxWidth: "80%",
+            <li data-from={line.from} data-shown={shown(line.from)} style={{alignSelf: fromUser ? "flex-end" : "flex-start", maxWidth: "80%",
                 padding: "0.5em 0.75em", borderRadius: "8px", fontSize: "15px", lineHeight: "1.45",
                 background: fromUser ? "rgba(36, 65, 74, 0.95)" : "rgba(42, 47, 53, 0.95)"}}>
-                <div style={{fontSize: "11px", opacity: "0.7", marginBottom: "2px"}}>{speaker(line.from)}</div>
+                <div style={{fontSize: "11px", opacity: "0.7", marginBottom: "2px"}}>{speaker(shown(line.from))}</div>
                 <div>{withMentions(line.text, team)}</div>
             </li>
         )
         chat.scrollTop = chat.scrollHeight
     }
     const showCard = (card: MemberCard): void => {
-        const id = card.agent.replace(/[^a-z_]/g, "")
+        const agent = shown(card.agent)
+        const name = agent === card.agent ? card.name : speaker(agent).replace(/^./, letter => letter.toUpperCase())
+        const id = agent.replace(/[^a-z_]/g, "")
         const element: HTMLElement = (
-            <div data-testid={`takedo-card-${id}`} data-agent={card.agent}
+            <div data-testid={`takedo-card-${id}`} data-agent={agent} data-actual={card.agent}
                  style={{flex: "1 1 45%", padding: "0.5em", border: "1px solid #444", borderRadius: "6px",
                      background: "rgba(22, 25, 29, 0.95)"}}>
-                <div style={{fontWeight: "bold"}}>{card.name}</div>
+                <div style={{fontWeight: "bold"}}>{name}</div>
                 <div data-testid="takedo-card-doing" style={{fontSize: "11px"}}>{card.doing}</div>
             </div>
         )
-        const existing = cards.querySelector(`[data-agent="${card.agent}"]`)
+        const existing = cards.querySelector(`[data-agent="${agent}"]`)
         if (existing === null) {cards.append(element)} else {existing.replaceWith(element)}
     }
 
@@ -184,6 +189,7 @@ export const TakeDoPanel = ({lifecycle, service, visible}: Construct): HTMLEleme
         if (message.type === "overview") {overview.show(message)}
         if (message.type === "team") {
             team = message.members
+            aliases = message.aliases
             composer.refresh()
         }
     }))

@@ -186,8 +186,9 @@ try {
     await page.getByTestId("takedo-input").fill("")
     await page.getByTestId("takedo-input").pressSequentially("@")
     const options = await page.getByTestId("takedo-mention-option").evaluateAll(items => items.map(item => item.dataset.role))
-    check("@ lists the team", ["team_lead", "mix_engineer", "arranger", "effect_designer"].every(role => options.includes(role)),
-        options.join(", "))
+    check("@ lists the team, without the utility",
+        ["team_lead", "mix_engineer", "arranger", "effect_designer"].every(role => options.includes(role))
+            && !options.includes("utility"), options.join(", "))
     await page.getByTestId("takedo-input").pressSequentially("ar")
     const narrowed = await page.getByTestId("takedo-mention-option").evaluateAll(items => items.map(item => item.dataset.role))
     await page.getByTestId("takedo-input").press("Tab")
@@ -231,11 +232,35 @@ try {
         await volume("Drums") < drumsBeforeLead - 0.5 && keysAfterLead.includes("Delay"),
         `${led.ms} ms: "${led.text}"`)
 
-    // Asked for something in a role's area that isn't built: the Team Lead names the role and says it isn't built yet.
-    const unbuilt = await say("@team_lead keep extending the clips so we can work on it indefinitely", ["team_lead"])
-    check("@team_lead: an unbuilt operation is named as such, with its role",
-        /arranger/i.test(unbuilt.text) && /(isn.t|not) (built|available) yet|not built|yet/i.test(unbuilt.text),
-        `"${unbuilt.text}"`)
+    // The open path: something no member has an operation for goes to the utility, which does it with a script.
+    const extended = await say("@team_lead extend all the clips so they run for 16 bars", ["team_lead", "utility"], 120000)
+    const ends = (await page.evaluate(() => window.takedo.adapter.snapshot().tracks.map(track => [track.name, track.bars?.to ?? 0])))
+    check("@team_lead → utility: every clip extended to 16 bars by script",
+        ends.every(([, to]) => to >= 16), `${ends.map(([name, to]) => `${name} to bar ${to}`).join(", ")} in ${extended.ms} ms: "${extended.text}"`)
+    const utilityShown = await memberLines("utility").last().evaluate(line =>
+        ({speaker: line.firstElementChild.textContent, shownAs: line.dataset.shown}))
+    const chatText = await page.getByTestId("takedo-chat").textContent()
+    check("the utility appears as the Team Lead, never by name",
+        utilityShown.speaker === "team lead" && !/utility/i.test(chatText.replace(/@utility/g, "")),
+        `shown as "${utilityShown.speaker}"`)
+    // Script and fixed operation together: a script makes a track, the next round fades it in with the mix engineer's
+    // volume tool (which a script can't do: it changes things at one instant).
+    const made = await say("@utility add a new Vaporisateur track called Lead with a bar of notes at -30 dB, then fade it up to 0 dB over 8 beats",
+        ["utility"], 120000)
+    const lead = await track("Lead")
+    check("@utility: a scripted track, faded in by a fixed operation",
+        lead !== undefined && lead.mix.volume > -1, `${lead === undefined ? "no Lead track" : `Lead at ${lead.mix.volume.toFixed(1)} dB`} in ${made.ms} ms: "${made.text}"`)
+
+    // A script that changes a control the producer holds is undone, whatever the code does.
+    await page.evaluate(() =>
+        document.dispatchEvent(new CustomEvent("parameter-hold", {detail: {parameter: window.__drumsVolume, held: true}})))
+    const heldScriptBefore = await volume("Drums")
+    const heldScript = await say("@utility with a script, set the Drums volume to -20 dB", ["utility"], 120000)
+    check("@utility: a script touching a held control is undone",
+        await volume("Drums") === heldScriptBefore, `${heldScriptBefore} → ${await volume("Drums")} dB: "${heldScript.text}"`)
+    await page.evaluate(() =>
+        document.dispatchEvent(new CustomEvent("parameter-hold", {detail: {parameter: window.__drumsVolume, held: false}})))
+
     if (process.env.SCREENSHOT) {await page.screenshot({path: process.env.SCREENSHOT})}
 
     // A hidden tab: animation frames stop, so landing and ramping must not depend on them (page/Clock.ts).

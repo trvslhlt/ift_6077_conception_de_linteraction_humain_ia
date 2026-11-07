@@ -70,6 +70,8 @@ API keys go in `.env` (git-ignored, and never in a build context): `TYPESAFE_API
     status replies), and change events (a gesture folded into one, tagged user or agent)
   - `Catalog.ts`: generates the catalog's openDAW half by creating, reading and deleting every device in the open
     project (from poc/edit_bench); `window.takedo.debug.catalog()`
+  - `Scripting.ts`: the open path's environment: what a script or look gets as `takedo` (the project, openDAW's
+    libraries, refs, bar arithmetic, the snapshot), also as plain names; results serialized for the model
   - `Mentions.tsx`: @mentions: the autocomplete list (opens on "@", from the backend's team roster; arrows, Tab or
     Enter, Escape), and mentions styled in chat lines and in the input while typing (a mirror under transparent text)
   - `Connection.ts`: the page's end of the socket: hello, ping, reconnects with backoff
@@ -88,6 +90,11 @@ API keys go in `.env` (git-ignored, and never in a build context): `TYPESAFE_API
     pan; "quieter"/"louder" with Jev's hints is code alone), the arranger (mutes at bars) and the effect designer
     (adds, removes, sets and ramps audio effects, chosen from the catalog) plan with one Claude call each, strict
     tools limited to their area (as in `poc/llm_bench`)
+  - `utility.ts`: the utility, the open path (STRATEGY.md, "Keep the open path"): whatever no member has an operation
+    for, done with JavaScript in the page in a look-and-try loop (read-only looks, scripts as one undoable edit each,
+    results or errors fed back, up to 8 rounds). The producer never sees it by name: the page shows its lines and card
+    as the Team Lead's (the backend's team roster sends the alias and leaves it out of @mentions). Has every member's fixed operations as tools (for timing, ramps
+    and checks), rebuilt from a fresh snapshot each round
   - `teamLead.ts`: the Team Lead's language-model work: the overview (one Claude call on the full snapshot plus the
     analysis and catalog), and splitting a direction among the members (structured output, with the roster and
     what nobody on the team can do)
@@ -134,6 +141,12 @@ API keys go in `.env` (git-ignored, and never in a build context): `TYPESAFE_API
   1–3 s; the effect designer reads ~8k tokens (the catalog's effects with their parameters), the others ~1–1.5k.
   Direction to edit is 4–7 s, so "the next bar" usually lands a bar or two later than the model chose.
 
+- 2026-11-06: the open path. `@team_lead extend all the clips so they run for 16 bars` went to the utility (and was
+  logged as an arranger wish); on Haiku it looked at the regions, set their lengths in one script, checked and
+  reported, in 9 s. A script that set the volume of a fader the producer was holding was undone, and it said why.
+  Script plus fixed operation: "add a track called Lead at -30 dB, then fade it up over 8 beats" made the track in
+  a script and faded it with the volume tool the next round, in about 20 s.
+
 Known gaps in what's built:
 
 - **Ramps are value writes every 10 ms, not automation**, applied the way a knob drag is (one undo step). So a
@@ -152,6 +165,9 @@ Known gaps in what's built:
   which areas nobody covers.
 - **Planning delay shows as lateness:** a plan made for "the next bar" slides by the bars that passed while it was
   planned, and the reply says so. Preparing ahead (STRATEGY.md) isn't built.
+- **Scripts are reported as one opaque edit:** the change stream carries their value changes, not regions or notes
+  they add or move. They're only as safe as their checks: rolled back if they throw, undone if they touched a held
+  control; nothing stops a script from deleting a track if the model decides to (the prompt forbids it).
 - **Added and removed effects aren't change events yet** (only value changes are), and their undo is per step.
 - **Changes reach the backend and the log, but no member reacts to them yet** (triggers, `diff`).
 - **The overview describes a device by its catalog notes, not by its settings:** it says what a Tubular typically

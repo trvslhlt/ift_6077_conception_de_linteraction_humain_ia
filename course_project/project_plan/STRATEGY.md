@@ -84,6 +84,17 @@ The likely shape, to design when we build it:
 - Open: whether scripts may touch anything (devices off limits, settings, the timeline) or only the project; speed
   (a script plan is slow-tier, seconds); how the producer sees what a script did.
 
+Built (2026-11-06) as the **utility** role (`takedo/backend/src/utility.ts`): the Team Lead gives it whatever no
+member has an operation for, and logs the gap as that role's wish, so recurring scripts point at the next fixed
+operation. It runs on Haiku: extending three clips took one look, one script and one check, about 9 s. Decided
+with it: the fixed layer stays thin, a read side (snapshot, refs, catalog, changes) plus a few timed, fast
+operations; everything else goes through scripts, and an operation is added only when the wishes show demand.
+The utility also has every member's fixed operations as tools (borrowed from the members, so they're defined
+once), rebuilt from a fresh snapshot each round: a script makes a track, the next round fades it in with the volume
+tool. Decided against making those operations callable from inside scripts: tool calls are checked before they run
+and readable in the log, and the round trip covers what scripts would add (targets a script just made); revisit if
+the logs show scripts followed by operations on what they made, often.
+
 ## What agents know
 
 The contracts are specified in [TAKEDO_API.md](TAKEDO_API.md). Agents never see openDAW's API. What they know comes from the **TakeDoAPI**, the project's human-agent
@@ -184,6 +195,12 @@ took to describe a project musically, stylistically and technically (FEATURES.md
 written "from now on" plays again from the loop's start, so a lasting change ("the kick is too loud") comes back.
 TakeDo's first operation therefore writes values, like a knob drag (takedo/README.md), and refuses parameters that
 have a lane. Which changes are value writes and which are automation, per mode, is to decide later.
+
+**Loop mode, decided (2026-11-06):** a lasting change is a live value write (what every operation does now);
+automation is for changes meant to repeat with the loop ("open the filter over the second half every pass", "drop
+the hats in bar 4 of each pass"), and for parameters that already have a lane, which need their lane edited (not
+built; refused for now). Live values aren't on the timeline, so keeping the performance (FEATURES.md,
+"Timeline-first") will need recording takes, not automation. Non-loop mode is still open.
 
 - **Agents change parameters by writing automation, not by setting values.** Automation is project data the user
   can see and edit, the engine plays ramps exactly with no per-frame writes from us, and it avoids openDAW turning off
