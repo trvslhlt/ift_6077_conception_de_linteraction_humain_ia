@@ -3,7 +3,7 @@ import {Lifecycle, ObservableValue, Terminator} from "@opendaw/lib-std"
 import {PPQN} from "@opendaw/lib-dsp"
 import {AudioUnitBoxAdapter, InstrumentFactories, type InstrumentFactory} from "@opendaw/studio-adapters"
 import type {StudioService} from "@/service/StudioService"
-import type {Adapter as AdapterType} from "./Adapter"
+import type {Activity, Adapter as AdapterType} from "./Adapter"
 import {Adapter} from "./Adapter"
 import {type CatalogResult, generateCatalog} from "./Catalog"
 import {Connection, type ConnectionState} from "./Connection"
@@ -164,6 +164,17 @@ export const TakeDoPanel = ({lifecycle, service, visible}: Construct): HTMLEleme
         )
         chat.scrollTop = chat.scrollHeight
     }
+    // Each card: what the member says it's doing, and its edits with where each one is (waiting for a bar, under
+    // way, done, not done), live from the page's adapter, so a wait or a refusal shows instead of silence.
+    const activities = new Map<string, HTMLElement>()       // shown agent → its edits list, kept across card updates
+    const activityOf = (agent: string): HTMLElement => {
+        const existing = activities.get(agent)
+        if (existing !== undefined) {return existing}
+        const list: HTMLElement = <ul data-testid="takedo-card-activity"
+                                      style={{listStyle: "none", margin: "0.3em 0 0", padding: "0", fontSize: "11px"}}/>
+        activities.set(agent, list)
+        return list
+    }
     const showCard = (card: MemberCard): void => {
         const agent = shown(card.agent)
         const name = agent === card.agent ? card.name : speaker(agent).replace(/^./, letter => letter.toUpperCase())
@@ -174,10 +185,36 @@ export const TakeDoPanel = ({lifecycle, service, visible}: Construct): HTMLEleme
                      background: "rgba(22, 25, 29, 0.95)"}}>
                 <div style={{fontWeight: "bold"}}>{name}</div>
                 <div data-testid="takedo-card-doing" style={{fontSize: "11px"}}>{card.doing}</div>
+                {activityOf(agent)}
             </div>
         )
         const existing = cards.querySelector(`[data-agent="${agent}"]`)
         if (existing === null) {cards.append(element)} else {existing.replaceWith(element)}
+    }
+    const MaxActivity = 6
+    const stateText = ({status}: Activity): [string, string] => {
+        switch (status.state) {
+            case "scheduled": return [`waits for ${status.landsAt ?? "its bar"}`, "#d8b45a"]
+            case "queued": return ["waits: you're holding a control", "#d8b45a"]
+            case "running": return ["under way", "#7fc8f8"]
+            case "applied": return ["done", "#7fbf7f"]
+            case "dropped": return ["not done: you're holding it", "#e08080"]
+            case "failed": return [`not done: ${status.detail ?? status.reason ?? "failed"}`, "#e08080"]
+        }
+    }
+    const showActivity = (activity: Activity): void => {
+        const agent = shown(activity.request.from)
+        if (!activities.has(agent)) {showCard({agent: activity.request.from, name: speaker(agent), doing: ""})}
+        const list = activityOf(agent)
+        const [text, color] = stateText(activity)
+        const row: HTMLElement = (
+            <li data-request={activity.request.id} data-state={activity.status.state}>
+                <span style={{color, fontWeight: "bold"}}>●</span> {activity.label}: <span style={{color}}>{text}</span>
+            </li>
+        )
+        const existing = list.querySelector(`[data-request="${activity.request.id}"]`)
+        if (existing === null) {list.prepend(row)} else {existing.replaceWith(row)}
+        while (list.children.length > MaxActivity) {list.lastElementChild?.remove()}
     }
 
     lifecycle.own(connection.subscribe(show))
@@ -207,7 +244,9 @@ export const TakeDoPanel = ({lifecycle, service, visible}: Construct): HTMLEleme
         handle.adapter = null
         overview.clear()
         optProfile.ifSome(({project}) => {
-            handle.adapter = projectRuntime.own(new Adapter(project, connection))
+            const adapter = projectRuntime.own(new Adapter(project, connection))
+            projectRuntime.own(adapter.subscribeActivity(showActivity))
+            handle.adapter = adapter
         })
         announce()
     }))

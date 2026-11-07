@@ -1,5 +1,5 @@
 import type Anthropic from "@anthropic-ai/sdk"
-import {type Actor, type Plan, type Snapshot, type Status, target, type When} from "../../shared/protocol.ts"
+import {type Actor, type Device, type Plan, type Snapshot, type Status, target, type When} from "../../shared/protocol.ts"
 import type {Catalog} from "./catalog.ts"
 import type {Coordinator} from "./coordinator.ts"
 import type {Hints} from "./router.ts"
@@ -26,7 +26,9 @@ export type Member = {
     handle(context: Coordinator, task: Task, snapshot: Snapshot): Promise<void>
 }
 
-export type Step = { plan: Plan, when: When, says: string }   // says: what it did, for the reply ("Keys muted")
+// says: what it did, for the reply ("Keys muted"). then: steps on the effect an add_effect made, once it's on (its
+// parameters have no refs before), from the effect and a fresh snapshot.
+export type Step = { plan: Plan, when: When, says: string, then?: (added: Device, now: Snapshot) => Step[] }
 
 const MinDb = -60, MaxDb = 6
 const db = (value: number): string => value <= MinDb ? "-inf dB" : `${value > 0 ? "+" : ""}${value.toFixed(1)} dB`
@@ -65,7 +67,7 @@ const carryOut = async (context: Coordinator, member: Member, steps: Step[], sna
             let landsAt = ""
             const status = await context.request(member.agent, step.plan, step.when, snapshot.at.seq, reason,
                 update => {landsAt = update.landsAt ?? landsAt})
-            return describe(step, status, landsAt)
+            return [describe(step, status, landsAt), ...await followUp(context, member.agent, step, status, reason)].join("; ")
         }))
         context.card({agent: member.agent, name: member.name, doing: `${results.join("; ")} (done)`})
         context.say(member.agent, `${results.join("; ")}.${slid > 0 ? ` (${slid} bar${slid > 1 ? "s" : ""} later than planned: the playhead moved on while I planned.)` : ""}`)
@@ -85,10 +87,20 @@ export const performStep = async (context: Coordinator, agent: Actor, step: Step
         let landsAt = ""
         const status = await context.request(agent, step.plan, step.when, now?.at.seq ?? 0, reason,
             update => {landsAt = update.landsAt ?? landsAt})
-        return `${describe(step, status, landsAt)}${slid > 0 ? ` (${slid} bar${slid > 1 ? "s" : ""} later than planned)` : ""}`
+        return [`${describe(step, status, landsAt)}${slid > 0 ? ` (${slid} bar${slid > 1 ? "s" : ""} later than planned)` : ""}`,
+            ...await followUp(context, agent, step, status, reason)].join("; ")
     } finally {
         context.release(agent, [target(step.plan)])
     }
+}
+
+// A step's follow-ups (ramps on the effect it just added), each carried out on its own once the step has applied.
+const followUp = async (context: Coordinator, agent: Actor, step: Step, status: Status, reason: string): Promise<string[]> => {
+    const added = status.result?.device
+    if (status.state !== "applied" || step.then === undefined || added === undefined) {return []}
+    const now = await context.snapshot()
+    if (now === null) {return []}
+    return Promise.all(step.then(added, now).map(next => performStep(context, agent, next, reason)))
 }
 
 const describe = (step: Step, status: Status, landsAt: string): string => {
@@ -112,10 +124,11 @@ const HandOff = tool("hand_off", "Hand the part of the request your tools don't 
 const memberSystem = (name: string, area: string, can: string): string => `You are the ${name} on an AI music production team working live in openDAW with a producer, usually while the track plays. Your area: ${area}. Your fast operations (the tools): ${can}.
 
 You get the producer's message, and your piece of it when the Team Lead split it among the team. Plan your edits as tool calls.
-- Each call is one edit that lands on the downbeat of the bar you choose (at_bar), or the next bar (0). The playhead is at \`playback.bar\`: land at playback.bar + 1 or later. When the loop is on, only bars inside it are ever reached; a bar before the playhead in the loop lands on the next pass.
+- Each call is one edit that lands on the downbeat of the bar you choose (at_bar), or the next bar (0). The playhead is at \`playback.bar\`: land at playback.bar + 1 or later. When the loop is on, a bar inside it lands the next time the playhead reaches it, and a bar past the loop's end counts bars of playing from the playhead, as if the loop were unrolled (playhead in bar 2, at_bar 10: after 8 bars of playing), so later steps of a plan keep their spacing.
 - Make 1 to 6 calls, only in your own area, and only what was asked.
 - Values are in each parameter's own units, within its range.
-- Your job is your piece when you have one (the rest of the producer's message is other members' work: leave it to them), else the whole message. Anything in it that your tools don't cover, hand off with one hand_off call (the rest, said as an instruction specific to this project), rather than leaving it out or saying it can't be done: the Team Lead does it directly in openDAW.
+- Your job is your piece when you have one (the rest of the producer's message is other members' work: leave it to them), else the whole message.
+- Hand off anything in your job that your tools don't cover with one hand_off call (the rest, said as an instruction specific to this project), rather than leaving it out or saying it can't be done: the Team Lead does it directly in openDAW.
 - Don't explain your plan; the calls are the plan.`
 
 const loopBars = (snapshot: Snapshot) => {
@@ -161,6 +174,7 @@ export abstract class LlmMember implements Member {
             producer_message: task.message, ...(task.piece !== null ? {your_piece: task.piece} : {}),
             project: projectFor(snapshot, this.withParams), ...this.context(snapshot)
         })
+        // Any member hands off what its tools don't cover, its piece from the Team Lead included: never left undone.
         const tools = [...this.tools(snapshot), HandOff]
         const {calls, text} = await context.gateway.calls("member", memberSystem(this.name, this.area, this.can), input, tools,
             context.modelLog(), this.agent, (name, input) => this.lookup(name, input as Record<string, unknown>))
@@ -329,13 +343,16 @@ export class EffectDesigner extends LlmMember {
         const choices = this.#choices().map(device => device.key)
         const tools = [tool("effect_params", "Look up the parameters of an effect you're about to add: each one's path, range and default. Changes nothing. Look up only the effects you've chosen, before adding them with settings.", {
             effect: {type: "string", enum: choices}}),
-            tool("add_effect", "Add an audio effect at the end of a track's chain, with its settings, from a bar on. Settings are parameter paths from effect_params with values in their ranges; unset parameters keep their defaults.", {
+            tool("add_effect", "Add an audio effect at the end of a track's chain, with its settings, from a bar on, then optionally ramp its parameters. Settings and ramps name parameter paths from effect_params, with values in their ranges; unset parameters keep their defaults.", {
             track: {type: "string", enum: tracks}, effect: {type: "string", enum: choices},
             settings: {type: "array", items: {type: "object", additionalProperties: false, required: ["param", "value"],
                 properties: {param: {type: "string"}, value: {type: "number"}}}},
-            at_bar: AtBar})]
+            at_bar: AtBar,
+            then: {type: "array", description: "Changes to this effect's parameters once it's on (a filter closing over 16 bars); [] for none. A ramp whose at_bar is no later than the effect's starts as soon as the effect is on.",
+                items: {type: "object", additionalProperties: false, required: ["param", "to", "over_beats", "at_bar"],
+                    properties: {param: {type: "string"}, to: {type: "number"}, over_beats: OverBeats, at_bar: AtBar}}}})]
         if (params.length > 0) {
-            tools.push(tool("set_param", "Set or ramp a parameter of an effect already on a track.", {
+            tools.push(tool("set_param", "Set or ramp a parameter of an effect already on a track (for one you're adding, use add_effect's then).", {
                 param: {type: "string", enum: params}, to: {type: "number"}, over_beats: OverBeats, at_bar: AtBar}))
         }
         if (effects.length > 0) {
@@ -352,9 +369,21 @@ export class EffectDesigner extends LlmMember {
             if (device === null) {return `no effect ${String(input.effect)}`}
             const settings = (input.settings as Array<{ param: string, value: number }>)
                 .filter(setting => device.parameters.some(param => param.path === setting.param))
+            const ramps = (input.then as Array<{ param: string, to: number, over_beats: number, at_bar: number }> | undefined ?? [])
+                .filter(ramp => device.parameters.some(param => param.path === ramp.param))
+            // Ramps keep their spacing from the effect's bar, counted from where it actually landed.
+            const lands = bar > 0 ? bar : snapshot.playback.bar + 1
+            const then = (added: Device, now: Snapshot): Step[] => ramps.flatMap(ramp => {
+                const param = added.params?.find(param => param.ref === `${added.ref}.${ramp.param}`)
+                if (param === undefined) {return []}
+                const to = Math.min(param.max, Math.max(param.min, ramp.to)), after = ramp.at_bar - lands
+                return [{plan: {op: "ramp", ref: param.ref, to, beats: ramp.over_beats},
+                    when: after > 0 ? {at: "bar", bar: now.playback.bar + after} : {at: "next", unit: "beat"},
+                    says: `${added.name} ${param.name} → ${to}${ramp.over_beats > 0 ? ` over ${ramp.over_beats} beats` : ""}`}]
+            })
             return {plan: {op: "add_effect", track: String(input.track), device: device.key, factory: device.factory,
                     settings}, when: whenFor(bar),
-                says: `${device.name} on ${trackName(snapshot, String(input.track))}`}
+                says: `${device.name} on ${trackName(snapshot, String(input.track))}`, ...(ramps.length > 0 ? {then} : {})}
         }
         if (name === "set_param") {
             const ref = String(input.param), beats = Number(input.over_beats)

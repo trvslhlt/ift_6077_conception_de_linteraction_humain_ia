@@ -281,6 +281,45 @@ try {
     await page.evaluate(() =>
         document.dispatchEvent(new CustomEvent("parameter-hold", {detail: {parameter: window.__drumsVolume, held: false}})))
 
+    // Landing in a loop, sent straight to the page (no model): on the loop's start, which the playhead only reaches by
+    // wrapping, and past the loop's end, which counts bars of playing.
+    const landed = await page.evaluate(async () => {
+        const {adapter, service} = window.takedo
+        const {project} = service.projectProfileService.getValue().unwrap()
+        const {loopArea} = project.timelineBox
+        const bar = 3840
+        const saved = [loopArea.enabled.getValue(), loopArea.from.getValue(), loopArea.to.getValue()]
+        project.editing.modify(() => {loopArea.enabled.setValue(true); loopArea.from.setValue(0); loopArea.to.setValue(2 * bar)})
+        window.opendaw.engine.play()
+        project.engine.setPosition(bar / 2)                 // in the loop's first bar, as when it's been playing a while
+        await new Promise(resolve => setTimeout(resolve, 300))
+        const pad = adapter.snapshot().tracks.find(track => track.name === "Pad").ref   // Keys has a lane from the take
+        const send = (bar, to) => new Promise(resolve => {
+            const id = crypto.randomUUID()
+            const start = performance.now()
+            const states = []
+            const subscription = adapter.subscribeActivity(({request, status}) => {
+                if (request.id !== id) {return}
+                states.push([status.state, status.landsAt, status.detail].filter(Boolean).join(" "))
+                if (["applied", "dropped", "failed"].includes(status.state)) {
+                    subscription.terminate()
+                    resolve({state: status.state, ms: Math.round(performance.now() - start), states})
+                }
+            })
+            adapter.apply({id, from: "agent:mix_engineer", plan: {op: "set", ref: `${pad}.mix.volume`, to},
+                when: {at: "bar", bar}, seq: Number.MAX_SAFE_INTEGER})
+            setTimeout(() => {subscription.terminate(); resolve({state: "timeout", states})}, 20000)
+        })
+        const results = await Promise.all([send(1, -1), send(5, -2)])
+        project.editing.modify(() => {loopArea.enabled.setValue(saved[0]); loopArea.from.setValue(saved[1]); loopArea.to.setValue(saved[2])})
+        return results
+    })
+    check("in a loop, an edit on the loop's start lands as it wraps", landed[0].state === "applied", JSON.stringify(landed[0]))
+    check("in a loop, an edit past its end lands after that many bars of playing",
+        landed[1].state === "applied" && landed[1].ms > landed[0].ms, JSON.stringify(landed[1]))
+    const activityRows = await page.locator("[data-agent='agent:mix_engineer'] [data-testid='takedo-card-activity'] li").count()
+    check("the card lists its edits and where they are", activityRows > 0, `${activityRows} rows`)
+
     if (process.env.SCREENSHOT) {await page.screenshot({path: process.env.SCREENSHOT})}
 
     // A hidden tab: animation frames stop, so landing and ramping must not depend on them (page/Clock.ts).

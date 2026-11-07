@@ -32,6 +32,9 @@ services:
     env_file:
       - path: .env
         required: false
+    environment:
+      # Who's in play: "utility" alone, or the full "team" (backend/src/coordinator.ts, Roster).
+      TAKEDO_ROSTER: ${ROSTER:-utility}
     volumes:
       - ./backend/src:/app/backend/src:ro
       - ./shared:/app/shared:ro

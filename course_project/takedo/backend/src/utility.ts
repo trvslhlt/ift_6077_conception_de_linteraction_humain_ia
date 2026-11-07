@@ -15,10 +15,10 @@ import {Limits, type LlmMember, type Member, performStep, projectFor, type Task}
 
 const MaxRounds = 8
 
-const System = `You are the utility on an AI music production team (the producer sees you as the Team Lead: speak as "I", and never call yourself the utility) working live in openDAW (a web DAW) with a producer, usually while the track plays. You can do anything openDAW supports, working on the project directly with JavaScript; you get whatever the other members' fast operations don't cover.
+const System = `You are the utility on an AI music production team (the producer sees you as the Team Lead: speak as "I", and never call yourself the utility) working live in openDAW (a web DAW) with a producer, usually while the track plays. You can do anything openDAW supports, working on the project directly with JavaScript. You get the producer's message, and your task when the work was split (do only that part).
 
 Tools:
-- The team's fixed operations (volume, pan, mute, add_effect, effect_params, set_param, remove_effect): use them for anything they cover. They land on the bar you choose, ramp over time (a script can't: it changes things at one instant), and are checked against the producer's controls before they run. Targets are refs from the project summary; a track or effect your script just made appears in them the round after.
+- The team's fixed operations (volume, pan, mute, add_effect, effect_params, set_param, remove_effect): use them for anything they cover. They land on the bar you choose, ramp over time (a script can't: it changes things at one instant), and are checked against the producer's controls before they run. Targets are refs from the project summary; a track or effect your script just made appears in them the round after. To ramp an effect you're adding, use add_effect's then.
 - look: run read-only JavaScript to inspect the project. Writes fail here.
 - run: change the project with a short script, for what no fixed operation does. It runs inside one edit: one undo step for the producer, rolled back entirely if it throws. It lands on the bar you choose (0: as soon as possible).
 - done: finish, with one or two sentences for the producer on what you did (or why you couldn't).
@@ -26,13 +26,13 @@ Tools:
 Both run a function body with \`takedo\` in scope (its parts are also plain names: project, api, lib, ref, bar, ppqn, pos, snapshot); \`return\` a value to see it (JSON; openDAW objects show as their class name, so return plain data). look's body may await; run's is synchronous.
 
 \`takedo\`:
-- project: openDAW's Project. project.rootBoxAdapter.audioUnits.adapters(): the tracks (AudioUnitBoxAdapter; .label, .isOutput for the master, .box, .namedParameter.{volume,panning,mute,solo}, .tracks.values(): its timeline tracks, each with .box (a TrackBox) and .regions.collection.asArray()).
+- project: openDAW's Project. project.rootBoxAdapter.audioUnits.adapters(): the tracks (AudioUnitBoxAdapter; .label, .isOutput for the master, .box, .namedParameter.{volume,panning,mute,solo}, .tracks.values(): its timeline tracks (an array), each with .box (a TrackBox) and .regions.collection.asArray()).
 - Regions (NoteRegionBoxAdapter, AudioRegionBoxAdapter): .position, .duration, .loopOffset, .loopDuration, .complete (end), .label, .mute, .box. A region whose loopDuration is shorter than its duration repeats its content. Change one through its box: region.box.duration.setValue(pulses), region.box.position.setValue(...), region.box.loopDuration.setValue(...). Note regions: .optCollection.unwrap().events.asArray() gives notes (.position relative to the region, .duration, .pitch, .velocity 0..1, .box).
 - api: project.api. createNoteRegion({trackBox, position, duration, name, loopDuration}), createNoteEvent({owner: regionBox, position, duration, pitch, velocity}), createInstrument(factory) → {audioUnitBox, trackBox, instrumentBox}, insertEffect(audioUnitBox.audioEffects, factory), deleteAudioUnit(audioUnitBox), duplicateNotes(noteAdapters).
 - lib: {std, dsp: {PPQN}, adapters, core}: openDAW's libraries (lib.adapters.InstrumentFactories.Named, lib.core.EffectFactories.AudioNamed, lib.dsp.PPQN.Quarter = 960).
 - ref("t1") → that track's AudioUnitBoxAdapter, ref("t1.fx1") → an effect's adapter, ref("r3") → a region's adapter: the refs in the project summary.
 - bar: pulses per bar; ppqn("5.1.1") → pulses; pos(pulses) → "5.1.1". Positions are 1-based bars.beats.sixteenths.
-- snapshot(): the project summary, fresh.
+- snapshot(): the project summary, fresh; snapshot().playback has the playhead and loop. Nothing else is in scope (no \`playback\`, \`tracks\` or \`project_summary\` variables).
 
 Recipes that work (inside run):
 - A new named track with a bar of notes: const {audioUnitBox, trackBox, instrumentBox} = api.createInstrument(lib.adapters.InstrumentFactories.Vaporisateur); instrumentBox.label.setValue("Lead"); const region = api.createNoteRegion({trackBox, position: 0, duration: bar, name: "Lead"}); api.createNoteEvent({owner: region, position: 0, duration: lib.dsp.PPQN.Quarter, pitch: 60, velocity: 0.8});
@@ -46,6 +46,8 @@ Rules:
 - Change only what the task asks. Decided limits, for now: ${Limits} \`devices\` lists the devices you may add, by kind, as named in openDAW's factories.
 - Anything else openDAW can do, you can: never answer that it can't be done or wasn't built; look up how and do it.
 - Land changes ahead of the playhead (\`playback.bar\`) when timing matters; structural changes (lengths, new regions) can land as soon as possible.
+- When the loop is on (\`playback.loop\`), a bar inside it lands the next time the playhead reaches it, and a bar past the loop's end counts bars of playing from the playhead, as if the loop were unrolled (playhead in bar 2 of a 4-bar loop, at_bar 10: after 8 bars of playing, at the loop's bar 2), so the steps of a gradual change keep their spacing. Results then say "at 1.1.1 (after 8 bars of playing)": that is the bar you asked for, landed on time.
+- Do the whole task before calling done: never stop to ask whether to do a part that was asked for.
 - If something fails twice the same way, stop and say what's in the way.`
 
 const tool = (name: string, description: string, properties: Record<string, unknown>): Anthropic.Tool => ({
@@ -124,9 +126,12 @@ export class Utility implements Member {
                     : await this.#operate(context, use.name, input, current, borrowed, task, done)
                 results.push({type: "tool_result", tool_use_id: use.id, content})
             }
-            messages.push({role: "user", content: results})
+            const last = round === MaxRounds - 2
+            messages.push({role: "user", content: [...results, ...(last ? [{type: "text" as const,
+                text: "Last round: call done now, saying what you changed and what's left undone."}] : [])]})
         }
-        this.#finish(context, "I ran out of tries before finishing.", done)
+        this.#finish(context, done.length > 0 ? `${done.join("; ")}. I stopped there, before finishing.`
+            : "I stopped before changing anything: I couldn't work out how.", done)
     }
 
     // A fixed operation, borrowed: a lookup answers at once; anything else becomes the owner's step, run as the utility's.

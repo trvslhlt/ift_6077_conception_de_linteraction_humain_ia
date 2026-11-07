@@ -10,9 +10,10 @@ The POCs in `../poc/` are frozen references and benches. Code is copied from the
 ## Usage
 
 ```sh
-make up       # build and start the studio and the backend (page/, shared/, backend/src/ live)
+make up       # build and start the studio and the backend (page/, shared/, backend/src/ live); the utility alone
+make up ROSTER=team  # the same with the full team
 make open     # open http://localhost:8080, then New Project, then the floating robot button
-make test     # smoke test in headless Chromium
+make test     # smoke test in headless Chromium, against the full team (leaves the backend on it)
 make logs     # follow the studio's and the backend's output
 make catalog  # regenerate catalog/generated.json from openDAW (after bumping the openDAW pin)
 make check    # type-check the backend and shared code (run `npm ci` in backend/ once first)
@@ -164,6 +165,14 @@ Known gaps in what's built:
   chords, drum patterns, instruments, MIDI effects, clip lengths) is done by the Team Lead's hands (the utility),
   with scripts, in seconds to tens of seconds. Jev still scores all nine roles; a message for an unfilled one goes
   to the Team Lead. How well Haiku writes musical scripts (reharmonizing, swing) isn't measured yet.
+- **The utility alone, for now** (2026-11-07): the full team got complex before the basics of an agent working in
+  openDAW were solid, so by default (`ROSTER=utility`) every message goes straight to the utility, shown as the Team
+  Lead: no Jev routing, no split, no members. It keeps the members' fixed operations as tools (ramps, bar-timed
+  edits). Roles come back one at a time with `ROSTER=team`, which the smoke test uses.
+- **Landing in a loop** (2026-11-07): a bar inside the loop lands the next time the playhead reaches it (the loop's
+  start included: it used to wait forever, since the playhead only reaches it by wrapping); a bar past the loop's end
+  counts bars of playing, as if the loop were unrolled, so a plan's later steps keep their spacing. Each card lists
+  its edits live (waits for a bar, under way, done, not done and why), so a wait or a refusal isn't silent.
 - **Planning delay shows as lateness:** a plan made for "the next bar" slides by the bars that passed while it was
   planned, and the reply says so. Preparing ahead (STRATEGY.md) isn't built.
 - **Scripts are reported as one opaque edit:** the change stream carries their value changes, not regions or notes

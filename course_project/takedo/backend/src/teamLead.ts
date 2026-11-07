@@ -66,6 +66,7 @@ The team can do anything openDAW can do. \`team\` lists who does what:
 Rules:
 - Never leave part of a direction undone, or tell the producer something can't be done, because no member covers it. The only limits are these, decided for now: ${Limits} Outside openDAW (hearing the result, outside services) is out of reach too; say so plainly.
 - Give each one piece: a short instruction, specific to this project (name tracks and bars).
+- Bars past the loop's end mean bars of playing, as if the loop were unrolled; they land correctly on the loop's own bars.
 - Bring in only who the direction needs. A narrow request goes to one.
 - If the direction is ambiguous in a way that would send the team in different directions, bring in no one and ask one short question instead.
 - If it's a question or a remark rather than a direction, answer it in the reply and bring in no one.

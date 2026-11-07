@@ -78,7 +78,7 @@ export type FailReason = "invalid_args" | "unknown_ref" | "not_allowed" | "held"
     | "value_not_taken" | "too_late" | "too_large" | "conflict" | "stale" | "opendaw_error"
 export type Status = {
     request: string, t: number, pos: string
-    state: "scheduled" | "queued" | "applied" | "dropped" | "failed"
+    state: "scheduled" | "queued" | "running" | "applied" | "dropped" | "failed"   // running: a ramp under way
     landsAt?: string
     // device: one just added. value: what a script returned; updates: how many changes it made.
     result?: { ref: string, label: string, from?: number, to?: number, device?: Device, value?: string, updates?: number }

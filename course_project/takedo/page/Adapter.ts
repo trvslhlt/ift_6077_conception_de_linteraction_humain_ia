@@ -33,7 +33,10 @@ const GestureFoldMs = 300       // value changes on a ref with no further change
 type Param = { ref: string, label: string, parameter: AutomatableParameterFieldAdapter }
 type Effect = { ref: string, label: string, adapter: EffectDeviceBoxAdapter }
 type AnyRegionBoxAdapter = ReturnType<TrackBoxAdapter["regions"]["collection"]["asArray"]>[number]
-type Landing = { at: ppqn } | { error: FailReason, detail: string }
+// after: in a loop, a landing past its end waits for this much playing (pulses) rather than a position.
+type Landing = { at: ppqn, after?: number } | { error: FailReason, detail: string }
+// Every request's progress, for the team view's cards: its agent, what it does in words, and its latest status.
+export type Activity = { request: Apply, label: string, status: Status }
 
 // The device type: the box name without "DeviceBox" ("Vaporisateur") or "Box" (composites: "InstrumentComposite").
 export const deviceKey = (box: Box): string => box.name.replace(/(Device)?Box$/, "")
@@ -78,6 +81,8 @@ export class Adapter implements Terminable {
     #touched: Set<string> | null = null                         // addresses a running script changed
     #updates = 0                                                // updates a running script made
     readonly #env: ScriptEnv
+    readonly #activity = new Set<(activity: Activity) => void>()
+    readonly #labels = new Map<string, string>()                // request id → what it does, while it's open
 
     constructor(project: Project, connection: Connection) {
         this.#project = project
@@ -104,6 +109,31 @@ export class Adapter implements Terminable {
     }
 
     get revision(): number {return this.#revision}
+
+    subscribeActivity(listener: (activity: Activity) => void): Terminable {
+        this.#activity.add(listener)
+        return {terminate: () => this.#activity.delete(listener)}
+    }
+
+    // A request in the producer's words: track and control names, not refs.
+    #label(request: Apply): string {
+        const {plan} = request
+        const track = (ref: string): string => {
+            const unit = this.#units().find(unit => this.#trackRef(unit) === ref)
+            return unit === undefined ? ref : unit.label
+        }
+        switch (plan.op) {
+            case "ramp": case "set": {
+                const label = this.#param(plan.ref)?.label ?? plan.ref
+                const to = Number.isInteger(plan.to) ? plan.to : plan.to.toFixed(2)
+                return plan.op === "ramp" && plan.beats > 0 ? `${label} → ${to} over ${plan.beats} beats` : `${label} → ${to}`
+            }
+            case "add_effect": return `${plan.device} on ${track(plan.track)}`
+            case "remove_effect": return `remove ${this.#units().flatMap(unit => this.#effects(unit))
+                .find(effect => effect.ref === plan.ref)?.label ?? plan.ref}`
+            case "script": return plan.description
+        }
+    }
 
     playback(): Playback {
         const {timelineBox: {loopArea}, engine} = this.#project
@@ -204,13 +234,19 @@ export class Adapter implements Terminable {
                     .catch(error => this.#connection.send({type: "looked", id: message.id, ok: false, value: errorText(error)}))
                 return
             case "apply":
-                this.#apply(message.request).catch(error =>
-                    this.#status(message.request, {state: "failed", reason: "opendaw_error", detail: String(error)}))
+                this.apply(message.request)
                 return
         }
     }
 
     // ---------- applying ----------
+
+    // A request from the backend (public for tests, which send one straight to the page; the backend ignores statuses
+    // of requests it didn't send).
+    apply(request: Apply): void {
+        this.#apply(request).catch(error =>
+            this.#status(request, {state: "failed", reason: "opendaw_error", detail: String(error)}))
+    }
 
     async #apply(request: Apply): Promise<void> {
         const {plan} = request
@@ -246,6 +282,7 @@ export class Adapter implements Terminable {
         if (held()) {return this.#status(request, {state: "dropped", reason: "held"})}
         const from = numeric(parameter.getValue())
         const beats = plan.op === "ramp" && !isStepped(parameter) && this.#project.engine.isPlaying.getValue() ? plan.beats : 0
+        if (beats > 0) {this.#status(request, {state: "running", landsAt: this.#pos()})}
         await this.#ramp(request, parameter, from, to, beats)
         const read = numeric(parameter.getValue())
         if (Math.abs(read - to) > Math.max(0.05, Math.abs(to) * 0.001)) {
@@ -377,20 +414,41 @@ export class Adapter implements Terminable {
             this.#status(request, {state: "failed", reason: landing.error, detail: landing.detail})
             return false
         }
-        this.#status(request, {state: "scheduled", landsAt: this.#pos(landing.at)})
-        // Armed once the playhead is before the landing: in a loop, a landing already passed waits for the next pass.
-        let armed = engine.position.getValue() < landing.at
+        const bars = landing.after === undefined ? 0 : Math.round(landing.after / this.#bar())
+        this.#status(request, {state: "scheduled",
+            landsAt: `${this.#pos(landing.at)}${bars > 0 ? ` (after ${bars} bars of playing)` : ""}`})
+        const {loopArea} = this.#project.timelineBox
+        let last = engine.position.getValue()
+        if (landing.after !== undefined) {
+            // Played time, counting each pass of the loop.
+            let played = 0
+            while (engine.isPlaying.getValue() && played < landing.after) {
+                await this.#clock.tick()
+                const position = engine.position.getValue()
+                played += position >= last ? position - last
+                    : (loopArea.to.getValue() - last) + (position - loopArea.from.getValue())
+                last = position
+            }
+            return true
+        }
+        // Armed once the playhead is before the landing, or has jumped back (the loop wrapped): in a loop, a landing
+        // already passed waits for the next pass, and one on the loop's start lands as the loop wraps.
+        let armed = last < landing.at
         while (engine.isPlaying.getValue()) {
             const position = engine.position.getValue()
-            if (position < landing.at) {armed = true} else if (armed) {break}
+            if (position < landing.at || position < last) {armed = true}
+            if (armed && position >= landing.at) {break}
+            last = position
             await this.#clock.tick()
         }
         return true
     }
 
     // The next beat or bar at least LeadMs ahead of the playhead, or a given bar; asap is now (nothing waits for it).
-    // In a loop, a landing past the loop's end wraps to its start, and a bar outside the loop is refused (the playhead
-    // would never reach it).
+    // In a loop, a next beat or bar past the loop's end wraps to its start; a bar inside the loop lands the next time
+    // the playhead reaches it; a bar past its end counts played bars from the playhead, as if the loop were unrolled
+    // (playhead in bar 2, bar 10: after 8 bars of playing), so a plan's later steps keep their spacing; a bar before
+    // the loop is refused (the playhead would never reach it).
     #landing(request: Apply): Landing {
         const {engine, timelineBox: {loopArea}} = this.#project
         const position = engine.position.getValue()
@@ -400,8 +458,13 @@ export class Adapter implements Terminable {
         const {when} = request
         if (when.at === "bar") {
             const at = (when.bar - 1) * this.#bar()
-            if (looping && (at < loopFrom || at >= loopTo)) {
-                return {error: "not_allowed", detail: `bar ${when.bar} is outside the loop (${this.#pos(loopFrom)} to ${this.#pos(loopTo)})`}
+            if (looping && at < loopFrom) {
+                return {error: "not_allowed", detail: `bar ${when.bar} is before the loop (${this.#pos(loopFrom)} to ${this.#pos(loopTo)})`}
+            }
+            if (looping && at >= loopTo && loopTo > loopFrom) {
+                // From where the playhead is in the loop (or the loop's start, if it's outside and about to jump in).
+                const after = at - (position >= loopFrom && position < loopTo ? position : loopFrom)
+                return {at: loopFrom + (at - loopFrom) % (loopTo - loopFrom), after}
             }
             if (!looping && at < earliest) {return {error: "too_late", detail: `bar ${when.bar} has passed`}}
             return {at}
@@ -413,7 +476,15 @@ export class Adapter implements Terminable {
     }
 
     #status(request: Apply, status: Omit<Status, "request" | "t" | "pos">): void {
-        this.#connection.send({type: "status", status: {request: request.id, t: Date.now(), pos: this.#pos(), ...status}})
+        const full: Status = {request: request.id, t: Date.now(), pos: this.#pos(), ...status}
+        this.#connection.send({type: "status", status: full})
+        const label = this.#labels.get(request.id) ?? this.#label(request)
+        if (status.state === "applied" || status.state === "dropped" || status.state === "failed") {
+            this.#labels.delete(request.id)
+        } else {
+            this.#labels.set(request.id, label)
+        }
+        this.#activity.forEach(listener => listener({request, label, status: full}))
     }
 
     // ---------- observing changes ----------

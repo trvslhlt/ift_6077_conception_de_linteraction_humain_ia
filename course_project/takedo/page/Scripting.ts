@@ -58,10 +58,10 @@ export const scriptEnv = (project: Project, resolve: (ref: string) => unknown, s
 })
 
 // Runs a function body with `takedo` in scope, and its parts as plain names too (project, api, lib, ref, bar, ppqn,
-// pos, snapshot), since models write either. Async for looks (they may await); scripts are synchronous, since they
-// run inside one edit.
+// pos, snapshot), since models write either, in a block of their own so a script may declare those names itself.
+// Async for looks (they may await); scripts are synchronous, since they run inside one edit.
 const Names = ["takedo", "project", "api", "lib", "ref", "bar", "ppqn", "pos", "snapshot"]
 const values = (env: ScriptEnv) => [env, env.project, env.api, env.lib, env.ref, env.bar, env.ppqn, env.pos, env.snapshot]
 export const runLook = (code: string, env: ScriptEnv): Promise<unknown> =>
     new Function(...Names, `return (async () => {\n${code}\n})()`)(...values(env))
-export const runScript = (code: string, env: ScriptEnv): unknown => new Function(...Names, code)(...values(env))
+export const runScript = (code: string, env: ScriptEnv): unknown => new Function(...Names, `{\n${code}\n}`)(...values(env))

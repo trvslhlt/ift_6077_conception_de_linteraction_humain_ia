@@ -7,8 +7,10 @@ REPO_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))../..)
 PORT ?= 8080
 URL := http://localhost:$(PORT)
 TYPES_DIR := .opendaw
+# Who's in play: the utility alone (for now), or the full team (`make up ROSTER=team`).
+ROSTER ?= utility
 
-export PORT
+export PORT ROSTER
 COMPOSE := docker compose --profile test
 
 .PHONY: help builder build up down restart logs status open shell test catalog check types usage clean
@@ -45,8 +47,10 @@ open: ## Open the studio in the default browser
 shell: ## Shell into the running backend container
 	$(COMPOSE) exec backend sh
 
-test: build ## Run the smoke test in headless Chromium (starts the studio and backend if needed)
+test: ROSTER = team
+test: build ## Run the smoke test in headless Chromium against the full team (leaves the backend on it; `make up` goes back)
 	mkdir -p sessions
+	$(COMPOSE) up -d --wait studio backend
 	$(COMPOSE) run --rm smoke
 
 catalog: build ## Regenerate catalog/generated.json from openDAW (every device's descriptions and parameters)

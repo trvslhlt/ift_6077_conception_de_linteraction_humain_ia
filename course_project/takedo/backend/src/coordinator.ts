@@ -15,6 +15,11 @@ import {Utility} from "./utility.ts"
 // Talks to the page's adapter for state (snapshot queries) and to apply plans.
 
 const ClaimMs = 30000
+// Who's in play. "utility": the utility alone takes every message, with no Jev routing and no Team Lead split, while
+// the basics of agents working in openDAW get worked out (it keeps the members' fixed operations as its tools);
+// "team": the full team. Decided 2026-11-07, to bring the roles back one at a time once the utility works well.
+// TAKEDO_ROSTER, from `make up ROSTER=…` (the smoke test runs the team).
+const Roster: "utility" | "team" = process.env.TAKEDO_ROSTER === "team" ? "team" : "utility"
 const Terminal: ReadonlyArray<Status["state"]> = ["applied", "dropped", "failed"]
 
 export class Coordinator {
@@ -38,7 +43,8 @@ export class Coordinator {
         this.#catalog = catalog
         this.#log = log
         const team = createTeam(catalog)
-        this.#members = [...team, new Utility(team, catalog)]
+        const utility = new Utility(team, catalog)
+        this.#members = Roster === "team" ? [...team, utility] : [utility]
     }
 
     get gateway(): Gateway {return this.#gateway}
@@ -47,7 +53,8 @@ export class Coordinator {
     // the producer sees its work as the Team Lead's (an alias; it keeps its own claims, attribution and log lines).
     start(): void {
         this.#send({type: "team", aliases: {"agent:utility": "agent:team_lead"}, members: [
-            {role: "team_lead", name: "Team lead", area: "the front door: hands your direction to the team, and does the rest itself"},
+            {role: "team_lead", name: "Team lead", area: Roster === "team"
+                ? "the front door: hands your direction to the team, and does the rest itself" : "does what you ask in openDAW"},
             ...this.#members.filter(member => member.role !== "utility")
                 .map(({role, name, area, can}) => ({role, name, area: `${area}. Fast at: ${can}`}))]})
     }
@@ -194,6 +201,10 @@ export class Coordinator {
         if (this.#project === null) {return this.say("agent:team_lead", "Open a project first.")}
         const snapshot = await this.snapshot()
         if (snapshot === null) {return this.say("agent:team_lead", "Open a project first.")}
+        const utility = this.#members.find(member => member.role === "utility")
+        if (Roster === "utility" && utility !== undefined) {
+            return utility.handle(this, {message, piece: null, hints: null}, snapshot)
+        }
         // A role nobody fills yet is still work the team does: the Team Lead takes it.
         const addressed = named === null ? null : this.#members.find(member => member.role === named)
         if (named === "team_lead" || addressed === undefined) {return this.#lead(message, snapshot)}
