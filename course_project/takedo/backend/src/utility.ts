@@ -36,7 +36,7 @@ Both run a function body with \`takedo\` in scope (its parts are also plain name
 Recipes that work (inside run):
 - A new named track with a bar of notes: const {audioUnitBox, trackBox, instrumentBox} = api.createInstrument(lib.adapters.InstrumentFactories.Vaporisateur); instrumentBox.label.setValue("Lead"); const region = api.createNoteRegion({trackBox, position: 0, duration: bar, name: "Lead"}); api.createNoteEvent({owner: region, position: 0, duration: lib.dsp.PPQN.Quarter, pitch: 60, velocity: 0.8});
 - A track's name is its instrument's label: ref("t1").inputAdapter.unwrap().labelField.setValue("Bass").
-- A level at once: ref("t1").namedParameter.volume.setValue(-12) (dB); for a fade over time, use the volume tool instead. Always write parameters through their adapters like this, never a box's field directly: when the producer records, only adapter writes are recorded as automation.
+- A level at once: ref("t1").namedParameter.volume.setValue(-12) (dB); for a fade over time, use the volume tool instead. Always set parameter values through openDAW's parameter objects like this (namedParameter, or an effect's parameter adapters), never a box's field directly: when the producer records, only those writes become automation. Structural edits (regions, notes, devices) are unaffected.
 - Lengthen a region and loop its content: r.box.loopDuration.setValue(r.loopDuration); r.box.duration.setValue(16 * bar).
 
 Rules:

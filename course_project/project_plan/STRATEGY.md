@@ -202,8 +202,10 @@ the second half every pass", "drop the hats in bar 4 of each pass"; not built). 
 automation writing of our own: when the producer presses openDAW's record button, openDAW records every write made
 through a parameter adapter as automation (on by default, OPENDAW.md, "Recording"), the agents' included, and recording
 over a lane replaces only the recorded span. Checked with TakeDo's own edits in the smoke test: the mix engineer's
-change during a take became a lane. So the adapter allows writes to parameters with lanes while recording, and
-scripts must write parameters through their adapters (a write to a box field isn't recorded).
+change during a take became a lane. So TakeDo's page adapter allows writes to parameters with lanes while recording,
+and scripts set parameter values through openDAW's own parameter objects (`unit.namedParameter.volume.setValue(...)`,
+what openDAW's knobs use), not the stored box field (`unit.box.volume.setValue(...)`), which recording doesn't see.
+That's no limit on scripts: both are openDAW's API, and structural edits (regions, notes, devices) aren't affected.
 
 Open: after a take, every parameter that moved has a lane, and outside recording the bus refuses live writes to it
 (they'd switch the lane off until stop), so "keys a bit louder" after a take is refused. Editing the lane from the
