@@ -96,23 +96,22 @@ API keys go in `.env` (git-ignored, and never in a build context): `TYPESAFE_API
     tools limited to their area (as in `poc/llm_bench`)
   - `utility.ts`: the utility, the open path (STRATEGY.md, "Keep the open path"): whatever no member has an operation
     for, done with JavaScript in the page in a look-and-try loop (read-only looks, scripts as one undoable edit each,
-    results or errors fed back, up to 30 rounds per message, one conversation with the model per session, cached). The producer never sees it by name: the page shows its lines and card
+    results or errors fed back, up to 80 tool calls per message). Runs as a Claude Agent SDK session (Claude Code's loop as a library, `@anthropic-ai/claude-agent-sdk`), one per page, open across messages and summarized by the SDK when it grows; our tools are an in-process MCP server, and it reads openDAW's source with Claude Code's Read, Grep and Glob, its working directory being `.opendaw/` (made by `make types`, which `make up` runs if it's missing, mounted read-only). The producer never sees it by name: the page shows its lines and card
     as the Team Lead's (the backend's team roster sends the alias and leaves it out of @mentions). Has every member's fixed operations as tools (for timing, ramps
-    and checks), rebuilt from a fresh snapshot each round
+    and checks), opened to any ref so the list never changes during a session
   - `teamLead.ts`: the Team Lead's language-model work: the overview (one Claude call on the full snapshot plus the
     analysis and catalog), and splitting a direction among the members (structured output, with the roster and
     what nobody on the team can do)
   - `notebook.ts`: the agent's notebook, per project in `sessions/notebooks/`: notes, plans, clips, sounds, scripts,
-    and the project's starting state; listed with every message, recalled by key, so the model's context can be
-    cleared
-  - `source.ts`: openDAW's source for the utility to read (`source_search`, `source_read`), from `.opendaw/packages`
-    (made by `make types`, which `make up` runs if it's missing), mounted read-only
+    and the project's starting state; listed with every message, recalled by key, so what matters survives the
+    session being summarized or restarted
   - `catalog.ts`: loads both halves of `catalog/` and gives a model each device in a project as openDAW's
     name and descriptions plus the hand-written notes; parameters by lookup
   - `analysis.ts`: what models are bad at, in code: key (Krumhansl–Kessler, durations as weights), each part's
     register, velocities and off-grid notes, drum hits by pad name
   - `gateway.ts`: every model call, by job, per `config/models.json` (TypeSafe for judgments, Anthropic for text);
-    logs each one with its latency and tokens
+    logs each one with its latency and tokens. The utility's session takes its model and effort from here and logs
+    each turn itself (tokens, turns, the session's running cost)
   - `sessionLog.ts`: `sessions/<time>_<id>/log.jsonl` and `session.json`
 - `live/eval.mjs`: runs JavaScript in the open TakeDo tab over the DevTools protocol, with the utility's script
   environment and `apply(plan, when)` for timed edits through the bus, so Claude Code can work live as the utility

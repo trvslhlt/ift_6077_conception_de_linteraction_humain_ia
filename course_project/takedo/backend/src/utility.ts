@@ -1,39 +1,50 @@
+import {existsSync} from "node:fs"
+import {createSdkMcpServer, query, type Query, type SDKUserMessage, tool} from "@anthropic-ai/claude-agent-sdk"
 import type Anthropic from "@anthropic-ai/sdk"
+import type {CallToolResult} from "@modelcontextprotocol/sdk/types.js"
+import {z} from "zod"
 import type {Actor, Plan, Snapshot, Status, When} from "../../shared/protocol.ts"
 import type {Coordinator} from "./coordinator.ts"
 import type {Catalog} from "./catalog.ts"
 import {Kinds, type Kind} from "./notebook.ts"
-import type {Source} from "./source.ts"
 import {Limits, type LlmMember, type Member, performStep, projectFor, type Task} from "./members.ts"
 
 // The utility (STRATEGY.md, "Keep the open path"): anything openDAW can do that the members' fast operations don't
 // cover, done in openDAW directly with code, the way the first live experiment did it (poc/edit_bench/live/eval.mjs). It looks around with read-only
 // JavaScript, edits with scripts (each one edit, one undo step, attributed to it, refused for controls the producer
-// holds), sees the result or the error, and tries again, for a few rounds. It also has every member's fixed
-// operations as tools, borrowed from them, for whatever they cover: those land on bars, ramp over time and are
-// checked before they run. Tools are rebuilt from a fresh snapshot each round, so a track or effect a script made
-// can be targeted next round. Slow-tier work, seconds to tens of seconds; the Team Lead hands it out so its own
-// reply isn't held up.
+// holds), sees the result or the error, and tries again. It also has every member's fixed operations as tools,
+// borrowed from them, for whatever they cover: those land on bars, ramp over time and are checked before they run.
+// Slow-tier work, seconds to tens of seconds; the Team Lead hands it out so its own reply isn't held up.
+//
+// It runs as a Claude Agent SDK session (decided 2026-11-11, STRATEGY.md): Claude Code's loop as a library, kept open
+// across the producer's messages (streaming input) and summarized by the SDK when it grows long. Our tools are an
+// in-process MCP server ("takedo"); openDAW's source is read with Claude Code's own Read, Grep and Glob, from the
+// pinned tree `make types` copies out (the session's working directory).
 
-// Rounds per message: a whole transformation takes looks, scripts and fixed operations, and running out made it stop
-// halfway and offer the rest (2026-11-07, every message hit 8).
-const MaxRounds = 30
+// Tool calls per message: a whole transformation takes looks, scripts and fixed operations (the hand-written loop
+// allowed 30 rounds of several calls; running out made it stop halfway and offer the rest).
+const MaxCalls = 80
+const MaxRecall = 40000
+const SourceTools = ["Read", "Grep", "Glob"]
 
 // One task's edits: what landed (for the card and the reply), what's still landing, and failures nobody's heard yet.
 type Work = { done: string[], pending: Promise<string>[], late: string[] }
+// The message being worked on, for the tools' handlers (one at a time: they share the session).
+type Current = { context: Coordinator, task: Task, work: Work, calls: number }
+type Session = { inbox: Inbox, query: Query }
 
-const System = `You are the utility on an AI music production team (the producer sees you as the Team Lead: speak as "I", and never call yourself the utility) working live in openDAW (a web DAW) with a producer, usually while the track plays. You can do anything openDAW supports, working on the project directly with JavaScript. Your conversation carries on across the producer's messages (each brings a fresh project summary), but it's cleared when it grows long: keep what you'll need later in your notebook. You get the producer's message, the chat before you joined, if any (\`conversation\`); "go on", "do the rest" or "all of it" refer to what came before, and your task when the work was split (do only that part).
+const System = `You are the utility on an AI music production team (the producer sees you as the Team Lead: speak as "I", and never call yourself the utility) working live in openDAW (a web DAW) with a producer, usually while the track plays. You can do anything openDAW supports, working on the project directly with JavaScript. Your conversation carries on across the producer's messages (each brings a fresh project summary), but its older parts are summarized when it grows long: keep what you'll need later in your notebook. You get the producer's message, the chat before you joined, if any (\`conversation\`); "go on", "do the rest" or "all of it" refer to what came before, and your task when the work was split (do only that part).
 
-A direction toward a style, genre or feel ("make it lofi", "evolve this into dub") asks for the whole transformation, not a first step. Work out what that style needs here: tempo and feel, drums (pattern, swing, ghost notes, velocities), harmony (chords, voicings, extensions), each part's sound (instrument choice and settings, a new track when a part's instrument can't get there), effects and mix. Do all of it. When it should happen gradually, stage it: changes timed across the bars it names (or 8 to 16 bars), each stage small, all scheduled before you call done.
+A direction toward a style, genre or feel ("make it lofi", "evolve this into dub") asks for the whole transformation, not a first step. Work out what that style needs here: tempo and feel, drums (pattern, swing, ghost notes, velocities), harmony (chords, voicings, extensions), each part's sound (instrument choice and settings, a new track when a part's instrument can't get there), effects and mix. Do all of it. When it should happen gradually, stage it: changes timed across the bars it names (or 8 to 16 bars), each stage small, all scheduled before you finish.
 
 Tools:
 - The team's fixed operations (volume, pan, mute, add_effect, effect_params, set_param, remove_effect): use them for anything they cover. They land on the bar you choose, ramp over time (a script can't: it changes things at one instant), and are checked against the producer's controls before they run. Targets are refs from the project summary or snapshot(); a track or effect your script just made has one once that edit has landed. To ramp an effect you're adding, use add_effect's then.
 - look: run read-only JavaScript to inspect the project. Writes fail here.
 - run: change the project with a short script, for what no fixed operation does. It runs inside one edit: one undo step for the producer, rolled back entirely if it throws. It lands on the bar you choose (0: as soon as possible).
 - An edit for a later bar (fixed operation or script) answers "Scheduled" at once and lands on its own: carry on with the next one, so a staged plan is all timed from the same playhead. Failures come back in a later round ("Since then, failed: …"). A look sees only what has landed.
-- done: finish, with one or two sentences for the producer on what you did (or why you couldn't).
-- source_search, source_read: openDAW's own source, the version that's running. Read it for what the notes below don't say: a device's fields and their ranges (box schemas in packages/studio/forge-boxes/src/schema/devices/), step tables (adapters in packages/studio/adapters/src/devices/), how an API call works, the user manual (packages/app/manual/public/). Look before writing fields you haven't used.
-- remember, recall, forget: your notebook, kept on disk per project and listed with every message (\`notebook\`: key, kind, summary). Your conversation may be cleared between messages; the notebook isn't. Keep in it what you'll want later: the producer's wishes and taste (note), a staged plan and where it stands (plan), parts you wrote as notes (clip), sounds you designed with their settings (sound), scripts worth reusing (script). "start" (state) is the whole project before the agents' first edit this session, kept for you.
+- When you've finished, end with one or two sentences for the producer on what you did (or why you couldn't). Your last message is all they see: keep anything you write between tool calls to a few words.
+- Read, Grep, Glob: openDAW's own source, the version that's running; your working directory is its root (packages/…). Read it for what the notes below don't say: a device's fields and their ranges (box schemas in packages/studio/forge-boxes/src/schema/devices/), step tables (adapters in packages/studio/adapters/src/devices/), how an API call works, the user manual (packages/app/manual/public/). Look before writing fields you haven't used.
+- remember, recall, forget: your notebook, kept on disk per project and listed with every message (\`notebook\`: key, kind, summary). Your conversation may be summarized between messages; the notebook isn't. Keep in it what you'll want later: the producer's wishes and taste (note), a staged plan and where it stands (plan), parts you wrote as notes (clip), sounds you designed with their settings (sound), scripts worth reusing (script). "start" (state) is the whole project before the agents' first edit this session, kept for you.
 
 Both run a function body with \`takedo\` in scope (its parts are also plain names: project, api, lib, ref, bar, ppqn, pos, snapshot); \`return\` a value to see it (JSON; openDAW objects show as their class name, so return plain data). look's body may await; run's is synchronous.
 
@@ -62,39 +73,40 @@ Rules:
 - Land changes ahead of the playhead (\`playback.bar\`) when timing matters; structural changes (lengths, new regions) can land as soon as possible.
 - When the loop is on (\`playback.loop\`), a bar inside it lands the next time the playhead reaches it, and a bar past the loop's end counts bars of playing from the playhead, as if the loop were unrolled (playhead in bar 2 of a 4-bar loop, at_bar 10: after 8 bars of playing, at the loop's bar 2), so the steps of a gradual change keep their spacing. Results then say "at 1.1.1 (after 8 bars of playing)": that is the bar you asked for, landed on time.
 - A region's notes play on every pass of its loop: a script that rewrites them changes every repeat from when it lands, which is how a staged change evolves the part over time.
-- Do the whole task before calling done: never stop after a first part to offer the next, or ask whether to do a part that was asked for. Make several calls per round when they don't depend on each other.
+- Do the whole task before you finish: never stop after a first part to offer the next, or ask whether to do a part that was asked for. Make several calls per round when they don't depend on each other.
 - If something fails twice the same way, stop and say what's in the way.`
 
-const tool = (name: string, description: string, properties: Record<string, unknown>): Anthropic.Tool => ({
-    name, description, strict: true,
-    input_schema: {type: "object", properties, required: Object.keys(properties), additionalProperties: false}
-})
-const OwnTools: Anthropic.Tool[] = [
-    tool("look", "Run read-only JavaScript (an async function body, `takedo` in scope) and see what it returns.", {
-        code: {type: "string"}}),
-    tool("run", "Change the project with a script (a function body, `takedo` in scope), as one undoable edit.", {
-        description: {type: "string", description: "What it does, for the producer, a few words"},
-        code: {type: "string"},
-        at_bar: {type: "integer", description: "The bar it lands on; 0 for as soon as possible"}}),
-    tool("done", "Finish, telling the producer what you did.", {summary: {type: "string"}}),
-    tool("source_search", "Search openDAW's source (TypeScript, and the user manual's pages) for lines matching a regular expression, case-insensitive. Shows path:line: text, at most 40.", {
-        pattern: {type: "string"},
-        within: {type: "string", description: "Only files whose path contains this (\"forge-boxes\", \"Vaporisateur\", \"manual\"); \"\" for all"}}),
-    tool("source_read", "Read lines of one openDAW source file, numbered.", {
-        path: {type: "string", description: "As source_search shows it"},
-        from_line: {type: "integer"}, lines: {type: "integer", description: "At most 150"}}),
-    tool("remember", "Keep something in your notebook, outside your conversation (which may be cleared): replaces the entry with that key.", {
-        key: {type: "string", description: "A short name you'll recognize (\"lofi-plan\", \"rhodes-patch\", \"bridge-chords\")"},
-        kind: {type: "string", enum: [...Kinds]},
-        summary: {type: "string", description: "One line: what it is; shown with every message"},
-        value: {type: "string", description: "The content: text, or JSON (notes, settings, a script)"}}),
-    tool("recall", "Read a notebook entry's content.", {key: {type: "string"}}),
-    tool("forget", "Delete a notebook entry.", {key: {type: "string"}})
-]
-// What the model's conversation may grow to (input tokens, cached or not) before it's cleared after a message; the
-// notebook and the recent chat carry on.
-const ContextBudget = 60000
-const MaxRecall = 40000
+// The producer's messages, fed to the session as they come (streaming input), so it stays open between them.
+class Inbox implements AsyncIterable<SDKUserMessage> {
+    readonly #waiting: SDKUserMessage[] = []
+    #wake: (() => void) | null = null
+    #closed = false
+
+    push(text: string): void {
+        this.#waiting.push({type: "user", message: {role: "user", content: text}, parent_tool_use_id: null})
+        this.#wake?.()
+    }
+
+    close(): void {
+        this.#closed = true
+        this.#wake?.()
+    }
+
+    async* [Symbol.asyncIterator](): AsyncIterator<SDKUserMessage> {
+        while (true) {
+            const next = this.#waiting.shift()
+            if (next !== undefined) {
+                yield next
+                continue
+            }
+            if (this.#closed) {return}
+            await new Promise<void>(resolve => {this.#wake = resolve})
+            this.#wake = null
+        }
+    }
+}
+
+const reply = (text: string): CallToolResult => ({content: [{type: "text", text}]})
 
 // A member's tool with its lists of the project's refs (tracks, parameters, effects on it) opened to any ref.
 const RefFields = new Set(["track", "param"])
@@ -110,6 +122,12 @@ const anyRef = (tool: Anthropic.Tool): Anthropic.Tool => {
     return {...tool, input_schema: {...tool.input_schema, properties}}
 }
 
+// The snapshot with an effect added on the master, so members offer every tool (set_param and remove_effect only
+// appear once there's an effect); the refs it adds are opened up by anyRef.
+const withEveryTool = (snapshot: Snapshot): Snapshot => ({...snapshot, master: {...snapshot.master, effects: [
+    ...snapshot.master.effects, {key: "any", name: "any", enabled: true, ref: "master.fx0",
+        params: [{ref: "master.fx0.any", name: "any", value: 0, display: "0", min: 0, max: 1, stepped: false}]}]}})
+
 export class Utility implements Member {
     readonly agent: Actor = "agent:utility"
     readonly role = "utility"
@@ -120,19 +138,15 @@ export class Utility implements Member {
 
     readonly #team: ReadonlyArray<LlmMember>
     readonly #devices: Record<string, string[]>
-    // The conversation with the model across the producer's messages, so it keeps what it learned about the project
-    // and openDAW (as Claude Code does working live); one session's, cached by the gateway.
-    #messages: Anthropic.MessageParam[] = []
+    readonly #source: string
+    #session: Session | null = null
+    #current: Current | null = null
     #queue: Promise<void> = Promise.resolve()
     #unheard: string[] = []   // failures after a reply, for the model with the next message
-    readonly #tools = new Map<string, { tool: Anthropic.Tool, owner: LlmMember }>()
 
-    // team: the members whose fixed operations it borrows; catalog: which devices it may add.
-    readonly #source: Source
-    #context = 0          // the conversation's size at the last call, in input tokens
-
-    // source: openDAW's source, for source_search and source_read.
-    constructor(team: ReadonlyArray<LlmMember>, catalog: Catalog, source: Source) {
+    // team: the members whose fixed operations it borrows; catalog: which devices it may add; source: the root of
+    // openDAW's source tree, the session's working directory.
+    constructor(team: ReadonlyArray<LlmMember>, catalog: Catalog, source: string) {
         this.#team = team
         this.#source = source
         this.#devices = {}
@@ -143,21 +157,17 @@ export class Utility implements Member {
     // The generalist: every operation, scripts included.
     may(_plan: Plan): boolean {return true}
 
-    // The members' tools, each with the member that owns it (first owner wins on a name clash). The tool list is the
-    // start of the cached prompt, so it must not change as the project does: these copies take any ref where the
-    // members' list the project's (the owner's step and the adapter check it), and a tool once offered stays.
-    #borrowed(snapshot: Snapshot): Map<string, { tool: Anthropic.Tool, owner: LlmMember }> {
-        this.#team.forEach(owner => owner.tools(snapshot).forEach(tool => {
-            if (!this.#tools.has(tool.name)) {this.#tools.set(tool.name, {tool: anyRef(tool), owner})}
-        }))
-        return this.#tools
-    }
-
-
     // Something the model should know with the next message (an engine crash and what was undone).
     notice(text: string): void {this.#unheard.push(text)}
 
-    // One task at a time: they share the conversation.
+    // Ends the session (the page went away, or a turn failed); the next message starts a new one.
+    close(): void {
+        this.#session?.inbox.close()
+        this.#session?.query.close()
+        this.#session = null
+    }
+
+    // One task at a time: they share the session.
     handle(context: Coordinator, task: Task, snapshot: Snapshot): Promise<void> {
         const next = this.#queue.then(() => this.#work(context, task, snapshot))
         this.#queue = next.catch(() => {})
@@ -166,9 +176,11 @@ export class Utility implements Member {
 
     async #work(context: Coordinator, task: Task, snapshot: Snapshot): Promise<void> {
         context.card({agent: this.agent, name: this.name, doing: "looking…"})
-        const fresh = this.#messages.length === 0
-        const messages = this.#messages
-        this.#ask([{type: "text", text: JSON.stringify({
+        const fresh = this.#session === null
+        const session = this.#session ?? (this.#session = this.#open(context, snapshot))
+        const work: Work = {done: [], pending: [], late: []}
+        this.#current = {context, task, work, calls: 0}
+        session.inbox.push(JSON.stringify({
             ...(fresh && task.history !== undefined && task.history.length > 0 ? {conversation: task.history} : {}),
             ...(this.#unheard.length > 0 ? {since_your_last_reply: this.#unheard.splice(0)} : {}),
             producer_message: task.message, ...(task.piece !== null ? {your_task: task.piece} : {}),
@@ -176,64 +188,109 @@ export class Utility implements Member {
                 regions: track.regions.map(({ref, name, from, to, loop}) => ({ref, name, from, to, loop}))}))},
             notebook: context.notebook?.list() ?? [],
             ...(fresh ? {devices: this.#devices, ...Object.assign({}, ...this.#team.map(member => member.context(snapshot)))} : {})
-        })}])
-        const work: Work = {done: [], pending: [], late: []}
-        let current = snapshot
+        }))
         try {
-            for (let round = 0; round < MaxRounds; round++) {
-                if (round > 0) {current = (await context.snapshot()) ?? current}
-                const borrowed = this.#borrowed(current)
-                const tools = [...[...borrowed.values()].map(entry => entry.tool), ...OwnTools]
-                const response = await context.gateway.turn("utility", System, messages, tools, context.modelLog(), this.agent)
-                const {usage} = response
-                this.#context = usage.input_tokens + (usage.cache_read_input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0)
-                messages.push({role: "assistant", content: response.content})
-                const uses = response.content.flatMap(block => block.type === "tool_use" ? [block] : [])
-                if (uses.length === 0) {
-                    const text = response.content.flatMap(block => block.type === "text" ? [block.text] : []).join(" ")
-                    return await this.#finish(context, text, work)
-                }
-                const results: Anthropic.ToolResultBlockParam[] = []
-                let summary: string | null = null
-                for (const use of uses) {
-                    const input = use.input as Record<string, unknown>
-                    const content = summary !== null ? "Not run: you called done before it."
-                        : use.name === "done" ? (summary = String(input.summary), "Said to the producer.")
-                        : use.name === "look" ? await this.#look(context, String(input.code))
-                        : use.name === "source_search" ? this.#source.search(String(input.pattern), String(input.within ?? ""))
-                        : use.name === "source_read" ? this.#source.read(String(input.path), Number(input.from_line), Number(input.lines))
-                        : ["remember", "recall", "forget"].includes(use.name) ? this.#notebook(context, use.name, input)
-                        : use.name === "run" ? await this.#run(context, String(input.description), String(input.code), Number(input.at_bar), work)
-                        : await this.#operate(context, use.name, input, current, borrowed, task, work)
-                    results.push({type: "tool_result", tool_use_id: use.id, content})
-                }
-                const notes = summary !== null ? [] : [
-                    ...(work.late.length > 0 ? [`Since then, failed: ${work.late.splice(0).join("; ")}.`] : []),
-                    ...(round === MaxRounds - 2 ? ["Last round: call done now, saying what you changed and what's left undone."] : [])]
-                this.#ask([...results, ...notes.map(text => ({type: "text" as const, text}))])
-                if (summary !== null) {return await this.#finish(context, summary, work)}
-            }
-            return await this.#finish(context, work.done.length > 0 ? `${work.done.join("; ")}. I stopped there, before finishing.`
-                : "I stopped before changing anything: I couldn't work out how.", work)
+            const summary = await this.#reply(context, session)
+            await this.#finish(context, summary, work)
         } catch (error) {
-            this.#messages = []   // a turn left half-answered can't be continued
+            this.close()   // a turn left half-answered can't be continued
             throw error
         } finally {
-            if (this.#context > ContextBudget) {this.#messages = []}
+            this.#current = null
         }
     }
 
-    // Adds to the user's side of the conversation: a new turn, or the open one (a task ends on tool results, which
-    // the next task's message joins).
-    #ask(content: Array<Anthropic.TextBlockParam | Anthropic.ToolResultBlockParam>): void {
-        const last = this.#messages.at(-1)
-        if (last?.role === "user" && Array.isArray(last.content)) {last.content.push(...content)}
-        else {this.#messages.push({role: "user", content})}
+    // Reads the session until this message's turn ends; its last text is what the producer reads. Each turn is
+    // logged like a model call (tokens are the main loop's; the cost is the session's running total).
+    async #reply(context: Coordinator, session: Session): Promise<string> {
+        const {model} = context.gateway.agent("utility")
+        while (true) {
+            const next = await session.query.next()
+            if (next.done === true) {throw new Error("the agent's session ended")}
+            const message = next.value
+            if (message.type === "assistant" && message.parent_tool_use_id === null
+                && message.message.content.some(block => block.type === "tool_use" && SourceTools.includes(block.name))) {
+                context.card({agent: this.agent, name: this.name, doing: "reading openDAW's source…"})
+            }
+            if (message.type !== "result") {continue}
+            const {usage} = message
+            context.modelLog()({job: "utility", provider: "anthropic", model, ms: message.duration_ms,
+                inputTokens: usage.input_tokens, outputTokens: usage.output_tokens,
+                cacheRead: usage.cache_read_input_tokens, cacheWrite: usage.cache_creation_input_tokens,
+                turns: message.num_turns, costUsd: message.total_cost_usd, agent: this.agent,
+                ...(message.subtype === "success" && !message.is_error ? {} : {error: message.subtype === "success"
+                    ? message.result : `${message.subtype}: ${message.errors.join("; ")}`})})
+            if (message.subtype !== "success") {throw new Error(`${message.subtype}: ${message.errors.join("; ")}`)}
+            if (message.is_error) {throw new Error(message.result)}
+            return message.result
+        }
+    }
+
+    // A new session, with our tools: the members' (from the first snapshot, opened to any ref, so the list never
+    // changes) and the utility's own.
+    #open(context: Coordinator, snapshot: Snapshot): Session {
+        const {model, effort} = context.gateway.agent("utility")
+        const handler = (run: (current: Current, input: Record<string, unknown>) => Promise<string> | string) =>
+            async (input: Record<string, unknown>): Promise<CallToolResult> => {
+                const current = this.#current
+                if (current === null) {return reply("No message is being worked on.")}
+                if (++current.calls > MaxCalls) {
+                    return reply(`Not run: that's ${MaxCalls} calls for this message. Finish now, saying what you changed and what's left undone.`)
+                }
+                const result = await run(current, input)
+                const late = current.work.late.splice(0)
+                return reply(late.length > 0 ? `${result}\nSince then, failed: ${late.join("; ")}.` : result)
+            }
+        const borrowed = new Map<string, Anthropic.Tool>()
+        const owners = new Map<string, LlmMember>()
+        this.#team.forEach(owner => owner.tools(withEveryTool(snapshot)).forEach(member => {
+            if (borrowed.has(member.name)) {return}
+            borrowed.set(member.name, anyRef(member))
+            owners.set(member.name, owner)
+        }))
+        const tools = [
+            ...[...borrowed.values()].map(member => tool(member.name, member.description ?? "",
+                Object.fromEntries(Object.entries(member.input_schema.properties as Record<string, z.core.JSONSchema.JSONSchema>)
+                    .map(([name, property]) => [name, z.fromJSONSchema(property)])) as z.ZodRawShape,
+                handler((current, input) => this.#operate(current, owners.get(member.name)!, member.name, input)))),
+            tool("look", "Run read-only JavaScript (an async function body, `takedo` in scope) and see what it returns.", {
+                code: z.string()}, handler((current, input) => this.#look(current.context, String(input.code))),
+                {annotations: {readOnlyHint: true}}),
+            tool("run", "Change the project with a script (a function body, `takedo` in scope), as one undoable edit.", {
+                description: z.string().describe("What it does, for the producer, a few words"),
+                code: z.string(),
+                at_bar: z.number().int().describe("The bar it lands on; 0 for as soon as possible")},
+                handler((current, input) => this.#run(current, String(input.description), String(input.code), Number(input.at_bar)))),
+            tool("remember", "Keep something in your notebook, outside your conversation (which may be summarized): replaces the entry with that key.", {
+                key: z.string().describe("A short name you'll recognize (\"lofi-plan\", \"rhodes-patch\", \"bridge-chords\")"),
+                kind: z.enum(Kinds),
+                summary: z.string().describe("One line: what it is; shown with every message"),
+                value: z.string().describe("The content: text, or JSON (notes, settings, a script)")},
+                handler((current, input) => this.#notebook(current.context, "remember", input))),
+            tool("recall", "Read a notebook entry's content.", {key: z.string()},
+                handler((current, input) => this.#notebook(current.context, "recall", input)), {annotations: {readOnlyHint: true}}),
+            tool("forget", "Delete a notebook entry.", {key: z.string()},
+                handler((current, input) => this.#notebook(current.context, "forget", input)))
+        ]
+        const inbox = new Inbox()
+        return {inbox, query: query({prompt: inbox, options: {
+            model, ...(effort !== undefined ? {effort} : {}),
+            systemPrompt: System,
+            cwd: existsSync(this.#source) ? this.#source : process.cwd(),
+            tools: SourceTools,
+            allowedTools: [...SourceTools, "mcp__takedo__*"],
+            permissionMode: "dontAsk",
+            mcpServers: {takedo: createSdkMcpServer({name: "takedo", tools, alwaysLoad: true})},
+            settingSources: [],
+            persistSession: false,
+            env: {...process.env, CLAUDE_AGENT_SDK_CLIENT_APP: "takedo"},
+            stderr: data => console.error(`[utility] ${data.trimEnd()}`)
+        }})}
     }
 
     // Starts an edit that may land bars from now without waiting for it, so the next one is planned from about the same
     // playhead and the edits keep their spacing. Resolves with the edit's result if it ends at once, else as soon as it's
-    // scheduled or under way; a later failure goes to work.late, for the model's next round or the producer.
+    // scheduled or under way; a later failure goes to work.late, for the model's next tool result or the producer.
     #start(work: Work, edit: (onStatus: (status: Status) => void) => Promise<string>): Promise<string> {
         let waiting = true, failed = false
         let started: (text: string) => void = () => {}
@@ -253,15 +310,15 @@ export class Utility implements Member {
         })
     }
 
-    // A fixed operation, borrowed: a lookup answers at once; anything else becomes the owner's step, run as the utility's.
-    async #operate(context: Coordinator, name: string, input: Record<string, unknown>, snapshot: Snapshot,
-                   borrowed: Map<string, { tool: Anthropic.Tool, owner: LlmMember }>, task: Task,
-                   work: Work): Promise<string> {
-        const entry = borrowed.get(name)
-        if (entry === undefined) {return `No tool ${name}.`}
-        const found = entry.owner.lookup(name, input)
+    // A fixed operation, borrowed: a lookup answers at once; anything else becomes the owner's step on a fresh
+    // snapshot, run as the utility's.
+    async #operate(current: Current, owner: LlmMember, name: string, input: Record<string, unknown>): Promise<string> {
+        const found = owner.lookup(name, input)
         if (found !== null) {return found}
-        const step = entry.owner.step(name, input, snapshot)
+        const {context, task, work} = current
+        const snapshot = await context.snapshot()
+        if (snapshot === null) {return "Not done: no project is open."}
+        const step = owner.step(name, input, snapshot)
         if (typeof step === "string") {return `Not done: ${step}.`}
         context.card({agent: this.agent, name: this.name, doing: step.says})
         return this.#start(work, onStatus => performStep(context, this.agent, step, task.piece ?? task.message, onStatus)
@@ -293,7 +350,8 @@ export class Utility implements Member {
         return ok ? value : `Error: ${value}`
     }
 
-    async #run(context: Coordinator, description: string, code: string, bar: number, work: Work): Promise<string> {
+    async #run(current: Current, description: string, code: string, bar: number): Promise<string> {
+        const {context, work} = current
         context.card({agent: this.agent, name: this.name, doing: description})
         const claimed = context.claim(this.agent, ["project.script"], description)
         if (!claimed.ok) {return "Another script is running; try again in a moment."}

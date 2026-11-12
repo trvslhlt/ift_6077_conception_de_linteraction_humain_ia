@@ -148,9 +148,21 @@ Claude Code still did better, for reasons in the setup, not the model:
   can later be the targets of fast paths (Jev).
 - **Reading openDAW's source** (`takedo/backend/src/source.ts`): `source_search` (a regular expression over the
   pinned tree's TypeScript and the user manual) and `source_read` (numbered lines), indexed in memory from the tree
-  `make types` copies out of the studio image.
+  `make types` copies out of the studio image. Replaced 2026-11-11 by Claude Code's own Read, Grep and Glob, with the
+  move to the Agent SDK (below).
 - First measurement, on Sonnet 5.5: neither was used unprompted (EXPERIMENTS.md, G). Making the agent reach for
   them is the next step.
+
+**Decided (2026-11-11): the agents run on the Claude Agent SDK** (`@anthropic-ai/claude-agent-sdk`, Claude Code's
+loop as a library), replacing the hand-written loop on the raw API. The project is a design probe, not a product, so
+time goes to the interaction, not to rebuilding what Claude Code already does better (the gap in G was the setup,
+not the model). The SDK brings the loop, compaction, subagents, and file and grep tools over the pinned openDAW tree;
+the bus operations, scripts and the notebook become in-process MCP tools. What stays ours: the page (chat, team view),
+the bus and its guarantees (held parameters refused in the page, one undo step per agent edit, timing on the beat),
+Jev's fast path, and the session log (written from the SDK's message stream). Considered and set aside: plain Claude
+Code driving a debugging Chrome (no in-studio interface, turn-based, guarantees only by convention; still fine for
+solo exploration or Wizard-of-Oz sessions), and `claude -p` headless (same engine, but tools need a separate MCP
+server). First step: port the utility (`ROSTER=utility`) and rerun G's lofi direction against both earlier runs.
 
 ## What agents know
 
@@ -184,7 +196,8 @@ collaboration layer (TAKEDO_API.md, "What this is"), in five parts that change a
   `applied` reply for an added device carries its parameters with their addresses.
   *(check 8)*
 - **No retrieval knowledge base for now.** The catalog fits in a prompt or a lookup by name, so embeddings would
-  add a step that can miss without saving anything. Lookups by name cover the manual too.
+  add a step that can miss without saving anything. Lookups by name cover the manual too. (A curated knowledge base
+  looked up by key is being considered, 2026-11-11: see "Idea: a local knowledge base" below.)
 - **Project state is always queried, never cached in a prompt.** A `describe(track)` query returns its device
   chain, and for each parameter its address, current display value, range, whether it has a lane and whether the
   user holds it. Devices whose parameters the catalog can't list (layers, scripts, WebCLAP) are read this way.
@@ -206,6 +219,59 @@ collaboration layer (TAKEDO_API.md, "What this is"), in five parts that change a
   the UI shows (Tubular's algorithm is stored 0-based, its detune 0–14 for -7..+7, Vaporisateur's filter slope 1–4
   for 12–48 dB), and openDAW's text parsing (`setPrintValue`) silently ignores some values. The bus converts
   through each parameter's mappings, reads the value back, and replies `failed` when it didn't take.
+
+### Idea: a local knowledge base (2026-11-11, not decided)
+
+Thinking, not a spec. The slow part of a slow-tier reply is the number of round trips, not openDAW: every web
+search, source read or look is one more model call (seconds each). Much of what the agent looks up doesn't change
+between sessions: what lofi needs, which openDAW device and settings get a Rhodes-like sound, what Delay's step
+table means. That could be worked out once and kept locally, so the agent reads one entry in place of a search and
+three source reads.
+
+**What could go in.** Entries by kind, each small and named:
+- **Styles** (split 2026-11-12 into genres, what's played, and production styles, how it's treated: hip hop
+  against lofi; KNOWLEDGE.md): tempo range, swing, drum skeletons, harmonic habits (progressions as Roman numerals), each part's
+  usual sound mapped to openDAW devices, effect chains and mix habits. Experiment G's lofi run worked all of this out
+  by hand, and it's the first entry.
+- **Sounds (our presets):** named settings for an allowed device that give a known sound ("warm pad on
+  Vaporisateur", "dusty keys on Tubular"), with the values. Tubular loads DX7 voices (`TubularPreset.apply`,
+  OPENDAW.md), so classic FM patches are a ready source, licence permitting. openDAW has presets of its own
+  (manual page `presets.md`), but fetches them from `assets.opendaw.studio`, which the studio shouldn't depend on;
+  copying the allowed devices' presets in at the pinned commit, like the catalog, is a question to check.
+- **Effect recipes:** chains and settings with a name ("tape wobble", "dub delay throw").
+- **openDAW notes:** field ranges, step tables, API calls that work: what the agent learns from the source, and
+  what's now hand-written under "Recipes that work" in the utility's prompt.
+
+**Where entries come from.**
+- Written ahead, as `catalog/devices.json` was.
+- Promoted from sessions: a notebook entry (a sound, a script) that worked, made global rather than per project.
+  This is "promote what recurs" above, for knowledge.
+- Cached research: the researcher's findings saved as an entry with its sources, so the next "a song like X" or
+  "make it dub" costs no search.
+
+**How agents would use it.**
+- **The language model:** like the notebook. The list of keys and one-line summaries comes with each message, and
+  the model reads an entry by key: one cheap call, no embeddings. This fits the decision above, since keys and tags
+  are a lookup by name.
+- **Jev:** this is where it could pay most. Jev chooses among options it's given. If an entry carries something
+  code can apply (a sound's settings, a style's staged plan as fixed operations and scripts), "make it lofi" or
+  "dustier keys" becomes Jev picking an entry and filling in targets (~0.1 s), with no language model. Claude stays
+  the fallback when no entry fits or Jev isn't confident.
+- **Entries could be prose, executable, or both.** Executable ones are what move work to the fast tier.
+
+**Risks.**
+- A recipe nobody has heard, applied confidently: entries should say how they were checked (heard, measured, or
+  only written).
+- Entries that name openDAW fields break when the pin moves: check them against `catalog/generated.json` in
+  `make catalog`.
+- The index has to stay small enough to send with every message.
+- Upkeep.
+
+**A first step, when it's time:** a few entries for the study's base project(s) plus the lofi run's findings, then
+rerun G with and without them and count calls and seconds. Per the roadmap, this helps the utility first, and Jev
+once Jev comes back.
+
+A first schema and interface (2026-11-12, draft): KNOWLEDGE.md.
 
 ### What the state query must return
 

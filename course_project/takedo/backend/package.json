@@ -7,9 +7,12 @@
     "check": "tsc --noEmit"
   },
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "0.3.312",
     "@anthropic-ai/sdk": "1.1.0",
+    "@modelcontextprotocol/sdk": "1.32.2",
     "@typesafe-ai/sdk": "0.7.0",
-    "ws": "8.22.0"
+    "ws": "8.22.0",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@types/node": "26.6.5",

@@ -9,7 +9,6 @@ import {Coordinator} from "./coordinator.ts"
 import {loadCatalog} from "./catalog.ts"
 import {Gateway, loadConfig} from "./gateway.ts"
 import {SessionLog} from "./sessionLog.ts"
-import {Source} from "./source.ts"
 
 // The TakeDo backend. The page reaches it through Vite's proxy at SocketPath, so the socket is same-origin for the
 // cross-origin-isolated studio page. Each page connection is one session, with its own coordinator and log.
@@ -18,7 +17,7 @@ import {Source} from "./source.ts"
 const Port = Number(process.env.PORT ?? 8787)
 const SessionsDir = process.env.SESSIONS_DIR ?? "../sessions"
 const NotebooksDir = join(SessionsDir, "notebooks")
-const source = new Source(process.env.OPENDAW_SOURCE ?? "../.opendaw")
+const source = process.env.OPENDAW_SOURCE ?? "../.opendaw"   // openDAW's source tree, for the utility to read
 const ModelsConfig = process.env.MODELS_CONFIG ?? "../config/models.json"
 const CatalogDir = process.env.CATALOG_DIR ?? "../catalog"
 
@@ -86,7 +85,10 @@ sockets.on("connection", (socket: WebSocket) => {
                 coordinator.receive(message)
         }
     })
-    socket.on("close", () => log("disconnected", {session}))
+    socket.on("close", () => {
+        coordinator?.close()
+        log("disconnected", {session})
+    })
 })
 
 server.listen(Port, () => log("listening", {port: Port, jev: gateway.available("fast_path")}))
