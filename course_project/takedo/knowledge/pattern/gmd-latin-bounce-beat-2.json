@@ -1,0 +1,335 @@
+{
+ "key": "pattern/gmd-latin-bounce-beat-2",
+ "kind": "pattern",
+ "summary": "latin (bounce) groove, 2 bars at 106 BPM, played by a human drummer (Groove MIDI)",
+ "tags": [
+  "latin",
+  "brazilian",
+  "bounce",
+  "drums",
+  "groove",
+  "human",
+  "live drums"
+ ],
+ "group": "Groove MIDI drums, latin (human drummers; 2-bar beats and 1-bar fills)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/groove.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Groove MIDI Dataset (Magenta), drummer8/session2/29_latin-bounce_106_beat_4-4.mid",
+   "url": "https://magenta.tensorflow.org/datasets/groove"
+  }
+ ],
+ "body": [
+  "Played at 106 BPM; it holds up roughly ±15% from there. Uses closed_hat, kick, snare, tom_high, tom_mid.",
+  "Human timing and dynamics kept: hits sit a little ahead of or behind the grid, and velocities vary. Don't quantize it unless asked; that's the point of it."
+ ],
+ "pattern": {
+  "type": "drums",
+  "beats": 8,
+  "hits": [
+   [
+    0,
+    "kick",
+    0.37
+   ],
+   [
+    0.088,
+    "snare",
+    0.14
+   ],
+   [
+    0.181,
+    "snare",
+    0.1
+   ],
+   [
+    0.231,
+    "snare",
+    0.1
+   ],
+   [
+    0.287,
+    "snare",
+    0.13
+   ],
+   [
+    0.427,
+    "closed_hat",
+    0.63
+   ],
+   [
+    0.438,
+    "snare",
+    0.07
+   ],
+   [
+    0.45,
+    "tom_mid",
+    0.54
+   ],
+   [
+    0.694,
+    "snare",
+    0.97
+   ],
+   [
+    0.944,
+    "kick",
+    0.38
+   ],
+   [
+    1.229,
+    "tom_high",
+    0.36
+   ],
+   [
+    1.448,
+    "closed_hat",
+    0.61
+   ],
+   [
+    1.45,
+    "tom_high",
+    0.69
+   ],
+   [
+    1.465,
+    "snare",
+    1
+   ],
+   [
+    1.727,
+    "snare",
+    0.51
+   ],
+   [
+    1.965,
+    "kick",
+    0.37
+   ],
+   [
+    2.225,
+    "tom_mid",
+    0.33
+   ],
+   [
+    2.456,
+    "tom_mid",
+    0.46
+   ],
+   [
+    2.458,
+    "closed_hat",
+    0.63
+   ],
+   [
+    2.719,
+    "snare",
+    0.89
+   ],
+   [
+    2.967,
+    "kick",
+    0.4
+   ],
+   [
+    3.219,
+    "tom_high",
+    0.33
+   ],
+   [
+    3.448,
+    "tom_high",
+    0.76
+   ],
+   [
+    3.46,
+    "closed_hat",
+    0.67
+   ],
+   [
+    3.49,
+    "snare",
+    1
+   ],
+   [
+    3.573,
+    "snare",
+    0.43
+   ],
+   [
+    3.694,
+    "snare",
+    0.3
+   ],
+   [
+    3.829,
+    "snare",
+    0.24
+   ],
+   [
+    3.946,
+    "snare",
+    0.17
+   ],
+   [
+    3.979,
+    "kick",
+    0.41
+   ],
+   [
+    4.215,
+    "snare",
+    0.28
+   ],
+   [
+    4.256,
+    "snare",
+    0.3
+   ],
+   [
+    4.456,
+    "closed_hat",
+    0.67
+   ],
+   [
+    4.475,
+    "tom_mid",
+    0.61
+   ],
+   [
+    4.723,
+    "snare",
+    0.85
+   ],
+   [
+    4.954,
+    "kick",
+    0.4
+   ],
+   [
+    5.2,
+    "tom_high",
+    0.36
+   ],
+   [
+    5.427,
+    "closed_hat",
+    0.61
+   ],
+   [
+    5.44,
+    "tom_high",
+    0.81
+   ],
+   [
+    5.475,
+    "snare",
+    0.82
+   ],
+   [
+    5.727,
+    "snare",
+    0.46
+   ],
+   [
+    5.956,
+    "kick",
+    0.4
+   ],
+   [
+    6.24,
+    "tom_mid",
+    0.34
+   ],
+   [
+    6.446,
+    "closed_hat",
+    0.71
+   ],
+   [
+    6.454,
+    "tom_mid",
+    0.44
+   ],
+   [
+    6.721,
+    "snare",
+    0.78
+   ],
+   [
+    6.958,
+    "kick",
+    0.39
+   ],
+   [
+    7.144,
+    "tom_high",
+    0.37
+   ],
+   [
+    7.423,
+    "tom_high",
+    0.89
+   ],
+   [
+    7.454,
+    "closed_hat",
+    0.69
+   ],
+   [
+    7.465,
+    "snare",
+    1
+   ],
+   [
+    7.556,
+    "snare",
+    0.49
+   ],
+   [
+    7.715,
+    "snare",
+    0.36
+   ],
+   [
+    7.892,
+    "snare",
+    0.28
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "the drum track (a kit)"
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "from_bar": "$from_bar",
+     "bars": "$bars"
+    }
+   }
+  ]
+ }
+}

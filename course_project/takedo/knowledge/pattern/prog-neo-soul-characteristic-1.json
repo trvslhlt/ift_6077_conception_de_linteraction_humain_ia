@@ -1,0 +1,91 @@
+{
+ "key": "pattern/prog-neo-soul-characteristic-1",
+ "kind": "pattern",
+ "summary": "neo soul, characteristic: i → iv → v (2.2% of 1,099 songs, 4.4× more than overall)",
+ "tags": [
+  "neo soul",
+  "chords",
+  "progression",
+  "characteristic",
+  "minor"
+ ],
+ "label": "i iv v",
+ "group": "Chord loops, neo soul (Chordonomicon; numerals in the key, a bar per chord)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/chordonomicon.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Chordonomicon (Kantarelis et al. 2024), chordonomicon_v2.csv",
+   "url": "https://huggingface.co/datasets/ailsntua/Chordonomicon"
+  }
+ ],
+ "body": [
+  "In 24 of 1,099 neo soul songs (2.2%), mostly in song and verse sections; mostly in minor keys: use the project's key in minor, or its relative major if that's what the project is in, and read the numerals there.",
+  "A loop of 3 chords, written from the tonic when it's in it (songs start it anywhere). Numerals follow the key's own scale (natural minor in minor keys); b and # mark roots outside it. A bar per chord; change the rhythm and voicing to suit the part.",
+  "From user-written chord charts, with each song's key estimated: frequent progressions are reliable, rarer ones less so."
+ ],
+ "pattern": {
+  "type": "chords",
+  "beats": 12,
+  "chords": [
+   [
+    0,
+    "i",
+    4
+   ],
+   [
+    4,
+    "iv",
+    4
+   ],
+   [
+    8,
+    "v",
+    4
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "a chordal part (keys, pad)"
+   },
+   "key": {
+    "type": "key",
+    "about": "the project's key, e.g. \"G major\""
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   },
+   "octave": {
+    "type": "number",
+    "optional": true,
+    "default": 3
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "key": "$key",
+     "from_bar": "$from_bar",
+     "bars": "$bars",
+     "octave": "$octave"
+    }
+   }
+  ]
+ }
+}

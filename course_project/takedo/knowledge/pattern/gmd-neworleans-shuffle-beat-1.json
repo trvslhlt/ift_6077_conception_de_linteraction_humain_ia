@@ -1,0 +1,401 @@
+{
+ "key": "pattern/gmd-neworleans-shuffle-beat-1",
+ "kind": "pattern",
+ "summary": "New Orleans (shuffle) groove, 2 bars at 104 BPM, played by a human drummer (Groove MIDI)",
+ "tags": [
+  "new orleans",
+  "second line",
+  "funk",
+  "shuffle",
+  "drums",
+  "groove",
+  "human",
+  "live drums"
+ ],
+ "group": "Groove MIDI drums, New Orleans (human drummers; 2-bar beats and 1-bar fills)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/groove.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Groove MIDI Dataset (Magenta), drummer5/session2/9_neworleans-shuffle_104_beat_4-4.mid",
+   "url": "https://magenta.tensorflow.org/datasets/groove"
+  }
+ ],
+ "body": [
+  "Played at 104 BPM; it holds up roughly ±15% from there. Uses closed_hat, kick, rim, snare.",
+  "Human timing and dynamics kept: hits sit a little ahead of or behind the grid, and velocities vary. Don't quantize it unless asked; that's the point of it."
+ ],
+ "pattern": {
+  "type": "drums",
+  "beats": 8,
+  "hits": [
+   [
+    0,
+    "snare",
+    0.3
+   ],
+   [
+    0,
+    "kick",
+    0.36
+   ],
+   [
+    0.096,
+    "kick",
+    0.1
+   ],
+   [
+    0.202,
+    "snare",
+    0.32
+   ],
+   [
+    0.323,
+    "snare",
+    0.28
+   ],
+   [
+    0.45,
+    "rim",
+    0.69
+   ],
+   [
+    0.463,
+    "closed_hat",
+    0.45
+   ],
+   [
+    0.715,
+    "snare",
+    0.42
+   ],
+   [
+    0.785,
+    "kick",
+    0.26
+   ],
+   [
+    0.973,
+    "snare",
+    0.19
+   ],
+   [
+    1.171,
+    "snare",
+    0.31
+   ],
+   [
+    1.285,
+    "snare",
+    0.28
+   ],
+   [
+    1.377,
+    "snare",
+    0.17
+   ],
+   [
+    1.452,
+    "closed_hat",
+    0.47
+   ],
+   [
+    1.458,
+    "snare",
+    0.8
+   ],
+   [
+    1.463,
+    "kick",
+    0.3
+   ],
+   [
+    1.55,
+    "snare",
+    0.38
+   ],
+   [
+    1.721,
+    "snare",
+    0.28
+   ],
+   [
+    1.969,
+    "snare",
+    0.24
+   ],
+   [
+    2.002,
+    "kick",
+    0.35
+   ],
+   [
+    2.102,
+    "kick",
+    0.09
+   ],
+   [
+    2.217,
+    "snare",
+    0.32
+   ],
+   [
+    2.356,
+    "snare",
+    0.31
+   ],
+   [
+    2.456,
+    "snare",
+    0.72
+   ],
+   [
+    2.477,
+    "closed_hat",
+    0.57
+   ],
+   [
+    2.731,
+    "snare",
+    0.34
+   ],
+   [
+    2.781,
+    "kick",
+    0.24
+   ],
+   [
+    2.967,
+    "snare",
+    0.24
+   ],
+   [
+    3.2,
+    "snare",
+    0.34
+   ],
+   [
+    3.331,
+    "snare",
+    0.31
+   ],
+   [
+    3.45,
+    "snare",
+    0.65
+   ],
+   [
+    3.469,
+    "closed_hat",
+    0.75
+   ],
+   [
+    3.508,
+    "kick",
+    0.34
+   ],
+   [
+    3.648,
+    "kick",
+    0.07
+   ],
+   [
+    3.754,
+    "snare",
+    0.24
+   ],
+   [
+    3.965,
+    "snare",
+    0.31
+   ],
+   [
+    4,
+    "kick",
+    0.36
+   ],
+   [
+    4.115,
+    "kick",
+    0.09
+   ],
+   [
+    4.204,
+    "snare",
+    0.32
+   ],
+   [
+    4.329,
+    "snare",
+    0.31
+   ],
+   [
+    4.427,
+    "closed_hat",
+    0.55
+   ],
+   [
+    4.431,
+    "snare",
+    0.77
+   ],
+   [
+    4.694,
+    "snare",
+    0.28
+   ],
+   [
+    4.723,
+    "kick",
+    0.27
+   ],
+   [
+    4.946,
+    "snare",
+    0.2
+   ],
+   [
+    5.167,
+    "snare",
+    0.31
+   ],
+   [
+    5.315,
+    "snare",
+    0.31
+   ],
+   [
+    5.438,
+    "closed_hat",
+    0.59
+   ],
+   [
+    5.454,
+    "snare",
+    0.8
+   ],
+   [
+    5.463,
+    "kick",
+    0.32
+   ],
+   [
+    5.725,
+    "snare",
+    0.3
+   ],
+   [
+    5.948,
+    "snare",
+    0.3
+   ],
+   [
+    5.981,
+    "kick",
+    0.36
+   ],
+   [
+    6.094,
+    "kick",
+    0.12
+   ],
+   [
+    6.217,
+    "snare",
+    0.28
+   ],
+   [
+    6.433,
+    "snare",
+    0.75
+   ],
+   [
+    6.448,
+    "closed_hat",
+    0.49
+   ],
+   [
+    6.704,
+    "snare",
+    0.32
+   ],
+   [
+    6.708,
+    "kick",
+    0.27
+   ],
+   [
+    6.967,
+    "snare",
+    0.19
+   ],
+   [
+    7.102,
+    "snare",
+    0.11
+   ],
+   [
+    7.24,
+    "snare",
+    0.43
+   ],
+   [
+    7.371,
+    "snare",
+    0.39
+   ],
+   [
+    7.46,
+    "kick",
+    0.34
+   ],
+   [
+    7.467,
+    "closed_hat",
+    0.53
+   ],
+   [
+    7.479,
+    "snare",
+    0.88
+   ],
+   [
+    7.735,
+    "snare",
+    0.39
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "the drum track (a kit)"
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "from_bar": "$from_bar",
+     "bars": "$bars"
+    }
+   }
+  ]
+ }
+}

@@ -1,0 +1,239 @@
+{
+ "key": "pattern/gmd-rock-beat-2",
+ "kind": "pattern",
+ "summary": "rock groove, 2 bars at 105 BPM, played by a human drummer (Groove MIDI)",
+ "tags": [
+  "rock",
+  "indie",
+  "drums",
+  "groove",
+  "human",
+  "live drums"
+ ],
+ "group": "Groove MIDI drums, rock (human drummers; 2-bar beats and 1-bar fills)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/groove.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Groove MIDI Dataset (Magenta), drummer3/session1/10_rock_105_beat_4-4.mid",
+   "url": "https://magenta.tensorflow.org/datasets/groove"
+  }
+ ],
+ "body": [
+  "Played at 105 BPM; it holds up roughly ±15% from there. Uses kick, open_hat, snare.",
+  "Human timing and dynamics kept: hits sit a little ahead of or behind the grid, and velocities vary. Don't quantize it unless asked; that's the point of it."
+ ],
+ "pattern": {
+  "type": "drums",
+  "beats": 8,
+  "hits": [
+   [
+    0,
+    "snare",
+    0.63
+   ],
+   [
+    0.015,
+    "kick",
+    0.5
+   ],
+   [
+    0.552,
+    "snare",
+    0.36
+   ],
+   [
+    0.773,
+    "snare",
+    0.4
+   ],
+   [
+    1.035,
+    "snare",
+    0.9
+   ],
+   [
+    1.06,
+    "kick",
+    0.5
+   ],
+   [
+    1.519,
+    "snare",
+    0.51
+   ],
+   [
+    1.773,
+    "snare",
+    0.35
+   ],
+   [
+    2.046,
+    "snare",
+    0.61
+   ],
+   [
+    2.069,
+    "kick",
+    0.46
+   ],
+   [
+    2.319,
+    "snare",
+    0.36
+   ],
+   [
+    2.55,
+    "snare",
+    0.62
+   ],
+   [
+    2.796,
+    "snare",
+    0.65
+   ],
+   [
+    3.06,
+    "kick",
+    0.53
+   ],
+   [
+    3.319,
+    "snare",
+    0.75
+   ],
+   [
+    3.556,
+    "snare",
+    0.61
+   ],
+   [
+    3.802,
+    "snare",
+    0.5
+   ],
+   [
+    4.056,
+    "snare",
+    0.65
+   ],
+   [
+    4.071,
+    "kick",
+    0.5
+   ],
+   [
+    4.548,
+    "snare",
+    0.5
+   ],
+   [
+    4.81,
+    "snare",
+    0.39
+   ],
+   [
+    5.073,
+    "snare",
+    0.73
+   ],
+   [
+    5.085,
+    "kick",
+    0.5
+   ],
+   [
+    5.55,
+    "snare",
+    0.4
+   ],
+   [
+    5.831,
+    "snare",
+    0.36
+   ],
+   [
+    6.079,
+    "snare",
+    0.73
+   ],
+   [
+    6.115,
+    "kick",
+    0.45
+   ],
+   [
+    6.342,
+    "snare",
+    0.35
+   ],
+   [
+    6.554,
+    "snare",
+    0.41
+   ],
+   [
+    6.817,
+    "snare",
+    0.59
+   ],
+   [
+    7.096,
+    "kick",
+    0.5
+   ],
+   [
+    7.352,
+    "snare",
+    0.76
+   ],
+   [
+    7.406,
+    "open_hat",
+    0.11
+   ],
+   [
+    7.602,
+    "snare",
+    0.54
+   ],
+   [
+    7.858,
+    "snare",
+    0.5
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "the drum track (a kit)"
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "from_bar": "$from_bar",
+     "bars": "$bars"
+    }
+   }
+  ]
+ }
+}

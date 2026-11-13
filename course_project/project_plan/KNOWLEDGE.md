@@ -1,10 +1,47 @@
-# The knowledge base: a first design (2026-11-12, draft)
+# The knowledge base: design (2026-11-12)
 
-A first attempt at the schema and interface for the idea in STRATEGY.md ("Idea: a local knowledge base"). Nothing
-is built and nothing is decided. Values in the examples are illustrative: no one has listened to them.
+The schema and interface for the idea in STRATEGY.md ("Idea: a local knowledge base"). The utility's side is built
+(see "Built" below) but has never run live: Docker was down. Values in the examples are illustrative: no one has
+listened to them.
 
 The aim is fewer round trips per reply. The utility should read one entry in place of a web search and a few
 source reads. Later, Jev should apply an entry by itself, with no language model.
+
+## Built (2026-11-12, not yet run in the studio)
+
+- **`takedo/knowledge/`** (its README lists sources, pins and limits), about 400 entries:
+  - hand-written: `production/lofi`, `genre/boom-bap`, 5 effect chains, 2 Vaporisateur sounds, 12 patterns, 4
+    openDAW notes
+  - openDAW's 32 Tubular Classics as sounds, plus `sound/dx7-voice` and `note/dx7-library` for all ~1,200 DX7
+    voices openDAW bundles (its 38 cartridges, copied in)
+  - 117 drum patterns from Groove MIDI
+  - 226 chord loops from Chordonomicon, for 34 genres
+- **`backend/src/knowledge.ts`:** loading, validation against the catalog (a bad reviewed entry stops startup;
+  a bad draft is skipped), the compact index, expansion and drafts.
+  - Offline tests: `backend/src/knowledge.test.ts`, run with `make knowledge`.
+  - Type-checked.
+- **The utility's tools** `knowledge`, `apply_knowledge` and `learn`. The index is sent with the session's first
+  message (about 4.6k tokens), and new drafts with later ones.
+
+How the build differs from the design below:
+- **Page-side helpers instead of one script per op.** `knowledge/scripts/kb.js` is prepended to every script an
+  entry makes. The music is worked out in the backend, where it can be tested, and the page gets pitches, bytes and
+  field values.
+- **Named ops for what scripts did:** `instrument` (fields by catalog path, on a track or a new one), `dx7` (a
+  voice by `cartridge/name`), `pattern` (writes the entry's notes into a new region over the chosen bars,
+  clearing them first with openDAW's own clip resolver), `tempo`. `script` still runs a named file, and `entry`
+  nests one entry in another.
+  - `instrument` and `dx7` can write notes in the same edit, so a new part is never heard half-made.
+- **The compact index:** the model sees "key: summary" per entry. A family (`group`) goes on one line of keys with
+  short `label`s, such as `pattern/prog-pop-* = common-1 (I V IV), …`, so it can often apply without reading first.
+  The full lines, with tags, remain for Jev.
+- **Open questions settled:**
+  - Key: a chord pattern applied without a key gets the project's, estimated by `analysis.ts`
+    (Krumhansl–Kessler), and the result says which.
+  - Drum roles: they find pads by name (kick, snare, closed hat…), with fallbacks (rim to snare, ride to closed
+    hat), General MIDI notes on a kit with no pads, and a refusal naming the pads when a needed drum is missing.
+  - DX7: all bundled banks, loaded by name.
+- **Not built:** Jev's route (per the roadmap), and openDAW's own device presets.
 
 ## Will it make TakeDo faster? (2026-11-12)
 
@@ -43,6 +80,75 @@ what it's given and can only choose among options. So the same entry pays off di
 **To measure, once Jev is back** (in `poc/jev_bench`):
 - How much description per option Jev can take before it gets slower or picks worse.
 - How accurately it picks among a few hundred entries after prefiltering by tags and devices.
+
+## Which messages it serves: the bench (2026-11-12)
+
+`make knowledge-bench` (`takedo/backend/src/knowledge.bench.ts`) runs 198 producer messages labelled with the
+entries that should be applied, the entries worth reading, and the entry that would have served a miss
+(`takedo/knowledge/bench/messages.mjs`). There are 27 observed messages (every distinct one in the session logs), 55 from
+jev_bench and 116 simulated. The labels are one person's judgment, against one lofi project. First run, 402 entries:
+
+- **Coverage.** 101 of 198 messages (51%) should have an entry applied: drums 93%, direction 82%, sound and chords
+  75%, effects 38%. Levels, arrangement, tempo and chat are 0% by design. Only 4 of the 27 observed messages are hits,
+  because experiment G's messages are mostly levels, clips and chat.
+- **The shortlist** (`shortlist()` in knowledge.ts: word overlap weighted by rarity, at most 3 entries per family)
+  puts a right entry in its top 12 for 97 of the 101 hits. Its misses need meaning, not words: "busier drums",
+  "make it less jazzy".
+- **36 gaps.** Mostly genre write-ups (house, techno, funk, jazz, reggae, disco, synthwave...), then chains (lush hall,
+  sidechain pump, chorus, drum punch) and sounds (hoover, 808 bass, supersaw).
+
+| Picker | Hits picked right | Right "none" (of 97) | Wrong or unwanted applies | p50 | p90 |
+|---|---|---|---|---|---|
+| Jev: `choice` over the shortlist plus "none" | 86/101 | 77 | 31 | 108 ms | 134 ms |
+| Sonnet 5.5, medium effort, given the compact index | 86/101 | 95 | 4 | 1.3 s | 2.5 s |
+
+- **Jev finds hits as well as Sonnet, about 12× faster, but applies too readily.** 20 of the messages where nothing
+  should apply got an entry ("make it darker" → tape-dust at 0.98; "what instrument is the bass?" → the sub at 0.87).
+  Its confidence doesn't separate these: applies at ≥ 0.7 were right 50 times out of 57. Applying Jev's pick
+  without a check would make about one wrong edit in eight.
+- **Sonnet is cautious.** Its 13 misses are mostly directions ("evolve this into a lofi girl beat", "make it
+  funkier"). It declines to apply one entry for a whole style, which is arguably right. It named a labelled entry to
+  read for 96 of the 101 hits. Cost was about 1.7M cached input tokens and 14k output for the run.
+- **What follows for the Jev route:**
+  - Don't auto-apply on the pick alone. Either gate it with a question first ("is the message asking for a new sound,
+    pattern or effect?"), or use Jev's shortlist and pick as hints for the utility (step 3 above). The second option
+    saves the search, not the call.
+  - The genre write-ups in the gaps are where coverage grows most for directions.
+  - Rerun the bench after each batch of entries, and add real messages as sessions produce them.
+
+### Round two: genre write-ups and a stratified Jev (2026-11-12)
+
+New since round one:
+- 22 genre write-ups with plans, 3 production styles and 3 drum patterns (430 entries).
+- Style-direction labels now count the genre entry, and 8 messages were added for the new genres (206 messages).
+- The Jev pickers only see entries that can be applied.
+
+Coverage went from 51% to 54%. Directions went from 82% to 92%, and gaps fell from 36 to 19. The shortlist finds
+109 of the 112 hits.
+
+| Picker | Hits right | Right "none" (of 94) | Wrong or unwanted applies | Applies ≥ 0.7 right | p50 |
+|---|---|---|---|---|---|
+| Jev, one pick over the shortlist | 100/112 | 71 | 32 | 63/75 | 135 ms |
+| Jev staged: what kind of change, then a pick among that kind | 98/112 | 81 | 22 | 69/75 | 240 ms |
+| **Jev joint: both questions in one request, applied when they agree** | **94/112** | **91** | **7** | **58/60** | **141 ms** |
+| Sonnet 5.5, medium, the compact index | 97/112 | 90 | 6 | | 1.2 s |
+
+(Jev joint is the run after limiting candidates to applicable entries, and after letting a "style" answer accept a
+drum or chord pattern. The other rows are the run before that.)
+
+- **The joint request is the one to build.** It is as safe as Sonnet (7 bad applies against 6), finds almost as many
+  hits (94 against 97), and is 8× faster at Jev's single-request latency. Applies at ≥ 0.7 confidence were right 58
+  times out of 60; at ≥ 0.9, 33 of 33. The kind question works as a gate because "none of these" catches levels,
+  tempo, arrangement, chat and tweaks to something already there: those categories scored 100%.
+- **Staged (two requests) is worse than joint.** Committing to the kind first loses the hits it gets wrong (151 of 182
+  kinds right), and it costs a second round trip.
+- **Where Jev still misses:**
+  - Drums are at 70%, with messages like "busier", "more human", "more swing" and "breakbeat". Fixes would be more
+    precise drum summaries, and a "groove" stratum for feel requests.
+  - "drum and bass please" is judged "other" with low confidence.
+  - The two wrong reverb applies (dub-echo) disappear once a plain hall chain exists (gap: chain/lush-hall).
+- **Next for the route:** the joint request in the router (`router.ts`) as a third path. Apply at ≥ 0.8 when the kind
+  and the pick agree; otherwise hand the top candidates to the utility.
 
 ## Where it sits
 
@@ -182,6 +288,10 @@ from a typical starting point.
   }
 }
 ```
+
+A step can carry `"when": "<param>"`. It is skipped when that param has no value, so one plan serves projects with
+or without a keys part (built 2026-11-12). The 22 genre write-ups follow this shape: their drum pattern at bar 0 and
+their chord loop at bar 4, with tempo and sounds left to the agent, which the body says.
 
 **production**: links its chains and sounds, says how the mix sits, and can carry `targets` for what the Listening
 part measures (brightness, loudness, dynamics), so an agent can check it got there. `apply` is usually chains on
@@ -429,16 +539,12 @@ The utility's tools and Jev's route both go through `expand`, so the two tiers a
 
 ## Open questions
 
-- **DX7 voices.** Which banks to take, and whether a voice stored as bytes is readable enough for the model or
-  also needs its values spelled out.
 - **openDAW's own presets.** Whether to copy the allowed devices' presets in at the pinned commit, as `sound`
   entries. It's worth checking how many there are and in what format.
-- **The project's key.** Progressions are stored as numerals, but the snapshot has no key (only tempo and
-  signature). The utility can work the key out itself. Jev would need code to guess it from the notes (a
-  pitch-class count) or the producer to say it.
-- **Drum roles to pads.** A pattern names kick and snare. The script has to find them on the track's kit from
-  the pad names (Playfield's sample names, as in "What the state query must return" in STRATEGY.md), and must
-  say so when it can't.
+- **Groove MIDI bar lines.** Whether each recording's first beat is a downbeat hasn't been checked. A groove may
+  start mid-bar until someone listens, which counts against letting Jev apply imported patterns unheard.
+- **The index as it grows.** About 4.6k tokens at 400 entries. Past roughly twice that, filter it by the project's
+  devices and the conversation's genres.
 - **Genre plans against real projects.** A staged plan assumes a starting point ("a chordal part, if there is
   one"). How often the params can't be filled, and whether the utility should adapt a plan rather than apply it,
   is the first thing to watch.
@@ -449,16 +555,14 @@ The utility's tools and Jev's route both go through `expand`, so the two tiers a
 
 Executable entries come first, because that's where the time is saved (see "Will it make TakeDo faster?").
 
-1. **Before building:** run the SDK port once (Docker is down, and nothing has run yet), so a knowledge-base
-   failure isn't confused with a port failure. Record a baseline: G's lofi direction on the ported utility.
-2. **The utility's side:** `knowledge.ts` and the three tools, the `script` op (a named script run like `run`, with
-   `args` in scope), and a mount for `takedo/knowledge/` (drafts are written there).
-3. **Seed with executable entries and notes:** the Rhodes on Tubular (its DX7 values are in Claude Code's
-   transcript), the sine sub, a dust chain, a few drum patterns and progressions with their scripts, and the
-   Delay/Tidal step-table notes. Thin `production/lofi` and `genre/boom-bap` entries that mostly link to them.
-   Listen to each and mark the ones that hold up as `heard`.
+1. **Before building:** run the SDK port once, so a knowledge-base failure isn't confused with a port failure.
+   Record a baseline: G's lofi direction on the ported utility. *Waiting for Docker.*
+2. **The utility's side.** *Built 2026-11-12, offline-tested only.*
+3. **Seed with executable entries and notes.** *Written 2026-11-12, plus the DX7 import.* What's left: a first
+   live run of each op (`kb.js` has never run), then listen and mark entries `heard`. The Rhodes is openDAW's own
+   Tubular Classics voice, not the patch from experiment G.
 4. **Rerun G** with and without the knowledge base. Compare the number of calls and output tokens per reply, not
-   only seconds.
-5. **Imports**, starting with Groove MIDI's grooves and Chordonomicon's progressions as patterns, then write-ups
-   for the genre and production lists. These matter most once Jev is back.
+   only seconds. To turn it off, point `KNOWLEDGE_DIR` at an empty folder.
+5. **Imports.** *Groove MIDI and Chordonomicon built 2026-11-12.* What's left: genre and production write-ups for
+   the rest of the genre list, which matter most once Jev is back.
 6. **Jev's route**, when the roadmap brings Jev back, with the two measurements above.

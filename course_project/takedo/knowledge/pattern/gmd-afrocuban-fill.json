@@ -1,0 +1,141 @@
+{
+ "key": "pattern/gmd-afrocuban-fill",
+ "kind": "pattern",
+ "summary": "Afro Cuban fill, 1 bar at 105 BPM, played by a human drummer (Groove MIDI)",
+ "tags": [
+  "afro-cuban",
+  "latin",
+  "clave",
+  "drums",
+  "fill",
+  "human",
+  "live drums"
+ ],
+ "group": "Groove MIDI drums, Afro Cuban (human drummers; 2-bar beats and 1-bar fills)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/groove.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Groove MIDI Dataset (Magenta), drummer1/session1/177_afrocuban_105_fill_4-4.mid",
+   "url": "https://magenta.tensorflow.org/datasets/groove"
+  }
+ ],
+ "body": [
+  "Played at 105 BPM; it holds up roughly ±15% from there. Uses closed_hat, rim, snare.",
+  "Human timing and dynamics kept: hits sit a little ahead of or behind the grid, and velocities vary. Don't quantize it unless asked; that's the point of it.",
+  "Write it on the bar before a section change (from_bar = that bar, bars = 1)."
+ ],
+ "pattern": {
+  "type": "drums",
+  "beats": 4,
+  "hits": [
+   [
+    0,
+    "closed_hat",
+    0.49
+   ],
+   [
+    0.465,
+    "closed_hat",
+    0.45
+   ],
+   [
+    0.938,
+    "closed_hat",
+    0.45
+   ],
+   [
+    1.419,
+    "closed_hat",
+    0.53
+   ],
+   [
+    1.673,
+    "snare",
+    0.09
+   ],
+   [
+    1.798,
+    "snare",
+    0.14
+   ],
+   [
+    1.894,
+    "closed_hat",
+    0.57
+   ],
+   [
+    1.942,
+    "snare",
+    0.43
+   ],
+   [
+    2.365,
+    "closed_hat",
+    0.59
+   ],
+   [
+    2.404,
+    "rim",
+    0.54
+   ],
+   [
+    2.667,
+    "snare",
+    0.49
+   ],
+   [
+    2.852,
+    "closed_hat",
+    0.59
+   ],
+   [
+    3.135,
+    "snare",
+    0.55
+   ],
+   [
+    3.362,
+    "closed_hat",
+    0.51
+   ],
+   [
+    3.39,
+    "rim",
+    0.68
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "the drum track (a kit)"
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "from_bar": "$from_bar",
+     "bars": "$bars"
+    }
+   }
+  ]
+ }
+}

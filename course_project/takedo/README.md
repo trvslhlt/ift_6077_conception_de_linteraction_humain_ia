@@ -17,6 +17,8 @@ make test     # smoke test in headless Chromium, against the full team (leaves t
 make logs     # follow the studio's and the backend's output
 make catalog  # regenerate catalog/generated.json from openDAW (after bumping the openDAW pin)
 make check    # type-check the backend and shared code (run `npm ci` in backend/ once first)
+make knowledge         # check the knowledge base offline (every entry against the catalog, expansion)
+make knowledge-import  # rewrite its imported entries (knowledge/README.md: datasets)
 make types    # editor types for page/ (copies openDAW's tree into .opendaw/)
 make down     # stop and remove the containers and network
 make clean    # remove everything TakeDo created in Docker (not the shared builder)
@@ -105,6 +107,12 @@ API keys go in `.env` (git-ignored, and never in a build context): `TYPESAFE_API
   - `notebook.ts`: the agent's notebook, per project in `sessions/notebooks/`: notes, plans, clips, sounds, scripts,
     and the project's starting state; listed with every message, recalled by key, so what matters survives the
     session being summarized or restarted
+  - `knowledge.ts`: the knowledge base (`knowledge/`, project_plan/KNOWLEDGE.md): loads and validates every entry
+    against the catalog at startup (ranges included), lists them for the model compactly (families on one line),
+    and expands an entry into edits: fixed operations, and scripts built from `knowledge/scripts/kb.js` with the
+    music worked out here (chord numerals in a key to pitches, drum roles to the kit's pads by name, DX7 voices to
+    bytes). The utility's tools `knowledge`, `apply_knowledge` and `learn` (drafts) use it; a chord pattern without
+    a key gets the project's, estimated by `analysis.ts`. `knowledge.test.ts`: offline checks (`make knowledge`); `knowledge.bench.ts`: which messages it serves (`make knowledge-bench`)
   - `catalog.ts`: loads both halves of `catalog/` and gives a model each device in a project as openDAW's
     name and descriptions plus the hand-written notes; parameters by lookup
   - `analysis.ts`: what models are bad at, in code: key (Krumhansl–Kessler, durations as weights), each part's
@@ -124,6 +132,9 @@ API keys go in `.env` (git-ignored, and never in a build context): `TYPESAFE_API
     (path, name, range, default, steps) and other settings. Stamped with the openDAW commit; don't edit by hand
   - `devices.json`: hand-written notes for choosing and describing them: sound, roles, genres, the classic gear it
     evokes, the words producers use for it, its limits; `opaque` for scripts and plugins, whose sound we can't know
+- `knowledge/`: the knowledge base, mounted read-write (agents' drafts go to `knowledge/drafts/`): ~400 entries
+  (genres, production styles, sounds, effect chains, drum and chord patterns, openDAW notes), openDAW's bundled DX7
+  cartridges, the page-side script helpers, and the imports that wrote the generated entries (`knowledge/README.md`)
 - `test/smoke.mjs`: page loads cross-origin isolated, two parts with notes, the team view opens, the backend
   welcomes the page, the overview (three labelled lines naming both tracks, Keys described from the catalog, the live playback line, refresh after a
   third track is added), ping round trip, reconnecting after a dropped socket; then, during playback: `@mix_engineer the drums are too loud`, one undo

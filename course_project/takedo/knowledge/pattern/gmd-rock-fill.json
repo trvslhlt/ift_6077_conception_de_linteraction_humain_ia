@@ -1,0 +1,125 @@
+{
+ "key": "pattern/gmd-rock-fill",
+ "kind": "pattern",
+ "summary": "rock fill, 1 bar at 112 BPM, played by a human drummer (Groove MIDI)",
+ "tags": [
+  "rock",
+  "indie",
+  "drums",
+  "fill",
+  "human",
+  "live drums"
+ ],
+ "group": "Groove MIDI drums, rock (human drummers; 2-bar beats and 1-bar fills)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/groove.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Groove MIDI Dataset (Magenta), drummer7/session2/38_rock_112_fill_4-4.mid",
+   "url": "https://magenta.tensorflow.org/datasets/groove"
+  }
+ ],
+ "body": [
+  "Played at 112 BPM; it holds up roughly ±15% from there. Uses kick, snare, tom_high, tom_low, tom_mid.",
+  "Human timing and dynamics kept: hits sit a little ahead of or behind the grid, and velocities vary. Don't quantize it unless asked; that's the point of it.",
+  "Write it on the bar before a section change (from_bar = that bar, bars = 1)."
+ ],
+ "pattern": {
+  "type": "drums",
+  "beats": 4,
+  "hits": [
+   [
+    0.017,
+    "tom_low",
+    1
+   ],
+   [
+    0.3,
+    "snare",
+    0.32
+   ],
+   [
+    0.6,
+    "snare",
+    0.72
+   ],
+   [
+    0.981,
+    "snare",
+    0.97
+   ],
+   [
+    1.315,
+    "tom_high",
+    1
+   ],
+   [
+    1.629,
+    "snare",
+    0.24
+   ],
+   [
+    1.923,
+    "snare",
+    1
+   ],
+   [
+    2.24,
+    "snare",
+    0.94
+   ],
+   [
+    2.54,
+    "snare",
+    1
+   ],
+   [
+    2.877,
+    "tom_high",
+    1
+   ],
+   [
+    3.192,
+    "tom_mid",
+    1
+   ],
+   [
+    3.619,
+    "kick",
+    0.4
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "the drum track (a kit)"
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "from_bar": "$from_bar",
+     "bars": "$bars"
+    }
+   }
+  ]
+ }
+}

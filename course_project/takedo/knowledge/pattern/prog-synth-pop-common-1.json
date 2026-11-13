@@ -1,0 +1,91 @@
+{
+ "key": "pattern/prog-synth-pop-common-1",
+ "kind": "pattern",
+ "summary": "synth pop, common: I → V → IV (14% of 11,614 songs)",
+ "tags": [
+  "synth pop",
+  "chords",
+  "progression",
+  "common",
+  "major"
+ ],
+ "label": "I V IV",
+ "group": "Chord loops, synth pop (Chordonomicon; numerals in the key, a bar per chord)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/chordonomicon.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Chordonomicon (Kantarelis et al. 2024), chordonomicon_v2.csv",
+   "url": "https://huggingface.co/datasets/ailsntua/Chordonomicon"
+  }
+ ],
+ "body": [
+  "In 1,650 of 11,614 synth pop songs (14%), mostly in song and chorus sections; mostly in major keys: use the project's key in major, or its relative minor if that's what the project is in, and read the numerals there.",
+  "A loop of 3 chords, written from the tonic when it's in it (songs start it anywhere). Numerals follow the key's own scale (natural minor in minor keys); b and # mark roots outside it. A bar per chord; change the rhythm and voicing to suit the part.",
+  "From user-written chord charts, with each song's key estimated: frequent progressions are reliable, rarer ones less so."
+ ],
+ "pattern": {
+  "type": "chords",
+  "beats": 12,
+  "chords": [
+   [
+    0,
+    "I",
+    4
+   ],
+   [
+    4,
+    "V",
+    4
+   ],
+   [
+    8,
+    "IV",
+    4
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "a chordal part (keys, pad)"
+   },
+   "key": {
+    "type": "key",
+    "about": "the project's key, e.g. \"G major\""
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   },
+   "octave": {
+    "type": "number",
+    "optional": true,
+    "default": 3
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "key": "$key",
+     "from_bar": "$from_bar",
+     "bars": "$bars",
+     "octave": "$octave"
+    }
+   }
+  ]
+ }
+}

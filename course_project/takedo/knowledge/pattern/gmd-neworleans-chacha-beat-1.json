@@ -1,0 +1,226 @@
+{
+ "key": "pattern/gmd-neworleans-chacha-beat-1",
+ "kind": "pattern",
+ "summary": "New Orleans (chacha) groove, 2 bars at 124 BPM, played by a human drummer (Groove MIDI)",
+ "tags": [
+  "new orleans",
+  "second line",
+  "funk",
+  "chacha",
+  "drums",
+  "groove",
+  "human",
+  "live drums"
+ ],
+ "group": "Groove MIDI drums, New Orleans (human drummers; 2-bar beats and 1-bar fills)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/groove.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Groove MIDI Dataset (Magenta), drummer5/session2/8_neworleans-chacha_124_beat_4-4.mid",
+   "url": "https://magenta.tensorflow.org/datasets/groove"
+  }
+ ],
+ "body": [
+  "Played at 124 BPM; it holds up roughly ±15% from there. Uses closed_hat, kick, open_hat, rim, snare.",
+  "Human timing and dynamics kept: hits sit a little ahead of or behind the grid, and velocities vary. Don't quantize it unless asked; that's the point of it."
+ ],
+ "pattern": {
+  "type": "drums",
+  "beats": 8,
+  "hits": [
+   [
+    0.052,
+    "snare",
+    1
+   ],
+   [
+    0.058,
+    "kick",
+    0.32
+   ],
+   [
+    1.05,
+    "rim",
+    0.47
+   ],
+   [
+    1.063,
+    "closed_hat",
+    0.69
+   ],
+   [
+    1.554,
+    "closed_hat",
+    0.18
+   ],
+   [
+    2.05,
+    "rim",
+    0.33
+   ],
+   [
+    2.056,
+    "closed_hat",
+    0.7
+   ],
+   [
+    2.571,
+    "closed_hat",
+    0.25
+   ],
+   [
+    3.037,
+    "snare",
+    0.17
+   ],
+   [
+    3.046,
+    "closed_hat",
+    0.65
+   ],
+   [
+    3.338,
+    "snare",
+    0.1
+   ],
+   [
+    3.504,
+    "kick",
+    0.3
+   ],
+   [
+    3.544,
+    "open_hat",
+    0.26
+   ],
+   [
+    4.012,
+    "closed_hat",
+    0.43
+   ],
+   [
+    4.033,
+    "snare",
+    0.13
+   ],
+   [
+    4.04,
+    "closed_hat",
+    0.66
+   ],
+   [
+    4.54,
+    "closed_hat",
+    0.24
+   ],
+   [
+    5.027,
+    "closed_hat",
+    0.74
+   ],
+   [
+    5.042,
+    "rim",
+    0.31
+   ],
+   [
+    5.533,
+    "closed_hat",
+    0.29
+   ],
+   [
+    5.652,
+    "snare",
+    0.06
+   ],
+   [
+    6.037,
+    "closed_hat",
+    0.48
+   ],
+   [
+    6.05,
+    "rim",
+    0.31
+   ],
+   [
+    6.519,
+    "kick",
+    0.28
+   ],
+   [
+    6.55,
+    "open_hat",
+    0.32
+   ],
+   [
+    6.577,
+    "snare",
+    0.05
+   ],
+   [
+    6.96,
+    "closed_hat",
+    0.57
+   ],
+   [
+    7.037,
+    "rim",
+    0.31
+   ],
+   [
+    7.04,
+    "closed_hat",
+    0.57
+   ],
+   [
+    7.517,
+    "kick",
+    0.29
+   ],
+   [
+    7.544,
+    "closed_hat",
+    0.32
+   ],
+   [
+    7.596,
+    "snare",
+    0.1
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "the drum track (a kit)"
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "from_bar": "$from_bar",
+     "bars": "$bars"
+    }
+   }
+  ]
+ }
+}

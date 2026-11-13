@@ -1,0 +1,85 @@
+{
+  "key": "genre/jazz",
+  "kind": "genre",
+  "summary": "Jazz: swung 8ths on the ride, ii–V–I changes with 7th chords, walking bass, Rhodes, piano or vibes",
+  "tags": [
+    "jazz",
+    "swing",
+    "bebop",
+    "jazzy",
+    "lounge",
+    "club"
+  ],
+  "devices": [
+    "Playfield",
+    "Tubular",
+    "Vaporisateur"
+  ],
+  "links": [
+    "pattern/gmd-jazz-swing-beat-1",
+    "pattern/jazz-ii-v-i",
+    "pattern/prog-jazz-characteristic-2",
+    "genre/bossa-nova",
+    "genre/neo-soul",
+    "sound/tubular-rhodes",
+    "sound/tubular-vibes",
+    "chain/small-room"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (genre write-ups)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "tempo": [
+    90,
+    200
+  ],
+  "body": [
+    "Drums: swing ride (ding, ding-a-ding), hi-hat on 2 and 4, brushes or light snare comping.",
+    "Harmony: 7th chords everywhere; ii–V–I, turnarounds (I–vi–ii–V), tritone substitutions.",
+    "Bass: walking quarter notes through the changes.",
+    "Space: a small room, played softly; 'jazzier chords' usually means extending triads to 7ths and 9ths and adding ii–V movement.",
+    "Apply: pattern/gmd-jazz-swing-beat-1 on the drums, then pattern/jazz-ii-v-i on the keys four bars later. It leaves tempo and sounds to you: move the tempo toward 90–200 gradually, and swap sounds from the links."
+  ],
+  "apply": {
+    "params": {
+      "drums": {
+        "type": "track",
+        "optional": true,
+        "about": "the drum track (a kit); leave out if there isn't one"
+      },
+      "keys": {
+        "type": "track",
+        "optional": true,
+        "about": "a chordal part (keys, pad); leave out if there isn't one"
+      },
+      "key": {
+        "type": "key",
+        "optional": true,
+        "about": "the project's key; leave out to estimate it from the notes"
+      }
+    },
+    "steps": [
+      {
+        "op": "entry",
+        "key": "pattern/gmd-jazz-swing-beat-1",
+        "args": {
+          "track": "$drums"
+        },
+        "when": "drums",
+        "at": 0
+      },
+      {
+        "op": "entry",
+        "key": "pattern/jazz-ii-v-i",
+        "args": {
+          "track": "$keys",
+          "key": "$key"
+        },
+        "when": "keys",
+        "at": 4
+      }
+    ]
+  }
+}

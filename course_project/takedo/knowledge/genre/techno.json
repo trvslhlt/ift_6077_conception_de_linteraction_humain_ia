@@ -1,0 +1,85 @@
+{
+  "key": "genre/techno",
+  "kind": "genre",
+  "summary": "Techno: 125–140 BPM, relentless kick, 16th hats, almost no harmony: one stab or drone, change by automation",
+  "tags": [
+    "techno",
+    "minimal",
+    "industrial",
+    "berlin",
+    "detroit",
+    "club",
+    "dark",
+    "hypnotic"
+  ],
+  "devices": [
+    "Playfield",
+    "Tubular",
+    "Vaporisateur"
+  ],
+  "links": [
+    "pattern/four-on-the-floor",
+    "pattern/prog-techno-characteristic-1",
+    "genre/house",
+    "chain/dub-echo",
+    "sound/tubular-brass-sect",
+    "sound/sine-sub-vaporisateur"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (genre write-ups)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "tempo": [
+    125,
+    140
+  ],
+  "body": [
+    "Drums: kick on every beat, closed hats in 16ths, open hat off-beats, clap or rim on 2 and 4; percussion loops of odd lengths.",
+    "Harmony: one minor chord or a single stab repeated, sometimes i–VII; melody is rare. Detroit techno has more chords, Berlin/minimal less.",
+    "Movement comes from slow automation: filter cutoff, delay feedback, reverb sends; parts enter every 16 or 32 bars.",
+    "Bass: a rumble (the kick through a dark reverb) or a short off-beat sub.",
+    "Apply: pattern/four-on-the-floor on the drums, then pattern/prog-techno-characteristic-1 on the keys four bars later. It leaves tempo and sounds to you: move the tempo toward 125–140 gradually, and swap sounds from the links."
+  ],
+  "apply": {
+    "params": {
+      "drums": {
+        "type": "track",
+        "optional": true,
+        "about": "the drum track (a kit); leave out if there isn't one"
+      },
+      "keys": {
+        "type": "track",
+        "optional": true,
+        "about": "a chordal part (keys, pad); leave out if there isn't one"
+      },
+      "key": {
+        "type": "key",
+        "optional": true,
+        "about": "the project's key; leave out to estimate it from the notes"
+      }
+    },
+    "steps": [
+      {
+        "op": "entry",
+        "key": "pattern/four-on-the-floor",
+        "args": {
+          "track": "$drums"
+        },
+        "when": "drums",
+        "at": 0
+      },
+      {
+        "op": "entry",
+        "key": "pattern/prog-techno-characteristic-1",
+        "args": {
+          "track": "$keys",
+          "key": "$key"
+        },
+        "when": "keys",
+        "at": 4
+      }
+    ]
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "key": "genre/bossa-nova",
+  "kind": "genre",
+  "summary": "Bossa nova: 120–145 BPM felt in 2, rim-click clave and soft kick, nylon guitar, maj7 and dominant chords",
+  "tags": [
+    "bossa nova",
+    "bossa",
+    "brazilian",
+    "latin",
+    "jobim",
+    "lounge",
+    "samba"
+  ],
+  "devices": [
+    "Playfield",
+    "Tubular",
+    "Vaporisateur"
+  ],
+  "links": [
+    "pattern/gmd-latin-brazilian-bossa-beat-1",
+    "pattern/prog-bossa-nova-common-4",
+    "genre/jazz",
+    "sound/tubular-nylon-gtr",
+    "sound/tubular-flute",
+    "sound/tubular-rhodes"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (genre write-ups)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "tempo": [
+    120,
+    145
+  ],
+  "body": [
+    "Drums: soft, brushes or rim clicks in the bossa clave, kick on 1 and the and of 2, shaker 8ths.",
+    "Harmony: maj7, m7, 7(9) and diminished chords; Imaj7–VI7–ii7–V7.",
+    "Guitar: nylon, syncopated comping; bass on 1 and 3, root and fifth.",
+    "Soft and intimate: low levels, little effect.",
+    "Apply: pattern/gmd-latin-brazilian-bossa-beat-1 on the drums, then pattern/prog-bossa-nova-common-4 on the keys four bars later. It leaves tempo and sounds to you: move the tempo toward 120–145 gradually, and swap sounds from the links."
+  ],
+  "apply": {
+    "params": {
+      "drums": {
+        "type": "track",
+        "optional": true,
+        "about": "the drum track (a kit); leave out if there isn't one"
+      },
+      "keys": {
+        "type": "track",
+        "optional": true,
+        "about": "a chordal part (keys, pad); leave out if there isn't one"
+      },
+      "key": {
+        "type": "key",
+        "optional": true,
+        "about": "the project's key; leave out to estimate it from the notes"
+      }
+    },
+    "steps": [
+      {
+        "op": "entry",
+        "key": "pattern/gmd-latin-brazilian-bossa-beat-1",
+        "args": {
+          "track": "$drums"
+        },
+        "when": "drums",
+        "at": 0
+      },
+      {
+        "op": "entry",
+        "key": "pattern/prog-bossa-nova-common-4",
+        "args": {
+          "track": "$keys",
+          "key": "$key"
+        },
+        "when": "keys",
+        "at": 4
+      }
+    ]
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "key": "genre/pop",
+  "kind": "genre",
+  "summary": "Pop: 90–130 BPM, clear backbeat, I–V–vi–IV, a strong hook, verses and choruses",
+  "tags": [
+    "pop",
+    "mainstream",
+    "radio",
+    "catchy",
+    "chart"
+  ],
+  "devices": [
+    "Playfield",
+    "Tubular",
+    "Vaporisateur"
+  ],
+  "links": [
+    "pattern/gmd-pop-beat-1",
+    "pattern/pop-i-v-vi-iv",
+    "pattern/prog-pop-common-2",
+    "genre/synth-pop",
+    "genre/rock",
+    "production/clean-modern"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (genre write-ups)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "tempo": [
+    90,
+    130
+  ],
+  "body": [
+    "Drums: steady backbeat, claps layered with the snare.",
+    "Harmony: four-chord loops (I–V–vi–IV, vi–IV–I–V); minor-key pop uses i–VI–III–VII.",
+    "A short, singable melody repeated; verses quieter than choruses.",
+    "Production in production/clean-modern.",
+    "Apply: pattern/gmd-pop-beat-1 on the drums, then pattern/pop-i-v-vi-iv on the keys four bars later. It leaves tempo and sounds to you: move the tempo toward 90–130 gradually, and swap sounds from the links."
+  ],
+  "apply": {
+    "params": {
+      "drums": {
+        "type": "track",
+        "optional": true,
+        "about": "the drum track (a kit); leave out if there isn't one"
+      },
+      "keys": {
+        "type": "track",
+        "optional": true,
+        "about": "a chordal part (keys, pad); leave out if there isn't one"
+      },
+      "key": {
+        "type": "key",
+        "optional": true,
+        "about": "the project's key; leave out to estimate it from the notes"
+      }
+    },
+    "steps": [
+      {
+        "op": "entry",
+        "key": "pattern/gmd-pop-beat-1",
+        "args": {
+          "track": "$drums"
+        },
+        "when": "drums",
+        "at": 0
+      },
+      {
+        "op": "entry",
+        "key": "pattern/pop-i-v-vi-iv",
+        "args": {
+          "track": "$keys",
+          "key": "$key"
+        },
+        "when": "keys",
+        "at": 4
+      }
+    ]
+  }
+}

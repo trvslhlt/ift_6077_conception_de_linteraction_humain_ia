@@ -1,0 +1,87 @@
+{
+  "key": "genre/neo-soul",
+  "kind": "genre",
+  "summary": "Neo soul: 70–95 BPM laid-back drums behind the beat, Rhodes on 9th and 11th chords, warm round bass",
+  "tags": [
+    "neo soul",
+    "soul",
+    "r&b",
+    "dilla",
+    "d'angelo",
+    "erykah badu",
+    "jazzy",
+    "laid back"
+  ],
+  "devices": [
+    "Playfield",
+    "Tubular",
+    "Vaporisateur"
+  ],
+  "links": [
+    "pattern/gmd-hiphop-beat-1",
+    "pattern/prog-neo-soul-characteristic-2",
+    "genre/boom-bap",
+    "genre/jazz",
+    "sound/tubular-rhodes",
+    "sound/tubular-soft-rhds",
+    "sound/sine-sub-vaporisateur",
+    "chain/small-room"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (genre write-ups)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "tempo": [
+    70,
+    95
+  ],
+  "body": [
+    "Drums: hip hop grooves played loose and late (Dilla feel): the snare dragging, the hats uneven.",
+    "Harmony: extended chords (maj9, m11, 13ths), ii–V movement, chromatic passing chords.",
+    "Sounds: Rhodes and Wurlitzer, warm round bass, soft strings.",
+    "Mix: warm, a little tape, nothing harsh.",
+    "Apply: pattern/gmd-hiphop-beat-1 on the drums, then pattern/prog-neo-soul-characteristic-2 on the keys four bars later. It leaves tempo and sounds to you: move the tempo toward 70–95 gradually, and swap sounds from the links."
+  ],
+  "apply": {
+    "params": {
+      "drums": {
+        "type": "track",
+        "optional": true,
+        "about": "the drum track (a kit); leave out if there isn't one"
+      },
+      "keys": {
+        "type": "track",
+        "optional": true,
+        "about": "a chordal part (keys, pad); leave out if there isn't one"
+      },
+      "key": {
+        "type": "key",
+        "optional": true,
+        "about": "the project's key; leave out to estimate it from the notes"
+      }
+    },
+    "steps": [
+      {
+        "op": "entry",
+        "key": "pattern/gmd-hiphop-beat-1",
+        "args": {
+          "track": "$drums"
+        },
+        "when": "drums",
+        "at": 0
+      },
+      {
+        "op": "entry",
+        "key": "pattern/prog-neo-soul-characteristic-2",
+        "args": {
+          "track": "$keys",
+          "key": "$key"
+        },
+        "when": "keys",
+        "at": 4
+      }
+    ]
+  }
+}

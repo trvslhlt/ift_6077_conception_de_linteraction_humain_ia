@@ -1,0 +1,106 @@
+{
+ "key": "pattern/gmd-reggae-fill",
+ "kind": "pattern",
+ "summary": "reggae fill, 1 bar at 78 BPM, played by a human drummer (Groove MIDI)",
+ "tags": [
+  "reggae",
+  "one drop",
+  "dub",
+  "drums",
+  "fill",
+  "human",
+  "live drums"
+ ],
+ "group": "Groove MIDI drums, reggae (human drummers; 2-bar beats and 1-bar fills)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/groove.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Groove MIDI Dataset (Magenta), drummer1/session1/185_reggae_78_fill_4-4.mid",
+   "url": "https://magenta.tensorflow.org/datasets/groove"
+  }
+ ],
+ "body": [
+  "Played at 78 BPM; it holds up roughly ±15% from there. Uses closed_hat, rim, snare.",
+  "Human timing and dynamics kept: hits sit a little ahead of or behind the grid, and velocities vary. Don't quantize it unless asked; that's the point of it.",
+  "Write it on the bar before a section change (from_bar = that bar, bars = 1)."
+ ],
+ "pattern": {
+  "type": "drums",
+  "beats": 4,
+  "hits": [
+   [
+    0,
+    "closed_hat",
+    0.49
+   ],
+   [
+    0.992,
+    "closed_hat",
+    0.33
+   ],
+   [
+    1.969,
+    "snare",
+    0.63
+   ],
+   [
+    2.688,
+    "snare",
+    0.16
+   ],
+   [
+    2.808,
+    "snare",
+    0.28
+   ],
+   [
+    2.933,
+    "snare",
+    0.53
+   ],
+   [
+    3.215,
+    "snare",
+    0.57
+   ],
+   [
+    3.429,
+    "rim",
+    0.61
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "the drum track (a kit)"
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "from_bar": "$from_bar",
+     "bars": "$bars"
+    }
+   }
+  ]
+ }
+}

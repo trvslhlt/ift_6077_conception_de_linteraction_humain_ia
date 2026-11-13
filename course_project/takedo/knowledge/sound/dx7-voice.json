@@ -1,0 +1,56 @@
+{
+  "key": "sound/dx7-voice",
+  "kind": "sound",
+  "summary": "Any of openDAW's ~1,200 bundled DX7 voices on a Tubular, by cartridge and name (list: note/dx7-library)",
+  "tags": [
+    "dx7",
+    "fm",
+    "tubular",
+    "preset",
+    "patch"
+  ],
+  "devices": [
+    "Tubular"
+  ],
+  "links": [
+    "note/dx7-library"
+  ],
+  "checked": {
+    "how": "imported",
+    "by": "knowledge/import/dx7.mjs",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "body": [
+    "voice is \"<cartridge>/<voice name>\" as note/dx7-library lists them (\"SynprezFM_08/DL RHODES4\"), or \"<cartridge>/<1..32>\".",
+    "The SynprezFM and Dexed cartridges are a compilation of classic DX7 patches; names are the patch authors' and often abbreviated (E.PNO, BRS, STRG)."
+  ],
+  "apply": {
+    "params": {
+      "voice": {
+        "type": "text",
+        "about": "cartridge/voice name, from note/dx7-library"
+      },
+      "track": {
+        "type": "track",
+        "optional": true,
+        "about": "a track whose instrument is a Tubular; leave out to add a new track"
+      },
+      "name": {
+        "type": "text",
+        "optional": true,
+        "about": "the new track's name"
+      }
+    },
+    "steps": [
+      {
+        "op": "dx7",
+        "input": {
+          "track": "$track",
+          "voice": "$voice",
+          "name": "$name"
+        }
+      }
+    ]
+  }
+}

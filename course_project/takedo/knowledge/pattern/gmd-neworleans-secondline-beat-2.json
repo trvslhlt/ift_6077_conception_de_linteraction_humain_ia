@@ -1,0 +1,361 @@
+{
+ "key": "pattern/gmd-neworleans-secondline-beat-2",
+ "kind": "pattern",
+ "summary": "New Orleans (secondline) groove, 2 bars at 94 BPM, played by a human drummer (Groove MIDI)",
+ "tags": [
+  "new orleans",
+  "second line",
+  "funk",
+  "secondline",
+  "drums",
+  "groove",
+  "human",
+  "live drums"
+ ],
+ "group": "Groove MIDI drums, New Orleans (human drummers; 2-bar beats and 1-bar fills)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/groove.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Groove MIDI Dataset (Magenta), drummer1/session1/100_neworleans-secondline_94_beat_4-4.mid",
+   "url": "https://magenta.tensorflow.org/datasets/groove"
+  }
+ ],
+ "body": [
+  "Played at 94 BPM; it holds up roughly ±15% from there. Uses closed_hat, kick, snare.",
+  "Human timing and dynamics kept: hits sit a little ahead of or behind the grid, and velocities vary. Don't quantize it unless asked; that's the point of it."
+ ],
+ "pattern": {
+  "type": "drums",
+  "beats": 8,
+  "hits": [
+   [
+    0.204,
+    "snare",
+    0.21
+   ],
+   [
+    0.41,
+    "closed_hat",
+    0.67
+   ],
+   [
+    0.444,
+    "snare",
+    0.48
+   ],
+   [
+    0.719,
+    "snare",
+    0.15
+   ],
+   [
+    0.725,
+    "kick",
+    0.36
+   ],
+   [
+    0.929,
+    "snare",
+    0.14
+   ],
+   [
+    1.206,
+    "snare",
+    0.69
+   ],
+   [
+    1.444,
+    "snare",
+    0.13
+   ],
+   [
+    1.446,
+    "kick",
+    0.27
+   ],
+   [
+    1.463,
+    "closed_hat",
+    0.61
+   ],
+   [
+    1.721,
+    "snare",
+    0.13
+   ],
+   [
+    1.935,
+    "snare",
+    0.65
+   ],
+   [
+    2.225,
+    "kick",
+    0.32
+   ],
+   [
+    2.231,
+    "snare",
+    0.28
+   ],
+   [
+    2.458,
+    "closed_hat",
+    0.76
+   ],
+   [
+    2.469,
+    "snare",
+    0.22
+   ],
+   [
+    2.742,
+    "snare",
+    0.63
+   ],
+   [
+    2.925,
+    "kick",
+    0.28
+   ],
+   [
+    2.954,
+    "snare",
+    0.2
+   ],
+   [
+    3.227,
+    "snare",
+    0.18
+   ],
+   [
+    3.292,
+    "snare",
+    0.14
+   ],
+   [
+    3.354,
+    "snare",
+    0.18
+   ],
+   [
+    3.444,
+    "snare",
+    0.31
+   ],
+   [
+    3.454,
+    "kick",
+    0.36
+   ],
+   [
+    3.46,
+    "closed_hat",
+    0.25
+   ],
+   [
+    3.487,
+    "snare",
+    0.39
+   ],
+   [
+    3.519,
+    "snare",
+    0.36
+   ],
+   [
+    3.546,
+    "snare",
+    0.31
+   ],
+   [
+    3.673,
+    "snare",
+    0.21
+   ],
+   [
+    3.75,
+    "snare",
+    0.21
+   ],
+   [
+    3.792,
+    "snare",
+    0.17
+   ],
+   [
+    3.933,
+    "kick",
+    0.38
+   ],
+   [
+    3.963,
+    "snare",
+    0.35
+   ],
+   [
+    4.248,
+    "snare",
+    0.19
+   ],
+   [
+    4.44,
+    "closed_hat",
+    0.72
+   ],
+   [
+    4.494,
+    "snare",
+    0.5
+   ],
+   [
+    4.765,
+    "snare",
+    0.17
+   ],
+   [
+    4.769,
+    "kick",
+    0.32
+   ],
+   [
+    4.996,
+    "snare",
+    0.2
+   ],
+   [
+    5.235,
+    "snare",
+    0.56
+   ],
+   [
+    5.467,
+    "closed_hat",
+    0.75
+   ],
+   [
+    5.471,
+    "kick",
+    0.28
+   ],
+   [
+    5.471,
+    "snare",
+    0.19
+   ],
+   [
+    5.758,
+    "snare",
+    0.13
+   ],
+   [
+    5.952,
+    "snare",
+    0.57
+   ],
+   [
+    6.215,
+    "kick",
+    0.27
+   ],
+   [
+    6.219,
+    "snare",
+    0.27
+   ],
+   [
+    6.467,
+    "closed_hat",
+    0.72
+   ],
+   [
+    6.479,
+    "snare",
+    0.2
+   ],
+   [
+    6.75,
+    "snare",
+    0.63
+   ],
+   [
+    6.91,
+    "kick",
+    0.21
+   ],
+   [
+    6.969,
+    "snare",
+    0.22
+   ],
+   [
+    7.294,
+    "snare",
+    0.24
+   ],
+   [
+    7.338,
+    "kick",
+    0.31
+   ],
+   [
+    7.35,
+    "snare",
+    0.22
+   ],
+   [
+    7.385,
+    "snare",
+    0.2
+   ],
+   [
+    7.456,
+    "closed_hat",
+    0.72
+   ],
+   [
+    7.473,
+    "snare",
+    0.73
+   ],
+   [
+    7.733,
+    "snare",
+    0.21
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "the drum track (a kit)"
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "from_bar": "$from_bar",
+     "bars": "$bars"
+    }
+   }
+  ]
+ }
+}

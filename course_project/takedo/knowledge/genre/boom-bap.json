@@ -1,0 +1,81 @@
+{
+  "key": "genre/boom-bap",
+  "kind": "genre",
+  "summary": "Boom-bap hip hop: 80–95 BPM, swung, sampled-sounding keys on 7th chords, punchy kick and snare",
+  "tags": [
+    "hip hop",
+    "boom bap",
+    "90s hip hop",
+    "rap"
+  ],
+  "devices": [
+    "Playfield",
+    "Tubular",
+    "Vaporisateur"
+  ],
+  "links": [
+    "pattern/boombap-1",
+    "pattern/jazz-ii-v-i",
+    "pattern/lofi-vamp-vi-iv",
+    "sound/tubular-rhodes",
+    "sound/sine-sub-vaporisateur",
+    "production/lofi"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (from experiment G)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "tempo": [
+    80,
+    95
+  ],
+  "body": [
+    "Drums: pattern/boombap-1, swung 8th hats; kick and snare loud and dry.",
+    "Harmony: 7th and 9th chords on keys (Rhodes, a sampled piano), two-chord vamps or ii–V–I.",
+    "Bass: round, roots on the downbeat, following the kick.",
+    "With production/lofi it becomes lofi hip hop (70–90 BPM, softer, darker).",
+    "Apply: pattern/boombap-1 on the drums, then pattern/lofi-vamp-vi-iv on the keys four bars later. Tempo and sounds are left to you."
+  ],
+  "apply": {
+    "params": {
+      "drums": {
+        "type": "track",
+        "optional": true,
+        "about": "the drum track (a kit); leave out if there isn't one"
+      },
+      "keys": {
+        "type": "track",
+        "optional": true,
+        "about": "a chordal part (keys, pad); leave out if there isn't one"
+      },
+      "key": {
+        "type": "key",
+        "optional": true,
+        "about": "the project's key; leave out to estimate it from the notes"
+      }
+    },
+    "steps": [
+      {
+        "op": "entry",
+        "key": "pattern/boombap-1",
+        "args": {
+          "track": "$drums"
+        },
+        "when": "drums",
+        "at": 0
+      },
+      {
+        "op": "entry",
+        "key": "pattern/lofi-vamp-vi-iv",
+        "args": {
+          "track": "$keys",
+          "key": "$key"
+        },
+        "when": "keys",
+        "at": 4
+      }
+    ]
+  }
+}

@@ -1,0 +1,126 @@
+{
+ "key": "pattern/gmd-punk-fill",
+ "kind": "pattern",
+ "summary": "punk fill, 1 bar at 144 BPM, played by a human drummer (Groove MIDI)",
+ "tags": [
+  "punk",
+  "fast",
+  "rock",
+  "drums",
+  "fill",
+  "human",
+  "live drums"
+ ],
+ "group": "Groove MIDI drums, punk (human drummers; 2-bar beats and 1-bar fills)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/groove.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Groove MIDI Dataset (Magenta), drummer1/session2/63_punk_144_fill_4-4.mid",
+   "url": "https://magenta.tensorflow.org/datasets/groove"
+  }
+ ],
+ "body": [
+  "Played at 144 BPM; it holds up roughly ±15% from there. Uses kick, snare, tom_low.",
+  "Human timing and dynamics kept: hits sit a little ahead of or behind the grid, and velocities vary. Don't quantize it unless asked; that's the point of it.",
+  "Write it on the bar before a section change (from_bar = that bar, bars = 1)."
+ ],
+ "pattern": {
+  "type": "drums",
+  "beats": 4,
+  "hits": [
+   [
+    0.021,
+    "tom_low",
+    0.96
+   ],
+   [
+    0.579,
+    "kick",
+    0.33
+   ],
+   [
+    0.969,
+    "snare",
+    0.93
+   ],
+   [
+    0.973,
+    "tom_low",
+    0.98
+   ],
+   [
+    1.171,
+    "snare",
+    0.19
+   ],
+   [
+    1.715,
+    "kick",
+    0.3
+   ],
+   [
+    2,
+    "tom_low",
+    1
+   ],
+   [
+    2.319,
+    "snare",
+    0.6
+   ],
+   [
+    2.646,
+    "snare",
+    1
+   ],
+   [
+    2.994,
+    "snare",
+    0.98
+   ],
+   [
+    3.321,
+    "snare",
+    0.99
+   ],
+   [
+    3.644,
+    "snare",
+    1
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "the drum track (a kit)"
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "from_bar": "$from_bar",
+     "bars": "$bars"
+    }
+   }
+  ]
+ }
+}

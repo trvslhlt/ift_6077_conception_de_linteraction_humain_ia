@@ -1,0 +1,210 @@
+{
+ "key": "pattern/gmd-jazz-mediumfast-beat-1",
+ "kind": "pattern",
+ "summary": "jazz (mediumfast) groove, 2 bars at 180 BPM, played by a human drummer (Groove MIDI)",
+ "tags": [
+  "jazz",
+  "swing",
+  "mediumfast",
+  "drums",
+  "groove",
+  "human",
+  "live drums"
+ ],
+ "group": "Groove MIDI drums, jazz (human drummers; 2-bar beats and 1-bar fills)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/groove.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Groove MIDI Dataset (Magenta), drummer1/session1/76_jazz-mediumfast_180_beat_4-4.mid",
+   "url": "https://magenta.tensorflow.org/datasets/groove"
+  }
+ ],
+ "body": [
+  "Played at 180 BPM; it holds up roughly ±15% from there. Uses closed_hat, kick, ride, snare.",
+  "Human timing and dynamics kept: hits sit a little ahead of or behind the grid, and velocities vary. Don't quantize it unless asked; that's the point of it."
+ ],
+ "pattern": {
+  "type": "drums",
+  "beats": 8,
+  "hits": [
+   [
+    0.612,
+    "snare",
+    0.04
+   ],
+   [
+    0.877,
+    "closed_hat",
+    0.75
+   ],
+   [
+    0.921,
+    "ride",
+    0.61
+   ],
+   [
+    1.617,
+    "ride",
+    0.52
+   ],
+   [
+    1.656,
+    "snare",
+    0.41
+   ],
+   [
+    1.94,
+    "ride",
+    0.46
+   ],
+   [
+    2.635,
+    "snare",
+    0.35
+   ],
+   [
+    2.938,
+    "closed_hat",
+    0.79
+   ],
+   [
+    2.94,
+    "ride",
+    0.62
+   ],
+   [
+    2.946,
+    "snare",
+    0.48
+   ],
+   [
+    3.654,
+    "ride",
+    0.46
+   ],
+   [
+    3.971,
+    "ride",
+    0.46
+   ],
+   [
+    4.256,
+    "snare",
+    0.17
+   ],
+   [
+    4.623,
+    "snare",
+    0.39
+   ],
+   [
+    4.935,
+    "closed_hat",
+    0.72
+   ],
+   [
+    4.958,
+    "ride",
+    0.58
+   ],
+   [
+    5.371,
+    "snare",
+    0.11
+   ],
+   [
+    5.571,
+    "kick",
+    0.34
+   ],
+   [
+    5.64,
+    "ride",
+    0.5
+   ],
+   [
+    5.981,
+    "ride",
+    0.46
+   ],
+   [
+    6.298,
+    "snare",
+    0.17
+   ],
+   [
+    6.573,
+    "kick",
+    0.23
+   ],
+   [
+    6.95,
+    "closed_hat",
+    0.63
+   ],
+   [
+    6.958,
+    "ride",
+    0.74
+   ],
+   [
+    6.967,
+    "kick",
+    0.28
+   ],
+   [
+    7.26,
+    "snare",
+    0.13
+   ],
+   [
+    7.567,
+    "ride",
+    0.68
+   ],
+   [
+    7.606,
+    "kick",
+    0.34
+   ],
+   [
+    7.919,
+    "ride",
+    0.6
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "the drum track (a kit)"
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "from_bar": "$from_bar",
+     "bars": "$bars"
+    }
+   }
+  ]
+ }
+}

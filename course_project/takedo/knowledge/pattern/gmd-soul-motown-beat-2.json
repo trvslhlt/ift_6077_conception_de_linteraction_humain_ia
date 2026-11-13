@@ -1,0 +1,180 @@
+{
+ "key": "pattern/gmd-soul-motown-beat-2",
+ "kind": "pattern",
+ "summary": "soul (motown) groove, 2 bars at 148 BPM, played by a human drummer (Groove MIDI)",
+ "tags": [
+  "soul",
+  "motown",
+  "r&b",
+  "drums",
+  "groove",
+  "human",
+  "live drums"
+ ],
+ "group": "Groove MIDI drums, soul (human drummers; 2-bar beats and 1-bar fills)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/groove.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Groove MIDI Dataset (Magenta), drummer7/session2/63_soul-motown_148_beat_4-4.mid",
+   "url": "https://magenta.tensorflow.org/datasets/groove"
+  }
+ ],
+ "body": [
+  "Played at 148 BPM; it holds up roughly ±15% from there. Uses closed_hat, kick, snare.",
+  "Human timing and dynamics kept: hits sit a little ahead of or behind the grid, and velocities vary. Don't quantize it unless asked; that's the point of it."
+ ],
+ "pattern": {
+  "type": "drums",
+  "beats": 8,
+  "hits": [
+   [
+    0,
+    "snare",
+    0.38
+   ],
+   [
+    0.246,
+    "closed_hat",
+    0.17
+   ],
+   [
+    0.433,
+    "closed_hat",
+    0.88
+   ],
+   [
+    0.958,
+    "snare",
+    0.51
+   ],
+   [
+    1.446,
+    "closed_hat",
+    0.85
+   ],
+   [
+    1.95,
+    "snare",
+    0.74
+   ],
+   [
+    2.452,
+    "closed_hat",
+    0.86
+   ],
+   [
+    2.927,
+    "snare",
+    0.53
+   ],
+   [
+    3.427,
+    "closed_hat",
+    0.48
+   ],
+   [
+    3.898,
+    "kick",
+    0.53
+   ],
+   [
+    3.919,
+    "snare",
+    0.72
+   ],
+   [
+    3.925,
+    "closed_hat",
+    1
+   ],
+   [
+    4.91,
+    "closed_hat",
+    0.92
+   ],
+   [
+    4.91,
+    "snare",
+    0.74
+   ],
+   [
+    4.927,
+    "kick",
+    0.52
+   ],
+   [
+    5.446,
+    "closed_hat",
+    0.22
+   ],
+   [
+    5.946,
+    "snare",
+    0.8
+   ],
+   [
+    5.952,
+    "closed_hat",
+    0.91
+   ],
+   [
+    5.988,
+    "kick",
+    0.43
+   ],
+   [
+    6.935,
+    "closed_hat",
+    0.86
+   ],
+   [
+    6.938,
+    "snare",
+    0.8
+   ],
+   [
+    6.952,
+    "kick",
+    0.54
+   ],
+   [
+    7.452,
+    "closed_hat",
+    0.24
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "the drum track (a kit)"
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "from_bar": "$from_bar",
+     "bars": "$bars"
+    }
+   }
+  ]
+ }
+}

@@ -1,0 +1,24 @@
+{
+  "key": "note/parameter-units",
+  "kind": "note",
+  "summary": "What the numbers mean when writing effect and instrument settings (own units, not the UI's display)",
+  "tags": [
+    "units",
+    "parameters",
+    "settings",
+    "ranges"
+  ],
+  "devices": [],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (catalog/generated.json)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "body": [
+    "Settings take each parameter's own units, the catalog's range: dB for levels (wet, dry, volume: -96..0), Hz for frequencies, seconds for envelope times, 0..1 for most percentages (feedback, mix, depth, sustain), -1..1 for bipolar ones (filter, pan, slope), and an index for stepped ones (a delay time, an algorithm, a waveform, a filter slope).",
+    "Stepped indices count from 0 in the catalog's value list: Revamp's lowPass/order 0..3 is 12/24/36/48 dB; Vaporisateur's oscillator waveform 0..3 is Sine/Triangle/Sawtooth/Square; Crusher's bits is the bit count itself (1..16).",
+    "A value outside the range is brought back in by TakeDo's guard (one out-of-range value once crashed the audio engine)."
+  ]
+}

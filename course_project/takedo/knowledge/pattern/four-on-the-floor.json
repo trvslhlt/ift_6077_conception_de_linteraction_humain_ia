@@ -1,0 +1,145 @@
+{
+  "key": "pattern/four-on-the-floor",
+  "kind": "pattern",
+  "summary": "Four on the floor, 1 bar: kick every beat, clap on 2 and 4, off-beat open hats",
+  "tags": [
+    "house",
+    "techno",
+    "disco",
+    "dance",
+    "drums"
+  ],
+  "devices": [],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (knowledge seed)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "body": [
+    "The house and disco default at 115–128 BPM. Techno often drops the clap for a rim or nothing, and the 16th hats for a ride."
+  ],
+  "pattern": {
+    "type": "drums",
+    "beats": 4,
+    "hits": [
+      [
+        0,
+        "kick",
+        0.95
+      ],
+      [
+        1,
+        "kick",
+        0.95
+      ],
+      [
+        2,
+        "kick",
+        0.95
+      ],
+      [
+        3,
+        "kick",
+        0.95
+      ],
+      [
+        1,
+        "clap",
+        0.85
+      ],
+      [
+        3,
+        "clap",
+        0.85
+      ],
+      [
+        0.5,
+        "open_hat",
+        0.6
+      ],
+      [
+        1.5,
+        "open_hat",
+        0.6
+      ],
+      [
+        2.5,
+        "open_hat",
+        0.6
+      ],
+      [
+        3.5,
+        "open_hat",
+        0.6
+      ],
+      [
+        0.25,
+        "closed_hat",
+        0.3
+      ],
+      [
+        0.75,
+        "closed_hat",
+        0.3
+      ],
+      [
+        1.25,
+        "closed_hat",
+        0.3
+      ],
+      [
+        1.75,
+        "closed_hat",
+        0.3
+      ],
+      [
+        2.25,
+        "closed_hat",
+        0.3
+      ],
+      [
+        2.75,
+        "closed_hat",
+        0.3
+      ],
+      [
+        3.25,
+        "closed_hat",
+        0.3
+      ],
+      [
+        3.75,
+        "closed_hat",
+        0.3
+      ]
+    ]
+  },
+  "apply": {
+    "params": {
+      "track": {
+        "type": "track",
+        "about": "the drum track (a kit)"
+      },
+      "from_bar": {
+        "type": "number",
+        "optional": true
+      },
+      "bars": {
+        "type": "number",
+        "optional": true
+      }
+    },
+    "steps": [
+      {
+        "op": "pattern",
+        "input": {
+          "track": "$track",
+          "from_bar": "$from_bar",
+          "bars": "$bars"
+        }
+      }
+    ]
+  }
+}

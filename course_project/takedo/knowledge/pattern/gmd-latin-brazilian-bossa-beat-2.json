@@ -1,0 +1,250 @@
+{
+ "key": "pattern/gmd-latin-brazilian-bossa-beat-2",
+ "kind": "pattern",
+ "summary": "latin (brazilian bossa) groove, 2 bars at 127 BPM, played by a human drummer (Groove MIDI)",
+ "tags": [
+  "latin",
+  "brazilian",
+  "brazilian bossa",
+  "drums",
+  "groove",
+  "human",
+  "live drums"
+ ],
+ "group": "Groove MIDI drums, latin (human drummers; 2-bar beats and 1-bar fills)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/groove.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Groove MIDI Dataset (Magenta), drummer5/session1/2_latin-brazilian-bossa_127_beat_4-4.mid",
+   "url": "https://magenta.tensorflow.org/datasets/groove"
+  }
+ ],
+ "body": [
+  "Played at 127 BPM; it holds up roughly ±15% from there. Uses closed_hat, kick, open_hat, snare.",
+  "Human timing and dynamics kept: hits sit a little ahead of or behind the grid, and velocities vary. Don't quantize it unless asked; that's the point of it."
+ ],
+ "pattern": {
+  "type": "drums",
+  "beats": 8,
+  "hits": [
+   [
+    0.035,
+    "kick",
+    0.09
+   ],
+   [
+    0.448,
+    "closed_hat",
+    0.51
+   ],
+   [
+    0.465,
+    "snare",
+    0.46
+   ],
+   [
+    0.892,
+    "closed_hat",
+    0.61
+   ],
+   [
+    0.987,
+    "closed_hat",
+    0.14
+   ],
+   [
+    1.446,
+    "kick",
+    0.21
+   ],
+   [
+    1.479,
+    "closed_hat",
+    0.17
+   ],
+   [
+    1.554,
+    "kick",
+    0.08
+   ],
+   [
+    1.96,
+    "closed_hat",
+    0.19
+   ],
+   [
+    1.996,
+    "kick",
+    0.23
+   ],
+   [
+    2.104,
+    "kick",
+    0.07
+   ],
+   [
+    2.49,
+    "closed_hat",
+    0.41
+   ],
+   [
+    2.508,
+    "snare",
+    0.53
+   ],
+   [
+    2.963,
+    "closed_hat",
+    0.59
+   ],
+   [
+    3,
+    "closed_hat",
+    0.11
+   ],
+   [
+    3.487,
+    "closed_hat",
+    0.13
+   ],
+   [
+    3.5,
+    "kick",
+    0.22
+   ],
+   [
+    3.606,
+    "kick",
+    0.07
+   ],
+   [
+    4,
+    "closed_hat",
+    0.39
+   ],
+   [
+    4.012,
+    "kick",
+    0.24
+   ],
+   [
+    4.123,
+    "kick",
+    0.07
+   ],
+   [
+    4.485,
+    "closed_hat",
+    0.15
+   ],
+   [
+    4.929,
+    "closed_hat",
+    0.57
+   ],
+   [
+    4.994,
+    "snare",
+    0.4
+   ],
+   [
+    5.019,
+    "closed_hat",
+    0.31
+   ],
+   [
+    5.488,
+    "closed_hat",
+    0.19
+   ],
+   [
+    5.5,
+    "kick",
+    0.2
+   ],
+   [
+    5.608,
+    "kick",
+    0.07
+   ],
+   [
+    5.979,
+    "open_hat",
+    0.19
+   ],
+   [
+    6.035,
+    "kick",
+    0.23
+   ],
+   [
+    6.144,
+    "kick",
+    0.07
+   ],
+   [
+    6.502,
+    "closed_hat",
+    0.36
+   ],
+   [
+    6.521,
+    "snare",
+    0.46
+   ],
+   [
+    6.948,
+    "closed_hat",
+    0.55
+   ],
+   [
+    7.442,
+    "closed_hat",
+    0.35
+   ],
+   [
+    7.49,
+    "kick",
+    0.18
+   ],
+   [
+    7.631,
+    "snare",
+    0.24
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "the drum track (a kit)"
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "from_bar": "$from_bar",
+     "bars": "$bars"
+    }
+   }
+  ]
+ }
+}

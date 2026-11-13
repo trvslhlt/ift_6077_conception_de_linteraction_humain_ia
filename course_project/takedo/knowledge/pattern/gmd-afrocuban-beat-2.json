@@ -1,0 +1,380 @@
+{
+ "key": "pattern/gmd-afrocuban-beat-2",
+ "kind": "pattern",
+ "summary": "Afro Cuban groove, 2 bars at 105 BPM, played by a human drummer (Groove MIDI)",
+ "tags": [
+  "afro-cuban",
+  "latin",
+  "clave",
+  "drums",
+  "groove",
+  "human",
+  "live drums"
+ ],
+ "group": "Groove MIDI drums, Afro Cuban (human drummers; 2-bar beats and 1-bar fills)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/groove.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Groove MIDI Dataset (Magenta), drummer1/session1/183_afrocuban_105_beat_4-4.mid",
+   "url": "https://magenta.tensorflow.org/datasets/groove"
+  }
+ ],
+ "body": [
+  "Played at 105 BPM; it holds up roughly ±15% from there. Uses closed_hat, kick, ride, rim, snare.",
+  "Human timing and dynamics kept: hits sit a little ahead of or behind the grid, and velocities vary. Don't quantize it unless asked; that's the point of it."
+ ],
+ "pattern": {
+  "type": "drums",
+  "beats": 8,
+  "hits": [
+   [
+    0.385,
+    "closed_hat",
+    0.47
+   ],
+   [
+    0.404,
+    "ride",
+    0.85
+   ],
+   [
+    0.425,
+    "snare",
+    0.45
+   ],
+   [
+    0.665,
+    "snare",
+    0.15
+   ],
+   [
+    0.688,
+    "kick",
+    0.28
+   ],
+   [
+    0.925,
+    "closed_hat",
+    0.37
+   ],
+   [
+    0.977,
+    "ride",
+    0.46
+   ],
+   [
+    1.208,
+    "snare",
+    0.15
+   ],
+   [
+    1.444,
+    "kick",
+    0.3
+   ],
+   [
+    1.452,
+    "closed_hat",
+    0.25
+   ],
+   [
+    1.452,
+    "ride",
+    0.21
+   ],
+   [
+    1.7,
+    "ride",
+    0.28
+   ],
+   [
+    1.717,
+    "snare",
+    0.46
+   ],
+   [
+    1.94,
+    "closed_hat",
+    0.59
+   ],
+   [
+    1.975,
+    "ride",
+    0.61
+   ],
+   [
+    2.229,
+    "snare",
+    0.06
+   ],
+   [
+    2.435,
+    "closed_hat",
+    0.63
+   ],
+   [
+    2.438,
+    "snare",
+    0.23
+   ],
+   [
+    2.45,
+    "ride",
+    0.25
+   ],
+   [
+    2.671,
+    "ride",
+    0.26
+   ],
+   [
+    2.717,
+    "kick",
+    0.3
+   ],
+   [
+    2.923,
+    "closed_hat",
+    0.45
+   ],
+   [
+    2.96,
+    "ride",
+    0.53
+   ],
+   [
+    3.146,
+    "rim",
+    0.14
+   ],
+   [
+    3.427,
+    "kick",
+    0.34
+   ],
+   [
+    3.442,
+    "ride",
+    0.25
+   ],
+   [
+    3.456,
+    "closed_hat",
+    0.53
+   ],
+   [
+    3.685,
+    "ride",
+    0.27
+   ],
+   [
+    3.713,
+    "snare",
+    0.18
+   ],
+   [
+    3.95,
+    "closed_hat",
+    0.65
+   ],
+   [
+    3.95,
+    "ride",
+    0.75
+   ],
+   [
+    4.427,
+    "closed_hat",
+    0.67
+   ],
+   [
+    4.429,
+    "ride",
+    0.66
+   ],
+   [
+    4.454,
+    "snare",
+    0.51
+   ],
+   [
+    4.717,
+    "kick",
+    0.34
+   ],
+   [
+    4.733,
+    "snare",
+    0.08
+   ],
+   [
+    4.923,
+    "closed_hat",
+    0.61
+   ],
+   [
+    4.969,
+    "ride",
+    0.43
+   ],
+   [
+    5.202,
+    "snare",
+    0.09
+   ],
+   [
+    5.392,
+    "kick",
+    0.34
+   ],
+   [
+    5.406,
+    "closed_hat",
+    0.55
+   ],
+   [
+    5.442,
+    "ride",
+    0.2
+   ],
+   [
+    5.673,
+    "ride",
+    0.19
+   ],
+   [
+    5.708,
+    "snare",
+    0.49
+   ],
+   [
+    5.912,
+    "closed_hat",
+    0.55
+   ],
+   [
+    5.971,
+    "ride",
+    0.58
+   ],
+   [
+    6.196,
+    "snare",
+    0.17
+   ],
+   [
+    6.4,
+    "closed_hat",
+    0.61
+   ],
+   [
+    6.429,
+    "snare",
+    0.2
+   ],
+   [
+    6.435,
+    "ride",
+    0.26
+   ],
+   [
+    6.675,
+    "kick",
+    0.35
+   ],
+   [
+    6.677,
+    "ride",
+    0.19
+   ],
+   [
+    6.919,
+    "closed_hat",
+    0.61
+   ],
+   [
+    6.946,
+    "ride",
+    0.54
+   ],
+   [
+    7.127,
+    "snare",
+    0.06
+   ],
+   [
+    7.188,
+    "snare",
+    0.06
+   ],
+   [
+    7.233,
+    "snare",
+    0.06
+   ],
+   [
+    7.412,
+    "kick",
+    0.34
+   ],
+   [
+    7.425,
+    "ride",
+    0.28
+   ],
+   [
+    7.427,
+    "closed_hat",
+    0.61
+   ],
+   [
+    7.675,
+    "ride",
+    0.2
+   ],
+   [
+    7.71,
+    "snare",
+    0.2
+   ],
+   [
+    7.929,
+    "closed_hat",
+    0.61
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "the drum track (a kit)"
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "from_bar": "$from_bar",
+     "bars": "$bars"
+    }
+   }
+  ]
+ }
+}

@@ -1,0 +1,190 @@
+{
+ "key": "pattern/gmd-jazz-klezmer-beat-1",
+ "kind": "pattern",
+ "summary": "jazz (klezmer) groove, 2 bars at 152 BPM, played by a human drummer (Groove MIDI)",
+ "tags": [
+  "jazz",
+  "swing",
+  "klezmer",
+  "drums",
+  "groove",
+  "human",
+  "live drums"
+ ],
+ "group": "Groove MIDI drums, jazz (human drummers; 2-bar beats and 1-bar fills)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/groove.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Groove MIDI Dataset (Magenta), drummer4/session1/3_jazz-klezmer_152_beat_4-4.mid",
+   "url": "https://magenta.tensorflow.org/datasets/groove"
+  }
+ ],
+ "body": [
+  "Played at 152 BPM; it holds up roughly ±15% from there. Uses crash, kick, ride, snare, tom_mid.",
+  "Human timing and dynamics kept: hits sit a little ahead of or behind the grid, and velocities vary. Don't quantize it unless asked; that's the point of it."
+ ],
+ "pattern": {
+  "type": "drums",
+  "beats": 8,
+  "hits": [
+   [
+    0,
+    "crash",
+    1
+   ],
+   [
+    0,
+    "snare",
+    1
+   ],
+   [
+    0.958,
+    "kick",
+    0.54
+   ],
+   [
+    1.446,
+    "snare",
+    1
+   ],
+   [
+    1.452,
+    "kick",
+    0.53
+   ],
+   [
+    1.454,
+    "tom_mid",
+    1
+   ],
+   [
+    2.412,
+    "kick",
+    0.43
+   ],
+   [
+    2.844,
+    "kick",
+    0.8
+   ],
+   [
+    2.9,
+    "tom_mid",
+    0.96
+   ],
+   [
+    2.912,
+    "snare",
+    1
+   ],
+   [
+    3.867,
+    "kick",
+    0.48
+   ],
+   [
+    3.875,
+    "snare",
+    1
+   ],
+   [
+    3.881,
+    "crash",
+    1
+   ],
+   [
+    4.89,
+    "kick",
+    0.52
+   ],
+   [
+    5.375,
+    "snare",
+    0.92
+   ],
+   [
+    5.381,
+    "kick",
+    0.5
+   ],
+   [
+    5.385,
+    "tom_mid",
+    1
+   ],
+   [
+    6.3,
+    "kick",
+    0.42
+   ],
+   [
+    6.796,
+    "snare",
+    1
+   ],
+   [
+    6.8,
+    "tom_mid",
+    0.85
+   ],
+   [
+    6.85,
+    "kick",
+    0.31
+   ],
+   [
+    7.279,
+    "kick",
+    0.54
+   ],
+   [
+    7.775,
+    "ride",
+    0.89
+   ],
+   [
+    7.781,
+    "snare",
+    1
+   ],
+   [
+    7.806,
+    "kick",
+    1
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "the drum track (a kit)"
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "from_bar": "$from_bar",
+     "bars": "$bars"
+    }
+   }
+  ]
+ }
+}

@@ -1,0 +1,86 @@
+{
+  "key": "genre/funk",
+  "kind": "genre",
+  "summary": "Funk: 90–115 BPM 16th-note grooves on the one, dorian vamps, slap bass, clav and brass stabs",
+  "tags": [
+    "funk",
+    "funky",
+    "groove",
+    "70s",
+    "soul",
+    "james brown"
+  ],
+  "devices": [
+    "Playfield",
+    "Tubular",
+    "Vaporisateur"
+  ],
+  "links": [
+    "pattern/gmd-funk-beat-1",
+    "pattern/dorian-i-IV",
+    "pattern/gmd-funk-purdieshuffle-beat-1",
+    "pattern/prog-funk-characteristic-1",
+    "genre/disco",
+    "genre/neo-soul",
+    "sound/tubular-clav",
+    "sound/tubular-slap-bass",
+    "sound/tubular-brass-sect"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (genre write-ups)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "tempo": [
+    90,
+    115
+  ],
+  "body": [
+    "Drums: busy 16th hats, ghost notes on the snare, the kick locking with the bass; everything lands hard on the one.",
+    "Harmony: one- or two-chord vamps (i7–IV7 dorian, dominant 9ths); stabs and riffs more than progressions.",
+    "Bass: syncopated 16ths, octaves, slap; it is a lead instrument.",
+    "Clav or guitar comping in 16ths; short brass stabs.",
+    "Apply: pattern/gmd-funk-beat-1 on the drums, then pattern/dorian-i-IV on the keys four bars later. It leaves tempo and sounds to you: move the tempo toward 90–115 gradually, and swap sounds from the links."
+  ],
+  "apply": {
+    "params": {
+      "drums": {
+        "type": "track",
+        "optional": true,
+        "about": "the drum track (a kit); leave out if there isn't one"
+      },
+      "keys": {
+        "type": "track",
+        "optional": true,
+        "about": "a chordal part (keys, pad); leave out if there isn't one"
+      },
+      "key": {
+        "type": "key",
+        "optional": true,
+        "about": "the project's key; leave out to estimate it from the notes"
+      }
+    },
+    "steps": [
+      {
+        "op": "entry",
+        "key": "pattern/gmd-funk-beat-1",
+        "args": {
+          "track": "$drums"
+        },
+        "when": "drums",
+        "at": 0
+      },
+      {
+        "op": "entry",
+        "key": "pattern/dorian-i-IV",
+        "args": {
+          "track": "$keys",
+          "key": "$key"
+        },
+        "when": "keys",
+        "at": 4
+      }
+    ]
+  }
+}

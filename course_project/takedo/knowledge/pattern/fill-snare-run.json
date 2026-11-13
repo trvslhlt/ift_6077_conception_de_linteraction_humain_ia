@@ -1,0 +1,94 @@
+{
+  "key": "pattern/fill-snare-run",
+  "kind": "pattern",
+  "summary": "A one-bar fill: snare 16ths building into the next downbeat",
+  "tags": [
+    "fill",
+    "build",
+    "transition",
+    "drums"
+  ],
+  "devices": [],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (knowledge seed)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "body": [
+    "Write it on the last bar before a section change (from_bar = that bar, bars = 1); it replaces that bar's beat."
+  ],
+  "pattern": {
+    "type": "drums",
+    "beats": 4,
+    "hits": [
+      [
+        0,
+        "kick",
+        0.9
+      ],
+      [
+        1,
+        "snare",
+        0.6
+      ],
+      [
+        2,
+        "snare",
+        0.6
+      ],
+      [
+        2.5,
+        "snare",
+        0.65
+      ],
+      [
+        3,
+        "snare",
+        0.7
+      ],
+      [
+        3.25,
+        "snare",
+        0.75
+      ],
+      [
+        3.5,
+        "snare",
+        0.85
+      ],
+      [
+        3.75,
+        "snare",
+        0.95
+      ]
+    ]
+  },
+  "apply": {
+    "params": {
+      "track": {
+        "type": "track",
+        "about": "the drum track (a kit)"
+      },
+      "from_bar": {
+        "type": "number",
+        "optional": true
+      },
+      "bars": {
+        "type": "number",
+        "optional": true
+      }
+    },
+    "steps": [
+      {
+        "op": "pattern",
+        "input": {
+          "track": "$track",
+          "from_bar": "$from_bar",
+          "bars": "$bars"
+        }
+      }
+    ]
+  }
+}

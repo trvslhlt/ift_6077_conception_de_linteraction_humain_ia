@@ -1,0 +1,81 @@
+{
+  "key": "genre/dub",
+  "kind": "genre",
+  "summary": "Dub: reggae stripped to drums and bass, parts dropped in and out, echo and reverb throws as the lead",
+  "tags": [
+    "dub",
+    "reggae",
+    "king tubby",
+    "lee perry",
+    "echo",
+    "roots"
+  ],
+  "devices": [
+    "Playfield",
+    "Tubular",
+    "Vaporisateur"
+  ],
+  "links": [
+    "pattern/one-drop",
+    "pattern/prog-dub-common-1",
+    "production/dub",
+    "genre/reggae",
+    "chain/dub-echo"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (genre write-ups)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "tempo": [
+    60,
+    90
+  ],
+  "body": [
+    "The genre is a reggae track remixed live at the desk: drums and bass carry it, everything else appears in fragments.",
+    "Arrangement: mute and unmute parts every few bars; leave space.",
+    "Production in production/dub: echo throws on snare and chords, spring reverb, filter sweeps.",
+    "Apply: pattern/one-drop on the drums, then pattern/prog-dub-common-1 on the keys four bars later. It leaves tempo and sounds to you: move the tempo toward 60–90 gradually, and swap sounds from the links."
+  ],
+  "apply": {
+    "params": {
+      "drums": {
+        "type": "track",
+        "optional": true,
+        "about": "the drum track (a kit); leave out if there isn't one"
+      },
+      "keys": {
+        "type": "track",
+        "optional": true,
+        "about": "a chordal part (keys, pad); leave out if there isn't one"
+      },
+      "key": {
+        "type": "key",
+        "optional": true,
+        "about": "the project's key; leave out to estimate it from the notes"
+      }
+    },
+    "steps": [
+      {
+        "op": "entry",
+        "key": "pattern/one-drop",
+        "args": {
+          "track": "$drums"
+        },
+        "when": "drums",
+        "at": 0
+      },
+      {
+        "op": "entry",
+        "key": "pattern/prog-dub-common-1",
+        "args": {
+          "track": "$keys",
+          "key": "$key"
+        },
+        "when": "keys",
+        "at": 4
+      }
+    ]
+  }
+}

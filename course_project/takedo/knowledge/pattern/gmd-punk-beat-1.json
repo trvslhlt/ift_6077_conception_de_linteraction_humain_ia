@@ -1,0 +1,265 @@
+{
+ "key": "pattern/gmd-punk-beat-1",
+ "kind": "pattern",
+ "summary": "punk groove, 2 bars at 128 BPM, played by a human drummer (Groove MIDI)",
+ "tags": [
+  "punk",
+  "fast",
+  "rock",
+  "drums",
+  "groove",
+  "human",
+  "live drums"
+ ],
+ "group": "Groove MIDI drums, punk (human drummers; 2-bar beats and 1-bar fills)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/groove.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Groove MIDI Dataset (Magenta), drummer1/session2/34_punk_128_beat_4-4.mid",
+   "url": "https://magenta.tensorflow.org/datasets/groove"
+  }
+ ],
+ "body": [
+  "Played at 128 BPM; it holds up roughly ±15% from there. Uses kick, ride, rim, snare, tom_low.",
+  "Human timing and dynamics kept: hits sit a little ahead of or behind the grid, and velocities vary. Don't quantize it unless asked; that's the point of it."
+ ],
+ "pattern": {
+  "type": "drums",
+  "beats": 8,
+  "hits": [
+   [
+    0.029,
+    "ride",
+    0.22
+   ],
+   [
+    0.25,
+    "kick",
+    0.3
+   ],
+   [
+    0.513,
+    "snare",
+    0.87
+   ],
+   [
+    0.525,
+    "ride",
+    0.46
+   ],
+   [
+    0.75,
+    "kick",
+    0.28
+   ],
+   [
+    1.048,
+    "ride",
+    0.38
+   ],
+   [
+    1.263,
+    "kick",
+    0.26
+   ],
+   [
+    1.504,
+    "tom_low",
+    0.77
+   ],
+   [
+    1.506,
+    "rim",
+    0.66
+   ],
+   [
+    1.777,
+    "kick",
+    0.28
+   ],
+   [
+    2.029,
+    "ride",
+    0.45
+   ],
+   [
+    2.219,
+    "kick",
+    0.28
+   ],
+   [
+    2.494,
+    "snare",
+    0.83
+   ],
+   [
+    2.517,
+    "ride",
+    0.44
+   ],
+   [
+    2.735,
+    "kick",
+    0.31
+   ],
+   [
+    2.996,
+    "ride",
+    0.36
+   ],
+   [
+    3.185,
+    "kick",
+    0.27
+   ],
+   [
+    3.473,
+    "rim",
+    0.71
+   ],
+   [
+    3.494,
+    "tom_low",
+    0.79
+   ],
+   [
+    3.696,
+    "kick",
+    0.31
+   ],
+   [
+    3.996,
+    "ride",
+    0.35
+   ],
+   [
+    4.183,
+    "kick",
+    0.33
+   ],
+   [
+    4.467,
+    "snare",
+    0.78
+   ],
+   [
+    4.504,
+    "tom_low",
+    0.81
+   ],
+   [
+    4.729,
+    "kick",
+    0.2
+   ],
+   [
+    4.994,
+    "ride",
+    0.34
+   ],
+   [
+    5.269,
+    "kick",
+    0.23
+   ],
+   [
+    5.423,
+    "rim",
+    0.66
+   ],
+   [
+    5.479,
+    "tom_low",
+    0.94
+   ],
+   [
+    5.725,
+    "kick",
+    0.28
+   ],
+   [
+    6.008,
+    "ride",
+    0.43
+   ],
+   [
+    6.158,
+    "kick",
+    0.22
+   ],
+   [
+    6.477,
+    "snare",
+    0.76
+   ],
+   [
+    6.517,
+    "ride",
+    0.38
+   ],
+   [
+    6.729,
+    "kick",
+    0.3
+   ],
+   [
+    7.04,
+    "ride",
+    0.31
+   ],
+   [
+    7.206,
+    "kick",
+    0.3
+   ],
+   [
+    7.502,
+    "snare",
+    0.76
+   ],
+   [
+    7.529,
+    "ride",
+    0.39
+   ],
+   [
+    7.731,
+    "kick",
+    0.32
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "the drum track (a kit)"
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "from_bar": "$from_bar",
+     "bars": "$bars"
+    }
+   }
+  ]
+ }
+}

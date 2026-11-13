@@ -1,0 +1,161 @@
+{
+ "key": "pattern/gmd-afrocuban-bembe-beat-1",
+ "kind": "pattern",
+ "summary": "Afro Cuban (bembe) groove, 2 bars at 122 BPM, played by a human drummer (Groove MIDI)",
+ "tags": [
+  "afro-cuban",
+  "latin",
+  "clave",
+  "bembe",
+  "drums",
+  "groove",
+  "human",
+  "live drums"
+ ],
+ "group": "Groove MIDI drums, Afro Cuban (human drummers; 2-bar beats and 1-bar fills)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/groove.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Groove MIDI Dataset (Magenta), drummer1/session2/112_afrocuban-bembe_122_beat_4-4.mid",
+   "url": "https://magenta.tensorflow.org/datasets/groove"
+  }
+ ],
+ "body": [
+  "Played at 122 BPM; it holds up roughly ±15% from there. Uses closed_hat, ride.",
+  "Human timing and dynamics kept: hits sit a little ahead of or behind the grid, and velocities vary. Don't quantize it unless asked; that's the point of it."
+ ],
+ "pattern": {
+  "type": "drums",
+  "beats": 8,
+  "hits": [
+   [
+    0,
+    "closed_hat",
+    0.72
+   ],
+   [
+    0,
+    "ride",
+    0.46
+   ],
+   [
+    0.617,
+    "ride",
+    0.45
+   ],
+   [
+    1.263,
+    "ride",
+    0.29
+   ],
+   [
+    1.575,
+    "ride",
+    0.43
+   ],
+   [
+    1.906,
+    "closed_hat",
+    0.67
+   ],
+   [
+    2.281,
+    "ride",
+    0.39
+   ],
+   [
+    2.954,
+    "ride",
+    0.44
+   ],
+   [
+    3.631,
+    "ride",
+    0.28
+   ],
+   [
+    3.956,
+    "closed_hat",
+    0.65
+   ],
+   [
+    4.002,
+    "ride",
+    0.5
+   ],
+   [
+    4.354,
+    "closed_hat",
+    0.13
+   ],
+   [
+    4.65,
+    "ride",
+    0.52
+   ],
+   [
+    5.319,
+    "ride",
+    0.31
+   ],
+   [
+    5.625,
+    "ride",
+    0.47
+   ],
+   [
+    5.935,
+    "closed_hat",
+    0.65
+   ],
+   [
+    6.3,
+    "ride",
+    0.5
+   ],
+   [
+    6.935,
+    "ride",
+    0.43
+   ],
+   [
+    7.617,
+    "ride",
+    0.31
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "the drum track (a kit)"
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "from_bar": "$from_bar",
+     "bars": "$bars"
+    }
+   }
+  ]
+ }
+}

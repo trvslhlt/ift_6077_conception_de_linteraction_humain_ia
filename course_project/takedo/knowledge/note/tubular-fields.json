@@ -1,0 +1,39 @@
+{
+  "key": "note/tubular-fields",
+  "kind": "note",
+  "summary": "Tubular (DX7-style FM): field units, envelope rate timings measured on the engine, how voices load",
+  "tags": [
+    "tubular",
+    "fm",
+    "dx7",
+    "envelope",
+    "operators"
+  ],
+  "devices": [
+    "Tubular"
+  ],
+  "links": [
+    "sound/dx7-voice",
+    "note/dx7-library"
+  ],
+  "fields": [
+    "Tubular/algorithm",
+    "Tubular/feedback",
+    "Tubular/operators/0/outputLevel",
+    "Tubular/operators/0/coarse",
+    "Tubular/operators/0/detune",
+    "Tubular/transpose"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (openDAW source: TubularPreset.ts, tubular-classics.mts)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "body": [
+    "Fields take DX7 panel values, stored 0-based where the panel isn't: algorithm 0..31 is panel 1..32; detune 0..14 is -7..+7; transpose 0..48 with 24 = no transpose; levels and rates 0..99; feedback 0..7.",
+    "operators/0..5 are OP1..OP6 in panel order (a voice's bytes store OP6 first; TubularPreset handles that). Which operators are carriers depends on the algorithm: in algorithm 5 (panel), OP1, OP3 and OP5 are carriers, each modulated by the next.",
+    "Envelope rates measured by openDAW's authors (time to -60 dB from full): R30 8.5 s, R35 5 s, R40 3 s, R45 1.9 s, R50 0.9 s, R55 0.55 s, R60 0.3 s, R65 0.2 s, R70 0.12 s. Attack to full: R30 1.5 s, R40 0.5 s, R50 0.17 s, R60 50 ms.",
+    "To make a voice duller, lower the modulators' outputLevel (not cutoff); brighter, raise them or the feedback. Loading a voice sets every field and the instrument's label."
+  ]
+}

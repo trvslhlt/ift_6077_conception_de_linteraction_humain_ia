@@ -1,0 +1,85 @@
+{
+  "key": "genre/synth-pop",
+  "kind": "genre",
+  "summary": "Synth-pop: 110–130 BPM 80s pop on synths and drum machines, bright pads, FM bass and brass, catchy leads",
+  "tags": [
+    "synth-pop",
+    "synthpop",
+    "80s",
+    "new wave",
+    "pop",
+    "electropop"
+  ],
+  "devices": [
+    "Playfield",
+    "Tubular",
+    "Vaporisateur"
+  ],
+  "links": [
+    "pattern/gmd-pop-beat-1",
+    "pattern/prog-synth-pop-characteristic-1",
+    "genre/synthwave",
+    "production/synthwave",
+    "sound/tubular-brass-sect",
+    "sound/tubular-analog-pad",
+    "sound/tubular-synth-bass",
+    "sound/tubular-fm-lead"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (genre write-ups)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "tempo": [
+    110,
+    130
+  ],
+  "body": [
+    "Drums: drum machine pop beat, claps and snares with big reverb.",
+    "Harmony: major-key pop progressions with a bVII or II for color (I–IV–V–bVII).",
+    "Sounds: DX7 FM bass and brass, bright pads, bells; a simple, singable lead.",
+    "Bass: 8th-note pulses or octave riffs.",
+    "Apply: pattern/gmd-pop-beat-1 on the drums, then pattern/prog-synth-pop-characteristic-1 on the keys four bars later. It leaves tempo and sounds to you: move the tempo toward 110–130 gradually, and swap sounds from the links."
+  ],
+  "apply": {
+    "params": {
+      "drums": {
+        "type": "track",
+        "optional": true,
+        "about": "the drum track (a kit); leave out if there isn't one"
+      },
+      "keys": {
+        "type": "track",
+        "optional": true,
+        "about": "a chordal part (keys, pad); leave out if there isn't one"
+      },
+      "key": {
+        "type": "key",
+        "optional": true,
+        "about": "the project's key; leave out to estimate it from the notes"
+      }
+    },
+    "steps": [
+      {
+        "op": "entry",
+        "key": "pattern/gmd-pop-beat-1",
+        "args": {
+          "track": "$drums"
+        },
+        "when": "drums",
+        "at": 0
+      },
+      {
+        "op": "entry",
+        "key": "pattern/prog-synth-pop-characteristic-1",
+        "args": {
+          "track": "$keys",
+          "key": "$key"
+        },
+        "when": "keys",
+        "at": 4
+      }
+    ]
+  }
+}

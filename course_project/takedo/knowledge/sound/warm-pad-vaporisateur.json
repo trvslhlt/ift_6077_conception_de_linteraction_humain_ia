@@ -1,0 +1,69 @@
+{
+  "key": "sound/warm-pad-vaporisateur",
+  "kind": "sound",
+  "summary": "Slow, warm saw pad on Vaporisateur: detuned unison, low-passed, long attack and release",
+  "tags": [
+    "pad",
+    "warm",
+    "lush",
+    "ambient",
+    "synthwave",
+    "chill",
+    "strings-ish"
+  ],
+  "devices": [
+    "Vaporisateur"
+  ],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (knowledge seed)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "body": [
+    "Two saws an octave apart through a 24 dB low-pass around 1.8 kHz, 3-voice unison, slow attack. Sustained chords around C3–C5; leave space for the lead above 1 kHz."
+  ],
+  "apply": {
+    "params": {
+      "track": {
+        "type": "track",
+        "optional": true,
+        "about": "a Vaporisateur track; leave out for a new track"
+      },
+      "name": {
+        "type": "text",
+        "optional": true
+      }
+    },
+    "steps": [
+      {
+        "op": "instrument",
+        "input": {
+          "track": "$track",
+          "device": "Vaporisateur",
+          "name": "$name",
+          "settings": {
+            "oscillators/0/waveform": 2,
+            "oscillators/0/volume": -8,
+            "oscillators/1/waveform": 2,
+            "oscillators/1/volume": -14,
+            "oscillators/1/octave": -1,
+            "noise/volume": -96,
+            "cutoff": 1800,
+            "resonance": 0.5,
+            "filterOrder": 2,
+            "attack": 0.8,
+            "decay": 1.5,
+            "sustain": 0.8,
+            "release": 2,
+            "voicingMode": 1,
+            "unisonCount": 3,
+            "unisonDetune": 18,
+            "unisonStereo": 0.8
+          }
+        }
+      }
+    ]
+  }
+}

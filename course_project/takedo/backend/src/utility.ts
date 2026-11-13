@@ -6,6 +6,8 @@ import {z} from "zod"
 import type {Actor, Plan, Snapshot, Status, When} from "../../shared/protocol.ts"
 import type {Coordinator} from "./coordinator.ts"
 import type {Catalog} from "./catalog.ts"
+import {Kinds as KnowledgeKinds, type Knowledge} from "./knowledge.ts"
+import {analyse} from "./analysis.ts"
 import {Kinds, type Kind} from "./notebook.ts"
 import {Limits, type LlmMember, type Member, performStep, projectFor, type Task} from "./members.ts"
 
@@ -33,6 +35,11 @@ type Work = { done: string[], pending: Promise<string>[], late: string[] }
 type Current = { context: Coordinator, task: Task, work: Work, calls: number }
 type Session = { inbox: Inbox, query: Query }
 
+// The knowledge base's part of the prompt, left out when there's none (an A/B run with KNOWLEDGE_DIR on an empty folder).
+const KnowledgeTools = `- knowledge, apply_knowledge, learn: the team's knowledge base, shared across projects (\`knowledge\` with your first message lists every entry as "key: summary", with a family of similar entries on one line of keys; later messages add new ones). Kinds: genre (what's played: tempo, groove, harmony, parts) and production (how it's treated: sound, effects, mix; lofi is a production style, hip hop a genre); sound (an instrument set up: openDAW's ~1,200 bundled DX7 voices for Tubular among them); chain (effects with settings); pattern (drum grooves by role, chord progressions as numerals); note (openDAW facts: step tables, units, fields). Check it before reading source, researching or writing a sound, chain or pattern from scratch: read several entries in one knowledge call; apply_knowledge runs an entry's edits (fixed operations and scripts, timed from the bar you give, like your own); entries without apply are for reading. Adapt freely: an entry is a starting point, not a rule. Entries marked draft, and anything checked only "written" or "imported", haven't been heard: listen-worthy, not proven. learn keeps something that worked (a sound, a chain, a pattern you wrote) as a draft entry for later sessions and other projects.
+`
+const KnowledgeKey = "- A chord pattern needs the project's key: leave it out and it's estimated from the notes (the result says which), or pass it.\n"
+const KnowledgeSlot = "\u0000knowledge-tools", KeySlot = "\u0000knowledge-key"
 const System = `You are the utility on an AI music production team (the producer sees you as the Team Lead: speak as "I", and never call yourself the utility) working live in openDAW (a web DAW) with a producer, usually while the track plays. You can do anything openDAW supports, working on the project directly with JavaScript. Your conversation carries on across the producer's messages (each brings a fresh project summary), but its older parts are summarized when it grows long: keep what you'll need later in your notebook. You get the producer's message, the chat before you joined, if any (\`conversation\`); "go on", "do the rest" or "all of it" refer to what came before, and your task when the work was split (do only that part).
 
 A direction toward a style, genre or feel ("make it lofi", "evolve this into dub") asks for the whole transformation, not a first step. Work out what that style needs here: tempo and feel, drums (pattern, swing, ghost notes, velocities), harmony (chords, voicings, extensions), each part's sound (instrument choice and settings, a new track when a part's instrument can't get there), effects and mix. Do all of it. When it should happen gradually, stage it: changes timed across the bars it names (or 8 to 16 bars), each stage small, all scheduled before you finish.
@@ -44,7 +51,7 @@ Tools:
 - An edit for a later bar (fixed operation or script) answers "Scheduled" at once and lands on its own: carry on with the next one, so a staged plan is all timed from the same playhead. Failures come back in a later round ("Since then, failed: …"). A look sees only what has landed.
 - When you've finished, end with one or two sentences for the producer on what you did (or why you couldn't). Your last message is all they see: keep anything you write between tool calls to a few words.
 - Read, Grep, Glob: openDAW's own source, the version that's running; your working directory is its root (packages/…). Read it for what the notes below don't say: a device's fields and their ranges (box schemas in packages/studio/forge-boxes/src/schema/devices/), step tables (adapters in packages/studio/adapters/src/devices/), how an API call works, the user manual (packages/app/manual/public/). Look before writing fields you haven't used.
-- remember, recall, forget: your notebook, kept on disk per project and listed with every message (\`notebook\`: key, kind, summary). Your conversation may be summarized between messages; the notebook isn't. Keep in it what you'll want later: the producer's wishes and taste (note), a staged plan and where it stands (plan), parts you wrote as notes (clip), sounds you designed with their settings (sound), scripts worth reusing (script). "start" (state) is the whole project before the agents' first edit this session, kept for you.
+${KnowledgeSlot}- remember, recall, forget: your notebook, kept on disk per project and listed with every message (\`notebook\`: key, kind, summary). Your conversation may be summarized between messages; the notebook isn't. Keep in it what you'll want later: the producer's wishes and taste (note), a staged plan and where it stands (plan), parts you wrote as notes (clip), sounds you designed with their settings (sound), scripts worth reusing (script). "start" (state) is the whole project before the agents' first edit this session, kept for you.
 
 Both run a function body with \`takedo\` in scope (its parts are also plain names: project, api, lib, ref, bar, ppqn, pos, snapshot); \`return\` a value to see it (JSON; openDAW objects show as their class name, so return plain data). look's body may await; run's is synchronous.
 
@@ -73,7 +80,7 @@ Rules:
 - Land changes ahead of the playhead (\`playback.bar\`) when timing matters; structural changes (lengths, new regions) can land as soon as possible.
 - When the loop is on (\`playback.loop\`), a bar inside it lands the next time the playhead reaches it, and a bar past the loop's end counts bars of playing from the playhead, as if the loop were unrolled (playhead in bar 2 of a 4-bar loop, at_bar 10: after 8 bars of playing, at the loop's bar 2), so the steps of a gradual change keep their spacing. Results then say "at 1.1.1 (after 8 bars of playing)": that is the bar you asked for, landed on time.
 - A region's notes play on every pass of its loop: a script that rewrites them changes every repeat from when it lands, which is how a staged change evolves the part over time.
-- Do the whole task before you finish: never stop after a first part to offer the next, or ask whether to do a part that was asked for. Make several calls per round when they don't depend on each other.
+${KeySlot}- Do the whole task before you finish: never stop after a first part to offer the next, or ask whether to do a part that was asked for. Make several calls per round when they don't depend on each other.
 - If something fails twice the same way, stop and say what's in the way.`
 
 // The producer's messages, fed to the session as they come (streaming input), so it stays open between them.
@@ -139,16 +146,20 @@ export class Utility implements Member {
     readonly #team: ReadonlyArray<LlmMember>
     readonly #devices: Record<string, string[]>
     readonly #source: string
+    readonly #knowledge: Knowledge | null
+    readonly #owners = new Map<string, LlmMember>()   // who owns each borrowed fixed operation
+    readonly #indexed = new Set<string>()              // knowledge keys this session has been shown
     #session: Session | null = null
     #current: Current | null = null
     #queue: Promise<void> = Promise.resolve()
     #unheard: string[] = []   // failures after a reply, for the model with the next message
 
     // team: the members whose fixed operations it borrows; catalog: which devices it may add; source: the root of
-    // openDAW's source tree, the session's working directory.
-    constructor(team: ReadonlyArray<LlmMember>, catalog: Catalog, source: string) {
+    // openDAW's source tree, the session's working directory; knowledge: the knowledge base (knowledge.ts), if loaded.
+    constructor(team: ReadonlyArray<LlmMember>, catalog: Catalog, source: string, knowledge: Knowledge | null = null) {
         this.#team = team
         this.#source = source
+        this.#knowledge = knowledge
         this.#devices = {}
         catalog.devices().filter(device => device.allowed)
             .forEach(device => (this.#devices[device.kind] ??= []).push(device.factory))
@@ -187,6 +198,7 @@ export class Utility implements Member {
             project: {...projectFor(snapshot, true), regions: snapshot.tracks.map(track => ({track: track.ref,
                 regions: track.regions.map(({ref, name, from, to, loop}) => ({ref, name, from, to, loop}))}))},
             notebook: context.notebook?.list() ?? [],
+            ...this.#knowledgeLines(fresh),
             ...(fresh ? {devices: this.#devices, ...Object.assign({}, ...this.#team.map(member => member.context(snapshot)))} : {})
         }))
         try {
@@ -242,7 +254,9 @@ export class Utility implements Member {
                 return reply(late.length > 0 ? `${result}\nSince then, failed: ${late.join("; ")}.` : result)
             }
         const borrowed = new Map<string, Anthropic.Tool>()
-        const owners = new Map<string, LlmMember>()
+        const owners = this.#owners
+        owners.clear()
+        this.#indexed.clear()
         this.#team.forEach(owner => owner.tools(withEveryTool(snapshot)).forEach(member => {
             if (borrowed.has(member.name)) {return}
             borrowed.set(member.name, anyRef(member))
@@ -270,12 +284,14 @@ export class Utility implements Member {
             tool("recall", "Read a notebook entry's content.", {key: z.string()},
                 handler((current, input) => this.#notebook(current.context, "recall", input)), {annotations: {readOnlyHint: true}}),
             tool("forget", "Delete a notebook entry.", {key: z.string()},
-                handler((current, input) => this.#notebook(current.context, "forget", input)))
+                handler((current, input) => this.#notebook(current.context, "forget", input))),
+            ...(this.#knowledge === null ? [] : this.#knowledgeTools(handler))
         ]
         const inbox = new Inbox()
         return {inbox, query: query({prompt: inbox, options: {
             model, ...(effort !== undefined ? {effort} : {}),
-            systemPrompt: System,
+            systemPrompt: System.replace(KnowledgeSlot, this.#knowledge === null ? "" : KnowledgeTools)
+                .replace(KeySlot, this.#knowledge === null ? "" : KnowledgeKey),
             cwd: existsSync(this.#source) ? this.#source : process.cwd(),
             tools: SourceTools,
             allowedTools: [...SourceTools, "mcp__takedo__*"],
@@ -286,6 +302,90 @@ export class Utility implements Member {
             env: {...process.env, CLAUDE_AGENT_SDK_CLIENT_APP: "takedo"},
             stderr: data => console.error(`[utility] ${data.trimEnd()}`)
         }})}
+    }
+
+    // The knowledge index for a message: all of it when the session is new, else only entries it hasn't seen (drafts).
+    #knowledgeLines(fresh: boolean): Record<string, unknown> {
+        if (this.#knowledge === null) {return {}}
+        const lines = this.#knowledge.index().filter(line => fresh || !this.#indexed.has(line.key))
+        lines.forEach(line => this.#indexed.add(line.key))
+        if (lines.length === 0) {return {}}
+        const compact = this.#knowledge.compact(lines)
+        return fresh ? {knowledge: compact} : {knowledge_new: compact}
+    }
+
+    #knowledgeTools(handler: (run: (current: Current, input: Record<string, unknown>) => Promise<string> | string)
+        => (input: Record<string, unknown>) => Promise<CallToolResult>) {
+        const knowledge = this.#knowledge!
+        const Value = z.union([z.string(), z.number(), z.null()])
+        return [
+            tool("knowledge", "Read knowledge base entries in full (several at once), with the summaries of the entries each links to.", {
+                keys: z.array(z.string()).describe("Entry keys from the index, e.g. [\"production/lofi\", \"pattern/boombap-1\"]")},
+                handler((current, input) => {
+                    current.context.card({agent: this.agent, name: this.name, doing: "reading the knowledge base…"})
+                    const entries = knowledge.get((input.keys as string[]).slice(0, 12))
+                    const text = JSON.stringify(entries, null, 1)
+                    return text.length > MaxRecall ? `${text.slice(0, MaxRecall)}\n… (cut at ${MaxRecall} characters: ask for fewer keys)` : text
+                }), {annotations: {readOnlyHint: true}}),
+            tool("apply_knowledge", "Apply an entry's edits (its apply): fixed operations and scripts, scheduled from the bar you give like your own. Its params are listed in the entry (read it first unless they're obvious: track, amount 0..3, key, from_bar, bars).", {
+                key: z.string(),
+                args: z.record(z.string(), Value).describe("The entry's params by name: {\"track\": \"t2\", \"amount\": 2}, {\"track\": \"t3\", \"key\": \"G major\"}; {} when it has none"),
+                at_bar: z.number().int().describe("The bar its first edit lands on; 0 for as soon as possible. Its later edits keep their spacing from it.")},
+                handler((current, input) => this.#applyKnowledge(current, String(input.key),
+                    (input.args ?? {}) as Record<string, unknown>, Number(input.at_bar)))),
+            tool("learn", "Keep something that worked as a draft knowledge entry, for later sessions and other projects (a person reviews drafts). For a sound, chain or pattern, include apply (and pattern) so it can be applied again; see existing entries for the shape.", {
+                kind: z.enum(KnowledgeKinds),
+                name: z.string().describe("Short, with dashes: \"dusty-rhodes\", \"dub-snare-throw\""),
+                summary: z.string().describe("One line, shown in the index"),
+                tags: z.array(z.string()).describe("Genres and the words a producer would use"),
+                devices: z.array(z.string()).describe("Catalog device keys it uses"),
+                links: z.array(z.string()).describe("Related entries' keys; [] for none"),
+                body: z.array(z.string()).describe("What it is, when to use it, what to watch for"),
+                apply: z.string().describe("JSON: {\"params\": {...}, \"steps\": [...]} as in existing entries; \"\" for none"),
+                pattern: z.string().describe("JSON pattern for a pattern entry ({\"type\": \"drums\"|\"chords\", ...}); \"\" for none")},
+                handler((current, input) => {
+                    const parse = (text: unknown): unknown => {
+                        if (typeof text !== "string" || text.trim() === "") {return undefined}
+                        try {return JSON.parse(text)} catch {return null}
+                    }
+                    const apply = parse(input.apply), pattern = parse(input.pattern)
+                    if (apply === null || pattern === null) {return "Not kept: apply and pattern must be JSON (or \"\")."}
+                    return knowledge.draft({...input, apply, pattern}, `utility (${current.context.gateway.agent("utility").model}, ${new Date().toISOString().slice(0, 10)})`)
+                }))
+        ]
+    }
+
+    // An entry's edits, each through the same path as the utility's own (fixed operation or script), timed from one bar.
+    async #applyKnowledge(current: Current, key: string, args: Record<string, unknown>, atBar: number): Promise<string> {
+        const {context} = current
+        const snapshot = await context.snapshot()
+        if (snapshot === null) {return "Not applied: no project is open."}
+        let planned = this.#knowledge!.expand(key, args, snapshot)
+        // A chord pattern without a key: the project's, estimated from its notes (analysis.ts), and said so.
+        let estimated = ""
+        if (typeof planned === "string" && /needs key|needs the project's key|chord pattern needs/.test(planned) && args.key === undefined) {
+            const full = await context.snapshot("full")
+            const found = full === null ? null : analyse(full).key
+            if (found !== null) {
+                planned = this.#knowledge!.expand(key, {...args, key: `${found.tonic} ${found.mode}`}, snapshot)
+                estimated = ` Key: ${found.tonic} ${found.mode}, estimated from the notes (confidence ${found.confidence.toFixed(2)}, runner-up ${found.runnerUp}); pass key to choose another.`
+            }
+        }
+        if (typeof planned === "string") {return `Not applied: ${planned}.`}
+        context.card({agent: this.agent, name: this.name, doing: `applying ${key}`})
+        const start = atBar > 0 ? atBar : snapshot.playback.bar + 1
+        const results: string[] = []
+        for (const step of planned) {
+            const bar = atBar <= 0 && step.at === 0 ? 0 : start + step.at
+            if (step.kind === "op") {
+                const owner = this.#owners.get(step.name)
+                results.push(owner === undefined ? `${step.says}: no member offers ${step.name}`
+                    : await this.#operate(current, owner, step.name, {...step.input, at_bar: bar}))
+            } else {
+                results.push(await this.#run(current, step.says, step.code, bar))
+            }
+        }
+        return `${key}: ${planned.length} edit${planned.length === 1 ? "" : "s"}.${estimated}\n${results.map((result, index) => `${index + 1}. ${planned[index].says}: ${result}`).join("\n")}`
     }
 
     // Starts an edit that may land bars from now without waiting for it, so the next one is planned from about the same

@@ -10,6 +10,7 @@ import {isRole, type Role, route} from "./router.ts"
 import type {SessionLog} from "./sessionLog.ts"
 import {lead, writeOverview} from "./teamLead.ts"
 import {Notebook} from "./notebook.ts"
+import type {Knowledge} from "./knowledge.ts"
 import {Utility} from "./utility.ts"
 
 // The backend half of the bus (TAKEDO_API.md, "Overview"), one per connected page: claims, plans, chat, routing.
@@ -44,16 +45,16 @@ export class Coordinator {
     #overview: "none" | "writing" | "done" = "none"   // for the open project; written once, refreshed on request
 
     // notebooks: the folder of agents' notebooks, one per project; source: the root of openDAW's source tree, for the
-    // utility to read.
+    // utility to read; knowledge: the knowledge base shared across projects (knowledge.ts), if it loaded.
     constructor(send: (message: BackendToPage) => void, gateway: Gateway, catalog: Catalog, log: SessionLog,
-                notebooks: string, source: string) {
+                notebooks: string, source: string, knowledge: Knowledge | null = null) {
         this.#send = send
         this.#gateway = gateway
         this.#catalog = catalog
         this.#log = log
         this.#notebooks = notebooks
         const team = createTeam(catalog)
-        const utility = new Utility(team, catalog, source)
+        const utility = new Utility(team, catalog, source, knowledge)
         this.#members = Roster === "team" ? [...team, utility] : [utility]
     }
 

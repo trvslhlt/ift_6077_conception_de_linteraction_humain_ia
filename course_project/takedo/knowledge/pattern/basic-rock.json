@@ -1,0 +1,120 @@
+{
+  "key": "pattern/basic-rock",
+  "kind": "pattern",
+  "summary": "Basic rock beat, 1 bar: kick 1 and 3, snare 2 and 4, straight 8th hats",
+  "tags": [
+    "rock",
+    "pop",
+    "indie",
+    "straight",
+    "drums"
+  ],
+  "devices": [],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (knowledge seed)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "body": [
+    "Straight, no swing."
+  ],
+  "pattern": {
+    "type": "drums",
+    "beats": 4,
+    "hits": [
+      [
+        0,
+        "kick",
+        0.95
+      ],
+      [
+        2,
+        "kick",
+        0.9
+      ],
+      [
+        2.5,
+        "kick",
+        0.6
+      ],
+      [
+        1,
+        "snare",
+        0.9
+      ],
+      [
+        3,
+        "snare",
+        0.9
+      ],
+      [
+        0,
+        "closed_hat",
+        0.65
+      ],
+      [
+        0.5,
+        "closed_hat",
+        0.45
+      ],
+      [
+        1,
+        "closed_hat",
+        0.65
+      ],
+      [
+        1.5,
+        "closed_hat",
+        0.45
+      ],
+      [
+        2,
+        "closed_hat",
+        0.65
+      ],
+      [
+        2.5,
+        "closed_hat",
+        0.45
+      ],
+      [
+        3,
+        "closed_hat",
+        0.65
+      ],
+      [
+        3.5,
+        "closed_hat",
+        0.45
+      ]
+    ]
+  },
+  "apply": {
+    "params": {
+      "track": {
+        "type": "track",
+        "about": "the drum track (a kit)"
+      },
+      "from_bar": {
+        "type": "number",
+        "optional": true
+      },
+      "bars": {
+        "type": "number",
+        "optional": true
+      }
+    },
+    "steps": [
+      {
+        "op": "pattern",
+        "input": {
+          "track": "$track",
+          "from_bar": "$from_bar",
+          "bars": "$bars"
+        }
+      }
+    ]
+  }
+}

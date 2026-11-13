@@ -1,0 +1,85 @@
+{
+  "key": "genre/deep-house",
+  "kind": "genre",
+  "summary": "Deep house: 118–124 BPM, softer four-on-the-floor, jazzy minor 7th/9th vamps, warm pads and Rhodes, round bass",
+  "tags": [
+    "deep house",
+    "house",
+    "soulful",
+    "jazzy",
+    "warm",
+    "chill"
+  ],
+  "devices": [
+    "Playfield",
+    "Tubular",
+    "Vaporisateur"
+  ],
+  "links": [
+    "pattern/four-on-the-floor",
+    "pattern/deep-house-i-iv",
+    "genre/house",
+    "pattern/prog-deep-house-common-1",
+    "sound/tubular-rhodes",
+    "sound/warm-pad-vaporisateur",
+    "sound/sine-sub-vaporisateur",
+    "chain/small-room"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (genre write-ups)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "tempo": [
+    118,
+    124
+  ],
+  "body": [
+    "House drums, played softer: the hats and percussion carry the groove; a little swing on the 16ths.",
+    "Harmony: minor 9ths and 11ths, i–iv or i–VII vamps; Rhodes, organ or warm pads, voicings around C4.",
+    "Bass: round and low, longer notes than house, often a soul-style line.",
+    "Mood: late night, warm; short room reverb, little distortion.",
+    "Apply: pattern/four-on-the-floor on the drums, then pattern/deep-house-i-iv on the keys four bars later. It leaves tempo and sounds to you: move the tempo toward 118–124 gradually, and swap sounds from the links."
+  ],
+  "apply": {
+    "params": {
+      "drums": {
+        "type": "track",
+        "optional": true,
+        "about": "the drum track (a kit); leave out if there isn't one"
+      },
+      "keys": {
+        "type": "track",
+        "optional": true,
+        "about": "a chordal part (keys, pad); leave out if there isn't one"
+      },
+      "key": {
+        "type": "key",
+        "optional": true,
+        "about": "the project's key; leave out to estimate it from the notes"
+      }
+    },
+    "steps": [
+      {
+        "op": "entry",
+        "key": "pattern/four-on-the-floor",
+        "args": {
+          "track": "$drums"
+        },
+        "when": "drums",
+        "at": 0
+      },
+      {
+        "op": "entry",
+        "key": "pattern/deep-house-i-iv",
+        "args": {
+          "track": "$keys",
+          "key": "$key"
+        },
+        "when": "keys",
+        "at": 4
+      }
+    ]
+  }
+}

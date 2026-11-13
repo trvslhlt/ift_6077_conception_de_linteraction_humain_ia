@@ -1,0 +1,140 @@
+{
+ "key": "pattern/gmd-rock-rockabilly-beat-1",
+ "kind": "pattern",
+ "summary": "rock (rockabilly) groove, 2 bars at 200 BPM, played by a human drummer (Groove MIDI)",
+ "tags": [
+  "rock",
+  "indie",
+  "rockabilly",
+  "drums",
+  "groove",
+  "human",
+  "live drums"
+ ],
+ "group": "Groove MIDI drums, rock (human drummers; 2-bar beats and 1-bar fills)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/groove.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Groove MIDI Dataset (Magenta), drummer1/session3/3_rock-rockabilly_200_beat_4-4.mid",
+   "url": "https://magenta.tensorflow.org/datasets/groove"
+  }
+ ],
+ "body": [
+  "Played at 200 BPM; it holds up roughly ±15% from there. Uses kick, snare.",
+  "Human timing and dynamics kept: hits sit a little ahead of or behind the grid, and velocities vary. Don't quantize it unless asked; that's the point of it."
+ ],
+ "pattern": {
+  "type": "drums",
+  "beats": 8,
+  "hits": [
+   [
+    0.031,
+    "kick",
+    0.54
+   ],
+   [
+    0.852,
+    "kick",
+    0.06
+   ],
+   [
+    0.99,
+    "snare",
+    0.94
+   ],
+   [
+    1.627,
+    "snare",
+    0.28
+   ],
+   [
+    1.973,
+    "snare",
+    0.32
+   ],
+   [
+    2.592,
+    "snare",
+    0.29
+   ],
+   [
+    2.969,
+    "snare",
+    0.99
+   ],
+   [
+    3.556,
+    "snare",
+    0.24
+   ],
+   [
+    3.979,
+    "snare",
+    0.28
+   ],
+   [
+    4.6,
+    "snare",
+    0.27
+   ],
+   [
+    4.983,
+    "snare",
+    1
+   ],
+   [
+    5.602,
+    "snare",
+    0.24
+   ],
+   [
+    6.613,
+    "snare",
+    0.69
+   ],
+   [
+    6.988,
+    "snare",
+    0.97
+   ],
+   [
+    7.529,
+    "snare",
+    0.31
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "the drum track (a kit)"
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "from_bar": "$from_bar",
+     "bars": "$bars"
+    }
+   }
+  ]
+ }
+}

@@ -1,0 +1,249 @@
+{
+ "key": "pattern/gmd-blues-shuffle-beat-1",
+ "kind": "pattern",
+ "summary": "blues (shuffle) groove, 2 bars at 134 BPM, played by a human drummer (Groove MIDI)",
+ "tags": [
+  "blues",
+  "shuffle",
+  "drums",
+  "groove",
+  "human",
+  "live drums"
+ ],
+ "group": "Groove MIDI drums, blues (human drummers; 2-bar beats and 1-bar fills)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/groove.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Groove MIDI Dataset (Magenta), drummer4/session1/6_blues-shuffle_134_beat_4-4.mid",
+   "url": "https://magenta.tensorflow.org/datasets/groove"
+  }
+ ],
+ "body": [
+  "Played at 134 BPM; it holds up roughly ±15% from there. Uses crash, kick, ride, snare, tom_low.",
+  "Human timing and dynamics kept: hits sit a little ahead of or behind the grid, and velocities vary. Don't quantize it unless asked; that's the point of it."
+ ],
+ "pattern": {
+  "type": "drums",
+  "beats": 8,
+  "hits": [
+   [
+    0,
+    "ride",
+    1
+   ],
+   [
+    0.021,
+    "kick",
+    0.89
+   ],
+   [
+    0.723,
+    "kick",
+    0.72
+   ],
+   [
+    0.96,
+    "crash",
+    1
+   ],
+   [
+    0.985,
+    "snare",
+    1
+   ],
+   [
+    1.633,
+    "kick",
+    0.47
+   ],
+   [
+    1.665,
+    "snare",
+    0.24
+   ],
+   [
+    1.9,
+    "snare",
+    0.17
+   ],
+   [
+    2.01,
+    "ride",
+    0.21
+   ],
+   [
+    2.035,
+    "kick",
+    0.43
+   ],
+   [
+    2.065,
+    "snare",
+    0.04
+   ],
+   [
+    2.579,
+    "kick",
+    0.5
+   ],
+   [
+    2.675,
+    "ride",
+    0.3
+   ],
+   [
+    3,
+    "ride",
+    0.34
+   ],
+   [
+    3.01,
+    "snare",
+    0.98
+   ],
+   [
+    3.573,
+    "snare",
+    0.25
+   ],
+   [
+    3.598,
+    "kick",
+    0.69
+   ],
+   [
+    3.6,
+    "crash",
+    1
+   ],
+   [
+    3.783,
+    "snare",
+    0.22
+   ],
+   [
+    3.888,
+    "snare",
+    0.15
+   ],
+   [
+    3.971,
+    "snare",
+    0.13
+   ],
+   [
+    4.631,
+    "kick",
+    0.42
+   ],
+   [
+    4.973,
+    "ride",
+    0.45
+   ],
+   [
+    5.01,
+    "snare",
+    1
+   ],
+   [
+    5.623,
+    "ride",
+    0.33
+   ],
+   [
+    5.675,
+    "kick",
+    0.21
+   ],
+   [
+    5.919,
+    "snare",
+    0.09
+   ],
+   [
+    5.981,
+    "kick",
+    0.46
+   ],
+   [
+    6.008,
+    "ride",
+    0.72
+   ],
+   [
+    6.656,
+    "kick",
+    0.48
+   ],
+   [
+    6.667,
+    "ride",
+    0.26
+   ],
+   [
+    6.675,
+    "tom_low",
+    0.2
+   ],
+   [
+    7,
+    "snare",
+    1
+   ],
+   [
+    7.033,
+    "ride",
+    0.31
+   ],
+   [
+    7.338,
+    "kick",
+    0.53
+   ],
+   [
+    7.637,
+    "ride",
+    0.83
+   ],
+   [
+    7.683,
+    "snare",
+    1
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "the drum track (a kit)"
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "from_bar": "$from_bar",
+     "bars": "$bars"
+    }
+   }
+  ]
+ }
+}

@@ -13,7 +13,7 @@ ROSTER ?= utility
 export PORT ROSTER
 COMPOSE := docker compose --profile test
 
-.PHONY: help builder build up down restart logs status open shell test catalog check types usage clean
+.PHONY: help builder build up down restart logs status open shell test catalog check knowledge knowledge-bench knowledge-import types usage clean
 
 help: ## List targets
 	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
@@ -63,6 +63,21 @@ catalog: build ## Regenerate catalog/generated.json from openDAW (every device's
 
 check: ## Type-check the backend and shared code (needs `npm ci` in backend/ once)
 	cd backend && npx tsc --noEmit
+
+knowledge: ## Check the knowledge base offline: every entry against the catalog, the music helpers, expansion (needs `npm ci` in backend/ once)
+	cd backend && node --test src/knowledge.test.ts
+
+# PICKERS=jev and/or claude also asks the models which entry each message needs (costs money; keys from .env).
+knowledge-bench: ## Which producer messages the knowledge base serves (knowledge/bench/; PICKERS="jev claude" to run the pickers)
+	cd backend && node $(if $(PICKERS),--env-file=../.env) src/knowledge.bench.ts $(PICKERS)
+
+# The datasets are downloaded by hand into DATASETS (pins and URLs in knowledge/README.md); the DX7 import needs none.
+DATASETS ?= $(CURDIR)/.datasets
+knowledge-import: ## Rewrite the imported knowledge entries (DX7 always; Groove MIDI and Chordonomicon from DATASETS=<dir>)
+	node knowledge/import/dx7.mjs
+	@if [ -d "$(DATASETS)/groove" ]; then node knowledge/import/groove.mjs "$(DATASETS)/groove"; else echo "no $(DATASETS)/groove: Groove MIDI skipped"; fi
+	@if [ -f "$(DATASETS)/chordonomicon/chordonomicon_v2.csv" ]; then node knowledge/import/chordonomicon.mjs "$(DATASETS)/chordonomicon/chordonomicon_v2.csv"; else echo "no $(DATASETS)/chordonomicon: Chordonomicon skipped"; fi
+	$(MAKE) knowledge
 
 types: build ## Copy openDAW's source and types out of the image into .opendaw/, for the editor (see tsconfig.json)
 	rm -rf $(TYPES_DIR) && mkdir -p $(TYPES_DIR)

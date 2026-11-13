@@ -1,0 +1,96 @@
+{
+ "key": "pattern/prog-electronic-characteristic-2",
+ "kind": "pattern",
+ "summary": "electronic, characteristic: i → v → VI → iv (1.0% of 2,814 songs, 2.7× more than overall)",
+ "tags": [
+  "electronic",
+  "chords",
+  "progression",
+  "characteristic",
+  "minor"
+ ],
+ "label": "i v VI iv",
+ "group": "Chord loops, electronic (Chordonomicon; numerals in the key, a bar per chord)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/chordonomicon.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Chordonomicon (Kantarelis et al. 2024), chordonomicon_v2.csv",
+   "url": "https://huggingface.co/datasets/ailsntua/Chordonomicon"
+  }
+ ],
+ "body": [
+  "In 29 of 2,814 electronic songs (1.0%), mostly in song and verse sections; mostly in minor keys: use the project's key in minor, or its relative major if that's what the project is in, and read the numerals there.",
+  "A loop of 4 chords, written from the tonic when it's in it (songs start it anywhere). Numerals follow the key's own scale (natural minor in minor keys); b and # mark roots outside it. A bar per chord; change the rhythm and voicing to suit the part.",
+  "From user-written chord charts, with each song's key estimated: frequent progressions are reliable, rarer ones less so."
+ ],
+ "pattern": {
+  "type": "chords",
+  "beats": 16,
+  "chords": [
+   [
+    0,
+    "i",
+    4
+   ],
+   [
+    4,
+    "v",
+    4
+   ],
+   [
+    8,
+    "VI",
+    4
+   ],
+   [
+    12,
+    "iv",
+    4
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "a chordal part (keys, pad)"
+   },
+   "key": {
+    "type": "key",
+    "about": "the project's key, e.g. \"G major\""
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   },
+   "octave": {
+    "type": "number",
+    "optional": true,
+    "default": 3
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "key": "$key",
+     "from_bar": "$from_bar",
+     "bars": "$bars",
+     "octave": "$octave"
+    }
+   }
+  ]
+ }
+}

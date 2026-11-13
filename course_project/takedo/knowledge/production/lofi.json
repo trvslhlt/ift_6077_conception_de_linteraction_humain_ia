@@ -1,0 +1,64 @@
+{
+  "key": "production/lofi",
+  "kind": "production",
+  "summary": "Lofi: worn tape and a cheap sampler, dark and soft, slightly unsteady, nothing sharp",
+  "tags": [
+    "lofi",
+    "lo-fi",
+    "dusty",
+    "vintage",
+    "chill",
+    "study beats",
+    "tape",
+    "warm"
+  ],
+  "devices": [
+    "Crusher",
+    "Revamp",
+    "Delay"
+  ],
+  "links": [
+    "chain/tape-dust",
+    "sound/tubular-soft-rhds",
+    "genre/boom-bap",
+    "pattern/lofi-vamp-vi-iv"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (from experiment G)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "sources": [
+    {
+      "title": "Experiment G, Claude Code's run (project_plan/EXPERIMENTS.md)"
+    }
+  ],
+  "targets": {
+    "high_band": "low",
+    "dynamics": "soft",
+    "loudness": "quiet"
+  },
+  "body": [
+    "Everything rolled off above ~8 kHz, fewer bits, a little wobble, hiss or crackle under it. Keys forward and soft; drums back, hats quiet.",
+    "Works on any genre: most often hip hop (lofi hip hop), also house, jazz, ambient. Slower suits it: if the genre allows, ease the tempo down over several bars (70–90 BPM for lofi hip hop).",
+    "Apply: tape-dust on the master (amount 0..3). Bring the drums down a few dB yourself; the sound changes (Rhodes, softer chords) come from the genre, or from sound/tubular-soft-rhds."
+  ],
+  "apply": {
+    "params": {
+      "amount": {
+        "type": "amount"
+      }
+    },
+    "steps": [
+      {
+        "op": "entry",
+        "key": "chain/tape-dust",
+        "args": {
+          "track": "master",
+          "amount": "$amount"
+        }
+      }
+    ]
+  }
+}

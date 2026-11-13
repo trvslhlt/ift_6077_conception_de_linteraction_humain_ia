@@ -1,0 +1,370 @@
+{
+ "key": "pattern/gmd-latin-brazilian-samba-beat-2",
+ "kind": "pattern",
+ "summary": "latin (brazilian samba) groove, 2 bars at 89 BPM, played by a human drummer (Groove MIDI)",
+ "tags": [
+  "latin",
+  "brazilian",
+  "brazilian samba",
+  "drums",
+  "groove",
+  "human",
+  "live drums"
+ ],
+ "group": "Groove MIDI drums, latin (human drummers; 2-bar beats and 1-bar fills)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/groove.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Groove MIDI Dataset (Magenta), drummer5/session1/4_latin-brazilian-samba_89_beat_4-4.mid",
+   "url": "https://magenta.tensorflow.org/datasets/groove"
+  }
+ ],
+ "body": [
+  "Played at 89 BPM; it holds up roughly ±15% from there. Uses closed_hat, kick, rim, snare, tom_low.",
+  "Human timing and dynamics kept: hits sit a little ahead of or behind the grid, and velocities vary. Don't quantize it unless asked; that's the point of it."
+ ],
+ "pattern": {
+  "type": "drums",
+  "beats": 8,
+  "hits": [
+   [
+    0,
+    "kick",
+    0.28
+   ],
+   [
+    0.052,
+    "snare",
+    0.39
+   ],
+   [
+    0.16,
+    "snare",
+    0.38
+   ],
+   [
+    0.273,
+    "snare",
+    0.37
+   ],
+   [
+    0.44,
+    "snare",
+    0.46
+   ],
+   [
+    0.469,
+    "closed_hat",
+    0.37
+   ],
+   [
+    0.679,
+    "snare",
+    0.44
+   ],
+   [
+    0.696,
+    "kick",
+    0.17
+   ],
+   [
+    0.767,
+    "kick",
+    0.06
+   ],
+   [
+    0.952,
+    "snare",
+    0.23
+   ],
+   [
+    1.167,
+    "snare",
+    0.35
+   ],
+   [
+    1.252,
+    "rim",
+    0.33
+   ],
+   [
+    1.294,
+    "rim",
+    0.17
+   ],
+   [
+    1.41,
+    "snare",
+    0.65
+   ],
+   [
+    1.465,
+    "closed_hat",
+    0.33
+   ],
+   [
+    1.683,
+    "snare",
+    0.35
+   ],
+   [
+    1.94,
+    "snare",
+    0.31
+   ],
+   [
+    1.983,
+    "kick",
+    0.25
+   ],
+   [
+    2.171,
+    "snare",
+    0.33
+   ],
+   [
+    2.454,
+    "snare",
+    0.34
+   ],
+   [
+    2.483,
+    "closed_hat",
+    0.39
+   ],
+   [
+    2.683,
+    "kick",
+    0.15
+   ],
+   [
+    2.696,
+    "rim",
+    0.58
+   ],
+   [
+    2.979,
+    "tom_low",
+    0.69
+   ],
+   [
+    3.177,
+    "snare",
+    0.34
+   ],
+   [
+    3.29,
+    "snare",
+    0.32
+   ],
+   [
+    3.44,
+    "snare",
+    0.38
+   ],
+   [
+    3.502,
+    "closed_hat",
+    0.43
+   ],
+   [
+    3.685,
+    "snare",
+    0.48
+   ],
+   [
+    3.942,
+    "snare",
+    0.47
+   ],
+   [
+    4.019,
+    "kick",
+    0.28
+   ],
+   [
+    4.031,
+    "snare",
+    0.44
+   ],
+   [
+    4.123,
+    "snare",
+    0.43
+   ],
+   [
+    4.24,
+    "snare",
+    0.35
+   ],
+   [
+    4.421,
+    "snare",
+    0.34
+   ],
+   [
+    4.517,
+    "closed_hat",
+    0.43
+   ],
+   [
+    4.685,
+    "snare",
+    0.43
+   ],
+   [
+    4.738,
+    "kick",
+    0.22
+   ],
+   [
+    4.921,
+    "snare",
+    0.25
+   ],
+   [
+    5.04,
+    "snare",
+    0.24
+   ],
+   [
+    5.123,
+    "snare",
+    0.35
+   ],
+   [
+    5.246,
+    "snare",
+    0.35
+   ],
+   [
+    5.425,
+    "snare",
+    0.66
+   ],
+   [
+    5.435,
+    "closed_hat",
+    0.75
+   ],
+   [
+    5.69,
+    "snare",
+    0.44
+   ],
+   [
+    5.935,
+    "snare",
+    0.27
+   ],
+   [
+    5.983,
+    "kick",
+    0.27
+   ],
+   [
+    6.05,
+    "snare",
+    0.27
+   ],
+   [
+    6.125,
+    "snare",
+    0.34
+   ],
+   [
+    6.246,
+    "snare",
+    0.33
+   ],
+   [
+    6.404,
+    "snare",
+    0.52
+   ],
+   [
+    6.442,
+    "closed_hat",
+    0.53
+   ],
+   [
+    6.648,
+    "snare",
+    0.48
+   ],
+   [
+    6.688,
+    "kick",
+    0.22
+   ],
+   [
+    6.95,
+    "tom_low",
+    0.67
+   ],
+   [
+    7.113,
+    "snare",
+    0.36
+   ],
+   [
+    7.233,
+    "snare",
+    0.38
+   ],
+   [
+    7.396,
+    "snare",
+    0.31
+   ],
+   [
+    7.425,
+    "closed_hat",
+    0.47
+   ],
+   [
+    7.61,
+    "snare",
+    0.45
+   ],
+   [
+    7.898,
+    "snare",
+    0.52
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "the drum track (a kit)"
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "from_bar": "$from_bar",
+     "bars": "$bars"
+    }
+   }
+  ]
+ }
+}

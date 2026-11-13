@@ -1,0 +1,124 @@
+{
+ "key": "pattern/gmd-jazz-beat-2",
+ "kind": "pattern",
+ "summary": "jazz groove, 2 bars at 120 BPM, played by a human drummer (Groove MIDI)",
+ "tags": [
+  "jazz",
+  "swing",
+  "drums",
+  "groove",
+  "human",
+  "live drums"
+ ],
+ "group": "Groove MIDI drums, jazz (human drummers; 2-bar beats and 1-bar fills)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/groove.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Groove MIDI Dataset (Magenta), drummer3/session1/16_jazz_120_beat_4-4.mid",
+   "url": "https://magenta.tensorflow.org/datasets/groove"
+  }
+ ],
+ "body": [
+  "Played at 120 BPM; it holds up roughly ±15% from there. Uses closed_hat.",
+  "Human timing and dynamics kept: hits sit a little ahead of or behind the grid, and velocities vary. Don't quantize it unless asked; that's the point of it."
+ ],
+ "pattern": {
+  "type": "drums",
+  "beats": 8,
+  "hits": [
+   [
+    0.029,
+    "closed_hat",
+    0.74
+   ],
+   [
+    0.965,
+    "closed_hat",
+    0.24
+   ],
+   [
+    1.638,
+    "closed_hat",
+    0.14
+   ],
+   [
+    1.987,
+    "closed_hat",
+    0.8
+   ],
+   [
+    2.981,
+    "closed_hat",
+    0.34
+   ],
+   [
+    3.544,
+    "closed_hat",
+    0.26
+   ],
+   [
+    3.9,
+    "closed_hat",
+    1
+   ],
+   [
+    4.896,
+    "closed_hat",
+    0.32
+   ],
+   [
+    5.629,
+    "closed_hat",
+    0.36
+   ],
+   [
+    5.977,
+    "closed_hat",
+    0.87
+   ],
+   [
+    6.977,
+    "closed_hat",
+    0.35
+   ],
+   [
+    7.56,
+    "closed_hat",
+    0.31
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "the drum track (a kit)"
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "from_bar": "$from_bar",
+     "bars": "$bars"
+    }
+   }
+  ]
+ }
+}

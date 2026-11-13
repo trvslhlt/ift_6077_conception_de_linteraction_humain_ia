@@ -1,0 +1,320 @@
+{
+ "key": "pattern/gmd-latin-brazilian-sambareggae-beat-1",
+ "kind": "pattern",
+ "summary": "latin (brazilian sambareggae) groove, 2 bars at 96 BPM, played by a human drummer (Groove MIDI)",
+ "tags": [
+  "latin",
+  "brazilian",
+  "brazilian sambareggae",
+  "drums",
+  "groove",
+  "human",
+  "live drums"
+ ],
+ "group": "Groove MIDI drums, latin (human drummers; 2-bar beats and 1-bar fills)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/groove.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Groove MIDI Dataset (Magenta), drummer5/session1/10_latin-brazilian-sambareggae_96_beat_4-4.mid",
+   "url": "https://magenta.tensorflow.org/datasets/groove"
+  }
+ ],
+ "body": [
+  "Played at 96 BPM; it holds up roughly ±15% from there. Uses closed_hat, kick, rim, snare, tom_high, tom_low, tom_mid.",
+  "Human timing and dynamics kept: hits sit a little ahead of or behind the grid, and velocities vary. Don't quantize it unless asked; that's the point of it."
+ ],
+ "pattern": {
+  "type": "drums",
+  "beats": 8,
+  "hits": [
+   [
+    0,
+    "tom_high",
+    0.81
+   ],
+   [
+    0,
+    "kick",
+    0.34
+   ],
+   [
+    0.065,
+    "kick",
+    0.09
+   ],
+   [
+    0.431,
+    "closed_hat",
+    0.51
+   ],
+   [
+    0.483,
+    "snare",
+    0.38
+   ],
+   [
+    0.971,
+    "tom_low",
+    0.69
+   ],
+   [
+    0.996,
+    "kick",
+    0.31
+   ],
+   [
+    1.435,
+    "closed_hat",
+    0.45
+   ],
+   [
+    1.454,
+    "tom_low",
+    0.71
+   ],
+   [
+    1.715,
+    "snare",
+    0.28
+   ],
+   [
+    1.94,
+    "tom_high",
+    0.8
+   ],
+   [
+    1.992,
+    "kick",
+    0.34
+   ],
+   [
+    2.092,
+    "kick",
+    0.1
+   ],
+   [
+    2.175,
+    "snare",
+    0.33
+   ],
+   [
+    2.44,
+    "snare",
+    0.39
+   ],
+   [
+    2.442,
+    "closed_hat",
+    0.43
+   ],
+   [
+    2.66,
+    "rim",
+    0.53
+   ],
+   [
+    2.944,
+    "tom_low",
+    0.57
+   ],
+   [
+    2.975,
+    "kick",
+    0.29
+   ],
+   [
+    3.092,
+    "kick",
+    0.07
+   ],
+   [
+    3.198,
+    "tom_low",
+    0.54
+   ],
+   [
+    3.421,
+    "tom_low",
+    0.5
+   ],
+   [
+    3.463,
+    "closed_hat",
+    0.28
+   ],
+   [
+    3.662,
+    "tom_low",
+    0.72
+   ],
+   [
+    3.971,
+    "tom_high",
+    0.79
+   ],
+   [
+    3.979,
+    "kick",
+    0.35
+   ],
+   [
+    4.1,
+    "kick",
+    0.09
+   ],
+   [
+    4.202,
+    "snare",
+    0.29
+   ],
+   [
+    4.473,
+    "snare",
+    0.34
+   ],
+   [
+    4.483,
+    "closed_hat",
+    0.39
+   ],
+   [
+    4.704,
+    "snare",
+    0.62
+   ],
+   [
+    4.975,
+    "tom_mid",
+    0.59
+   ],
+   [
+    4.99,
+    "kick",
+    0.3
+   ],
+   [
+    5.081,
+    "kick",
+    0.09
+   ],
+   [
+    5.202,
+    "snare",
+    0.31
+   ],
+   [
+    5.429,
+    "tom_mid",
+    0.76
+   ],
+   [
+    5.465,
+    "closed_hat",
+    0.25
+   ],
+   [
+    5.688,
+    "snare",
+    0.28
+   ],
+   [
+    5.931,
+    "tom_high",
+    0.75
+   ],
+   [
+    5.973,
+    "kick",
+    0.3
+   ],
+   [
+    6.173,
+    "snare",
+    0.29
+   ],
+   [
+    6.456,
+    "snare",
+    0.28
+   ],
+   [
+    6.463,
+    "closed_hat",
+    0.37
+   ],
+   [
+    6.694,
+    "rim",
+    0.36
+   ],
+   [
+    6.969,
+    "tom_low",
+    0.54
+   ],
+   [
+    7,
+    "kick",
+    0.31
+   ],
+   [
+    7.094,
+    "kick",
+    0.09
+   ],
+   [
+    7.208,
+    "tom_low",
+    0.62
+   ],
+   [
+    7.438,
+    "tom_low",
+    0.56
+   ],
+   [
+    7.5,
+    "closed_hat",
+    0.29
+   ],
+   [
+    7.681,
+    "tom_low",
+    0.66
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "the drum track (a kit)"
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "from_bar": "$from_bar",
+     "bars": "$bars"
+    }
+   }
+  ]
+ }
+}

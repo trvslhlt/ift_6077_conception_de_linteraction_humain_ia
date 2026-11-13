@@ -1,0 +1,148 @@
+{
+  "key": "pattern/uk-garage-2step",
+  "kind": "pattern",
+  "summary": "UK garage 2-step, 1 bar: skipping kick (1 and the and of 2), snare on 2 and 4, swung hats",
+  "tags": [
+    "uk garage",
+    "2-step",
+    "garage",
+    "speed garage",
+    "burial",
+    "shuffle",
+    "swung",
+    "drums"
+  ],
+  "devices": [],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (genre write-ups)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "body": [
+    "Around 130–138 BPM. No kick on 3: the gap is the 'skip'. Hats swung (late off-beats); a rimshot or shaker fills the 16ths. Burial's version: the same skeleton, quieter and dusty, hits slightly off the grid."
+  ],
+  "pattern": {
+    "type": "drums",
+    "beats": 4,
+    "hits": [
+      [
+        0,
+        "kick",
+        0.95
+      ],
+      [
+        1.75,
+        "kick",
+        0.75
+      ],
+      [
+        2.5,
+        "kick",
+        0.6
+      ],
+      [
+        1,
+        "snare",
+        0.9
+      ],
+      [
+        3,
+        "snare",
+        0.9
+      ],
+      [
+        1,
+        "clap",
+        0.5
+      ],
+      [
+        3,
+        "clap",
+        0.5
+      ],
+      [
+        0,
+        "closed_hat",
+        0.5
+      ],
+      [
+        0.58,
+        "closed_hat",
+        0.35
+      ],
+      [
+        1,
+        "closed_hat",
+        0.5
+      ],
+      [
+        1.58,
+        "closed_hat",
+        0.35
+      ],
+      [
+        2,
+        "closed_hat",
+        0.5
+      ],
+      [
+        2.58,
+        "closed_hat",
+        0.35
+      ],
+      [
+        3,
+        "closed_hat",
+        0.5
+      ],
+      [
+        3.58,
+        "closed_hat",
+        0.35
+      ],
+      [
+        0.5,
+        "open_hat",
+        0.4
+      ],
+      [
+        2.5,
+        "open_hat",
+        0.4
+      ],
+      [
+        3.83,
+        "rim",
+        0.4
+      ]
+    ]
+  },
+  "apply": {
+    "params": {
+      "track": {
+        "type": "track",
+        "about": "the drum track (a kit)"
+      },
+      "from_bar": {
+        "type": "number",
+        "optional": true
+      },
+      "bars": {
+        "type": "number",
+        "optional": true
+      }
+    },
+    "steps": [
+      {
+        "op": "pattern",
+        "input": {
+          "track": "$track",
+          "from_bar": "$from_bar",
+          "bars": "$bars"
+        }
+      }
+    ]
+  }
+}

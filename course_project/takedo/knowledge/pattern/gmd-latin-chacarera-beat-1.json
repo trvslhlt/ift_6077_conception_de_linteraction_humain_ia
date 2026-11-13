@@ -1,0 +1,265 @@
+{
+ "key": "pattern/gmd-latin-chacarera-beat-1",
+ "kind": "pattern",
+ "summary": "latin (chacarera) groove, 2 bars at 118 BPM, played by a human drummer (Groove MIDI)",
+ "tags": [
+  "latin",
+  "brazilian",
+  "chacarera",
+  "drums",
+  "groove",
+  "human",
+  "live drums"
+ ],
+ "group": "Groove MIDI drums, latin (human drummers; 2-bar beats and 1-bar fills)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/groove.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Groove MIDI Dataset (Magenta), drummer1/session2/2_latin-chacarera_118_beat_4-4.mid",
+   "url": "https://magenta.tensorflow.org/datasets/groove"
+  }
+ ],
+ "body": [
+  "Played at 118 BPM; it holds up roughly ±15% from there. Uses closed_hat, kick, rim.",
+  "Human timing and dynamics kept: hits sit a little ahead of or behind the grid, and velocities vary. Don't quantize it unless asked; that's the point of it."
+ ],
+ "pattern": {
+  "type": "drums",
+  "beats": 8,
+  "hits": [
+   [
+    0,
+    "closed_hat",
+    0.23
+   ],
+   [
+    0,
+    "rim",
+    0.54
+   ],
+   [
+    0.323,
+    "kick",
+    0.38
+   ],
+   [
+    0.331,
+    "closed_hat",
+    0.17
+   ],
+   [
+    0.642,
+    "closed_hat",
+    0.1
+   ],
+   [
+    0.985,
+    "closed_hat",
+    0.21
+   ],
+   [
+    0.994,
+    "rim",
+    0.53
+   ],
+   [
+    1.321,
+    "closed_hat",
+    0.22
+   ],
+   [
+    1.665,
+    "closed_hat",
+    0.12
+   ],
+   [
+    1.688,
+    "kick",
+    0.29
+   ],
+   [
+    2,
+    "rim",
+    0.53
+   ],
+   [
+    2.004,
+    "closed_hat",
+    0.26
+   ],
+   [
+    2.348,
+    "closed_hat",
+    0.13
+   ],
+   [
+    2.365,
+    "kick",
+    0.36
+   ],
+   [
+    2.662,
+    "closed_hat",
+    0.2
+   ],
+   [
+    3.013,
+    "rim",
+    0.53
+   ],
+   [
+    3.023,
+    "closed_hat",
+    0.24
+   ],
+   [
+    3.35,
+    "closed_hat",
+    0.17
+   ],
+   [
+    3.64,
+    "kick",
+    0.31
+   ],
+   [
+    3.688,
+    "closed_hat",
+    0.2
+   ],
+   [
+    4.002,
+    "rim",
+    0.53
+   ],
+   [
+    4.017,
+    "closed_hat",
+    0.27
+   ],
+   [
+    4.348,
+    "closed_hat",
+    0.16
+   ],
+   [
+    4.39,
+    "kick",
+    0.34
+   ],
+   [
+    4.683,
+    "closed_hat",
+    0.14
+   ],
+   [
+    5.008,
+    "rim",
+    0.51
+   ],
+   [
+    5.021,
+    "closed_hat",
+    0.28
+   ],
+   [
+    5.354,
+    "closed_hat",
+    0.15
+   ],
+   [
+    5.621,
+    "kick",
+    0.35
+   ],
+   [
+    5.675,
+    "closed_hat",
+    0.2
+   ],
+   [
+    6.015,
+    "closed_hat",
+    0.2
+   ],
+   [
+    6.027,
+    "rim",
+    0.55
+   ],
+   [
+    6.34,
+    "closed_hat",
+    0.24
+   ],
+   [
+    6.36,
+    "kick",
+    0.39
+   ],
+   [
+    6.642,
+    "closed_hat",
+    0.2
+   ],
+   [
+    6.998,
+    "rim",
+    0.56
+   ],
+   [
+    6.998,
+    "closed_hat",
+    0.31
+   ],
+   [
+    7.323,
+    "closed_hat",
+    0.21
+   ],
+   [
+    7.635,
+    "closed_hat",
+    0.29
+   ],
+   [
+    7.677,
+    "kick",
+    0.38
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "the drum track (a kit)"
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "from_bar": "$from_bar",
+     "bars": "$bars"
+    }
+   }
+  ]
+ }
+}

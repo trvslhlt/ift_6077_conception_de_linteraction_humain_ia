@@ -1,0 +1,194 @@
+{
+ "key": "pattern/gmd-pop-soft-beat-2",
+ "kind": "pattern",
+ "summary": "pop (soft) groove, 2 bars at 83 BPM, played by a human drummer (Groove MIDI)",
+ "tags": [
+  "pop",
+  "soft",
+  "drums",
+  "groove",
+  "human",
+  "live drums"
+ ],
+ "group": "Groove MIDI drums, pop (human drummers; 2-bar beats and 1-bar fills)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/groove.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Groove MIDI Dataset (Magenta), drummer7/session3/22_pop-soft_83_beat_4-4.mid",
+   "url": "https://magenta.tensorflow.org/datasets/groove"
+  }
+ ],
+ "body": [
+  "Played at 83 BPM; it holds up roughly ±15% from there. Uses closed_hat, crash, kick, ride, rim, snare.",
+  "Human timing and dynamics kept: hits sit a little ahead of or behind the grid, and velocities vary. Don't quantize it unless asked; that's the point of it."
+ ],
+ "pattern": {
+  "type": "drums",
+  "beats": 8,
+  "hits": [
+   [
+    0,
+    "closed_hat",
+    0.67
+   ],
+   [
+    0,
+    "ride",
+    0.48
+   ],
+   [
+    0.444,
+    "ride",
+    0.09
+   ],
+   [
+    0.998,
+    "closed_hat",
+    0.41
+   ],
+   [
+    1.01,
+    "rim",
+    0.69
+   ],
+   [
+    1.035,
+    "ride",
+    0.56
+   ],
+   [
+    1.473,
+    "kick",
+    0.23
+   ],
+   [
+    1.985,
+    "closed_hat",
+    0.45
+   ],
+   [
+    2,
+    "ride",
+    0.49
+   ],
+   [
+    2.483,
+    "ride",
+    0.09
+   ],
+   [
+    3.008,
+    "closed_hat",
+    0.47
+   ],
+   [
+    3.015,
+    "snare",
+    0.76
+   ],
+   [
+    3.025,
+    "ride",
+    0.54
+   ],
+   [
+    3.994,
+    "closed_hat",
+    0.55
+   ],
+   [
+    4.021,
+    "ride",
+    0.5
+   ],
+   [
+    4.023,
+    "kick",
+    0.25
+   ],
+   [
+    4.994,
+    "closed_hat",
+    0.45
+   ],
+   [
+    5.017,
+    "rim",
+    0.65
+   ],
+   [
+    5.023,
+    "ride",
+    0.54
+   ],
+   [
+    5.515,
+    "kick",
+    0.21
+   ],
+   [
+    5.975,
+    "closed_hat",
+    0.41
+   ],
+   [
+    5.99,
+    "ride",
+    0.43
+   ],
+   [
+    6.488,
+    "kick",
+    0.19
+   ],
+   [
+    6.935,
+    "closed_hat",
+    0.53
+   ],
+   [
+    6.954,
+    "snare",
+    0.67
+   ],
+   [
+    6.954,
+    "crash",
+    0.35
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "the drum track (a kit)"
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "from_bar": "$from_bar",
+     "bars": "$bars"
+    }
+   }
+  ]
+ }
+}

@@ -1,0 +1,300 @@
+{
+ "key": "pattern/gmd-latin-bomba-beat-1",
+ "kind": "pattern",
+ "summary": "latin (bomba) groove, 2 bars at 96 BPM, played by a human drummer (Groove MIDI)",
+ "tags": [
+  "latin",
+  "brazilian",
+  "bomba",
+  "drums",
+  "groove",
+  "human",
+  "live drums"
+ ],
+ "group": "Groove MIDI drums, latin (human drummers; 2-bar beats and 1-bar fills)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/groove.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Groove MIDI Dataset (Magenta), drummer1/session3/12_latin-bomba_96_beat_4-4.mid",
+   "url": "https://magenta.tensorflow.org/datasets/groove"
+  }
+ ],
+ "body": [
+  "Played at 96 BPM; it holds up roughly ±15% from there. Uses closed_hat, kick, rim, snare, tom_high.",
+  "Human timing and dynamics kept: hits sit a little ahead of or behind the grid, and velocities vary. Don't quantize it unless asked; that's the point of it."
+ ],
+ "pattern": {
+  "type": "drums",
+  "beats": 8,
+  "hits": [
+   [
+    0,
+    "kick",
+    0.54
+   ],
+   [
+    0,
+    "closed_hat",
+    0.49
+   ],
+   [
+    0,
+    "rim",
+    0.64
+   ],
+   [
+    0.24,
+    "snare",
+    0.06
+   ],
+   [
+    0.465,
+    "rim",
+    0.28
+   ],
+   [
+    0.683,
+    "tom_high",
+    0.52
+   ],
+   [
+    0.723,
+    "rim",
+    0.42
+   ],
+   [
+    0.902,
+    "closed_hat",
+    0.55
+   ],
+   [
+    1.169,
+    "rim",
+    0.42
+   ],
+   [
+    1.196,
+    "tom_high",
+    0.48
+   ],
+   [
+    1.41,
+    "tom_high",
+    0.54
+   ],
+   [
+    1.433,
+    "rim",
+    0.39
+   ],
+   [
+    1.89,
+    "kick",
+    0.52
+   ],
+   [
+    1.896,
+    "closed_hat",
+    0.53
+   ],
+   [
+    1.917,
+    "rim",
+    0.4
+   ],
+   [
+    2.377,
+    "rim",
+    0.22
+   ],
+   [
+    2.654,
+    "rim",
+    0.34
+   ],
+   [
+    2.671,
+    "tom_high",
+    0.44
+   ],
+   [
+    2.919,
+    "closed_hat",
+    0.57
+   ],
+   [
+    3.16,
+    "rim",
+    0.33
+   ],
+   [
+    3.198,
+    "tom_high",
+    0.38
+   ],
+   [
+    3.252,
+    "closed_hat",
+    0.2
+   ],
+   [
+    3.427,
+    "tom_high",
+    0.46
+   ],
+   [
+    3.44,
+    "rim",
+    0.39
+   ],
+   [
+    3.963,
+    "closed_hat",
+    0.49
+   ],
+   [
+    3.965,
+    "kick",
+    0.54
+   ],
+   [
+    3.965,
+    "rim",
+    0.35
+   ],
+   [
+    4.448,
+    "rim",
+    0.34
+   ],
+   [
+    4.704,
+    "tom_high",
+    0.57
+   ],
+   [
+    4.719,
+    "rim",
+    0.29
+   ],
+   [
+    4.971,
+    "closed_hat",
+    0.51
+   ],
+   [
+    5.194,
+    "rim",
+    0.31
+   ],
+   [
+    5.2,
+    "tom_high",
+    0.53
+   ],
+   [
+    5.438,
+    "tom_high",
+    0.62
+   ],
+   [
+    5.479,
+    "rim",
+    0.35
+   ],
+   [
+    5.983,
+    "closed_hat",
+    0.53
+   ],
+   [
+    6,
+    "kick",
+    0.56
+   ],
+   [
+    6.019,
+    "rim",
+    0.35
+   ],
+   [
+    6.504,
+    "rim",
+    0.3
+   ],
+   [
+    6.76,
+    "rim",
+    0.19
+   ],
+   [
+    6.765,
+    "tom_high",
+    0.5
+   ],
+   [
+    7.019,
+    "closed_hat",
+    0.59
+   ],
+   [
+    7.233,
+    "tom_high",
+    0.45
+   ],
+   [
+    7.244,
+    "rim",
+    0.39
+   ],
+   [
+    7.335,
+    "closed_hat",
+    0.13
+   ],
+   [
+    7.5,
+    "tom_high",
+    0.55
+   ],
+   [
+    7.517,
+    "rim",
+    0.29
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "the drum track (a kit)"
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "from_bar": "$from_bar",
+     "bars": "$bars"
+    }
+   }
+  ]
+ }
+}

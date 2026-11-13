@@ -1,0 +1,96 @@
+{
+ "key": "pattern/prog-trap-characteristic-1",
+ "kind": "pattern",
+ "summary": "trap, characteristic: i → VI → iv → v (2.2% of 2,688 songs, 4.9× more than overall)",
+ "tags": [
+  "trap",
+  "chords",
+  "progression",
+  "characteristic",
+  "minor"
+ ],
+ "label": "i VI iv v",
+ "group": "Chord loops, trap (Chordonomicon; numerals in the key, a bar per chord)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/chordonomicon.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Chordonomicon (Kantarelis et al. 2024), chordonomicon_v2.csv",
+   "url": "https://huggingface.co/datasets/ailsntua/Chordonomicon"
+  }
+ ],
+ "body": [
+  "In 60 of 2,688 trap songs (2.2%), mostly in verse and chorus sections; mostly in minor keys: use the project's key in minor, or its relative major if that's what the project is in, and read the numerals there.",
+  "A loop of 4 chords, written from the tonic when it's in it (songs start it anywhere). Numerals follow the key's own scale (natural minor in minor keys); b and # mark roots outside it. A bar per chord; change the rhythm and voicing to suit the part.",
+  "From user-written chord charts, with each song's key estimated: frequent progressions are reliable, rarer ones less so."
+ ],
+ "pattern": {
+  "type": "chords",
+  "beats": 16,
+  "chords": [
+   [
+    0,
+    "i",
+    4
+   ],
+   [
+    4,
+    "VI",
+    4
+   ],
+   [
+    8,
+    "iv",
+    4
+   ],
+   [
+    12,
+    "v",
+    4
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "a chordal part (keys, pad)"
+   },
+   "key": {
+    "type": "key",
+    "about": "the project's key, e.g. \"G major\""
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   },
+   "octave": {
+    "type": "number",
+    "optional": true,
+    "default": 3
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "key": "$key",
+     "from_bar": "$from_bar",
+     "bars": "$bars",
+     "octave": "$octave"
+    }
+   }
+  ]
+ }
+}

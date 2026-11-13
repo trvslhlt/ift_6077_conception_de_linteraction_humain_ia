@@ -1,0 +1,171 @@
+{
+ "key": "pattern/gmd-hiphop-fill",
+ "kind": "pattern",
+ "summary": "hip hop fill, 1 bar at 75 BPM, played by a human drummer (Groove MIDI)",
+ "tags": [
+  "hip hop",
+  "boom bap",
+  "breakbeat",
+  "drums",
+  "fill",
+  "human",
+  "live drums"
+ ],
+ "group": "Groove MIDI drums, hip hop (human drummers; 2-bar beats and 1-bar fills)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/groove.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Groove MIDI Dataset (Magenta), drummer7/session2/88_hiphop_75_fill_4-4.mid",
+   "url": "https://magenta.tensorflow.org/datasets/groove"
+  }
+ ],
+ "body": [
+  "Played at 75 BPM; it holds up roughly ±15% from there. Uses crash, kick, snare, tom_low.",
+  "Human timing and dynamics kept: hits sit a little ahead of or behind the grid, and velocities vary. Don't quantize it unless asked; that's the point of it.",
+  "Write it on the bar before a section change (from_bar = that bar, bars = 1)."
+ ],
+ "pattern": {
+  "type": "drums",
+  "beats": 4,
+  "hits": [
+   [
+    0,
+    "snare",
+    1
+   ],
+   [
+    0,
+    "tom_low",
+    0.99
+   ],
+   [
+    0.215,
+    "kick",
+    0.5
+   ],
+   [
+    0.231,
+    "tom_low",
+    0.38
+   ],
+   [
+    0.463,
+    "snare",
+    1
+   ],
+   [
+    0.475,
+    "tom_low",
+    1
+   ],
+   [
+    0.681,
+    "kick",
+    0.38
+   ],
+   [
+    0.706,
+    "tom_low",
+    0.46
+   ],
+   [
+    0.871,
+    "snare",
+    0.29
+   ],
+   [
+    0.967,
+    "kick",
+    0.5
+   ],
+   [
+    0.973,
+    "tom_low",
+    1
+   ],
+   [
+    1.085,
+    "snare",
+    0.33
+   ],
+   [
+    1.233,
+    "snare",
+    0.46
+   ],
+   [
+    1.348,
+    "snare",
+    0.63
+   ],
+   [
+    1.475,
+    "snare",
+    1
+   ],
+   [
+    1.6,
+    "snare",
+    1
+   ],
+   [
+    1.721,
+    "tom_low",
+    0.78
+   ],
+   [
+    1.846,
+    "tom_low",
+    1
+   ],
+   [
+    1.977,
+    "crash",
+    0.98
+   ],
+   [
+    1.979,
+    "kick",
+    0.64
+   ],
+   [
+    3.598,
+    "snare",
+    0.13
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "the drum track (a kit)"
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "from_bar": "$from_bar",
+     "bars": "$bars"
+    }
+   }
+  ]
+ }
+}

@@ -1,0 +1,64 @@
+{
+  "key": "chain/tremolo-8ths",
+  "kind": "chain",
+  "summary": "Tremolo in 8ths: a rhythmic volume pulse, vintage keys or guitar",
+  "tags": [
+    "tremolo",
+    "pulse",
+    "vintage",
+    "wobble",
+    "rhodes",
+    "rhythmic"
+  ],
+  "devices": [
+    "Tidal"
+  ],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (knowledge seed)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "body": [
+    "Tidal at 1/8 (rate index 6). Classic on electric piano; at 1/16 it chops, at 1/4 it breathes."
+  ],
+  "apply": {
+    "params": {
+      "track": {
+        "type": "track"
+      },
+      "amount": {
+        "type": "amount"
+      }
+    },
+    "steps": [
+      {
+        "op": "add_effect",
+        "input": {
+          "track": "$track",
+          "effect": "Tidal",
+          "settings": [
+            {
+              "param": "rate",
+              "value": 6
+            },
+            {
+              "param": "depth",
+              "value": {
+                "dial": [
+                  0.2,
+                  0.8
+                ]
+              }
+            },
+            {
+              "param": "slope",
+              "value": 0
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,111 @@
+{
+  "key": "pattern/one-drop",
+  "kind": "pattern",
+  "summary": "Reggae one drop, 1 bar: kick and rim together on 3 only, hats in swung 8ths",
+  "tags": [
+    "reggae",
+    "one drop",
+    "dub",
+    "roots",
+    "drums",
+    "swung"
+  ],
+  "devices": [],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (genre write-ups)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "body": [
+    "Nothing on 1: the 'drop'. Around 70–80 BPM. Steppers (kick on every beat) and rockers are the busier variants."
+  ],
+  "pattern": {
+    "type": "drums",
+    "beats": 4,
+    "hits": [
+      [
+        2,
+        "kick",
+        0.9
+      ],
+      [
+        2,
+        "rim",
+        0.85
+      ],
+      [
+        0,
+        "closed_hat",
+        0.45
+      ],
+      [
+        0.6,
+        "closed_hat",
+        0.315
+      ],
+      [
+        1,
+        "closed_hat",
+        0.45
+      ],
+      [
+        1.6,
+        "closed_hat",
+        0.315
+      ],
+      [
+        2,
+        "closed_hat",
+        0.45
+      ],
+      [
+        2.6,
+        "closed_hat",
+        0.315
+      ],
+      [
+        3,
+        "closed_hat",
+        0.45
+      ],
+      [
+        3.6,
+        "closed_hat",
+        0.315
+      ],
+      [
+        3.5,
+        "open_hat",
+        0.35
+      ]
+    ]
+  },
+  "apply": {
+    "params": {
+      "track": {
+        "type": "track",
+        "about": "the drum track (a kit)"
+      },
+      "from_bar": {
+        "type": "number",
+        "optional": true
+      },
+      "bars": {
+        "type": "number",
+        "optional": true
+      }
+    },
+    "steps": [
+      {
+        "op": "pattern",
+        "input": {
+          "track": "$track",
+          "from_bar": "$from_bar",
+          "bars": "$bars"
+        }
+      }
+    ]
+  }
+}

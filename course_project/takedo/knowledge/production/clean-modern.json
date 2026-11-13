@@ -1,0 +1,31 @@
+{
+  "key": "production/clean-modern",
+  "kind": "production",
+  "summary": "Clean modern production: tight low end, sidechain, bright and wide, controlled dynamics, nothing dusty",
+  "tags": [
+    "modern",
+    "clean",
+    "polished",
+    "bright",
+    "wide",
+    "punchy",
+    "pop",
+    "edm"
+  ],
+  "devices": [],
+  "links": [
+    "genre/pop",
+    "genre/house"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (genre write-ups)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "body": [
+    "The opposite of production/lofi: remove crushers and low-passes, raise the high end, keep the low end mono and tight.",
+    "Kick and bass don't overlap (sidechain the bass and pads to the kick), drums punchy and up front, short reverbs.",
+    "No chain for it yet: mostly removing dusty effects, then EQ and compression."
+  ]
+}

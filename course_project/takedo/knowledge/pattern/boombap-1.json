@@ -1,0 +1,120 @@
+{
+  "key": "pattern/boombap-1",
+  "kind": "pattern",
+  "summary": "Boom-bap, 1 bar: kick 1 and the and of 2-3, snare 2 and 4, swung 8th hats, a ghost kick",
+  "tags": [
+    "hip hop",
+    "boom bap",
+    "lofi",
+    "90s",
+    "drums"
+  ],
+  "devices": [],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (knowledge seed)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "body": [
+    "Swing is written in: off-beat hats at .58 of a beat (about 58% swing). Softer off-beats keep it lazy; drop the ghost kick at 1.5 for a plainer beat."
+  ],
+  "pattern": {
+    "type": "drums",
+    "beats": 4,
+    "hits": [
+      [
+        0,
+        "kick",
+        0.95
+      ],
+      [
+        1.5,
+        "kick",
+        0.6
+      ],
+      [
+        2.5,
+        "kick",
+        0.85
+      ],
+      [
+        1,
+        "snare",
+        0.9
+      ],
+      [
+        3,
+        "snare",
+        0.9
+      ],
+      [
+        0,
+        "closed_hat",
+        0.6
+      ],
+      [
+        0.58,
+        "closed_hat",
+        0.35
+      ],
+      [
+        1,
+        "closed_hat",
+        0.55
+      ],
+      [
+        1.58,
+        "closed_hat",
+        0.35
+      ],
+      [
+        2,
+        "closed_hat",
+        0.6
+      ],
+      [
+        2.58,
+        "closed_hat",
+        0.35
+      ],
+      [
+        3,
+        "closed_hat",
+        0.55
+      ],
+      [
+        3.58,
+        "closed_hat",
+        0.4
+      ]
+    ]
+  },
+  "apply": {
+    "params": {
+      "track": {
+        "type": "track",
+        "about": "the drum track (a kit)"
+      },
+      "from_bar": {
+        "type": "number",
+        "optional": true
+      },
+      "bars": {
+        "type": "number",
+        "optional": true
+      }
+    },
+    "steps": [
+      {
+        "op": "pattern",
+        "input": {
+          "track": "$track",
+          "from_bar": "$from_bar",
+          "bars": "$bars"
+        }
+      }
+    ]
+  }
+}

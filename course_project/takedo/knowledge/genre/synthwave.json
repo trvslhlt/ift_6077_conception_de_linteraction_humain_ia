@@ -1,0 +1,85 @@
+{
+  "key": "genre/synthwave",
+  "kind": "genre",
+  "summary": "Synthwave: 80–118 BPM 80s retro, gated snare on 2 and 4, analog pads and arpeggios, minor i–VI–VII",
+  "tags": [
+    "synthwave",
+    "retrowave",
+    "outrun",
+    "80s",
+    "retro",
+    "neon"
+  ],
+  "devices": [
+    "Playfield",
+    "Tubular",
+    "Vaporisateur"
+  ],
+  "links": [
+    "pattern/basic-rock",
+    "pattern/prog-synthwave-common-1",
+    "production/synthwave",
+    "genre/synth-pop",
+    "sound/tubular-analog-pad",
+    "sound/tubular-synth-bass",
+    "sound/tubular-square-ld",
+    "sound/tubular-brass-sect"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (genre write-ups)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "tempo": [
+    80,
+    118
+  ],
+  "body": [
+    "Drums: straight rock beat on a drum machine, big gated-reverb snare on 2 and 4.",
+    "Bass: 8th-note pulses on the root (an arpeggiated synth bass).",
+    "Harmony: minor, i–VI–VII or i–v–VI–VII; analog pads, brassy stabs, arpeggios.",
+    "Production in production/synthwave.",
+    "Apply: pattern/basic-rock on the drums, then pattern/prog-synthwave-common-1 on the keys four bars later. It leaves tempo and sounds to you: move the tempo toward 80–118 gradually, and swap sounds from the links."
+  ],
+  "apply": {
+    "params": {
+      "drums": {
+        "type": "track",
+        "optional": true,
+        "about": "the drum track (a kit); leave out if there isn't one"
+      },
+      "keys": {
+        "type": "track",
+        "optional": true,
+        "about": "a chordal part (keys, pad); leave out if there isn't one"
+      },
+      "key": {
+        "type": "key",
+        "optional": true,
+        "about": "the project's key; leave out to estimate it from the notes"
+      }
+    },
+    "steps": [
+      {
+        "op": "entry",
+        "key": "pattern/basic-rock",
+        "args": {
+          "track": "$drums"
+        },
+        "when": "drums",
+        "at": 0
+      },
+      {
+        "op": "entry",
+        "key": "pattern/prog-synthwave-common-1",
+        "args": {
+          "track": "$keys",
+          "key": "$key"
+        },
+        "when": "keys",
+        "at": 4
+      }
+    ]
+  }
+}

@@ -1,0 +1,68 @@
+{
+  "key": "chain/small-room",
+  "kind": "chain",
+  "summary": "A short, soft room around a part: glue without a wash",
+  "tags": [
+    "room",
+    "reverb",
+    "ambience",
+    "glue",
+    "natural",
+    "space"
+  ],
+  "devices": [
+    "Reverb"
+  ],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (knowledge seed)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "body": [
+    "Short decay, damped, low in the mix. For drums and keys that sound too dry; for more space use a longer decay or DattorroReverb."
+  ],
+  "apply": {
+    "params": {
+      "track": {
+        "type": "track"
+      },
+      "amount": {
+        "type": "amount"
+      }
+    },
+    "steps": [
+      {
+        "op": "add_effect",
+        "input": {
+          "track": "$track",
+          "effect": "Reverb",
+          "settings": [
+            {
+              "param": "decay",
+              "value": 0.3
+            },
+            {
+              "param": "preDelay",
+              "value": 0.01
+            },
+            {
+              "param": "damp",
+              "value": 0.6
+            },
+            {
+              "param": "wet",
+              "value": {
+                "dial": [
+                  -24,
+                  -12
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

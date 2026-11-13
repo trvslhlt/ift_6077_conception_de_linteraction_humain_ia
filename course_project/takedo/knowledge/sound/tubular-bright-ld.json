@@ -1,0 +1,63 @@
+{
+  "key": "sound/tubular-bright-ld",
+  "kind": "sound",
+  "summary": "Bright Ld (Tubular Classics, openDAW's own DX7 voice): lead",
+  "group": "Tubular Classics sounds, lead (DX7 voices on a Tubular)",
+  "tags": [
+    "lead",
+    "synth",
+    "melody",
+    "synth-pop",
+    "80s",
+    "chiptune",
+    "electro",
+    "pop",
+    "tubular",
+    "fm",
+    "dx7"
+  ],
+  "devices": [
+    "Tubular"
+  ],
+  "links": [],
+  "checked": {
+    "how": "imported",
+    "by": "knowledge/import/dx7.mjs",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "sources": [
+    {
+      "title": "openDAW Tubular Classics cartridge (packages/studio/adapters/scripts/tubular-classics.mts)",
+      "url": "https://github.com/andremichelle/openDAW/blob/main/packages/studio/adapters/scripts/tubular-classics.mts"
+    }
+  ],
+  "body": [
+    "Good for lead lines above C4. Usual in: synth-pop, 80s, chiptune, electro, pop.",
+    "Loads the whole voice (all six operators, envelopes, algorithm) onto a Tubular: a track's own Tubular, or a new Tubular track when no track is given. To change it after, set Tubular's fields (catalog paths) with the instrument op or a script."
+  ],
+  "apply": {
+    "params": {
+      "track": {
+        "type": "track",
+        "optional": true,
+        "about": "a track whose instrument is a Tubular; leave out to add a new track"
+      },
+      "name": {
+        "type": "text",
+        "optional": true,
+        "about": "the new track's name"
+      }
+    },
+    "steps": [
+      {
+        "op": "dx7",
+        "input": {
+          "track": "$track",
+          "voice": "Tubular_Classics/Bright Ld",
+          "name": "$name"
+        }
+      }
+    ]
+  }
+}

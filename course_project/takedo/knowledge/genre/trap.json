@@ -1,0 +1,85 @@
+{
+  "key": "genre/trap",
+  "kind": "genre",
+  "summary": "Trap: 130–160 BPM felt half-time, rolling 16th/32nd hats, booming 808 bass, dark minor melodies on bells or plucks",
+  "tags": [
+    "trap",
+    "hip hop",
+    "rap",
+    "808",
+    "half-time",
+    "dark",
+    "modern"
+  ],
+  "devices": [
+    "Playfield",
+    "Tubular",
+    "Vaporisateur"
+  ],
+  "links": [
+    "pattern/trap-halftime",
+    "pattern/prog-trap-characteristic-1",
+    "genre/boom-bap",
+    "sound/sine-sub-vaporisateur",
+    "sound/tubular-glass-bell",
+    "sound/tubular-celesta",
+    "sound/tubular-choir"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (genre write-ups)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "tempo": [
+    130,
+    160
+  ],
+  "body": [
+    "Drums: snare or clap on 3 (half-time), kick syncopated with the 808, hats in 16ths with 32nd and triplet rolls.",
+    "Bass: the 808 is a long, low sine-like note with slides, following the kick; it is the loudest thing.",
+    "Harmony: minor, often just i–VI or i–iv–v; a short melody on bells, plucks, a choir or strings, dark and sparse.",
+    "Space: little reverb on drums, more on the melody.",
+    "Apply: pattern/trap-halftime on the drums, then pattern/prog-trap-characteristic-1 on the keys four bars later. It leaves tempo and sounds to you: move the tempo toward 130–160 gradually, and swap sounds from the links."
+  ],
+  "apply": {
+    "params": {
+      "drums": {
+        "type": "track",
+        "optional": true,
+        "about": "the drum track (a kit); leave out if there isn't one"
+      },
+      "keys": {
+        "type": "track",
+        "optional": true,
+        "about": "a chordal part (keys, pad); leave out if there isn't one"
+      },
+      "key": {
+        "type": "key",
+        "optional": true,
+        "about": "the project's key; leave out to estimate it from the notes"
+      }
+    },
+    "steps": [
+      {
+        "op": "entry",
+        "key": "pattern/trap-halftime",
+        "args": {
+          "track": "$drums"
+        },
+        "when": "drums",
+        "at": 0
+      },
+      {
+        "op": "entry",
+        "key": "pattern/prog-trap-characteristic-1",
+        "args": {
+          "track": "$keys",
+          "key": "$key"
+        },
+        "when": "keys",
+        "at": 4
+      }
+    ]
+  }
+}

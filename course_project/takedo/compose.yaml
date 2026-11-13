@@ -40,6 +40,8 @@ services:
       - ./shared:/app/shared:ro
       - ./config:/app/config:ro
       - ./catalog:/app/catalog:ro
+      # The knowledge base (project_plan/KNOWLEDGE.md): read-write, since agents write drafts into knowledge/drafts/.
+      - ./knowledge:/app/knowledge
       # openDAW's source as the studio runs it (`make types` copies it out of the image), for the utility to read.
       - ./.opendaw/packages:/app/.opendaw/packages:ro
       - ./sessions:/app/sessions

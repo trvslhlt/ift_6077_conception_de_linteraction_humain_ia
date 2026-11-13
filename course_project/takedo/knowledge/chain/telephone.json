@@ -1,0 +1,117 @@
+{
+  "key": "chain/telephone",
+  "kind": "chain",
+  "summary": "Telephone or radio band: only the mids, a little crunch",
+  "tags": [
+    "telephone",
+    "radio",
+    "lofi",
+    "thin",
+    "band-pass",
+    "filtered",
+    "intro"
+  ],
+  "devices": [
+    "Revamp",
+    "Crusher"
+  ],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (knowledge seed)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "body": [
+    "High-pass ~400 Hz and low-pass ~3 kHz, steep, plus light crushing. A classic intro or breakdown move: put it on, then remove it (or ramp the filters open) on the drop."
+  ],
+  "apply": {
+    "params": {
+      "track": {
+        "type": "track"
+      },
+      "amount": {
+        "type": "amount"
+      }
+    },
+    "steps": [
+      {
+        "op": "add_effect",
+        "input": {
+          "track": "$track",
+          "effect": "Revamp",
+          "settings": [
+            {
+              "param": "highPass/enabled",
+              "value": 1
+            },
+            {
+              "param": "highPass/frequency",
+              "value": {
+                "dial": [
+                  250,
+                  600
+                ]
+              }
+            },
+            {
+              "param": "highPass/order",
+              "value": 2
+            },
+            {
+              "param": "lowPass/enabled",
+              "value": 1
+            },
+            {
+              "param": "lowPass/frequency",
+              "value": {
+                "dial": [
+                  4500,
+                  2500
+                ]
+              }
+            },
+            {
+              "param": "lowPass/order",
+              "value": 2
+            },
+            {
+              "param": "midBell/enabled",
+              "value": 1
+            },
+            {
+              "param": "midBell/frequency",
+              "value": 1500
+            },
+            {
+              "param": "midBell/gain",
+              "value": 4
+            }
+          ]
+        }
+      },
+      {
+        "op": "add_effect",
+        "input": {
+          "track": "$track",
+          "effect": "Crusher",
+          "settings": [
+            {
+              "param": "bits",
+              "value": 10
+            },
+            {
+              "param": "mix",
+              "value": {
+                "dial": [
+                  0.2,
+                  0.5
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

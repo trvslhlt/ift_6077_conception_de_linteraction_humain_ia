@@ -1,0 +1,189 @@
+{
+ "key": "pattern/gmd-latin-beat-2",
+ "kind": "pattern",
+ "summary": "latin groove, 2 bars at 118 BPM, played by a human drummer (Groove MIDI)",
+ "tags": [
+  "latin",
+  "brazilian",
+  "drums",
+  "groove",
+  "human",
+  "live drums"
+ ],
+ "group": "Groove MIDI drums, latin (human drummers; 2-bar beats and 1-bar fills)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/groove.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Groove MIDI Dataset (Magenta), drummer8/session1/13_latin_118_beat_4-4.mid",
+   "url": "https://magenta.tensorflow.org/datasets/groove"
+  }
+ ],
+ "body": [
+  "Played at 118 BPM; it holds up roughly ±15% from there. Uses closed_hat, kick, ride, rim, tom_low, tom_mid.",
+  "Human timing and dynamics kept: hits sit a little ahead of or behind the grid, and velocities vary. Don't quantize it unless asked; that's the point of it."
+ ],
+ "pattern": {
+  "type": "drums",
+  "beats": 8,
+  "hits": [
+   [
+    0.556,
+    "ride",
+    0.53
+   ],
+   [
+    0.894,
+    "closed_hat",
+    0.59
+   ],
+   [
+    0.935,
+    "rim",
+    0.5
+   ],
+   [
+    1.269,
+    "ride",
+    0.44
+   ],
+   [
+    1.583,
+    "tom_mid",
+    0.59
+   ],
+   [
+    1.61,
+    "ride",
+    0.59
+   ],
+   [
+    2.306,
+    "ride",
+    0.57
+   ],
+   [
+    2.606,
+    "rim",
+    0.47
+   ],
+   [
+    2.927,
+    "closed_hat",
+    0.65
+   ],
+   [
+    2.952,
+    "ride",
+    0.78
+   ],
+   [
+    3.617,
+    "ride",
+    0.32
+   ],
+   [
+    3.619,
+    "tom_low",
+    0.69
+   ],
+   [
+    3.933,
+    "kick",
+    0.46
+   ],
+   [
+    3.963,
+    "ride",
+    0.61
+   ],
+   [
+    4.575,
+    "ride",
+    0.51
+   ],
+   [
+    4.95,
+    "rim",
+    0.59
+   ],
+   [
+    4.95,
+    "closed_hat",
+    0.69
+   ],
+   [
+    5.277,
+    "ride",
+    0.39
+   ],
+   [
+    5.567,
+    "tom_mid",
+    0.6
+   ],
+   [
+    5.606,
+    "ride",
+    0.65
+   ],
+   [
+    6.313,
+    "ride",
+    0.53
+   ],
+   [
+    6.617,
+    "rim",
+    0.4
+   ],
+   [
+    6.965,
+    "closed_hat",
+    0.67
+   ],
+   [
+    6.988,
+    "ride",
+    0.72
+   ],
+   [
+    7.269,
+    "ride",
+    0.47
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "the drum track (a kit)"
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "from_bar": "$from_bar",
+     "bars": "$bars"
+    }
+   }
+  ]
+ }
+}

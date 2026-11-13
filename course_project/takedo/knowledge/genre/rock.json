@@ -1,0 +1,82 @@
+{
+  "key": "genre/rock",
+  "kind": "genre",
+  "summary": "Rock: 100–140 BPM backbeat drums, power chords and bVII, driving 8th-note bass",
+  "tags": [
+    "rock",
+    "indie",
+    "alternative",
+    "band",
+    "guitar"
+  ],
+  "devices": [
+    "Playfield",
+    "Tubular",
+    "Vaporisateur"
+  ],
+  "links": [
+    "pattern/basic-rock",
+    "pattern/prog-rock-characteristic-1",
+    "pattern/gmd-rock-beat-1",
+    "pattern/gmd-rock-indie-beat-1",
+    "pattern/fill-snare-run",
+    "genre/pop"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (genre write-ups)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "tempo": [
+    100,
+    140
+  ],
+  "body": [
+    "Drums: kick 1 and 3, snare 2 and 4, 8th hats or ride; fills at phrase ends.",
+    "Harmony: I–IV–V with the mixolydian bVII; power chords.",
+    "Bass: root 8ths following the kick.",
+    "TakeDo has no guitar instrument: an overdriven synth or organ stands in.",
+    "Apply: pattern/basic-rock on the drums, then pattern/prog-rock-characteristic-1 on the keys four bars later. It leaves tempo and sounds to you: move the tempo toward 100–140 gradually, and swap sounds from the links."
+  ],
+  "apply": {
+    "params": {
+      "drums": {
+        "type": "track",
+        "optional": true,
+        "about": "the drum track (a kit); leave out if there isn't one"
+      },
+      "keys": {
+        "type": "track",
+        "optional": true,
+        "about": "a chordal part (keys, pad); leave out if there isn't one"
+      },
+      "key": {
+        "type": "key",
+        "optional": true,
+        "about": "the project's key; leave out to estimate it from the notes"
+      }
+    },
+    "steps": [
+      {
+        "op": "entry",
+        "key": "pattern/basic-rock",
+        "args": {
+          "track": "$drums"
+        },
+        "when": "drums",
+        "at": 0
+      },
+      {
+        "op": "entry",
+        "key": "pattern/prog-rock-characteristic-1",
+        "args": {
+          "track": "$keys",
+          "key": "$key"
+        },
+        "when": "keys",
+        "at": 4
+      }
+    ]
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "key": "genre/afrobeat",
+  "kind": "genre",
+  "summary": "Afrobeat: 100–130 BPM interlocking polyrhythm, one-chord vamps, horn riffs, guitar and keys ostinatos",
+  "tags": [
+    "afrobeat",
+    "afro",
+    "fela",
+    "highlife",
+    "african",
+    "groove",
+    "polyrhythm"
+  ],
+  "devices": [
+    "Playfield",
+    "Tubular",
+    "Vaporisateur"
+  ],
+  "links": [
+    "pattern/gmd-afrobeat-beat-1",
+    "pattern/prog-afrobeat-characteristic-3",
+    "pattern/gmd-highlife-beat-1",
+    "genre/funk",
+    "sound/tubular-brass-sect",
+    "sound/tubular-clav"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (genre write-ups)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "tempo": [
+    100,
+    130
+  ],
+  "body": [
+    "Drums: busy interlocking patterns, open hats, shakers, a clave or bell pattern on top.",
+    "Harmony: one or two chords for minutes; the parts (guitar, keys, bass) each repeat a short riff that interlocks.",
+    "Horns: unison riffs and stabs.",
+    "Distinct from Afrobeats (modern West African pop): that is slower (95–110), with a dembow-like kick and log drums.",
+    "Apply: pattern/gmd-afrobeat-beat-1 on the drums, then pattern/prog-afrobeat-characteristic-3 on the keys four bars later. It leaves tempo and sounds to you: move the tempo toward 100–130 gradually, and swap sounds from the links."
+  ],
+  "apply": {
+    "params": {
+      "drums": {
+        "type": "track",
+        "optional": true,
+        "about": "the drum track (a kit); leave out if there isn't one"
+      },
+      "keys": {
+        "type": "track",
+        "optional": true,
+        "about": "a chordal part (keys, pad); leave out if there isn't one"
+      },
+      "key": {
+        "type": "key",
+        "optional": true,
+        "about": "the project's key; leave out to estimate it from the notes"
+      }
+    },
+    "steps": [
+      {
+        "op": "entry",
+        "key": "pattern/gmd-afrobeat-beat-1",
+        "args": {
+          "track": "$drums"
+        },
+        "when": "drums",
+        "at": 0
+      },
+      {
+        "op": "entry",
+        "key": "pattern/prog-afrobeat-characteristic-3",
+        "args": {
+          "track": "$keys",
+          "key": "$key"
+        },
+        "when": "keys",
+        "at": 4
+      }
+    ]
+  }
+}

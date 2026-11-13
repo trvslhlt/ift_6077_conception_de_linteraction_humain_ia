@@ -1,0 +1,87 @@
+{
+  "key": "genre/house",
+  "kind": "genre",
+  "summary": "House: 118–128 BPM four-on-the-floor, off-beat hats, minor-7th stabs or organ chords, a bouncing bass",
+  "tags": [
+    "house",
+    "dance",
+    "club",
+    "four on the floor",
+    "chicago house",
+    "edm"
+  ],
+  "devices": [
+    "Playfield",
+    "Tubular",
+    "Vaporisateur"
+  ],
+  "links": [
+    "pattern/four-on-the-floor",
+    "pattern/prog-house-characteristic-2",
+    "genre/deep-house",
+    "genre/techno",
+    "pattern/gmd-dance-disco-beat-1",
+    "pattern/deep-house-i-iv",
+    "sound/tubular-drawbars",
+    "sound/tubular-analog-pad",
+    "sound/sine-sub-vaporisateur",
+    "production/clean-modern"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (genre write-ups)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "tempo": [
+    118,
+    128
+  ],
+  "body": [
+    "Drums: kick on every beat, clap or snare on 2 and 4, open hat on every off-beat, 16th shakers or hats on top.",
+    "Harmony: one- or two-chord loops of minor 7ths and 9ths, played as short stabs on the off-beats (organ, piano, pad).",
+    "Bass: short notes on the off-beats or a syncopated riff around the root; ducked by the kick (sidechain pump).",
+    "Form: 8- and 16-bar phrases; builds by filtering parts in and out, drops by removing the kick for a bar or four.",
+    "Apply: pattern/four-on-the-floor on the drums, then pattern/prog-house-characteristic-2 on the keys four bars later. It leaves tempo and sounds to you: move the tempo toward 118–128 gradually, and swap sounds from the links."
+  ],
+  "apply": {
+    "params": {
+      "drums": {
+        "type": "track",
+        "optional": true,
+        "about": "the drum track (a kit); leave out if there isn't one"
+      },
+      "keys": {
+        "type": "track",
+        "optional": true,
+        "about": "a chordal part (keys, pad); leave out if there isn't one"
+      },
+      "key": {
+        "type": "key",
+        "optional": true,
+        "about": "the project's key; leave out to estimate it from the notes"
+      }
+    },
+    "steps": [
+      {
+        "op": "entry",
+        "key": "pattern/four-on-the-floor",
+        "args": {
+          "track": "$drums"
+        },
+        "when": "drums",
+        "at": 0
+      },
+      {
+        "op": "entry",
+        "key": "pattern/prog-house-characteristic-2",
+        "args": {
+          "track": "$keys",
+          "key": "$key"
+        },
+        "when": "keys",
+        "at": 4
+      }
+    ]
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "key": "sound/tubular-rhodes",
+  "kind": "sound",
+  "summary": "Rhodes (Tubular Classics, openDAW's own DX7 voice): e-piano",
+  "group": "Tubular Classics sounds, e-piano (DX7 voices on a Tubular)",
+  "tags": [
+    "keys",
+    "electric piano",
+    "rhodes",
+    "e-piano",
+    "tine",
+    "lofi",
+    "neo soul",
+    "r&b",
+    "jazz",
+    "funk",
+    "hip hop",
+    "chill",
+    "tubular",
+    "fm",
+    "dx7"
+  ],
+  "devices": [
+    "Tubular"
+  ],
+  "links": [],
+  "checked": {
+    "how": "imported",
+    "by": "knowledge/import/dx7.mjs",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "sources": [
+    {
+      "title": "openDAW Tubular Classics cartridge (packages/studio/adapters/scripts/tubular-classics.mts)",
+      "url": "https://github.com/andremichelle/openDAW/blob/main/packages/studio/adapters/scripts/tubular-classics.mts"
+    }
+  ],
+  "body": [
+    "Good for chords and comping; soft voicings around C3–C5. Usual in: lofi, neo soul, r&b, jazz, funk, hip hop, chill.",
+    "Loads the whole voice (all six operators, envelopes, algorithm) onto a Tubular: a track's own Tubular, or a new Tubular track when no track is given. To change it after, set Tubular's fields (catalog paths) with the instrument op or a script."
+  ],
+  "apply": {
+    "params": {
+      "track": {
+        "type": "track",
+        "optional": true,
+        "about": "a track whose instrument is a Tubular; leave out to add a new track"
+      },
+      "name": {
+        "type": "text",
+        "optional": true,
+        "about": "the new track's name"
+      }
+    },
+    "steps": [
+      {
+        "op": "dx7",
+        "input": {
+          "track": "$track",
+          "voice": "Tubular_Classics/Rhodes",
+          "name": "$name"
+        }
+      }
+    ]
+  }
+}

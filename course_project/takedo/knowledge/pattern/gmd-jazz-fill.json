@@ -1,0 +1,135 @@
+{
+ "key": "pattern/gmd-jazz-fill",
+ "kind": "pattern",
+ "summary": "jazz fill, 1 bar at 125 BPM, played by a human drummer (Groove MIDI)",
+ "tags": [
+  "jazz",
+  "swing",
+  "drums",
+  "fill",
+  "human",
+  "live drums"
+ ],
+ "group": "Groove MIDI drums, jazz (human drummers; 2-bar beats and 1-bar fills)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/groove.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Groove MIDI Dataset (Magenta), drummer1/session1/53_jazz_125_fill_4-4.mid",
+   "url": "https://magenta.tensorflow.org/datasets/groove"
+  }
+ ],
+ "body": [
+  "Played at 125 BPM; it holds up roughly ±15% from there. Uses kick, snare, tom_high, tom_low.",
+  "Human timing and dynamics kept: hits sit a little ahead of or behind the grid, and velocities vary. Don't quantize it unless asked; that's the point of it.",
+  "Write it on the bar before a section change (from_bar = that bar, bars = 1)."
+ ],
+ "pattern": {
+  "type": "drums",
+  "beats": 4,
+  "hits": [
+   [
+    0.067,
+    "tom_low",
+    0.45
+   ],
+   [
+    0.29,
+    "snare",
+    0.16
+   ],
+   [
+    0.508,
+    "snare",
+    0.2
+   ],
+   [
+    0.646,
+    "kick",
+    0.34
+   ],
+   [
+    1.008,
+    "tom_high",
+    0.46
+   ],
+   [
+    1.225,
+    "snare",
+    0.14
+   ],
+   [
+    1.471,
+    "snare",
+    0.13
+   ],
+   [
+    1.648,
+    "kick",
+    0.32
+   ],
+   [
+    1.935,
+    "snare",
+    0.41
+   ],
+   [
+    2.204,
+    "snare",
+    0.17
+   ],
+   [
+    2.433,
+    "snare",
+    0.15
+   ],
+   [
+    2.65,
+    "kick",
+    0.3
+   ],
+   [
+    2.904,
+    "snare",
+    0.67
+   ],
+   [
+    3.181,
+    "snare",
+    0.73
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "the drum track (a kit)"
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "from_bar": "$from_bar",
+     "bars": "$bars"
+    }
+   }
+  ]
+ }
+}

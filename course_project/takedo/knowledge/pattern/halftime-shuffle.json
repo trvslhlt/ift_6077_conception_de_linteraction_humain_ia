@@ -1,0 +1,111 @@
+{
+  "key": "pattern/halftime-shuffle",
+  "kind": "pattern",
+  "summary": "Half-time groove, 1 bar: kick 1, snare 3, swung 8th ride",
+  "tags": [
+    "half-time",
+    "downtempo",
+    "trip-hop",
+    "chill",
+    "lofi",
+    "drums"
+  ],
+  "devices": [],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (knowledge seed)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "body": [
+    "Slows the feel without changing the tempo: a way to 'make it more chill' in place, or for a breakdown."
+  ],
+  "pattern": {
+    "type": "drums",
+    "beats": 4,
+    "hits": [
+      [
+        0,
+        "kick",
+        0.9
+      ],
+      [
+        1.58,
+        "kick",
+        0.5
+      ],
+      [
+        2,
+        "snare",
+        0.85
+      ],
+      [
+        0,
+        "ride",
+        0.5
+      ],
+      [
+        0.58,
+        "ride",
+        0.3
+      ],
+      [
+        1,
+        "ride",
+        0.5
+      ],
+      [
+        1.58,
+        "ride",
+        0.3
+      ],
+      [
+        2,
+        "ride",
+        0.5
+      ],
+      [
+        2.58,
+        "ride",
+        0.3
+      ],
+      [
+        3,
+        "ride",
+        0.5
+      ],
+      [
+        3.58,
+        "ride",
+        0.3
+      ]
+    ]
+  },
+  "apply": {
+    "params": {
+      "track": {
+        "type": "track",
+        "about": "the drum track (a kit)"
+      },
+      "from_bar": {
+        "type": "number",
+        "optional": true
+      },
+      "bars": {
+        "type": "number",
+        "optional": true
+      }
+    },
+    "steps": [
+      {
+        "op": "pattern",
+        "input": {
+          "track": "$track",
+          "from_bar": "$from_bar",
+          "bars": "$bars"
+        }
+      }
+    ]
+  }
+}

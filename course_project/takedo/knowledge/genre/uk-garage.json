@@ -1,0 +1,84 @@
+{
+  "key": "genre/uk-garage",
+  "kind": "genre",
+  "summary": "UK garage / 2-step: 130–138 BPM skipping kicks, swung hats, minor 7th/9th organ or pad chords, chopped vocals",
+  "tags": [
+    "uk garage",
+    "2-step",
+    "garage",
+    "speed garage",
+    "burial",
+    "future garage",
+    "swung"
+  ],
+  "devices": [
+    "Playfield",
+    "Tubular",
+    "Vaporisateur"
+  ],
+  "links": [
+    "pattern/uk-garage-2step",
+    "pattern/deep-house-i-iv",
+    "genre/house",
+    "production/lofi",
+    "chain/dub-echo",
+    "sound/tubular-drawbars",
+    "sound/warm-pad-vaporisateur"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (genre write-ups)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "tempo": [
+    130,
+    138
+  ],
+  "body": [
+    "Drums: no kick on 3, swung 16ths, snare on 2 and 4; the skip and swing are the style.",
+    "Harmony: minor 7ths and 9ths on organ, pads or piano stabs; bass sub-heavy and syncopated.",
+    "Burial (future garage): the same skeleton slowed or sparse, drums quiet and off-grid, vinyl crackle, rain and room noise, big dark reverbs, pitched ghostly vocal fragments. Pair with production/lofi and chain/dub-echo.",
+    "Apply: pattern/uk-garage-2step on the drums, then pattern/deep-house-i-iv on the keys four bars later. It leaves tempo and sounds to you: move the tempo toward 130–138 gradually, and swap sounds from the links."
+  ],
+  "apply": {
+    "params": {
+      "drums": {
+        "type": "track",
+        "optional": true,
+        "about": "the drum track (a kit); leave out if there isn't one"
+      },
+      "keys": {
+        "type": "track",
+        "optional": true,
+        "about": "a chordal part (keys, pad); leave out if there isn't one"
+      },
+      "key": {
+        "type": "key",
+        "optional": true,
+        "about": "the project's key; leave out to estimate it from the notes"
+      }
+    },
+    "steps": [
+      {
+        "op": "entry",
+        "key": "pattern/uk-garage-2step",
+        "args": {
+          "track": "$drums"
+        },
+        "when": "drums",
+        "at": 0
+      },
+      {
+        "op": "entry",
+        "key": "pattern/deep-house-i-iv",
+        "args": {
+          "track": "$keys",
+          "key": "$key"
+        },
+        "when": "keys",
+        "at": 4
+      }
+    ]
+  }
+}

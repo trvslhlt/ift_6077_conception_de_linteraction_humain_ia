@@ -1,0 +1,205 @@
+{
+ "key": "pattern/gmd-hiphop-beat-2",
+ "kind": "pattern",
+ "summary": "hip hop groove, 2 bars at 92 BPM, played by a human drummer (Groove MIDI)",
+ "tags": [
+  "hip hop",
+  "boom bap",
+  "breakbeat",
+  "drums",
+  "groove",
+  "human",
+  "live drums"
+ ],
+ "group": "Groove MIDI drums, hip hop (human drummers; 2-bar beats and 1-bar fills)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/groove.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Groove MIDI Dataset (Magenta), drummer3/session2/26_hiphop_92_beat_4-4.mid",
+   "url": "https://magenta.tensorflow.org/datasets/groove"
+  }
+ ],
+ "body": [
+  "Played at 92 BPM; it holds up roughly ±15% from there. Uses closed_hat, kick, snare.",
+  "Human timing and dynamics kept: hits sit a little ahead of or behind the grid, and velocities vary. Don't quantize it unless asked; that's the point of it."
+ ],
+ "pattern": {
+  "type": "drums",
+  "beats": 8,
+  "hits": [
+   [
+    0,
+    "kick",
+    1
+   ],
+   [
+    0.015,
+    "closed_hat",
+    0.75
+   ],
+   [
+    0.54,
+    "closed_hat",
+    0.46
+   ],
+   [
+    1.025,
+    "snare",
+    1
+   ],
+   [
+    1.031,
+    "closed_hat",
+    1
+   ],
+   [
+    1.498,
+    "closed_hat",
+    0.39
+   ],
+   [
+    2.021,
+    "closed_hat",
+    0.46
+   ],
+   [
+    2.494,
+    "kick",
+    1
+   ],
+   [
+    2.521,
+    "closed_hat",
+    1
+   ],
+   [
+    2.983,
+    "snare",
+    1
+   ],
+   [
+    3,
+    "closed_hat",
+    0.86
+   ],
+   [
+    3.319,
+    "kick",
+    1
+   ],
+   [
+    3.51,
+    "closed_hat",
+    0.51
+   ],
+   [
+    3.84,
+    "kick",
+    0.38
+   ],
+   [
+    3.954,
+    "kick",
+    1
+   ],
+   [
+    4.021,
+    "closed_hat",
+    1
+   ],
+   [
+    4.517,
+    "closed_hat",
+    0.5
+   ],
+   [
+    4.994,
+    "closed_hat",
+    0.98
+   ],
+   [
+    5.004,
+    "snare",
+    0.98
+   ],
+   [
+    5.471,
+    "closed_hat",
+    0.32
+   ],
+   [
+    5.979,
+    "closed_hat",
+    0.54
+   ],
+   [
+    6.483,
+    "kick",
+    1
+   ],
+   [
+    6.483,
+    "closed_hat",
+    0.99
+   ],
+   [
+    7.017,
+    "closed_hat",
+    1
+   ],
+   [
+    7.021,
+    "snare",
+    0.89
+   ],
+   [
+    7.333,
+    "kick",
+    1
+   ],
+   [
+    7.529,
+    "closed_hat",
+    0.74
+   ],
+   [
+    7.863,
+    "kick",
+    0.48
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "the drum track (a kit)"
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "from_bar": "$from_bar",
+     "bars": "$bars"
+    }
+   }
+  ]
+ }
+}

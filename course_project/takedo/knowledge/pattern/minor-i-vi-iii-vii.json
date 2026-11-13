@@ -1,0 +1,89 @@
+{
+  "key": "pattern/minor-i-vi-iii-vii",
+  "kind": "pattern",
+  "summary": "i → VI → III → VII, a bar each: the epic minor loop",
+  "tags": [
+    "pop",
+    "edm",
+    "trance",
+    "synthwave",
+    "minor",
+    "epic",
+    "chords",
+    "progression"
+  ],
+  "devices": [],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (knowledge seed)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "body": [
+    "Use with a minor key (\"A minor\": Am → F → C → G)."
+  ],
+  "pattern": {
+    "type": "chords",
+    "beats": 16,
+    "chords": [
+      [
+        0,
+        "i",
+        4
+      ],
+      [
+        4,
+        "VI",
+        4
+      ],
+      [
+        8,
+        "III",
+        4
+      ],
+      [
+        12,
+        "VII",
+        4
+      ]
+    ]
+  },
+  "apply": {
+    "params": {
+      "track": {
+        "type": "track",
+        "about": "a chordal part (keys, pad)"
+      },
+      "key": {
+        "type": "key",
+        "about": "the project's key, e.g. \"G major\""
+      },
+      "from_bar": {
+        "type": "number",
+        "optional": true
+      },
+      "bars": {
+        "type": "number",
+        "optional": true
+      },
+      "octave": {
+        "type": "number",
+        "optional": true,
+        "default": 3
+      }
+    },
+    "steps": [
+      {
+        "op": "pattern",
+        "input": {
+          "track": "$track",
+          "key": "$key",
+          "from_bar": "$from_bar",
+          "bars": "$bars",
+          "octave": "$octave"
+        }
+      }
+    ]
+  }
+}

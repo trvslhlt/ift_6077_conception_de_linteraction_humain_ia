@@ -1,0 +1,99 @@
+{
+  "key": "genre/lofi-hip-hop",
+  "kind": "genre",
+  "summary": "Lofi hip hop ('lofi girl' beats): 70–90 BPM boom-bap drums, jazzy 7th-chord vamps on Rhodes, with production/lofi",
+  "tags": [
+    "lofi hip hop",
+    "lofi",
+    "lo-fi",
+    "lofi girl",
+    "study beats",
+    "chillhop",
+    "chill",
+    "hip hop",
+    "jazzy"
+  ],
+  "devices": [
+    "Playfield",
+    "Tubular",
+    "Vaporisateur"
+  ],
+  "links": [
+    "pattern/boombap-1",
+    "pattern/lofi-vamp-vi-iv",
+    "genre/boom-bap",
+    "production/lofi",
+    "pattern/prog-lofi-hip-hop-characteristic-1",
+    "sound/tubular-soft-rhds",
+    "sound/tubular-rhodes",
+    "chain/tape-dust"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (genre write-ups)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "tempo": [
+    70,
+    90
+  ],
+  "body": [
+    "Boom-bap's genre (genre/boom-bap) treated with production/lofi: the two together.",
+    "Drums: swung, quiet, a little late; hats soft. Harmony: two-chord vamps of 7ths and 9ths (vi7–IVmaj7, ii7–V7).",
+    "Sounds: soft Rhodes or a sampled piano, a round sub, maybe vinyl crackle.",
+    "Toward it gradually: drums first, then chords, then the lofi treatment, then ease the tempo down.",
+    "Apply: pattern/boombap-1 on the drums, then pattern/lofi-vamp-vi-iv on the keys four bars later, plus the production chain on the master. It leaves tempo and sounds to you: move the tempo toward 70–90 gradually, and swap sounds from the links."
+  ],
+  "apply": {
+    "params": {
+      "drums": {
+        "type": "track",
+        "optional": true,
+        "about": "the drum track (a kit); leave out if there isn't one"
+      },
+      "keys": {
+        "type": "track",
+        "optional": true,
+        "about": "a chordal part (keys, pad); leave out if there isn't one"
+      },
+      "key": {
+        "type": "key",
+        "optional": true,
+        "about": "the project's key; leave out to estimate it from the notes"
+      },
+      "amount": {
+        "type": "amount"
+      }
+    },
+    "steps": [
+      {
+        "op": "entry",
+        "key": "pattern/boombap-1",
+        "args": {
+          "track": "$drums"
+        },
+        "when": "drums",
+        "at": 0
+      },
+      {
+        "op": "entry",
+        "key": "pattern/lofi-vamp-vi-iv",
+        "args": {
+          "track": "$keys",
+          "key": "$key"
+        },
+        "when": "keys",
+        "at": 4
+      },
+      {
+        "op": "entry",
+        "key": "production/lofi",
+        "args": {
+          "amount": "$amount"
+        },
+        "at": 8
+      }
+    ]
+  }
+}

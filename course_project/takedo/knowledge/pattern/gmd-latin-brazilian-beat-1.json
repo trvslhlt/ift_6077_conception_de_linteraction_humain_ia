@@ -1,0 +1,329 @@
+{
+ "key": "pattern/gmd-latin-brazilian-beat-1",
+ "kind": "pattern",
+ "summary": "latin (brazilian) groove, 2 bars at 101 BPM, played by a human drummer (Groove MIDI)",
+ "tags": [
+  "latin",
+  "brazilian",
+  "drums",
+  "groove",
+  "human",
+  "live drums"
+ ],
+ "group": "Groove MIDI drums, latin (human drummers; 2-bar beats and 1-bar fills)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/groove.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Groove MIDI Dataset (Magenta), drummer5/session2/2_latin-brazilian_101_beat_4-4.mid",
+   "url": "https://magenta.tensorflow.org/datasets/groove"
+  }
+ ],
+ "body": [
+  "Played at 101 BPM; it holds up roughly ±15% from there. Uses closed_hat, kick, rim, snare.",
+  "Human timing and dynamics kept: hits sit a little ahead of or behind the grid, and velocities vary. Don't quantize it unless asked; that's the point of it."
+ ],
+ "pattern": {
+  "type": "drums",
+  "beats": 8,
+  "hits": [
+   [
+    0,
+    "closed_hat",
+    0.25
+   ],
+   [
+    0.248,
+    "snare",
+    0.24
+   ],
+   [
+    0.367,
+    "closed_hat",
+    0.2
+   ],
+   [
+    0.508,
+    "closed_hat",
+    0.26
+   ],
+   [
+    0.748,
+    "snare",
+    0.24
+   ],
+   [
+    0.992,
+    "kick",
+    0.31
+   ],
+   [
+    0.998,
+    "closed_hat",
+    0.38
+   ],
+   [
+    1.117,
+    "snare",
+    0.04
+   ],
+   [
+    1.44,
+    "closed_hat",
+    0.3
+   ],
+   [
+    1.463,
+    "kick",
+    0.37
+   ],
+   [
+    1.608,
+    "kick",
+    0.08
+   ],
+   [
+    1.967,
+    "closed_hat",
+    0.61
+   ],
+   [
+    1.983,
+    "rim",
+    0.65
+   ],
+   [
+    2.467,
+    "closed_hat",
+    0.63
+   ],
+   [
+    2.731,
+    "snare",
+    0.36
+   ],
+   [
+    2.971,
+    "closed_hat",
+    0.44
+   ],
+   [
+    2.971,
+    "kick",
+    0.37
+   ],
+   [
+    3.019,
+    "snare",
+    0.2
+   ],
+   [
+    3.119,
+    "kick",
+    0.07
+   ],
+   [
+    3.142,
+    "snare",
+    0.14
+   ],
+   [
+    3.221,
+    "closed_hat",
+    0.36
+   ],
+   [
+    3.227,
+    "snare",
+    0.11
+   ],
+   [
+    3.302,
+    "snare",
+    0.08
+   ],
+   [
+    3.485,
+    "closed_hat",
+    0.35
+   ],
+   [
+    3.717,
+    "snare",
+    0.79
+   ],
+   [
+    3.825,
+    "snare",
+    0.25
+   ],
+   [
+    3.969,
+    "closed_hat",
+    0.26
+   ],
+   [
+    4.173,
+    "snare",
+    0.24
+   ],
+   [
+    4.302,
+    "snare",
+    0.08
+   ],
+   [
+    4.49,
+    "closed_hat",
+    0.35
+   ],
+   [
+    4.738,
+    "snare",
+    0.23
+   ],
+   [
+    4.967,
+    "closed_hat",
+    0.42
+   ],
+   [
+    4.981,
+    "kick",
+    0.3
+   ],
+   [
+    5.246,
+    "snare",
+    0.15
+   ],
+   [
+    5.329,
+    "snare",
+    0.08
+   ],
+   [
+    5.454,
+    "closed_hat",
+    0.25
+   ],
+   [
+    5.481,
+    "kick",
+    0.34
+   ],
+   [
+    5.979,
+    "closed_hat",
+    0.65
+   ],
+   [
+    5.994,
+    "rim",
+    0.64
+   ],
+   [
+    6.488,
+    "closed_hat",
+    0.65
+   ],
+   [
+    6.519,
+    "closed_hat",
+    0.31
+   ],
+   [
+    6.748,
+    "snare",
+    0.44
+   ],
+   [
+    7.008,
+    "kick",
+    0.34
+   ],
+   [
+    7.019,
+    "closed_hat",
+    0.56
+   ],
+   [
+    7.019,
+    "snare",
+    0.15
+   ],
+   [
+    7.144,
+    "kick",
+    0.07
+   ],
+   [
+    7.162,
+    "snare",
+    0.08
+   ],
+   [
+    7.233,
+    "snare",
+    0.06
+   ],
+   [
+    7.262,
+    "closed_hat",
+    0.32
+   ],
+   [
+    7.277,
+    "snare",
+    0.05
+   ],
+   [
+    7.321,
+    "snare",
+    0.05
+   ],
+   [
+    7.506,
+    "closed_hat",
+    0.47
+   ],
+   [
+    7.746,
+    "closed_hat",
+    0.82
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "the drum track (a kit)"
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "from_bar": "$from_bar",
+     "bars": "$bars"
+    }
+   }
+  ]
+ }
+}

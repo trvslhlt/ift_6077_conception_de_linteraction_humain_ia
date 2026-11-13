@@ -1,0 +1,151 @@
+{
+ "key": "pattern/gmd-funk-fill",
+ "kind": "pattern",
+ "summary": "funk fill, 1 bar at 95 BPM, played by a human drummer (Groove MIDI)",
+ "tags": [
+  "funk",
+  "groove",
+  "soul",
+  "drums",
+  "fill",
+  "human",
+  "live drums"
+ ],
+ "group": "Groove MIDI drums, funk (human drummers; 2-bar beats and 1-bar fills)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/groove.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Groove MIDI Dataset (Magenta), drummer1/session1/103_funk_95_fill_4-4.mid",
+   "url": "https://magenta.tensorflow.org/datasets/groove"
+  }
+ ],
+ "body": [
+  "Played at 95 BPM; it holds up roughly ±15% from there. Uses closed_hat, kick, rim, snare, tom_high.",
+  "Human timing and dynamics kept: hits sit a little ahead of or behind the grid, and velocities vary. Don't quantize it unless asked; that's the point of it.",
+  "Write it on the bar before a section change (from_bar = that bar, bars = 1)."
+ ],
+ "pattern": {
+  "type": "drums",
+  "beats": 4,
+  "hits": [
+   [
+    0.102,
+    "kick",
+    0.09
+   ],
+   [
+    0.235,
+    "closed_hat",
+    0.38
+   ],
+   [
+    0.348,
+    "closed_hat",
+    0.49
+   ],
+   [
+    0.465,
+    "rim",
+    0.61
+   ],
+   [
+    0.765,
+    "closed_hat",
+    0.8
+   ],
+   [
+    0.952,
+    "closed_hat",
+    0.42
+   ],
+   [
+    1.09,
+    "closed_hat",
+    0.35
+   ],
+   [
+    1.221,
+    "snare",
+    0.49
+   ],
+   [
+    1.473,
+    "closed_hat",
+    0.79
+   ],
+   [
+    1.7,
+    "closed_hat",
+    0.35
+   ],
+   [
+    1.831,
+    "closed_hat",
+    0.33
+   ],
+   [
+    1.967,
+    "rim",
+    0.69
+   ],
+   [
+    2.233,
+    "tom_high",
+    0.71
+   ],
+   [
+    2.462,
+    "snare",
+    0.33
+   ],
+   [
+    2.708,
+    "snare",
+    0.65
+   ],
+   [
+    2.962,
+    "snare",
+    1
+   ],
+   [
+    3.219,
+    "kick",
+    0.69
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "the drum track (a kit)"
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "from_bar": "$from_bar",
+     "bars": "$bars"
+    }
+   }
+  ]
+ }
+}

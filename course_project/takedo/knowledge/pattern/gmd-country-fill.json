@@ -1,0 +1,140 @@
+{
+ "key": "pattern/gmd-country-fill",
+ "kind": "pattern",
+ "summary": "country fill, 1 bar at 114 BPM, played by a human drummer (Groove MIDI)",
+ "tags": [
+  "country",
+  "train beat",
+  "drums",
+  "fill",
+  "human",
+  "live drums"
+ ],
+ "group": "Groove MIDI drums, country (human drummers; 2-bar beats and 1-bar fills)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/groove.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Groove MIDI Dataset (Magenta), drummer1/session2/11_country_114_fill_4-4.mid",
+   "url": "https://magenta.tensorflow.org/datasets/groove"
+  }
+ ],
+ "body": [
+  "Played at 114 BPM; it holds up roughly ±15% from there. Uses closed_hat, kick, snare, tom_high.",
+  "Human timing and dynamics kept: hits sit a little ahead of or behind the grid, and velocities vary. Don't quantize it unless asked; that's the point of it.",
+  "Write it on the bar before a section change (from_bar = that bar, bars = 1)."
+ ],
+ "pattern": {
+  "type": "drums",
+  "beats": 4,
+  "hits": [
+   [
+    0.188,
+    "snare",
+    0.24
+   ],
+   [
+    0.438,
+    "snare",
+    0.86
+   ],
+   [
+    0.667,
+    "snare",
+    0.24
+   ],
+   [
+    0.948,
+    "kick",
+    0.41
+   ],
+   [
+    0.983,
+    "snare",
+    0.1
+   ],
+   [
+    1.223,
+    "snare",
+    0.91
+   ],
+   [
+    1.469,
+    "snare",
+    0.47
+   ],
+   [
+    1.967,
+    "snare",
+    0.88
+   ],
+   [
+    2.185,
+    "snare",
+    0.29
+   ],
+   [
+    2.477,
+    "snare",
+    0.85
+   ],
+   [
+    2.717,
+    "snare",
+    0.31
+   ],
+   [
+    2.956,
+    "closed_hat",
+    0.39
+   ],
+   [
+    3.01,
+    "tom_high",
+    0.81
+   ],
+   [
+    3.267,
+    "tom_high",
+    1
+   ],
+   [
+    3.498,
+    "tom_high",
+    1
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "the drum track (a kit)"
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "from_bar": "$from_bar",
+     "bars": "$bars"
+    }
+   }
+  ]
+ }
+}

@@ -1,0 +1,315 @@
+{
+ "key": "pattern/gmd-jazz-march-beat-2",
+ "kind": "pattern",
+ "summary": "jazz (march) groove, 2 bars at 88 BPM, played by a human drummer (Groove MIDI)",
+ "tags": [
+  "jazz",
+  "swing",
+  "march",
+  "drums",
+  "groove",
+  "human",
+  "live drums"
+ ],
+ "group": "Groove MIDI drums, jazz (human drummers; 2-bar beats and 1-bar fills)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/groove.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Groove MIDI Dataset (Magenta), drummer1/session2/7_jazz-march_88_beat_4-4.mid",
+   "url": "https://magenta.tensorflow.org/datasets/groove"
+  }
+ ],
+ "body": [
+  "Played at 88 BPM; it holds up roughly ±15% from there. Uses kick, snare.",
+  "Human timing and dynamics kept: hits sit a little ahead of or behind the grid, and velocities vary. Don't quantize it unless asked; that's the point of it."
+ ],
+ "pattern": {
+  "type": "drums",
+  "beats": 8,
+  "hits": [
+   [
+    0,
+    "snare",
+    0.48
+   ],
+   [
+    0,
+    "kick",
+    0.6
+   ],
+   [
+    0.525,
+    "snare",
+    0.23
+   ],
+   [
+    0.625,
+    "snare",
+    0.26
+   ],
+   [
+    0.713,
+    "snare",
+    0.28
+   ],
+   [
+    0.827,
+    "snare",
+    0.34
+   ],
+   [
+    0.896,
+    "snare",
+    0.23
+   ],
+   [
+    0.952,
+    "kick",
+    0.46
+   ],
+   [
+    0.965,
+    "snare",
+    0.51
+   ],
+   [
+    1.442,
+    "snare",
+    0.24
+   ],
+   [
+    1.565,
+    "snare",
+    0.32
+   ],
+   [
+    1.704,
+    "snare",
+    0.35
+   ],
+   [
+    1.821,
+    "snare",
+    0.34
+   ],
+   [
+    1.967,
+    "snare",
+    0.31
+   ],
+   [
+    2.206,
+    "kick",
+    0.43
+   ],
+   [
+    2.244,
+    "snare",
+    0.28
+   ],
+   [
+    2.267,
+    "snare",
+    0.57
+   ],
+   [
+    2.5,
+    "snare",
+    0.25
+   ],
+   [
+    2.779,
+    "snare",
+    0.15
+   ],
+   [
+    2.996,
+    "snare",
+    0.32
+   ],
+   [
+    3.019,
+    "snare",
+    0.59
+   ],
+   [
+    3.023,
+    "kick",
+    0.47
+   ],
+   [
+    3.529,
+    "snare",
+    0.27
+   ],
+   [
+    3.631,
+    "snare",
+    0.31
+   ],
+   [
+    3.748,
+    "snare",
+    0.33
+   ],
+   [
+    3.867,
+    "snare",
+    0.35
+   ],
+   [
+    3.987,
+    "snare",
+    0.45
+   ],
+   [
+    3.992,
+    "kick",
+    0.46
+   ],
+   [
+    4.488,
+    "snare",
+    0.26
+   ],
+   [
+    4.583,
+    "snare",
+    0.3
+   ],
+   [
+    4.704,
+    "snare",
+    0.33
+   ],
+   [
+    4.821,
+    "snare",
+    0.34
+   ],
+   [
+    4.96,
+    "snare",
+    0.49
+   ],
+   [
+    4.981,
+    "kick",
+    0.46
+   ],
+   [
+    5.531,
+    "snare",
+    0.3
+   ],
+   [
+    5.629,
+    "snare",
+    0.29
+   ],
+   [
+    5.76,
+    "snare",
+    0.29
+   ],
+   [
+    5.875,
+    "snare",
+    0.31
+   ],
+   [
+    6.01,
+    "snare",
+    0.32
+   ],
+   [
+    6.196,
+    "kick",
+    0.47
+   ],
+   [
+    6.231,
+    "snare",
+    0.55
+   ],
+   [
+    6.519,
+    "snare",
+    0.19
+   ],
+   [
+    6.727,
+    "snare",
+    0.29
+   ],
+   [
+    6.931,
+    "snare",
+    0.34
+   ],
+   [
+    6.973,
+    "kick",
+    0.46
+   ],
+   [
+    6.981,
+    "snare",
+    0.61
+   ],
+   [
+    7.488,
+    "snare",
+    0.28
+   ],
+   [
+    7.602,
+    "snare",
+    0.35
+   ],
+   [
+    7.733,
+    "snare",
+    0.31
+   ],
+   [
+    7.86,
+    "snare",
+    0.34
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "the drum track (a kit)"
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "from_bar": "$from_bar",
+     "bars": "$bars"
+    }
+   }
+  ]
+ }
+}

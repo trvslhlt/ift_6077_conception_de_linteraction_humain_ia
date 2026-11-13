@@ -1,0 +1,144 @@
+{
+ "key": "pattern/gmd-jazz-swing-beat-2",
+ "kind": "pattern",
+ "summary": "jazz (swing) groove, 2 bars at 215 BPM, played by a human drummer (Groove MIDI)",
+ "tags": [
+  "jazz",
+  "swing",
+  "drums",
+  "groove",
+  "human",
+  "live drums"
+ ],
+ "group": "Groove MIDI drums, jazz (human drummers; 2-bar beats and 1-bar fills)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/groove.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Groove MIDI Dataset (Magenta), drummer10/session1/3_jazz-swing_215_beat_4-4.mid",
+   "url": "https://magenta.tensorflow.org/datasets/groove"
+  }
+ ],
+ "body": [
+  "Played at 215 BPM; it holds up roughly ±15% from there. Uses closed_hat, ride.",
+  "Human timing and dynamics kept: hits sit a little ahead of or behind the grid, and velocities vary. Don't quantize it unless asked; that's the point of it."
+ ],
+ "pattern": {
+  "type": "drums",
+  "beats": 8,
+  "hits": [
+   [
+    0.01,
+    "ride",
+    0.46
+   ],
+   [
+    0.99,
+    "closed_hat",
+    0.45
+   ],
+   [
+    0.994,
+    "ride",
+    1
+   ],
+   [
+    1.721,
+    "ride",
+    0.43
+   ],
+   [
+    2.01,
+    "ride",
+    0.51
+   ],
+   [
+    3.002,
+    "closed_hat",
+    0.47
+   ],
+   [
+    3.029,
+    "ride",
+    1
+   ],
+   [
+    3.704,
+    "ride",
+    0.36
+   ],
+   [
+    4.031,
+    "ride",
+    0.4
+   ],
+   [
+    4.908,
+    "closed_hat",
+    0.47
+   ],
+   [
+    4.992,
+    "ride",
+    0.98
+   ],
+   [
+    5.673,
+    "ride",
+    0.46
+   ],
+   [
+    5.96,
+    "ride",
+    0.39
+   ],
+   [
+    6.921,
+    "closed_hat",
+    0.45
+   ],
+   [
+    6.979,
+    "ride",
+    1
+   ],
+   [
+    7.621,
+    "ride",
+    0.45
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "the drum track (a kit)"
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "from_bar": "$from_bar",
+     "bars": "$bars"
+    }
+   }
+  ]
+ }
+}

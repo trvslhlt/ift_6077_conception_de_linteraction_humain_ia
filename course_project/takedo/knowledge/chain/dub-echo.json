@@ -1,0 +1,104 @@
+{
+  "key": "chain/dub-echo",
+  "kind": "chain",
+  "summary": "Dub space: dotted-8th echo with long dark feedback, plus a big damped reverb",
+  "tags": [
+    "dub",
+    "reggae",
+    "echo",
+    "space",
+    "delay",
+    "spacey"
+  ],
+  "devices": [
+    "Delay",
+    "Reverb"
+  ],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (knowledge seed)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "body": [
+    "For snare, rim, chords or a vocal-like lead. In dub, throw it: ramp the Delay's wet up for a bar on a hit, then down (set_param on the Delay's wet after it's on)."
+  ],
+  "apply": {
+    "params": {
+      "track": {
+        "type": "track"
+      },
+      "amount": {
+        "type": "amount"
+      }
+    },
+    "steps": [
+      {
+        "op": "add_effect",
+        "input": {
+          "track": "$track",
+          "effect": "Delay",
+          "settings": [
+            {
+              "param": "delayMusical",
+              "value": 13
+            },
+            {
+              "param": "feedback",
+              "value": {
+                "dial": [
+                  0.45,
+                  0.75
+                ]
+              }
+            },
+            {
+              "param": "cross",
+              "value": 0.7
+            },
+            {
+              "param": "filter",
+              "value": -0.6
+            },
+            {
+              "param": "wet",
+              "value": {
+                "dial": [
+                  -18,
+                  -6
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "op": "add_effect",
+        "input": {
+          "track": "$track",
+          "effect": "Reverb",
+          "settings": [
+            {
+              "param": "decay",
+              "value": 0.75
+            },
+            {
+              "param": "damp",
+              "value": 0.7
+            },
+            {
+              "param": "wet",
+              "value": {
+                "dial": [
+                  -20,
+                  -10
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

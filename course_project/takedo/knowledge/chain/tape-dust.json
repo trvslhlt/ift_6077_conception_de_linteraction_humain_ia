@@ -1,0 +1,144 @@
+{
+  "key": "chain/tape-dust",
+  "kind": "chain",
+  "summary": "Worn-tape character: fewer bits, high end rolled off, a dark dotted-8th echo",
+  "tags": [
+    "lofi",
+    "dusty",
+    "vintage",
+    "tape",
+    "darker",
+    "warm",
+    "old"
+  ],
+  "devices": [
+    "Crusher",
+    "Revamp",
+    "Delay"
+  ],
+  "links": [
+    "production/lofi"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (knowledge seed)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "body": [
+    "Crusher for grit, Revamp's low-pass for the dull top, a filtered dotted-8th Delay low in the mix. amount turns the crushing, the low-pass and the echo together.",
+    "On the master it ages the whole track; on drums, keep amount at 0–1 or the hats turn to fizz."
+  ],
+  "apply": {
+    "params": {
+      "track": {
+        "type": "track"
+      },
+      "amount": {
+        "type": "amount"
+      }
+    },
+    "steps": [
+      {
+        "op": "add_effect",
+        "input": {
+          "track": "$track",
+          "effect": "Crusher",
+          "settings": [
+            {
+              "param": "bits",
+              "value": {
+                "dial": [
+                  14,
+                  8
+                ]
+              }
+            },
+            {
+              "param": "crush",
+              "value": {
+                "dial": [
+                  0,
+                  0.3
+                ]
+              }
+            },
+            {
+              "param": "mix",
+              "value": {
+                "dial": [
+                  0.3,
+                  0.7
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "op": "add_effect",
+        "input": {
+          "track": "$track",
+          "effect": "Revamp",
+          "settings": [
+            {
+              "param": "lowPass/enabled",
+              "value": 1
+            },
+            {
+              "param": "lowPass/frequency",
+              "value": {
+                "dial": [
+                  10000,
+                  3200
+                ]
+              }
+            },
+            {
+              "param": "lowPass/order",
+              "value": 1
+            },
+            {
+              "param": "highPass/frequency",
+              "value": 40
+            }
+          ]
+        }
+      },
+      {
+        "op": "add_effect",
+        "input": {
+          "track": "$track",
+          "effect": "Delay",
+          "settings": [
+            {
+              "param": "delayMusical",
+              "value": 13
+            },
+            {
+              "param": "feedback",
+              "value": 0.35
+            },
+            {
+              "param": "cross",
+              "value": 0.4
+            },
+            {
+              "param": "filter",
+              "value": -0.5
+            },
+            {
+              "param": "wet",
+              "value": {
+                "dial": [
+                  -30,
+                  -16
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

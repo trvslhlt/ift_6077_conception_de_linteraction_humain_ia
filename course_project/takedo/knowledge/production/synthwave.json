@@ -1,0 +1,32 @@
+{
+  "key": "production/synthwave",
+  "kind": "production",
+  "summary": "80s synth production: gated-reverb snare, chorus on everything, bright analog pads, wide and glossy",
+  "tags": [
+    "synthwave",
+    "80s",
+    "retro",
+    "gated reverb",
+    "chorus",
+    "neon",
+    "glossy"
+  ],
+  "devices": [
+    "Reverb"
+  ],
+  "links": [
+    "genre/synthwave",
+    "genre/synth-pop"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (genre write-ups)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "body": [
+    "Gated reverb on the snare: a big short room cut off abruptly.",
+    "Chorus and stereo width on pads, bass and leads; bright, little saturation; delays in 8ths or dotted 8ths.",
+    "No chain for it yet: build it with Reverb (short decay, high wet) on the drums and a chorus-like detune on the synths."
+  ]
+}

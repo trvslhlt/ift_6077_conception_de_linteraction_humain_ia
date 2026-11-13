@@ -1,0 +1,87 @@
+{
+  "key": "pattern/pop-i-v-vi-iv",
+  "kind": "pattern",
+  "summary": "I → V → vi → IV, a bar each: the pop progression",
+  "tags": [
+    "pop",
+    "rock",
+    "indie",
+    "anthemic",
+    "chords",
+    "progression"
+  ],
+  "devices": [],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (knowledge seed)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "body": [
+    "Starting on vi (vi → IV → I → V) makes it sadder, same chords."
+  ],
+  "pattern": {
+    "type": "chords",
+    "beats": 16,
+    "chords": [
+      [
+        0,
+        "I",
+        4
+      ],
+      [
+        4,
+        "V",
+        4
+      ],
+      [
+        8,
+        "vi",
+        4
+      ],
+      [
+        12,
+        "IV",
+        4
+      ]
+    ]
+  },
+  "apply": {
+    "params": {
+      "track": {
+        "type": "track",
+        "about": "a chordal part (keys, pad)"
+      },
+      "key": {
+        "type": "key",
+        "about": "the project's key, e.g. \"G major\""
+      },
+      "from_bar": {
+        "type": "number",
+        "optional": true
+      },
+      "bars": {
+        "type": "number",
+        "optional": true
+      },
+      "octave": {
+        "type": "number",
+        "optional": true,
+        "default": 3
+      }
+    },
+    "steps": [
+      {
+        "op": "pattern",
+        "input": {
+          "track": "$track",
+          "key": "$key",
+          "from_bar": "$from_bar",
+          "bars": "$bars",
+          "octave": "$octave"
+        }
+      }
+    ]
+  }
+}

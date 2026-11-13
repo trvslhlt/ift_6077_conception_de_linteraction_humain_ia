@@ -1,0 +1,78 @@
+{
+  "key": "pattern/lofi-vamp-vi-iv",
+  "kind": "pattern",
+  "summary": "Two-chord lofi vamp, 2 bars each: vi7 → IVmaj7 (Am7 → Fmaj7 in C)",
+  "tags": [
+    "lofi",
+    "chill",
+    "neo soul",
+    "jazzy",
+    "vamp",
+    "chords",
+    "progression"
+  ],
+  "devices": [],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (knowledge seed)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "body": [
+    "Dreamy and unresolved; the most common lofi move. In a minor key, i7 → VImaj7 gives the same feel."
+  ],
+  "pattern": {
+    "type": "chords",
+    "beats": 16,
+    "chords": [
+      [
+        0,
+        "vi7",
+        8
+      ],
+      [
+        8,
+        "IVmaj7",
+        8
+      ]
+    ]
+  },
+  "apply": {
+    "params": {
+      "track": {
+        "type": "track",
+        "about": "a chordal part (keys, pad)"
+      },
+      "key": {
+        "type": "key",
+        "about": "the project's key, e.g. \"G major\""
+      },
+      "from_bar": {
+        "type": "number",
+        "optional": true
+      },
+      "bars": {
+        "type": "number",
+        "optional": true
+      },
+      "octave": {
+        "type": "number",
+        "optional": true,
+        "default": 3
+      }
+    },
+    "steps": [
+      {
+        "op": "pattern",
+        "input": {
+          "track": "$track",
+          "key": "$key",
+          "from_bar": "$from_bar",
+          "bars": "$bars",
+          "octave": "$octave"
+        }
+      }
+    ]
+  }
+}

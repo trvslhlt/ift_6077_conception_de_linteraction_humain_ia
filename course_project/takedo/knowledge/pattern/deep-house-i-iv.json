@@ -1,0 +1,78 @@
+{
+  "key": "pattern/deep-house-i-iv",
+  "kind": "pattern",
+  "summary": "Minor 7th to minor 7th: i7 → iv7, two bars each, the deep house organ vamp",
+  "tags": [
+    "deep house",
+    "house",
+    "garage",
+    "minor",
+    "vamp",
+    "chords",
+    "progression"
+  ],
+  "devices": [],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (knowledge seed)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "body": [
+    "Use with a minor key. Stab it in practice (short chords on off-beats); written here as held chords."
+  ],
+  "pattern": {
+    "type": "chords",
+    "beats": 16,
+    "chords": [
+      [
+        0,
+        "i7",
+        8
+      ],
+      [
+        8,
+        "iv7",
+        8
+      ]
+    ]
+  },
+  "apply": {
+    "params": {
+      "track": {
+        "type": "track",
+        "about": "a chordal part (keys, pad)"
+      },
+      "key": {
+        "type": "key",
+        "about": "the project's key, e.g. \"G major\""
+      },
+      "from_bar": {
+        "type": "number",
+        "optional": true
+      },
+      "bars": {
+        "type": "number",
+        "optional": true
+      },
+      "octave": {
+        "type": "number",
+        "optional": true,
+        "default": 3
+      }
+    },
+    "steps": [
+      {
+        "op": "pattern",
+        "input": {
+          "track": "$track",
+          "key": "$key",
+          "from_bar": "$from_bar",
+          "bars": "$bars",
+          "octave": "$octave"
+        }
+      }
+    ]
+  }
+}

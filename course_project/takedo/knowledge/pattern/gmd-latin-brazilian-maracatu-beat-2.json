@@ -1,0 +1,350 @@
+{
+ "key": "pattern/gmd-latin-brazilian-maracatu-beat-2",
+ "kind": "pattern",
+ "summary": "latin (brazilian maracatu) groove, 2 bars at 96 BPM, played by a human drummer (Groove MIDI)",
+ "tags": [
+  "latin",
+  "brazilian",
+  "brazilian maracatu",
+  "drums",
+  "groove",
+  "human",
+  "live drums"
+ ],
+ "group": "Groove MIDI drums, latin (human drummers; 2-bar beats and 1-bar fills)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/groove.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Groove MIDI Dataset (Magenta), drummer5/session1/7_latin-brazilian-maracatu_96_beat_4-4.mid",
+   "url": "https://magenta.tensorflow.org/datasets/groove"
+  }
+ ],
+ "body": [
+  "Played at 96 BPM; it holds up roughly ±15% from there. Uses closed_hat, kick, snare, tom_high, tom_mid.",
+  "Human timing and dynamics kept: hits sit a little ahead of or behind the grid, and velocities vary. Don't quantize it unless asked; that's the point of it."
+ ],
+ "pattern": {
+  "type": "drums",
+  "beats": 8,
+  "hits": [
+   [
+    0,
+    "snare",
+    0.41
+   ],
+   [
+    0,
+    "kick",
+    0.32
+   ],
+   [
+    0.131,
+    "snare",
+    0.32
+   ],
+   [
+    0.25,
+    "snare",
+    0.34
+   ],
+   [
+    0.431,
+    "snare",
+    0.31
+   ],
+   [
+    0.531,
+    "closed_hat",
+    0.39
+   ],
+   [
+    0.683,
+    "snare",
+    0.22
+   ],
+   [
+    0.946,
+    "snare",
+    0.4
+   ],
+   [
+    0.99,
+    "kick",
+    0.32
+   ],
+   [
+    1.146,
+    "snare",
+    0.3
+   ],
+   [
+    1.256,
+    "snare",
+    0.28
+   ],
+   [
+    1.373,
+    "snare",
+    0.09
+   ],
+   [
+    1.442,
+    "snare",
+    0.43
+   ],
+   [
+    1.471,
+    "kick",
+    0.31
+   ],
+   [
+    1.473,
+    "closed_hat",
+    0.43
+   ],
+   [
+    1.665,
+    "snare",
+    0.26
+   ],
+   [
+    1.935,
+    "snare",
+    0.33
+   ],
+   [
+    2.173,
+    "tom_high",
+    0.69
+   ],
+   [
+    2.396,
+    "closed_hat",
+    0.43
+   ],
+   [
+    2.435,
+    "snare",
+    0.29
+   ],
+   [
+    2.665,
+    "tom_high",
+    0.64
+   ],
+   [
+    2.912,
+    "snare",
+    0.87
+   ],
+   [
+    3.175,
+    "snare",
+    0.26
+   ],
+   [
+    3.415,
+    "tom_mid",
+    0.6
+   ],
+   [
+    3.465,
+    "closed_hat",
+    0.47
+   ],
+   [
+    3.679,
+    "snare",
+    0.31
+   ],
+   [
+    3.912,
+    "snare",
+    0.53
+   ],
+   [
+    3.952,
+    "kick",
+    0.39
+   ],
+   [
+    4.102,
+    "snare",
+    0.31
+   ],
+   [
+    4.206,
+    "snare",
+    0.3
+   ],
+   [
+    4.419,
+    "snare",
+    0.23
+   ],
+   [
+    4.46,
+    "closed_hat",
+    0.43
+   ],
+   [
+    4.648,
+    "snare",
+    0.39
+   ],
+   [
+    4.927,
+    "snare",
+    0.39
+   ],
+   [
+    4.965,
+    "kick",
+    0.27
+   ],
+   [
+    5.11,
+    "snare",
+    0.25
+   ],
+   [
+    5.225,
+    "snare",
+    0.26
+   ],
+   [
+    5.421,
+    "snare",
+    0.54
+   ],
+   [
+    5.431,
+    "kick",
+    0.34
+   ],
+   [
+    5.452,
+    "closed_hat",
+    0.35
+   ],
+   [
+    5.527,
+    "kick",
+    0.09
+   ],
+   [
+    5.66,
+    "snare",
+    0.1
+   ],
+   [
+    5.933,
+    "snare",
+    0.3
+   ],
+   [
+    6.183,
+    "snare",
+    0.43
+   ],
+   [
+    6.213,
+    "kick",
+    0.2
+   ],
+   [
+    6.287,
+    "snare",
+    0.43
+   ],
+   [
+    6.433,
+    "snare",
+    0.22
+   ],
+   [
+    6.452,
+    "closed_hat",
+    0.37
+   ],
+   [
+    6.692,
+    "snare",
+    0.27
+   ],
+   [
+    6.929,
+    "snare",
+    0.33
+   ],
+   [
+    7.171,
+    "snare",
+    0.39
+   ],
+   [
+    7.229,
+    "kick",
+    0.21
+   ],
+   [
+    7.277,
+    "snare",
+    0.41
+   ],
+   [
+    7.446,
+    "snare",
+    0.29
+   ],
+   [
+    7.483,
+    "closed_hat",
+    0.43
+   ],
+   [
+    7.685,
+    "snare",
+    0.33
+   ],
+   [
+    7.804,
+    "snare",
+    0.31
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "the drum track (a kit)"
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "from_bar": "$from_bar",
+     "bars": "$bars"
+    }
+   }
+  ]
+ }
+}

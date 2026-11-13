@@ -1,0 +1,129 @@
+{
+ "key": "pattern/gmd-jazz-swing-beat-1",
+ "kind": "pattern",
+ "summary": "jazz (swing) groove, 2 bars at 215 BPM, played by a human drummer (Groove MIDI)",
+ "tags": [
+  "jazz",
+  "swing",
+  "drums",
+  "groove",
+  "human",
+  "live drums"
+ ],
+ "group": "Groove MIDI drums, jazz (human drummers; 2-bar beats and 1-bar fills)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/groove.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Groove MIDI Dataset (Magenta), drummer10/session1/2_jazz-swing_215_beat_4-4.mid",
+   "url": "https://magenta.tensorflow.org/datasets/groove"
+  }
+ ],
+ "body": [
+  "Played at 215 BPM; it holds up roughly ±15% from there. Uses tom_low.",
+  "Human timing and dynamics kept: hits sit a little ahead of or behind the grid, and velocities vary. Don't quantize it unless asked; that's the point of it."
+ ],
+ "pattern": {
+  "type": "drums",
+  "beats": 8,
+  "hits": [
+   [
+    0,
+    "tom_low",
+    1
+   ],
+   [
+    0.94,
+    "tom_low",
+    1
+   ],
+   [
+    1.94,
+    "tom_low",
+    1
+   ],
+   [
+    2.631,
+    "tom_low",
+    1
+   ],
+   [
+    2.952,
+    "tom_low",
+    0.51
+   ],
+   [
+    3.498,
+    "tom_low",
+    0.27
+   ],
+   [
+    3.865,
+    "tom_low",
+    0.92
+   ],
+   [
+    4.894,
+    "tom_low",
+    1
+   ],
+   [
+    5.569,
+    "tom_low",
+    1
+   ],
+   [
+    5.946,
+    "tom_low",
+    0.37
+   ],
+   [
+    6.51,
+    "tom_low",
+    0.39
+   ],
+   [
+    6.85,
+    "tom_low",
+    1
+   ],
+   [
+    7.883,
+    "tom_low",
+    1
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "the drum track (a kit)"
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "from_bar": "$from_bar",
+     "bars": "$bars"
+    }
+   }
+  ]
+ }
+}

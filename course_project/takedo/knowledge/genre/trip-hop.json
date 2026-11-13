@@ -1,0 +1,86 @@
+{
+  "key": "genre/trip-hop",
+  "kind": "genre",
+  "summary": "Trip hop: 70–95 BPM slow hip hop drums, dark minor chords, cinematic strings, vinyl and tape texture",
+  "tags": [
+    "trip hop",
+    "bristol",
+    "downtempo",
+    "massive attack",
+    "portishead",
+    "dark",
+    "cinematic"
+  ],
+  "devices": [
+    "Playfield",
+    "Tubular",
+    "Vaporisateur"
+  ],
+  "links": [
+    "pattern/boombap-1",
+    "pattern/prog-trip-hop-characteristic-1",
+    "genre/boom-bap",
+    "production/lofi",
+    "sound/tubular-strings",
+    "sound/tubular-rhodes",
+    "chain/tape-dust",
+    "chain/dub-echo"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (genre write-ups)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "tempo": [
+    70,
+    95
+  ],
+  "body": [
+    "Drums: slow, heavy, sampled-sounding hip hop breaks; dry kick, cracking snare.",
+    "Harmony: minor, often i–v–VI or a two-chord loop; strings, Rhodes, organ, a spy-film guitar.",
+    "Bass: deep and slow, dub-influenced.",
+    "Texture: vinyl crackle, tape saturation, dub echoes; the mood is dark and cinematic.",
+    "Apply: pattern/boombap-1 on the drums, then pattern/prog-trip-hop-characteristic-1 on the keys four bars later. It leaves tempo and sounds to you: move the tempo toward 70–95 gradually, and swap sounds from the links."
+  ],
+  "apply": {
+    "params": {
+      "drums": {
+        "type": "track",
+        "optional": true,
+        "about": "the drum track (a kit); leave out if there isn't one"
+      },
+      "keys": {
+        "type": "track",
+        "optional": true,
+        "about": "a chordal part (keys, pad); leave out if there isn't one"
+      },
+      "key": {
+        "type": "key",
+        "optional": true,
+        "about": "the project's key; leave out to estimate it from the notes"
+      }
+    },
+    "steps": [
+      {
+        "op": "entry",
+        "key": "pattern/boombap-1",
+        "args": {
+          "track": "$drums"
+        },
+        "when": "drums",
+        "at": 0
+      },
+      {
+        "op": "entry",
+        "key": "pattern/prog-trip-hop-characteristic-1",
+        "args": {
+          "track": "$keys",
+          "key": "$key"
+        },
+        "when": "keys",
+        "at": 4
+      }
+    ]
+  }
+}

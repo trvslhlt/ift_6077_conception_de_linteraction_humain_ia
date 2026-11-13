@@ -1,0 +1,84 @@
+{
+  "key": "genre/reggae",
+  "kind": "genre",
+  "summary": "Reggae: 60–90 BPM one drop, off-beat skank chords, organ bubble, deep melodic bass",
+  "tags": [
+    "reggae",
+    "roots",
+    "one drop",
+    "jamaica",
+    "skank",
+    "rocksteady"
+  ],
+  "devices": [
+    "Playfield",
+    "Tubular",
+    "Vaporisateur"
+  ],
+  "links": [
+    "pattern/one-drop",
+    "pattern/prog-reggae-characteristic-1",
+    "pattern/gmd-reggae-beat-1",
+    "genre/dub",
+    "production/dub",
+    "sound/tubular-drawbars",
+    "chain/dub-echo"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (genre write-ups)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "tempo": [
+    60,
+    90
+  ],
+  "body": [
+    "Drums: one drop (kick and rim on 3 only), hats swung; steppers for more drive.",
+    "Chords: short stabs on every off-beat (the skank) on guitar or piano; organ 'bubble' in 8ths. A chord pattern written as held chords should be shortened to off-beat stabs.",
+    "Bass: deep, round, melodic and loud; space between notes.",
+    "Harmony: two-chord vamps, i–iv or I–IV.",
+    "Apply: pattern/one-drop on the drums, then pattern/prog-reggae-characteristic-1 on the keys four bars later. It leaves tempo and sounds to you: move the tempo toward 60–90 gradually, and swap sounds from the links."
+  ],
+  "apply": {
+    "params": {
+      "drums": {
+        "type": "track",
+        "optional": true,
+        "about": "the drum track (a kit); leave out if there isn't one"
+      },
+      "keys": {
+        "type": "track",
+        "optional": true,
+        "about": "a chordal part (keys, pad); leave out if there isn't one"
+      },
+      "key": {
+        "type": "key",
+        "optional": true,
+        "about": "the project's key; leave out to estimate it from the notes"
+      }
+    },
+    "steps": [
+      {
+        "op": "entry",
+        "key": "pattern/one-drop",
+        "args": {
+          "track": "$drums"
+        },
+        "when": "drums",
+        "at": 0
+      },
+      {
+        "op": "entry",
+        "key": "pattern/prog-reggae-characteristic-1",
+        "args": {
+          "track": "$keys",
+          "key": "$key"
+        },
+        "when": "keys",
+        "at": 4
+      }
+    ]
+  }
+}

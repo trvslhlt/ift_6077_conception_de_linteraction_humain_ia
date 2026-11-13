@@ -1,0 +1,70 @@
+{
+  "key": "genre/ambient",
+  "kind": "genre",
+  "summary": "Ambient: slow or no pulse, long sustained chords, pads, bells and space; no drums or very soft ones",
+  "tags": [
+    "ambient",
+    "drone",
+    "atmospheric",
+    "chill",
+    "calm",
+    "space",
+    "eno"
+  ],
+  "devices": [
+    "Playfield",
+    "Tubular",
+    "Vaporisateur"
+  ],
+  "links": [
+    "pattern/prog-ambient-characteristic-3",
+    "sound/warm-pad-vaporisateur",
+    "sound/tubular-bell-pad",
+    "sound/tubular-glass-bell",
+    "sound/tubular-choir",
+    "chain/dub-echo"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (genre write-ups)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "tempo": [
+    60,
+    90
+  ],
+  "body": [
+    "No beat, or a very soft one; the pulse comes from slow repetition.",
+    "Harmony: long chords (2–8 bars each), major 7ths, sus chords, I–IV or I–vi; slow attacks and releases.",
+    "Sounds: pads, bells, choir, processed piano; long reverbs and echoes.",
+    "Moving toward ambient: thin out the drums first (fade or drop them), then lengthen the chords and add space.",
+    "Apply: pattern/prog-ambient-characteristic-3 on the keys. It leaves tempo and sounds to you: move the tempo toward 60–90 gradually, and swap sounds from the links."
+  ],
+  "apply": {
+    "params": {
+      "keys": {
+        "type": "track",
+        "optional": true,
+        "about": "a chordal part (keys, pad); leave out if there isn't one"
+      },
+      "key": {
+        "type": "key",
+        "optional": true,
+        "about": "the project's key; leave out to estimate it from the notes"
+      }
+    },
+    "steps": [
+      {
+        "op": "entry",
+        "key": "pattern/prog-ambient-characteristic-3",
+        "args": {
+          "track": "$keys",
+          "key": "$key"
+        },
+        "when": "keys",
+        "at": 0
+      }
+    ]
+  }
+}

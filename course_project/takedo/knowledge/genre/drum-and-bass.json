@@ -1,0 +1,83 @@
+{
+  "key": "genre/drum-and-bass",
+  "kind": "genre",
+  "summary": "Drum & bass: 165–180 BPM two-step breakbeats, heavy sub or reese bass, pads or stabs, felt at half speed",
+  "tags": [
+    "drum and bass",
+    "dnb",
+    "jungle",
+    "liquid",
+    "breakbeat",
+    "fast"
+  ],
+  "devices": [
+    "Playfield",
+    "Tubular",
+    "Vaporisateur"
+  ],
+  "links": [
+    "pattern/dnb-two-step",
+    "pattern/prog-drum-and-bass-common-1",
+    "pattern/gmd-dance-breakbeat-beat-1",
+    "sound/warm-pad-vaporisateur",
+    "sound/sine-sub-vaporisateur",
+    "chain/dub-echo"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (genre write-ups)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "tempo": [
+    165,
+    180
+  ],
+  "body": [
+    "Drums: the two-step (kick 1 and the and of 3, snare 2 and 4) or chopped breaks; ghost snares and shakers keep the 16ths moving.",
+    "Bass: a deep sub or a detuned 'reese', long notes, in half-time against the drums.",
+    "Harmony: liquid DnB uses lush minor 7th/9th pads and Rhodes; jump-up and neuro have almost none.",
+    "Feel: the pads and bass at half speed, the drums at full speed.",
+    "Apply: pattern/dnb-two-step on the drums, then pattern/prog-drum-and-bass-common-1 on the keys four bars later. It leaves tempo and sounds to you: move the tempo toward 165–180 gradually, and swap sounds from the links."
+  ],
+  "apply": {
+    "params": {
+      "drums": {
+        "type": "track",
+        "optional": true,
+        "about": "the drum track (a kit); leave out if there isn't one"
+      },
+      "keys": {
+        "type": "track",
+        "optional": true,
+        "about": "a chordal part (keys, pad); leave out if there isn't one"
+      },
+      "key": {
+        "type": "key",
+        "optional": true,
+        "about": "the project's key; leave out to estimate it from the notes"
+      }
+    },
+    "steps": [
+      {
+        "op": "entry",
+        "key": "pattern/dnb-two-step",
+        "args": {
+          "track": "$drums"
+        },
+        "when": "drums",
+        "at": 0
+      },
+      {
+        "op": "entry",
+        "key": "pattern/prog-drum-and-bass-common-1",
+        "args": {
+          "track": "$keys",
+          "key": "$key"
+        },
+        "when": "keys",
+        "at": 4
+      }
+    ]
+  }
+}

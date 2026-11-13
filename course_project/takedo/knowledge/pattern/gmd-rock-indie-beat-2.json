@@ -1,0 +1,299 @@
+{
+ "key": "pattern/gmd-rock-indie-beat-2",
+ "kind": "pattern",
+ "summary": "rock (indie) groove, 2 bars at 104 BPM, played by a human drummer (Groove MIDI)",
+ "tags": [
+  "rock",
+  "indie",
+  "drums",
+  "groove",
+  "human",
+  "live drums"
+ ],
+ "group": "Groove MIDI drums, rock (human drummers; 2-bar beats and 1-bar fills)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/groove.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Groove MIDI Dataset (Magenta), drummer8/session2/40_rock-indie_104_beat_4-4.mid",
+   "url": "https://magenta.tensorflow.org/datasets/groove"
+  }
+ ],
+ "body": [
+  "Played at 104 BPM; it holds up roughly ±15% from there. Uses closed_hat, kick, ride, snare.",
+  "Human timing and dynamics kept: hits sit a little ahead of or behind the grid, and velocities vary. Don't quantize it unless asked; that's the point of it."
+ ],
+ "pattern": {
+  "type": "drums",
+  "beats": 8,
+  "hits": [
+   [
+    0,
+    "closed_hat",
+    0.57
+   ],
+   [
+    0.015,
+    "ride",
+    0.94
+   ],
+   [
+    0.075,
+    "kick",
+    0.07
+   ],
+   [
+    0.252,
+    "snare",
+    0.31
+   ],
+   [
+    0.327,
+    "snare",
+    0.17
+   ],
+   [
+    0.492,
+    "kick",
+    0.48
+   ],
+   [
+    0.506,
+    "ride",
+    0.33
+   ],
+   [
+    0.713,
+    "kick",
+    0.29
+   ],
+   [
+    0.958,
+    "closed_hat",
+    0.53
+   ],
+   [
+    1.235,
+    "snare",
+    0.4
+   ],
+   [
+    1.444,
+    "kick",
+    0.39
+   ],
+   [
+    1.483,
+    "ride",
+    0.39
+   ],
+   [
+    1.965,
+    "closed_hat",
+    0.53
+   ],
+   [
+    1.981,
+    "kick",
+    0.54
+   ],
+   [
+    1.994,
+    "ride",
+    0.46
+   ],
+   [
+    2.508,
+    "ride",
+    0.33
+   ],
+   [
+    2.779,
+    "ride",
+    0.28
+   ],
+   [
+    2.992,
+    "closed_hat",
+    0.51
+   ],
+   [
+    3.027,
+    "snare",
+    1
+   ],
+   [
+    3.046,
+    "ride",
+    0.49
+   ],
+   [
+    3.519,
+    "ride",
+    0.35
+   ],
+   [
+    3.775,
+    "snare",
+    0.18
+   ],
+   [
+    3.99,
+    "closed_hat",
+    0.55
+   ],
+   [
+    4.017,
+    "ride",
+    0.81
+   ],
+   [
+    4.075,
+    "kick",
+    0.09
+   ],
+   [
+    4.254,
+    "snare",
+    0.31
+   ],
+   [
+    4.481,
+    "kick",
+    0.5
+   ],
+   [
+    4.496,
+    "ride",
+    0.32
+   ],
+   [
+    4.71,
+    "kick",
+    0.31
+   ],
+   [
+    4.912,
+    "snare",
+    0.15
+   ],
+   [
+    4.956,
+    "ride",
+    0.24
+   ],
+   [
+    4.963,
+    "closed_hat",
+    0.57
+   ],
+   [
+    5.227,
+    "snare",
+    0.35
+   ],
+   [
+    5.427,
+    "kick",
+    0.39
+   ],
+   [
+    5.446,
+    "ride",
+    0.56
+   ],
+   [
+    5.96,
+    "closed_hat",
+    0.53
+   ],
+   [
+    5.965,
+    "ride",
+    0.48
+   ],
+   [
+    5.977,
+    "kick",
+    0.58
+   ],
+   [
+    6.469,
+    "ride",
+    0.47
+   ],
+   [
+    6.713,
+    "ride",
+    0.25
+   ],
+   [
+    6.942,
+    "closed_hat",
+    0.55
+   ],
+   [
+    6.96,
+    "snare",
+    1
+   ],
+   [
+    6.981,
+    "ride",
+    0.69
+   ],
+   [
+    7.29,
+    "snare",
+    0.32
+   ],
+   [
+    7.481,
+    "ride",
+    0.37
+   ],
+   [
+    7.767,
+    "snare",
+    0.17
+   ],
+   [
+    7.877,
+    "snare",
+    0.11
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "the drum track (a kit)"
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "from_bar": "$from_bar",
+     "bars": "$bars"
+    }
+   }
+  ]
+ }
+}

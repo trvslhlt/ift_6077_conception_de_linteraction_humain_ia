@@ -1,0 +1,55 @@
+{
+  "key": "production/dub",
+  "kind": "production",
+  "summary": "Dub production: echo and spring-reverb throws, parts muted in and out, filter sweeps, heavy bass",
+  "tags": [
+    "dub",
+    "echo",
+    "delay",
+    "spring reverb",
+    "space",
+    "reggae",
+    "throws"
+  ],
+  "devices": [
+    "Delay",
+    "Reverb"
+  ],
+  "links": [
+    "chain/dub-echo",
+    "genre/dub",
+    "genre/reggae"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (genre write-ups)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "body": [
+    "The desk is the instrument: send single snare hits, chord stabs or vocal words to a long dotted-8th echo with high feedback, then pull them back.",
+    "Spring-style reverb on the snare; high-pass and low-pass sweeps on the echoes; the bass stays dry and loud.",
+    "Works on any genre (dub techno, dubstep's roots). Apply: chain/dub-echo on a part (the snare's track or the keys)."
+  ],
+  "apply": {
+    "params": {
+      "track": {
+        "type": "track",
+        "about": "the part to throw into the echo (keys, drums)"
+      },
+      "amount": {
+        "type": "amount"
+      }
+    },
+    "steps": [
+      {
+        "op": "entry",
+        "key": "chain/dub-echo",
+        "args": {
+          "track": "$track",
+          "amount": "$amount"
+        }
+      }
+    ]
+  }
+}

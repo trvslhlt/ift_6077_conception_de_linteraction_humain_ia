@@ -1,0 +1,63 @@
+{
+  "key": "sound/tubular-fretless",
+  "kind": "sound",
+  "summary": "Fretless (Tubular Classics, openDAW's own DX7 voice): bass",
+  "group": "Tubular Classics sounds, bass (DX7 voices on a Tubular)",
+  "tags": [
+    "bass",
+    "fm bass",
+    "funk",
+    "disco",
+    "80s",
+    "synth-pop",
+    "house",
+    "r&b",
+    "tubular",
+    "fm",
+    "dx7"
+  ],
+  "devices": [
+    "Tubular"
+  ],
+  "links": [],
+  "checked": {
+    "how": "imported",
+    "by": "knowledge/import/dx7.mjs",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "sources": [
+    {
+      "title": "openDAW Tubular Classics cartridge (packages/studio/adapters/scripts/tubular-classics.mts)",
+      "url": "https://github.com/andremichelle/openDAW/blob/main/packages/studio/adapters/scripts/tubular-classics.mts"
+    }
+  ],
+  "body": [
+    "Good for bass lines, C1–C2; mono parts. Usual in: funk, disco, 80s, synth-pop, house, r&b.",
+    "Loads the whole voice (all six operators, envelopes, algorithm) onto a Tubular: a track's own Tubular, or a new Tubular track when no track is given. To change it after, set Tubular's fields (catalog paths) with the instrument op or a script."
+  ],
+  "apply": {
+    "params": {
+      "track": {
+        "type": "track",
+        "optional": true,
+        "about": "a track whose instrument is a Tubular; leave out to add a new track"
+      },
+      "name": {
+        "type": "text",
+        "optional": true,
+        "about": "the new track's name"
+      }
+    },
+    "steps": [
+      {
+        "op": "dx7",
+        "input": {
+          "track": "$track",
+          "voice": "Tubular_Classics/Fretless",
+          "name": "$name"
+        }
+      }
+    ]
+  }
+}

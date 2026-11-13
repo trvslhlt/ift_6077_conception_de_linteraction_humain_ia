@@ -1,0 +1,69 @@
+{
+  "key": "sound/sine-sub-vaporisateur",
+  "kind": "sound",
+  "summary": "Round sine sub bass on Vaporisateur: mono, no filter movement, short release",
+  "tags": [
+    "bass",
+    "sub",
+    "sine",
+    "808-ish",
+    "lofi",
+    "hip hop",
+    "deep house",
+    "round",
+    "warm"
+  ],
+  "devices": [
+    "Vaporisateur"
+  ],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (knowledge seed)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "body": [
+    "One sine oscillator, the second silent, filter open, mono with a little glide. Play roots in C1–C2; it's felt more than heard on small speakers, so add a quiet octave above (a second track) when it must read on laptops."
+  ],
+  "apply": {
+    "params": {
+      "track": {
+        "type": "track",
+        "optional": true,
+        "about": "a Vaporisateur track; leave out for a new track"
+      },
+      "name": {
+        "type": "text",
+        "optional": true
+      }
+    },
+    "steps": [
+      {
+        "op": "instrument",
+        "input": {
+          "track": "$track",
+          "device": "Vaporisateur",
+          "name": "$name",
+          "settings": {
+            "oscillators/0/waveform": 0,
+            "oscillators/0/volume": -6,
+            "oscillators/0/octave": 0,
+            "oscillators/1/volume": -96,
+            "noise/volume": -96,
+            "cutoff": 2000,
+            "resonance": 0.3,
+            "filterEnvelope": 0,
+            "attack": 0.004,
+            "decay": 0.3,
+            "sustain": 1,
+            "release": 0.12,
+            "voicingMode": 0,
+            "glideTime": 0.05,
+            "unisonCount": 1
+          }
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,310 @@
+{
+ "key": "pattern/gmd-rock-prog-beat-2",
+ "kind": "pattern",
+ "summary": "rock (prog) groove, 2 bars at 125 BPM, played by a human drummer (Groove MIDI)",
+ "tags": [
+  "rock",
+  "indie",
+  "prog",
+  "drums",
+  "groove",
+  "human",
+  "live drums"
+ ],
+ "group": "Groove MIDI drums, rock (human drummers; 2-bar beats and 1-bar fills)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/groove.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Groove MIDI Dataset (Magenta), drummer1/session3/1_rock-prog_125_beat_4-4.mid",
+   "url": "https://magenta.tensorflow.org/datasets/groove"
+  }
+ ],
+ "body": [
+  "Played at 125 BPM; it holds up roughly ±15% from there. Uses closed_hat, kick, snare, tom_high.",
+  "Human timing and dynamics kept: hits sit a little ahead of or behind the grid, and velocities vary. Don't quantize it unless asked; that's the point of it."
+ ],
+ "pattern": {
+  "type": "drums",
+  "beats": 8,
+  "hits": [
+   [
+    0,
+    "kick",
+    0.92
+   ],
+   [
+    0,
+    "tom_high",
+    0.5
+   ],
+   [
+    0.173,
+    "snare",
+    0.19
+   ],
+   [
+    0.371,
+    "closed_hat",
+    0.25
+   ],
+   [
+    0.471,
+    "tom_high",
+    0.46
+   ],
+   [
+    0.731,
+    "tom_high",
+    0.71
+   ],
+   [
+    0.902,
+    "closed_hat",
+    0.71
+   ],
+   [
+    0.958,
+    "snare",
+    0.95
+   ],
+   [
+    1.179,
+    "tom_high",
+    0.5
+   ],
+   [
+    1.367,
+    "closed_hat",
+    0.2
+   ],
+   [
+    1.431,
+    "tom_high",
+    0.54
+   ],
+   [
+    1.671,
+    "snare",
+    0.18
+   ],
+   [
+    1.906,
+    "closed_hat",
+    0.65
+   ],
+   [
+    1.933,
+    "tom_high",
+    0.56
+   ],
+   [
+    2.129,
+    "snare",
+    0.15
+   ],
+   [
+    2.35,
+    "closed_hat",
+    0.17
+   ],
+   [
+    2.438,
+    "tom_high",
+    0.35
+   ],
+   [
+    2.681,
+    "tom_high",
+    0.5
+   ],
+   [
+    2.9,
+    "closed_hat",
+    0.71
+   ],
+   [
+    2.95,
+    "snare",
+    0.93
+   ],
+   [
+    3.156,
+    "tom_high",
+    0.38
+   ],
+   [
+    3.369,
+    "closed_hat",
+    0.29
+   ],
+   [
+    3.398,
+    "tom_high",
+    0.46
+   ],
+   [
+    3.667,
+    "snare",
+    0.27
+   ],
+   [
+    3.904,
+    "closed_hat",
+    0.67
+   ],
+   [
+    3.942,
+    "kick",
+    0.65
+   ],
+   [
+    3.963,
+    "tom_high",
+    0.65
+   ],
+   [
+    4.227,
+    "snare",
+    0.19
+   ],
+   [
+    4.373,
+    "closed_hat",
+    0.33
+   ],
+   [
+    4.471,
+    "tom_high",
+    0.35
+   ],
+   [
+    4.721,
+    "tom_high",
+    0.47
+   ],
+   [
+    4.929,
+    "closed_hat",
+    0.71
+   ],
+   [
+    4.965,
+    "snare",
+    0.89
+   ],
+   [
+    5.227,
+    "tom_high",
+    0.35
+   ],
+   [
+    5.402,
+    "closed_hat",
+    0.21
+   ],
+   [
+    5.475,
+    "tom_high",
+    0.49
+   ],
+   [
+    5.752,
+    "snare",
+    0.14
+   ],
+   [
+    5.948,
+    "closed_hat",
+    0.72
+   ],
+   [
+    5.985,
+    "tom_high",
+    0.61
+   ],
+   [
+    6.229,
+    "snare",
+    0.22
+   ],
+   [
+    6.425,
+    "closed_hat",
+    0.39
+   ],
+   [
+    6.492,
+    "tom_high",
+    0.34
+   ],
+   [
+    6.733,
+    "tom_high",
+    0.62
+   ],
+   [
+    6.954,
+    "closed_hat",
+    0.72
+   ],
+   [
+    7.015,
+    "snare",
+    0.89
+   ],
+   [
+    7.235,
+    "tom_high",
+    0.43
+   ],
+   [
+    7.427,
+    "closed_hat",
+    0.24
+   ],
+   [
+    7.492,
+    "tom_high",
+    0.56
+   ],
+   [
+    7.748,
+    "snare",
+    0.25
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "the drum track (a kit)"
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "from_bar": "$from_bar",
+     "bars": "$bars"
+    }
+   }
+  ]
+ }
+}

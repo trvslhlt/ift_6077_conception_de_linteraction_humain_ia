@@ -1,0 +1,86 @@
+{
+  "key": "genre/disco",
+  "kind": "genre",
+  "summary": "Disco: 110–125 BPM four-on-the-floor with open hats, octave bass, strings and brass, ii–V–iii–vi movement",
+  "tags": [
+    "disco",
+    "70s",
+    "dance",
+    "funk",
+    "nu disco",
+    "boogie"
+  ],
+  "devices": [
+    "Playfield",
+    "Tubular",
+    "Vaporisateur"
+  ],
+  "links": [
+    "pattern/gmd-dance-disco-beat-1",
+    "pattern/prog-disco-characteristic-1",
+    "pattern/four-on-the-floor",
+    "genre/funk",
+    "genre/house",
+    "sound/tubular-slap-bass",
+    "sound/tubular-strings",
+    "sound/tubular-brass-sect",
+    "sound/tubular-clav"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (genre write-ups)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "tempo": [
+    110,
+    125
+  ],
+  "body": [
+    "Drums: kick on every beat, open hat on the off-beats, snare on 2 and 4.",
+    "Bass: octave jumps in 8ths, or a busy syncopated funk line.",
+    "Harmony: minor 7th and major 7th chords moving through ii–V–iii–vi; strings swells and brass stabs.",
+    "Guitar or clav chicken-scratch on the 16ths.",
+    "Apply: pattern/gmd-dance-disco-beat-1 on the drums, then pattern/prog-disco-characteristic-1 on the keys four bars later. It leaves tempo and sounds to you: move the tempo toward 110–125 gradually, and swap sounds from the links."
+  ],
+  "apply": {
+    "params": {
+      "drums": {
+        "type": "track",
+        "optional": true,
+        "about": "the drum track (a kit); leave out if there isn't one"
+      },
+      "keys": {
+        "type": "track",
+        "optional": true,
+        "about": "a chordal part (keys, pad); leave out if there isn't one"
+      },
+      "key": {
+        "type": "key",
+        "optional": true,
+        "about": "the project's key; leave out to estimate it from the notes"
+      }
+    },
+    "steps": [
+      {
+        "op": "entry",
+        "key": "pattern/gmd-dance-disco-beat-1",
+        "args": {
+          "track": "$drums"
+        },
+        "when": "drums",
+        "at": 0
+      },
+      {
+        "op": "entry",
+        "key": "pattern/prog-disco-characteristic-1",
+        "args": {
+          "track": "$keys",
+          "key": "$key"
+        },
+        "when": "keys",
+        "at": 4
+      }
+    ]
+  }
+}

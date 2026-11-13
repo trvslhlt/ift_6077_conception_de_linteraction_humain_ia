@@ -271,7 +271,8 @@ three source reads.
 rerun G with and without them and count calls and seconds. Per the roadmap, this helps the utility first, and Jev
 once Jev comes back.
 
-A first schema and interface (2026-11-12, draft): KNOWLEDGE.md.
+A first schema and interface (2026-11-12): KNOWLEDGE.md. The utility's side was built the same day, about 400 entries
+with imports from openDAW's DX7 banks, Groove MIDI and Chordonomicon; it has been tested offline only, not yet live.
 
 ### What the state query must return
 

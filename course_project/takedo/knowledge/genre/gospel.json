@@ -1,0 +1,83 @@
+{
+  "key": "genre/gospel",
+  "kind": "genre",
+  "summary": "Gospel: 70–110 BPM, organ and piano, churchy I–IV with secondary dominants (II7–V7), big choir pads",
+  "tags": [
+    "gospel",
+    "church",
+    "soul",
+    "organ",
+    "choir",
+    "uplifting"
+  ],
+  "devices": [
+    "Playfield",
+    "Tubular",
+    "Vaporisateur"
+  ],
+  "links": [
+    "pattern/gmd-gospel-beat-1",
+    "pattern/prog-gospel-characteristic-1",
+    "sound/tubular-drawbars",
+    "sound/tubular-pipe-organ",
+    "sound/tubular-choir",
+    "genre/neo-soul"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (genre write-ups)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "tempo": [
+    70,
+    110
+  ],
+  "body": [
+    "Drums: a shuffling or straight pocket with fills between phrases; also 6/8 for ballads.",
+    "Harmony: I–IV with passing chords, II7 and VI7 secondary dominants, plagal (IV–I) cadences; organ swells.",
+    "Sounds: Hammond organ (drawbars), piano, a choir.",
+    "Builds: key changes up a step, call and response.",
+    "Apply: pattern/gmd-gospel-beat-1 on the drums, then pattern/prog-gospel-characteristic-1 on the keys four bars later. It leaves tempo and sounds to you: move the tempo toward 70–110 gradually, and swap sounds from the links."
+  ],
+  "apply": {
+    "params": {
+      "drums": {
+        "type": "track",
+        "optional": true,
+        "about": "the drum track (a kit); leave out if there isn't one"
+      },
+      "keys": {
+        "type": "track",
+        "optional": true,
+        "about": "a chordal part (keys, pad); leave out if there isn't one"
+      },
+      "key": {
+        "type": "key",
+        "optional": true,
+        "about": "the project's key; leave out to estimate it from the notes"
+      }
+    },
+    "steps": [
+      {
+        "op": "entry",
+        "key": "pattern/gmd-gospel-beat-1",
+        "args": {
+          "track": "$drums"
+        },
+        "when": "drums",
+        "at": 0
+      },
+      {
+        "op": "entry",
+        "key": "pattern/prog-gospel-characteristic-1",
+        "args": {
+          "track": "$keys",
+          "key": "$key"
+        },
+        "when": "keys",
+        "at": 4
+      }
+    ]
+  }
+}

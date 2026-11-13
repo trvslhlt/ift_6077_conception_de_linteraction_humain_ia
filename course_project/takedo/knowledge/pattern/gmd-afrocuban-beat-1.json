@@ -1,0 +1,225 @@
+{
+ "key": "pattern/gmd-afrocuban-beat-1",
+ "kind": "pattern",
+ "summary": "Afro Cuban groove, 2 bars at 105 BPM, played by a human drummer (Groove MIDI)",
+ "tags": [
+  "afro-cuban",
+  "latin",
+  "clave",
+  "drums",
+  "groove",
+  "human",
+  "live drums"
+ ],
+ "group": "Groove MIDI drums, Afro Cuban (human drummers; 2-bar beats and 1-bar fills)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/groove.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Groove MIDI Dataset (Magenta), drummer1/session1/176_afrocuban_105_beat_4-4.mid",
+   "url": "https://magenta.tensorflow.org/datasets/groove"
+  }
+ ],
+ "body": [
+  "Played at 105 BPM; it holds up roughly ±15% from there. Uses closed_hat, kick.",
+  "Human timing and dynamics kept: hits sit a little ahead of or behind the grid, and velocities vary. Don't quantize it unless asked; that's the point of it."
+ ],
+ "pattern": {
+  "type": "drums",
+  "beats": 8,
+  "hits": [
+   [
+    0,
+    "closed_hat",
+    0.43
+   ],
+   [
+    0.227,
+    "closed_hat",
+    0.06
+   ],
+   [
+    0.448,
+    "closed_hat",
+    0.8
+   ],
+   [
+    0.721,
+    "closed_hat",
+    0.09
+   ],
+   [
+    0.954,
+    "closed_hat",
+    0.31
+   ],
+   [
+    1.196,
+    "closed_hat",
+    0.6
+   ],
+   [
+    1.473,
+    "closed_hat",
+    0.11
+   ],
+   [
+    1.706,
+    "closed_hat",
+    0.27
+   ],
+   [
+    1.971,
+    "closed_hat",
+    0.73
+   ],
+   [
+    2.225,
+    "closed_hat",
+    0.19
+   ],
+   [
+    2.494,
+    "closed_hat",
+    0.17
+   ],
+   [
+    2.725,
+    "closed_hat",
+    0.61
+   ],
+   [
+    3.006,
+    "closed_hat",
+    0.09
+   ],
+   [
+    3.263,
+    "closed_hat",
+    0.57
+   ],
+   [
+    3.523,
+    "closed_hat",
+    0.25
+   ],
+   [
+    3.754,
+    "closed_hat",
+    0.37
+   ],
+   [
+    3.996,
+    "closed_hat",
+    0.8
+   ],
+   [
+    4.26,
+    "closed_hat",
+    0.09
+   ],
+   [
+    4.49,
+    "closed_hat",
+    0.77
+   ],
+   [
+    4.725,
+    "kick",
+    0.34
+   ],
+   [
+    4.996,
+    "closed_hat",
+    0.39
+   ],
+   [
+    5.221,
+    "closed_hat",
+    0.69
+   ],
+   [
+    5.481,
+    "closed_hat",
+    0.09
+   ],
+   [
+    5.704,
+    "closed_hat",
+    0.34
+   ],
+   [
+    5.944,
+    "closed_hat",
+    0.75
+   ],
+   [
+    6.2,
+    "closed_hat",
+    0.17
+   ],
+   [
+    6.454,
+    "closed_hat",
+    0.38
+   ],
+   [
+    6.698,
+    "closed_hat",
+    0.61
+   ],
+   [
+    6.742,
+    "kick",
+    0.38
+   ],
+   [
+    7.194,
+    "closed_hat",
+    0.85
+   ],
+   [
+    7.446,
+    "closed_hat",
+    0.34
+   ],
+   [
+    7.704,
+    "closed_hat",
+    0.37
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "the drum track (a kit)"
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "from_bar": "$from_bar",
+     "bars": "$bars"
+    }
+   }
+  ]
+ }
+}

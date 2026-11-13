@@ -1,0 +1,83 @@
+{
+  "key": "pattern/jazz-ii-v-i",
+  "kind": "pattern",
+  "summary": "ii7 → V7 → Imaj7 (1 bar, 1 bar, 2 bars): the jazz cadence",
+  "tags": [
+    "jazz",
+    "lofi",
+    "neo soul",
+    "bossa nova",
+    "cadence",
+    "chords",
+    "progression"
+  ],
+  "devices": [],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (knowledge seed)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "body": [
+    "Smoother with 9ths (ii9, V9, Imaj9). Major keys; in minor, iiø7 → V7 → i7."
+  ],
+  "pattern": {
+    "type": "chords",
+    "beats": 16,
+    "chords": [
+      [
+        0,
+        "ii7",
+        4
+      ],
+      [
+        4,
+        "V7",
+        4
+      ],
+      [
+        8,
+        "Imaj7",
+        8
+      ]
+    ]
+  },
+  "apply": {
+    "params": {
+      "track": {
+        "type": "track",
+        "about": "a chordal part (keys, pad)"
+      },
+      "key": {
+        "type": "key",
+        "about": "the project's key, e.g. \"G major\""
+      },
+      "from_bar": {
+        "type": "number",
+        "optional": true
+      },
+      "bars": {
+        "type": "number",
+        "optional": true
+      },
+      "octave": {
+        "type": "number",
+        "optional": true,
+        "default": 3
+      }
+    },
+    "steps": [
+      {
+        "op": "pattern",
+        "input": {
+          "track": "$track",
+          "key": "$key",
+          "from_bar": "$from_bar",
+          "bars": "$bars",
+          "octave": "$octave"
+        }
+      }
+    ]
+  }
+}

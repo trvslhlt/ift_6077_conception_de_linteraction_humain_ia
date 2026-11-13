@@ -1,0 +1,127 @@
+{
+  "key": "pattern/dnb-two-step",
+  "kind": "pattern",
+  "summary": "Drum & bass two-step, 1 bar at 170: kick on 1 and the and of 3, snare on 2 and 4, driving 8th hats",
+  "tags": [
+    "drum and bass",
+    "dnb",
+    "jungle",
+    "two-step",
+    "breakbeat",
+    "drums",
+    "fast"
+  ],
+  "devices": [],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (genre write-ups)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "body": [
+    "Felt at half the tempo (85) with the snares on the backbeat. Ghost snare before the bar line; a shaker in 16ths adds the roll."
+  ],
+  "pattern": {
+    "type": "drums",
+    "beats": 4,
+    "hits": [
+      [
+        0,
+        "kick",
+        0.95
+      ],
+      [
+        2.5,
+        "kick",
+        0.85
+      ],
+      [
+        1,
+        "snare",
+        0.95
+      ],
+      [
+        3,
+        "snare",
+        0.95
+      ],
+      [
+        3.75,
+        "snare",
+        0.35
+      ],
+      [
+        0,
+        "closed_hat",
+        0.55
+      ],
+      [
+        0.5,
+        "closed_hat",
+        0.385
+      ],
+      [
+        1,
+        "closed_hat",
+        0.55
+      ],
+      [
+        1.5,
+        "closed_hat",
+        0.385
+      ],
+      [
+        2,
+        "closed_hat",
+        0.55
+      ],
+      [
+        2.5,
+        "closed_hat",
+        0.385
+      ],
+      [
+        3,
+        "closed_hat",
+        0.55
+      ],
+      [
+        3.5,
+        "closed_hat",
+        0.385
+      ],
+      [
+        1.5,
+        "open_hat",
+        0.45
+      ]
+    ]
+  },
+  "apply": {
+    "params": {
+      "track": {
+        "type": "track",
+        "about": "the drum track (a kit)"
+      },
+      "from_bar": {
+        "type": "number",
+        "optional": true
+      },
+      "bars": {
+        "type": "number",
+        "optional": true
+      }
+    },
+    "steps": [
+      {
+        "op": "pattern",
+        "input": {
+          "track": "$track",
+          "from_bar": "$from_bar",
+          "bars": "$bars"
+        }
+      }
+    ]
+  }
+}

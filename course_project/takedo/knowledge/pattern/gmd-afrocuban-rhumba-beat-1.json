@@ -1,0 +1,176 @@
+{
+ "key": "pattern/gmd-afrocuban-rhumba-beat-1",
+ "kind": "pattern",
+ "summary": "Afro Cuban (rhumba) groove, 2 bars at 110 BPM, played by a human drummer (Groove MIDI)",
+ "tags": [
+  "afro-cuban",
+  "latin",
+  "clave",
+  "rhumba",
+  "drums",
+  "groove",
+  "human",
+  "live drums"
+ ],
+ "group": "Groove MIDI drums, Afro Cuban (human drummers; 2-bar beats and 1-bar fills)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/groove.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Groove MIDI Dataset (Magenta), drummer1/session2/161_afrocuban-rhumba_110_beat_4-4.mid",
+   "url": "https://magenta.tensorflow.org/datasets/groove"
+  }
+ ],
+ "body": [
+  "Played at 110 BPM; it holds up roughly ±15% from there. Uses rim.",
+  "Human timing and dynamics kept: hits sit a little ahead of or behind the grid, and velocities vary. Don't quantize it unless asked; that's the point of it."
+ ],
+ "pattern": {
+  "type": "drums",
+  "beats": 8,
+  "hits": [
+   [
+    0.054,
+    "rim",
+    0.53
+   ],
+   [
+    0.323,
+    "rim",
+    0.27
+   ],
+   [
+    0.731,
+    "rim",
+    0.49
+   ],
+   [
+    1.015,
+    "rim",
+    0.5
+   ],
+   [
+    1.283,
+    "rim",
+    0.45
+   ],
+   [
+    1.721,
+    "rim",
+    0.44
+   ],
+   [
+    2.008,
+    "rim",
+    0.5
+   ],
+   [
+    2.458,
+    "rim",
+    0.46
+   ],
+   [
+    2.969,
+    "rim",
+    0.5
+   ],
+   [
+    3.221,
+    "rim",
+    0.38
+   ],
+   [
+    3.688,
+    "rim",
+    0.4
+   ],
+   [
+    3.998,
+    "rim",
+    0.5
+   ],
+   [
+    4.231,
+    "rim",
+    0.34
+   ],
+   [
+    4.702,
+    "rim",
+    0.44
+   ],
+   [
+    5.002,
+    "rim",
+    0.49
+   ],
+   [
+    5.231,
+    "rim",
+    0.37
+   ],
+   [
+    5.704,
+    "rim",
+    0.39
+   ],
+   [
+    6.002,
+    "rim",
+    0.49
+   ],
+   [
+    6.46,
+    "rim",
+    0.48
+   ],
+   [
+    6.983,
+    "rim",
+    0.49
+   ],
+   [
+    7.227,
+    "rim",
+    0.41
+   ],
+   [
+    7.704,
+    "rim",
+    0.44
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "the drum track (a kit)"
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "from_bar": "$from_bar",
+     "bars": "$bars"
+    }
+   }
+  ]
+ }
+}

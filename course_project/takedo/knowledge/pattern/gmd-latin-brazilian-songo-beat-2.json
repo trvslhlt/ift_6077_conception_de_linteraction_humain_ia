@@ -1,0 +1,315 @@
+{
+ "key": "pattern/gmd-latin-brazilian-songo-beat-2",
+ "kind": "pattern",
+ "summary": "latin (brazilian songo) groove, 2 bars at 120 BPM, played by a human drummer (Groove MIDI)",
+ "tags": [
+  "latin",
+  "brazilian",
+  "brazilian songo",
+  "drums",
+  "groove",
+  "human",
+  "live drums"
+ ],
+ "group": "Groove MIDI drums, latin (human drummers; 2-bar beats and 1-bar fills)",
+ "devices": [],
+ "links": [],
+ "checked": {
+  "how": "imported",
+  "by": "knowledge/import/groove.mjs",
+  "date": "2026-11-12",
+  "opendaw": "652e6ca"
+ },
+ "sources": [
+  {
+   "title": "Groove MIDI Dataset (Magenta), drummer5/session2/24_latin-brazilian-songo_120_beat_4-4.mid",
+   "url": "https://magenta.tensorflow.org/datasets/groove"
+  }
+ ],
+ "body": [
+  "Played at 120 BPM; it holds up roughly ±15% from there. Uses closed_hat, kick, rim, snare, tom_high.",
+  "Human timing and dynamics kept: hits sit a little ahead of or behind the grid, and velocities vary. Don't quantize it unless asked; that's the point of it."
+ ],
+ "pattern": {
+  "type": "drums",
+  "beats": 8,
+  "hits": [
+   [
+    0.027,
+    "kick",
+    0.31
+   ],
+   [
+    0.044,
+    "snare",
+    0.53
+   ],
+   [
+    0.354,
+    "snare",
+    0.14
+   ],
+   [
+    0.496,
+    "closed_hat",
+    0.43
+   ],
+   [
+    0.513,
+    "snare",
+    0.19
+   ],
+   [
+    0.777,
+    "snare",
+    0.07
+   ],
+   [
+    0.813,
+    "kick",
+    0.26
+   ],
+   [
+    1.025,
+    "snare",
+    0.64
+   ],
+   [
+    1.267,
+    "snare",
+    0.17
+   ],
+   [
+    1.546,
+    "closed_hat",
+    0.53
+   ],
+   [
+    1.55,
+    "snare",
+    0.31
+   ],
+   [
+    1.748,
+    "snare",
+    0.82
+   ],
+   [
+    2.025,
+    "snare",
+    0.29
+   ],
+   [
+    2.227,
+    "snare",
+    0.92
+   ],
+   [
+    2.31,
+    "rim",
+    0.43
+   ],
+   [
+    2.492,
+    "snare",
+    0.34
+   ],
+   [
+    2.694,
+    "kick",
+    0.28
+   ],
+   [
+    2.727,
+    "snare",
+    0.25
+   ],
+   [
+    2.965,
+    "closed_hat",
+    0.63
+   ],
+   [
+    2.99,
+    "snare",
+    0.76
+   ],
+   [
+    3.198,
+    "snare",
+    0.28
+   ],
+   [
+    3.385,
+    "kick",
+    0.22
+   ],
+   [
+    3.454,
+    "snare",
+    0.34
+   ],
+   [
+    3.685,
+    "snare",
+    0.73
+   ],
+   [
+    3.925,
+    "closed_hat",
+    0.65
+   ],
+   [
+    3.954,
+    "snare",
+    0.86
+   ],
+   [
+    4.404,
+    "snare",
+    0.26
+   ],
+   [
+    4.642,
+    "kick",
+    0.24
+   ],
+   [
+    4.675,
+    "snare",
+    0.08
+   ],
+   [
+    4.958,
+    "snare",
+    0.77
+   ],
+   [
+    4.958,
+    "closed_hat",
+    0.59
+   ],
+   [
+    5.19,
+    "snare",
+    0.12
+   ],
+   [
+    5.302,
+    "snare",
+    0.09
+   ],
+   [
+    5.396,
+    "kick",
+    0.17
+   ],
+   [
+    5.454,
+    "snare",
+    0.31
+   ],
+   [
+    5.721,
+    "snare",
+    0.48
+   ],
+   [
+    5.919,
+    "closed_hat",
+    0.61
+   ],
+   [
+    5.95,
+    "snare",
+    0.33
+   ],
+   [
+    6.173,
+    "snare",
+    0.84
+   ],
+   [
+    6.283,
+    "snare",
+    0.39
+   ],
+   [
+    6.425,
+    "snare",
+    0.3
+   ],
+   [
+    6.654,
+    "snare",
+    0.28
+   ],
+   [
+    6.66,
+    "kick",
+    0.28
+   ],
+   [
+    6.935,
+    "closed_hat",
+    0.55
+   ],
+   [
+    6.938,
+    "snare",
+    0.97
+   ],
+   [
+    7.165,
+    "snare",
+    0.36
+   ],
+   [
+    7.423,
+    "snare",
+    0.41
+   ],
+   [
+    7.446,
+    "kick",
+    0.26
+   ],
+   [
+    7.692,
+    "tom_high",
+    0.73
+   ],
+   [
+    7.898,
+    "closed_hat",
+    0.67
+   ]
+  ]
+ },
+ "apply": {
+  "params": {
+   "track": {
+    "type": "track",
+    "about": "the drum track (a kit)"
+   },
+   "from_bar": {
+    "type": "number",
+    "optional": true
+   },
+   "bars": {
+    "type": "number",
+    "optional": true
+   }
+  },
+  "steps": [
+   {
+    "op": "pattern",
+    "input": {
+     "track": "$track",
+     "from_bar": "$from_bar",
+     "bars": "$bars"
+    }
+   }
+  ]
+ }
+}

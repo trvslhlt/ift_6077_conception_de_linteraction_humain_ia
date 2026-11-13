@@ -7,3 +7,5 @@ sessions/
 # Editor types copied out of the studio image by `make types`
 .opendaw/
 node_modules
+.datasets/
+knowledge/bench/results/

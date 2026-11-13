@@ -1,0 +1,64 @@
+{
+  "key": "sound/tubular-tubular",
+  "kind": "sound",
+  "summary": "Tubular (Tubular Classics, openDAW's own DX7 voice): bells",
+  "group": "Tubular Classics sounds, bells (DX7 voices on a Tubular)",
+  "tags": [
+    "bells",
+    "mallets",
+    "chime",
+    "pluck",
+    "ambient",
+    "pop",
+    "lofi",
+    "tropical",
+    "downtempo",
+    "tubular",
+    "fm",
+    "dx7"
+  ],
+  "devices": [
+    "Tubular"
+  ],
+  "links": [],
+  "checked": {
+    "how": "imported",
+    "by": "knowledge/import/dx7.mjs",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "sources": [
+    {
+      "title": "openDAW Tubular Classics cartridge (packages/studio/adapters/scripts/tubular-classics.mts)",
+      "url": "https://github.com/andremichelle/openDAW/blob/main/packages/studio/adapters/scripts/tubular-classics.mts"
+    }
+  ],
+  "body": [
+    "Good for melodies, arpeggios and sparkle on top; short decays sit well above C4. Usual in: ambient, pop, lofi, tropical, downtempo.",
+    "Loads the whole voice (all six operators, envelopes, algorithm) onto a Tubular: a track's own Tubular, or a new Tubular track when no track is given. To change it after, set Tubular's fields (catalog paths) with the instrument op or a script."
+  ],
+  "apply": {
+    "params": {
+      "track": {
+        "type": "track",
+        "optional": true,
+        "about": "a track whose instrument is a Tubular; leave out to add a new track"
+      },
+      "name": {
+        "type": "text",
+        "optional": true,
+        "about": "the new track's name"
+      }
+    },
+    "steps": [
+      {
+        "op": "dx7",
+        "input": {
+          "track": "$track",
+          "voice": "Tubular_Classics/Tubular",
+          "name": "$name"
+        }
+      }
+    ]
+  }
+}
