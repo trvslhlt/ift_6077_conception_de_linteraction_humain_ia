@@ -1,14 +1,16 @@
 {
  "key": "pattern/gmd-blues-shuffle-beat-2",
  "kind": "pattern",
- "summary": "blues (shuffle) groove, 2 bars at 112 BPM, played by a human drummer (Groove MIDI)",
+ "summary": "blues (shuffle) groove, 2 bars at 112 BPM (medium, 8ths on the ride, swung, ghost notes on the snare), played by a human drummer (Groove MIDI)",
  "tags": [
   "blues",
   "shuffle",
   "drums",
   "groove",
   "human",
-  "live drums"
+  "live drums",
+  "swing",
+  "ghost notes"
  ],
  "group": "Groove MIDI drums, blues (human drummers; 2-bar beats and 1-bar fills)",
  "devices": [],

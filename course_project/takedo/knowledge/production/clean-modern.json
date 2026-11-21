@@ -12,10 +12,15 @@
     "pop",
     "edm"
   ],
-  "devices": [],
+  "devices": [
+    "Compressor",
+    "StereoTool"
+  ],
   "links": [
     "genre/pop",
-    "genre/house"
+    "genre/house",
+    "chain/drum-punch",
+    "chain/wide"
   ],
   "checked": {
     "how": "written",
@@ -26,6 +31,37 @@
   "body": [
     "The opposite of production/lofi: remove crushers and low-passes, raise the high end, keep the low end mono and tight.",
     "Kick and bass don't overlap (sidechain the bass and pads to the kick), drums punchy and up front, short reverbs.",
-    "No chain for it yet: mostly removing dusty effects, then EQ and compression."
-  ]
+    "Apply: chain/drum-punch on the drums and a touch of chain/wide on the master. Removing the dusty effects (Crusher, low-passes) is yours to do first."
+  ],
+  "apply": {
+    "params": {
+      "drums": {
+        "type": "track",
+        "optional": true,
+        "about": "the drum track"
+      },
+      "amount": {
+        "type": "amount"
+      }
+    },
+    "steps": [
+      {
+        "op": "entry",
+        "key": "chain/drum-punch",
+        "args": {
+          "track": "$drums",
+          "amount": "$amount"
+        },
+        "when": "drums"
+      },
+      {
+        "op": "entry",
+        "key": "chain/wide",
+        "args": {
+          "track": "master",
+          "amount": 0
+        }
+      }
+    ]
+  }
 }

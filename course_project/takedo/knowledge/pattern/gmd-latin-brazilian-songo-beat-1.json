@@ -1,7 +1,7 @@
 {
  "key": "pattern/gmd-latin-brazilian-songo-beat-1",
  "kind": "pattern",
- "summary": "latin (brazilian songo) groove, 2 bars at 120 BPM, played by a human drummer (Groove MIDI)",
+ "summary": "latin (brazilian songo) groove, 2 bars at 120 BPM (medium, ghost notes on the snare, a sparse kick), played by a human drummer (Groove MIDI)",
  "tags": [
   "latin",
   "brazilian",
@@ -9,7 +9,8 @@
   "drums",
   "groove",
   "human",
-  "live drums"
+  "live drums",
+  "ghost notes"
  ],
  "group": "Groove MIDI drums, latin (human drummers; 2-bar beats and 1-bar fills)",
  "devices": [],

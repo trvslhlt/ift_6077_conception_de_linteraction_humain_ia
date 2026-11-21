@@ -1,13 +1,15 @@
 {
  "key": "pattern/gmd-pop-fill",
  "kind": "pattern",
- "summary": "pop fill, 1 bar at 142 BPM, played by a human drummer (Groove MIDI)",
+ "summary": "pop fill, 1 bar at 142 BPM (sparse, a sparse kick), played by a human drummer (Groove MIDI)",
  "tags": [
   "pop",
   "drums",
   "fill",
   "human",
-  "live drums"
+  "live drums",
+  "sparse",
+  "simple"
  ],
  "group": "Groove MIDI drums, pop (human drummers; 2-bar beats and 1-bar fills)",
  "devices": [],

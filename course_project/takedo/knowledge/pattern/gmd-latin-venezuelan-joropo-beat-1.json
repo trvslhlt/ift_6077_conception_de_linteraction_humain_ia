@@ -1,7 +1,7 @@
 {
  "key": "pattern/gmd-latin-venezuelan-joropo-beat-1",
  "kind": "pattern",
- "summary": "latin (venezuelan joropo) groove, 2 bars at 80 BPM, played by a human drummer (Groove MIDI)",
+ "summary": "latin (venezuelan joropo) groove, 2 bars at 80 BPM (busy, 16ths on the hats, lightly swung, a busy kick), played by a human drummer (Groove MIDI)",
  "tags": [
   "latin",
   "brazilian",
@@ -9,7 +9,10 @@
   "drums",
   "groove",
   "human",
-  "live drums"
+  "live drums",
+  "busy",
+  "16ths",
+  "swing"
  ],
  "group": "Groove MIDI drums, latin (human drummers; 2-bar beats and 1-bar fills)",
  "devices": [],

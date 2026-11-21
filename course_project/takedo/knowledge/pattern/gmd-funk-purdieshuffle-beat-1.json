@@ -1,7 +1,7 @@
 {
  "key": "pattern/gmd-funk-purdieshuffle-beat-1",
  "kind": "pattern",
- "summary": "funk (purdieshuffle) groove, 2 bars at 130 BPM, played by a human drummer (Groove MIDI)",
+ "summary": "funk (purdieshuffle) groove, 2 bars at 130 BPM (medium, 8ths on the hats, swung, ghost notes on the snare), played by a human drummer (Groove MIDI)",
  "tags": [
   "funk",
   "groove",
@@ -9,7 +9,10 @@
   "purdieshuffle",
   "drums",
   "human",
-  "live drums"
+  "live drums",
+  "swing",
+  "shuffle",
+  "ghost notes"
  ],
  "group": "Groove MIDI drums, funk (human drummers; 2-bar beats and 1-bar fills)",
  "devices": [],

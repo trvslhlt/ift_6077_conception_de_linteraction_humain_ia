@@ -1,7 +1,7 @@
 {
  "key": "pattern/gmd-latin-bounce-beat-1",
  "kind": "pattern",
- "summary": "latin (bounce) groove, 2 bars at 106 BPM, played by a human drummer (Groove MIDI)",
+ "summary": "latin (bounce) groove, 2 bars at 106 BPM (busy, 8ths on the hats, straight, ghost notes on the snare), played by a human drummer (Groove MIDI)",
  "tags": [
   "latin",
   "brazilian",
@@ -9,7 +9,10 @@
   "drums",
   "groove",
   "human",
-  "live drums"
+  "live drums",
+  "busy",
+  "straight",
+  "ghost notes"
  ],
  "group": "Groove MIDI drums, latin (human drummers; 2-bar beats and 1-bar fills)",
  "devices": [],

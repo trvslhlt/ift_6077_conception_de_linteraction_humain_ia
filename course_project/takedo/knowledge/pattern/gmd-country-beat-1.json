@@ -1,14 +1,15 @@
 {
  "key": "pattern/gmd-country-beat-1",
  "kind": "pattern",
- "summary": "country groove, 2 bars at 114 BPM, played by a human drummer (Groove MIDI)",
+ "summary": "country groove, 2 bars at 114 BPM (medium, ghost notes on the snare), played by a human drummer (Groove MIDI)",
  "tags": [
   "country",
   "train beat",
   "drums",
   "groove",
   "human",
-  "live drums"
+  "live drums",
+  "ghost notes"
  ],
  "group": "Groove MIDI drums, country (human drummers; 2-bar beats and 1-bar fills)",
  "devices": [],

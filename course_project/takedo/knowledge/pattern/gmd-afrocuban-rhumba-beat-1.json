@@ -1,7 +1,7 @@
 {
  "key": "pattern/gmd-afrocuban-rhumba-beat-1",
  "kind": "pattern",
- "summary": "Afro Cuban (rhumba) groove, 2 bars at 110 BPM, played by a human drummer (Groove MIDI)",
+ "summary": "Afro Cuban (rhumba) groove, 2 bars at 110 BPM (only rim, sparse), played by a human drummer (Groove MIDI)",
  "tags": [
   "afro-cuban",
   "latin",
@@ -10,7 +10,9 @@
   "drums",
   "groove",
   "human",
-  "live drums"
+  "live drums",
+  "sparse",
+  "simple"
  ],
  "group": "Groove MIDI drums, Afro Cuban (human drummers; 2-bar beats and 1-bar fills)",
  "devices": [],

@@ -1,7 +1,7 @@
 {
  "key": "pattern/gmd-jazz-march-beat-2",
  "kind": "pattern",
- "summary": "jazz (march) groove, 2 bars at 88 BPM, played by a human drummer (Groove MIDI)",
+ "summary": "jazz (march) groove, 2 bars at 88 BPM (only snare and kick, busy, ghost notes on the snare), played by a human drummer (Groove MIDI)",
  "tags": [
   "jazz",
   "swing",
@@ -9,7 +9,9 @@
   "drums",
   "groove",
   "human",
-  "live drums"
+  "live drums",
+  "busy",
+  "ghost notes"
  ],
  "group": "Groove MIDI drums, jazz (human drummers; 2-bar beats and 1-bar fills)",
  "devices": [],

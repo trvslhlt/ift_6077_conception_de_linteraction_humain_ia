@@ -1,7 +1,7 @@
 {
  "key": "pattern/gmd-latin-brazilian-ijexa-beat-1",
  "kind": "pattern",
- "summary": "latin (brazilian ijexa) groove, 2 bars at 108 BPM, played by a human drummer (Groove MIDI)",
+ "summary": "latin (brazilian ijexa) groove, 2 bars at 108 BPM (medium, 8ths on the hats, straight, a sparse kick), played by a human drummer (Groove MIDI)",
  "tags": [
   "latin",
   "brazilian",
@@ -9,7 +9,8 @@
   "drums",
   "groove",
   "human",
-  "live drums"
+  "live drums",
+  "straight"
  ],
  "group": "Groove MIDI drums, latin (human drummers; 2-bar beats and 1-bar fills)",
  "devices": [],

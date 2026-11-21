@@ -35,6 +35,7 @@ services:
     environment:
       # Who's in play: "utility" alone, or the full "team" (backend/src/coordinator.ts, Roster).
       TAKEDO_ROSTER: ${ROSTER:-utility}
+      TAKEDO_KNOWLEDGE_ROUTE: ${KNOWLEDGE_ROUTE:-off}
     volumes:
       - ./backend/src:/app/backend/src:ro
       - ./shared:/app/shared:ro

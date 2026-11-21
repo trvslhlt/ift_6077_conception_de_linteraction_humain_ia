@@ -1,14 +1,16 @@
 {
  "key": "pattern/gmd-jazz-beat-2",
  "kind": "pattern",
- "summary": "jazz groove, 2 bars at 120 BPM, played by a human drummer (Groove MIDI)",
+ "summary": "jazz groove, 2 bars at 120 BPM (only closed_hat, sparse, 8ths on the hats, lightly swung), played by a human drummer (Groove MIDI)",
  "tags": [
   "jazz",
   "swing",
   "drums",
   "groove",
   "human",
-  "live drums"
+  "live drums",
+  "sparse",
+  "simple"
  ],
  "group": "Groove MIDI drums, jazz (human drummers; 2-bar beats and 1-bar fills)",
  "devices": [],

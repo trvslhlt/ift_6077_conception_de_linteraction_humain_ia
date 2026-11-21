@@ -1,7 +1,7 @@
 {
  "key": "pattern/gmd-rock-prog-beat-2",
  "kind": "pattern",
- "summary": "rock (prog) groove, 2 bars at 125 BPM, played by a human drummer (Groove MIDI)",
+ "summary": "rock (prog) groove, 2 bars at 125 BPM (busy, 8ths on the hats, swung, ghost notes on the snare, a sparse kick), played by a human drummer (Groove MIDI)",
  "tags": [
   "rock",
   "indie",
@@ -9,7 +9,11 @@
   "drums",
   "groove",
   "human",
-  "live drums"
+  "live drums",
+  "busy",
+  "swing",
+  "shuffle",
+  "ghost notes"
  ],
  "group": "Groove MIDI drums, rock (human drummers; 2-bar beats and 1-bar fills)",
  "devices": [],

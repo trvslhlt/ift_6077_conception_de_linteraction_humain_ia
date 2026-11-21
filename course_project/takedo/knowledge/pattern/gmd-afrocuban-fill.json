@@ -1,7 +1,7 @@
 {
  "key": "pattern/gmd-afrocuban-fill",
  "kind": "pattern",
- "summary": "Afro Cuban fill, 1 bar at 105 BPM, played by a human drummer (Groove MIDI)",
+ "summary": "Afro Cuban fill, 1 bar at 105 BPM (medium, 8ths on the hats, ghost notes on the snare), played by a human drummer (Groove MIDI)",
  "tags": [
   "afro-cuban",
   "latin",
@@ -9,7 +9,8 @@
   "drums",
   "fill",
   "human",
-  "live drums"
+  "live drums",
+  "ghost notes"
  ],
  "group": "Groove MIDI drums, Afro Cuban (human drummers; 2-bar beats and 1-bar fills)",
  "devices": [],

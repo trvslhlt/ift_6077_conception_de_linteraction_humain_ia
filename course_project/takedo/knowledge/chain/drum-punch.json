@@ -1,0 +1,91 @@
+{
+  "key": "chain/drum-punch",
+  "kind": "chain",
+  "summary": "Punchier drums: a compressor with a slow attack that lets the hit through, then squeezes the tail",
+  "tags": [
+    "punch",
+    "punchy",
+    "compression",
+    "drums",
+    "glue",
+    "tight",
+    "hard",
+    "modern"
+  ],
+  "devices": [
+    "Compressor"
+  ],
+  "links": [
+    "production/clean-modern"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (chains from the bench's gaps)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "body": [
+    "15 ms attack keeps the transient, 80 ms release lets it breathe between hits, auto makeup keeps the level.",
+    "amount sets the threshold and ratio: 0 gentle glue, 3 squashed. For drums or the master; on the master keep amount ≤ 1."
+  ],
+  "apply": {
+    "params": {
+      "track": {
+        "type": "track",
+        "about": "the part to put it on, or master"
+      },
+      "amount": {
+        "type": "amount"
+      }
+    },
+    "steps": [
+      {
+        "op": "add_effect",
+        "input": {
+          "track": "$track",
+          "effect": "Compressor",
+          "settings": [
+            {
+              "param": "attack",
+              "value": 15
+            },
+            {
+              "param": "release",
+              "value": 80
+            },
+            {
+              "param": "knee",
+              "value": 6
+            },
+            {
+              "param": "ratio",
+              "value": {
+                "dial": [
+                  2.5,
+                  6
+                ]
+              }
+            },
+            {
+              "param": "threshold",
+              "value": {
+                "dial": [
+                  -12,
+                  -26
+                ]
+              }
+            },
+            {
+              "param": "automakeup",
+              "value": 1
+            },
+            {
+              "param": "mix",
+              "value": 1
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

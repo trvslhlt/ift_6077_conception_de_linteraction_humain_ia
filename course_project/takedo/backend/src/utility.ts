@@ -36,7 +36,7 @@ type Current = { context: Coordinator, task: Task, work: Work, calls: number }
 type Session = { inbox: Inbox, query: Query }
 
 // The knowledge base's part of the prompt, left out when there's none (an A/B run with KNOWLEDGE_DIR on an empty folder).
-const KnowledgeTools = `- knowledge, apply_knowledge, learn: the team's knowledge base, shared across projects (\`knowledge\` with your first message lists every entry as "key: summary", with a family of similar entries on one line of keys; later messages add new ones). Kinds: genre (what's played: tempo, groove, harmony, parts) and production (how it's treated: sound, effects, mix; lofi is a production style, hip hop a genre); sound (an instrument set up: openDAW's ~1,200 bundled DX7 voices for Tubular among them); chain (effects with settings); pattern (drum grooves by role, chord progressions as numerals); note (openDAW facts: step tables, units, fields). Check it before reading source, researching or writing a sound, chain or pattern from scratch: read several entries in one knowledge call; apply_knowledge runs an entry's edits (fixed operations and scripts, timed from the bar you give, like your own); entries without apply are for reading. Adapt freely: an entry is a starting point, not a rule. Entries marked draft, and anything checked only "written" or "imported", haven't been heard: listen-worthy, not proven. learn keeps something that worked (a sound, a chain, a pattern you wrote) as a draft entry for later sessions and other projects.
+const KnowledgeTools = `- knowledge, apply_knowledge, learn: the team's knowledge base, shared across projects (\`knowledge\` with your first message lists every entry as "key: summary", with a family of similar entries on one line of keys; later messages add new ones). Kinds: genre (what's played: tempo, groove, harmony, parts) and production (how it's treated: sound, effects, mix; lofi is a production style, hip hop a genre); sound (an instrument set up: openDAW's ~1,200 bundled DX7 voices for Tubular among them); chain (effects with settings); pattern (drum grooves by role, chord progressions as numerals); note (openDAW facts: step tables, units, fields). Check it before reading source, researching or writing a sound, chain or pattern from scratch: read several entries in one knowledge call; apply_knowledge runs an entry's edits (fixed operations and scripts, timed from the bar you give, like your own); entries without apply are for reading. Adapt freely: an entry is a starting point, not a rule. Entries marked draft, and anything checked only "written" or "imported", haven't been heard: listen-worthy, not proven. learn keeps something that worked (a sound, a chain, a pattern you wrote) as a draft entry for later sessions and other projects. A message may carry knowledge_candidates: entries a fast judge thought likely for it, best first; look at them before searching, but it is often wrong. When it is sure, the fast route applies an entry without you, and since_your_last_reply says what it did.
 `
 const KnowledgeKey = "- A chord pattern needs the project's key: leave it out and it's estimated from the notes (the result says which), or pass it.\n"
 const KnowledgeSlot = "\u0000knowledge-tools", KeySlot = "\u0000knowledge-key"
@@ -185,6 +185,32 @@ export class Utility implements Member {
         return next
     }
 
+    // The knowledge route (router.ts, pickKnowledge): an entry Jev was sure of, applied with no model turn, queued
+    // like a message. The session hears about it with the next message, so the model knows what changed.
+    applyEntry(context: Coordinator, task: Task, key: string, args: Record<string, unknown>, snapshot: Snapshot): Promise<void> {
+        const next = this.#queue.then(async () => {
+            if (this.#owners.size === 0) {
+                this.#team.forEach(owner => owner.tools(withEveryTool(snapshot)).forEach(member => {
+                    if (!this.#owners.has(member.name)) {this.#owners.set(member.name, owner)}
+                }))
+            }
+            const work: Work = {done: [], pending: [], late: []}
+            const current: Current = {context, task, work, calls: 0}
+            this.#current = current
+            try {
+                const result = await this.#applyKnowledge(current, key, args, 0)
+                this.#unheard.push(`The fast route applied ${key} for the producer's message ${JSON.stringify(task.message)}, without you: ${result}`)
+                const failed = result.startsWith("Not applied")
+                await this.#finish(context, failed ? `I couldn't apply ${key}: ${result.replace(/^Not applied: /, "")}`
+                    : `Applied ${key.split("/")[1].replace(/-/g, " ")} (${key.split("/")[0]}): ${work.done.join("; ") || "under way"}.`, work)
+            } finally {
+                this.#current = null
+            }
+        })
+        this.#queue = next.catch(() => {})
+        return next
+    }
+
     async #work(context: Coordinator, task: Task, snapshot: Snapshot): Promise<void> {
         context.card({agent: this.agent, name: this.name, doing: "looking…"})
         const fresh = this.#session === null
@@ -195,6 +221,7 @@ export class Utility implements Member {
             ...(fresh && task.history !== undefined && task.history.length > 0 ? {conversation: task.history} : {}),
             ...(this.#unheard.length > 0 ? {since_your_last_reply: this.#unheard.splice(0)} : {}),
             producer_message: task.message, ...(task.piece !== null ? {your_task: task.piece} : {}),
+            ...(task.candidates !== undefined && task.candidates.length > 0 ? {knowledge_candidates: task.candidates} : {}),
             project: {...projectFor(snapshot, true), regions: snapshot.tracks.map(track => ({track: track.ref,
                 regions: track.regions.map(({ref, name, from, to, loop}) => ({ref, name, from, to, loop}))}))},
             notebook: context.notebook?.list() ?? [],

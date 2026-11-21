@@ -1,7 +1,7 @@
 {
  "key": "pattern/gmd-hiphop-beat-1",
  "kind": "pattern",
- "summary": "hip hop groove, 2 bars at 92 BPM, played by a human drummer (Groove MIDI)",
+ "summary": "hip hop groove, 2 bars at 92 BPM (medium, 8ths on the hats, straight), played by a human drummer (Groove MIDI)",
  "tags": [
   "hip hop",
   "boom bap",
@@ -9,7 +9,8 @@
   "drums",
   "groove",
   "human",
-  "live drums"
+  "live drums",
+  "straight"
  ],
  "group": "Groove MIDI drums, hip hop (human drummers; 2-bar beats and 1-bar fills)",
  "devices": [],

@@ -1,7 +1,7 @@
 {
  "key": "pattern/gmd-punk-fill",
  "kind": "pattern",
- "summary": "punk fill, 1 bar at 144 BPM, played by a human drummer (Groove MIDI)",
+ "summary": "punk fill, 1 bar at 144 BPM (sparse, a sparse kick), played by a human drummer (Groove MIDI)",
  "tags": [
   "punk",
   "fast",
@@ -9,7 +9,9 @@
   "drums",
   "fill",
   "human",
-  "live drums"
+  "live drums",
+  "sparse",
+  "simple"
  ],
  "group": "Groove MIDI drums, punk (human drummers; 2-bar beats and 1-bar fills)",
  "devices": [],

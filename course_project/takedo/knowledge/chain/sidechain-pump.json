@@ -1,0 +1,82 @@
+{
+  "key": "chain/sidechain-pump",
+  "kind": "chain",
+  "summary": "Sidechain-style pumping: the part ducks on every beat and swells back (house, EDM pads and bass)",
+  "tags": [
+    "sidechain",
+    "pump",
+    "pumping",
+    "ducking",
+    "house",
+    "edm",
+    "french house",
+    "breathing"
+  ],
+  "devices": [
+    "Tidal"
+  ],
+  "links": [
+    "genre/house"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (chains from the bench's gaps)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "body": [
+    "openDAW's compressor has no sidechain input in the catalog, so this fakes the duck with Tidal: a quarter-note volume shape (rate index 3), sharp slope.",
+    "The duck must fall on the kick: if it swells on the beat instead, set offset to 180. amount sets the depth. Not on the drums themselves: on pads, bass, keys."
+  ],
+  "apply": {
+    "params": {
+      "track": {
+        "type": "track",
+        "about": "the part to put it on, or master"
+      },
+      "amount": {
+        "type": "amount"
+      }
+    },
+    "steps": [
+      {
+        "op": "add_effect",
+        "input": {
+          "track": "$track",
+          "effect": "Tidal",
+          "settings": [
+            {
+              "param": "rate",
+              "value": 3
+            },
+            {
+              "param": "slope",
+              "value": 0.6
+            },
+            {
+              "param": "symmetry",
+              "value": 0.2
+            },
+            {
+              "param": "depth",
+              "value": {
+                "dial": [
+                  0.3,
+                  0.85
+                ]
+              }
+            },
+            {
+              "param": "offset",
+              "value": 0
+            },
+            {
+              "param": "channelOffset",
+              "value": 0
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

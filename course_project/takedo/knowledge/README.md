@@ -30,8 +30,9 @@ skipped with a warning.
 |---|---|---|
 | Hand-written (`claude (knowledge seed)`, from experiment G and openDAW's source) | `production/lofi`, `genre/boom-bap`, 5 chains, 2 Vaporisateur sounds, 12 patterns (drums and chords), 4 notes | `written`: no one has listened |
 | Hand-written genre write-ups (`claude (genre write-ups)`, 2026-11-12) | 22 genres (house, deep house, techno, trap, drum & bass, UK garage, trip hop, ambient, synthwave, synth-pop, disco, funk, neo soul, gospel, jazz, bossa nova, reggae, dub, afrobeat, rock, pop, lofi hip hop), each with a plan: its drum pattern on the drums, then its chord loop on the keys four bars later (steps skipped for parts the project lacks, `"when"`); `production/dub`, `production/synthwave` and `production/clean-modern` (the last two read-only, no chains yet); 3 drum patterns they needed (`dnb-two-step`, `uk-garage-2step`, `one-drop`) | `written` |
+| Chains from the bench's gaps (`claude (chains from the bench's gaps)`, 2026-11-12) | `lush-hall` (DattorroReverb), `chorus` (built from Delay: openDAW has no chorus), `drum-punch` (Compressor), `sidechain-pump` (faked with Tidal: no sidechain input in the catalog), `gated-room`, `wide`, `saturate`; `production/synthwave` and `production/clean-modern` now apply them | `written` |
 | `import/dx7.mjs`: openDAW's Tubular Classics | 32 sounds, `sound/dx7-voice` (any bundled voice by name), `note/dx7-library` (every voice name) | `imported` |
-| `import/groove.mjs`: Groove MIDI Dataset | 117 drum patterns: two 2-bar beats per style and sub-style, one fill per style, human timing kept | `imported` |
+| `import/groove.mjs`: Groove MIDI Dataset | 117 drum patterns: two 2-bar beats per style and sub-style, one fill per style, human timing kept. `import/drum-feel.mjs` describes each one's feel from its hits (busy or sparse, 8ths or 16ths, swung or straight, ghost notes) in its summary and tags, and flags beats on one or two drums ("only ride and snare") | `imported` |
 | `import/chordonomicon.mjs`: Chordonomicon | 226 chord loops: per genre (34 of our list), the 4 most common and 3 most characteristic | `imported` |
 
 Nothing has been heard in the studio yet. Promote an entry by listening, then setting `checked.how` to `heard`.
@@ -48,6 +49,9 @@ Download into `DATASETS` (default `takedo/.datasets/`, git-ignored), each in its
 The Chordonomicon import reads 680k songs in about 75 s.
 
 ## Known limits
+
+- **Some Groove MIDI beats are thin.** 11 beats use one or two drums (a jazz swing beat on the floor tom alone, a rhumba
+  on the rim); their summaries say "only …". The next `make knowledge-import` skips beats with fewer than three drums.
 
 - **Groove MIDI bar lines.** The recordings follow a click, so the beat grid is right, but whether every
   recording's first beat is a downbeat hasn't been checked: a groove may start mid-bar until someone listens.

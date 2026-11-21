@@ -1,7 +1,7 @@
 {
  "key": "pattern/gmd-latin-chacarera-beat-1",
  "kind": "pattern",
- "summary": "latin (chacarera) groove, 2 bars at 118 BPM, played by a human drummer (Groove MIDI)",
+ "summary": "latin (chacarera) groove, 2 bars at 118 BPM (medium, 8ths on the hats, swung), played by a human drummer (Groove MIDI)",
  "tags": [
   "latin",
   "brazilian",
@@ -9,7 +9,9 @@
   "drums",
   "groove",
   "human",
-  "live drums"
+  "live drums",
+  "swing",
+  "shuffle"
  ],
  "group": "Groove MIDI drums, latin (human drummers; 2-bar beats and 1-bar fills)",
  "devices": [],

@@ -1,7 +1,7 @@
 {
  "key": "pattern/gmd-funk-fill",
  "kind": "pattern",
- "summary": "funk fill, 1 bar at 95 BPM, played by a human drummer (Groove MIDI)",
+ "summary": "funk fill, 1 bar at 95 BPM (medium, 16ths on the hats, a sparse kick), played by a human drummer (Groove MIDI)",
  "tags": [
   "funk",
   "groove",
@@ -9,7 +9,8 @@
   "drums",
   "fill",
   "human",
-  "live drums"
+  "live drums",
+  "16ths"
  ],
  "group": "Groove MIDI drums, funk (human drummers; 2-bar beats and 1-bar fills)",
  "devices": [],

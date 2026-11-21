@@ -1,7 +1,7 @@
 {
  "key": "pattern/gmd-reggae-fill",
  "kind": "pattern",
- "summary": "reggae fill, 1 bar at 78 BPM, played by a human drummer (Groove MIDI)",
+ "summary": "reggae fill, 1 bar at 78 BPM (sparse), played by a human drummer (Groove MIDI)",
  "tags": [
   "reggae",
   "one drop",
@@ -9,7 +9,9 @@
   "drums",
   "fill",
   "human",
-  "live drums"
+  "live drums",
+  "sparse",
+  "simple"
  ],
  "group": "Groove MIDI drums, reggae (human drummers; 2-bar beats and 1-bar fills)",
  "devices": [],

@@ -1,7 +1,7 @@
 {
  "key": "pattern/gmd-dance-breakbeat-beat-1",
  "kind": "pattern",
- "summary": "dance (breakbeat) groove, 2 bars at 170 BPM, played by a human drummer (Groove MIDI)",
+ "summary": "dance (breakbeat) groove, 2 bars at 170 BPM (medium, 8ths on the hats, straight, ghost notes on the snare, a sparse kick), played by a human drummer (Groove MIDI)",
  "tags": [
   "dance",
   "disco",
@@ -10,7 +10,9 @@
   "drums",
   "groove",
   "human",
-  "live drums"
+  "live drums",
+  "straight",
+  "ghost notes"
  ],
  "group": "Groove MIDI drums, dance (human drummers; 2-bar beats and 1-bar fills)",
  "devices": [],

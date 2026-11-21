@@ -1,7 +1,7 @@
 {
  "key": "pattern/gmd-latin-brazilian-maracatu-beat-1",
  "kind": "pattern",
- "summary": "latin (brazilian maracatu) groove, 2 bars at 96 BPM, played by a human drummer (Groove MIDI)",
+ "summary": "latin (brazilian maracatu) groove, 2 bars at 96 BPM (busy, 8ths on the hats), played by a human drummer (Groove MIDI)",
  "tags": [
   "latin",
   "brazilian",
@@ -9,7 +9,8 @@
   "drums",
   "groove",
   "human",
-  "live drums"
+  "live drums",
+  "busy"
  ],
  "group": "Groove MIDI drums, latin (human drummers; 2-bar beats and 1-bar fills)",
  "devices": [],

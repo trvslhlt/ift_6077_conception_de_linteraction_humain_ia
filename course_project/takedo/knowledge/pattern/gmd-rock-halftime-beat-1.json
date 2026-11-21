@@ -1,7 +1,7 @@
 {
  "key": "pattern/gmd-rock-halftime-beat-1",
  "kind": "pattern",
- "summary": "rock (halftime) groove, 2 bars at 140 BPM, played by a human drummer (Groove MIDI)",
+ "summary": "rock (halftime) groove, 2 bars at 140 BPM (sparse, 8ths on the hats, straight), played by a human drummer (Groove MIDI)",
  "tags": [
   "rock",
   "indie",
@@ -9,7 +9,10 @@
   "drums",
   "groove",
   "human",
-  "live drums"
+  "live drums",
+  "sparse",
+  "simple",
+  "straight"
  ],
  "group": "Groove MIDI drums, rock (human drummers; 2-bar beats and 1-bar fills)",
  "devices": [],

@@ -1,14 +1,16 @@
 {
  "key": "pattern/gmd-rock-fill",
  "kind": "pattern",
- "summary": "rock fill, 1 bar at 112 BPM, played by a human drummer (Groove MIDI)",
+ "summary": "rock fill, 1 bar at 112 BPM (sparse, a sparse kick), played by a human drummer (Groove MIDI)",
  "tags": [
   "rock",
   "indie",
   "drums",
   "fill",
   "human",
-  "live drums"
+  "live drums",
+  "sparse",
+  "simple"
  ],
  "group": "Groove MIDI drums, rock (human drummers; 2-bar beats and 1-bar fills)",
  "devices": [],

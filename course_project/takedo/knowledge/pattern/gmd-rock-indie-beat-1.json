@@ -1,14 +1,15 @@
 {
  "key": "pattern/gmd-rock-indie-beat-1",
  "kind": "pattern",
- "summary": "rock (indie) groove, 2 bars at 104 BPM, played by a human drummer (Groove MIDI)",
+ "summary": "rock (indie) groove, 2 bars at 104 BPM (medium, 8ths on the hats, straight), played by a human drummer (Groove MIDI)",
  "tags": [
   "rock",
   "indie",
   "drums",
   "groove",
   "human",
-  "live drums"
+  "live drums",
+  "straight"
  ],
  "group": "Groove MIDI drums, rock (human drummers; 2-bar beats and 1-bar fills)",
  "devices": [],

@@ -1,0 +1,107 @@
+{
+  "key": "chain/gated-room",
+  "kind": "chain",
+  "summary": "Gated reverb: a big bright room cut off short, the 80s snare (Phil Collins, synthwave)",
+  "tags": [
+    "gated reverb",
+    "gated",
+    "80s",
+    "snare",
+    "big drums",
+    "synthwave",
+    "retro"
+  ],
+  "devices": [
+    "DattorroReverb",
+    "Gate"
+  ],
+  "links": [
+    "production/synthwave"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (chains from the bench's gaps)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "body": [
+    "A dense room at high level, then a gate that closes 150 ms after each hit. On the drum track (TakeDo has no separate snare bus).",
+    "amount sets the room level. If the hats pump the gate open, raise the threshold."
+  ],
+  "apply": {
+    "params": {
+      "track": {
+        "type": "track",
+        "about": "the part to put it on, or master"
+      },
+      "amount": {
+        "type": "amount"
+      }
+    },
+    "steps": [
+      {
+        "op": "add_effect",
+        "input": {
+          "track": "$track",
+          "effect": "DattorroReverb",
+          "settings": [
+            {
+              "param": "preDelay",
+              "value": 5
+            },
+            {
+              "param": "decay",
+              "value": 0.85
+            },
+            {
+              "param": "damping",
+              "value": 0.1
+            },
+            {
+              "param": "wet",
+              "value": {
+                "dial": [
+                  -10,
+                  -3
+                ]
+              }
+            },
+            {
+              "param": "dry",
+              "value": 0
+            }
+          ]
+        }
+      },
+      {
+        "op": "add_effect",
+        "input": {
+          "track": "$track",
+          "effect": "Gate",
+          "settings": [
+            {
+              "param": "threshold",
+              "value": -28
+            },
+            {
+              "param": "attack",
+              "value": 0.5
+            },
+            {
+              "param": "hold",
+              "value": 150
+            },
+            {
+              "param": "release",
+              "value": 40
+            },
+            {
+              "param": "floor",
+              "value": -72
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

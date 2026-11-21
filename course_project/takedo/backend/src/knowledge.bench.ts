@@ -3,8 +3,10 @@ import {join} from "node:path"
 import Anthropic from "@anthropic-ai/sdk"
 import {choice, TypeSafeClient} from "@typesafe-ai/sdk"
 import {loadCatalog} from "./catalog.ts"
-import {loadConfig} from "./gateway.ts"
-import {type IndexLine, loadKnowledge, shortlist} from "./knowledge.ts"
+import {Gateway, loadConfig} from "./gateway.ts"
+import {pickKnowledge} from "./router.ts"
+import type {Snapshot, Track} from "../../shared/protocol.ts"
+import {type IndexLine, loadKnowledge, serves, shortlist, Strata} from "./knowledge.ts"
 
 // Which producer messages the knowledge base serves (KNOWLEDGE.md, "Will it make TakeDo faster?"). The messages and
 // their labels are in knowledge/bench/messages.mjs: observed (session logs), from jev_bench, and simulated.
@@ -17,6 +19,8 @@ import {type IndexLine, loadKnowledge, shortlist} from "./knowledge.ts"
 //   jev-staged  stratified, two requests: first what kind of change the message asks for (a style, a sound, an effect,
 //               drums, chords, or none of these), then a pick among that kind's entries only, shortlisted
 //   jev-joint   the same two questions in one request (the pick over the plain shortlist); applied only when they agree
+//   route       the knowledge route itself (router.ts, pickKnowledge): jev-joint plus the part and amount, applied at
+//               its threshold with its params filled; below it, the candidates it hands the utility are scored too
 //   claude  the utility's model (config/models.json) given the compact index, as the utility sees it
 // Results go to knowledge/bench/results/ (git-ignored).
 
@@ -35,14 +39,18 @@ const index = knowledge.index()
 const keys = index.map(line => line.key)
 
 const pickers = process.argv.slice(2)
-const Pickers = ["jev", "jev-staged", "jev-joint", "claude"]
+const Pickers = ["jev", "jev-staged", "jev-joint", "route", "claude"]
 const unknown = pickers.filter(name => !Pickers.includes(name))
 if (unknown.length > 0) {throw new Error(`unknown picker ${unknown.join(", ")}: ${Pickers.join(", ")}`)}
 
 // ---------- labels ----------
 
-const matches = (label: string, key: string): boolean =>
-    label.endsWith("*") ? key.startsWith(label.slice(0, -1)) : key === label
+// A label is a key, a family ("pattern/gmd-funk-*"), or either with a tag the entry must have ("pattern/gmd-*#busy").
+const tagsOf = new Map(index.map(line => [line.key, line.tags]))
+const matches = (label: string, key: string): boolean => {
+    const [name, tag] = label.split("#")
+    return (name.endsWith("*") ? key.startsWith(name.slice(0, -1)) : key === name) && (tag === undefined || tagsOf.get(key)!.includes(tag))
+}
 const expand = (labels: string[]): string[] => keys.filter(key => labels.some(label => matches(label, key)))
 const bad = Messages.flatMap(({msg, want, helps}) => [...want, ...helps]
     .filter(label => !keys.some(key => matches(label, key))).map(label => `"${msg}": ${label} matches no entry`))
@@ -101,7 +109,7 @@ cases.filter(item => item.gap).forEach(item => console.log(`  ${item.gap!.padEnd
 // ---------- pickers ----------
 
 type Pick = { apply: string | null, read?: string[], confidence?: number, ms: number, tokens?: Record<string, number>, error?: string,
-    stratum?: string }
+    stratum?: string, candidates?: string[], judged?: { pick: string | null, wants: number, pick_confidence: number } }
 const grade = (item: Case, pick: Pick) => {
     if (pick.error !== undefined) {return "error"}
     if (item.wanted.length === 0) {return pick.apply === null ? "right none" : "false apply"}
@@ -114,23 +122,9 @@ const premise = "The producer sent `message` to their AI music team while workin
 
 // ---------- stratified Jev ----------
 
-// The kind of change a message asks for, and the entries that make each kind. Notes are never applied.
-const Strata = {
-    style: "A new genre or production style for the track as a whole (\"make it house\", \"more lofi\", \"funkier\")",
-    sound: "A different instrument sound for a part, or a new part with a named sound (\"a rhodes\", \"add strings\")",
-    effect: "A new effect or treatment on a part (reverb, echo, tremolo, telephone, tape, a room)",
-    drums: "A different drum pattern, groove or fill",
-    chords: "A different chord progression or harmony",
-    other: "None of these: a level, mute, pan, tempo or arrangement change, adjusting something already there "
-        + "(\"faster tremolo\", \"less crunchy\", \"darker keys\"), a question, feedback or chat"
-}
 type Stratum = keyof typeof Strata
-// Jev only chooses among entries the backend can apply (KNOWLEDGE.md, "Interface for Jev").
-const runnable = new Set(knowledge.get(keys).flatMap(entry => "missing" in entry || entry.apply === undefined ? [] : [entry.key]))
-const Applicable = index.filter(line => runnable.has(line.key))
-const stratumOf = new Map<string, Stratum | null>(knowledge.get(keys).flatMap(entry => "missing" in entry ? [] : [[entry.key,
-    entry.kind === "genre" || entry.kind === "production" ? "style" : entry.kind === "sound" ? "sound" : entry.kind === "chain" ? "effect"
-        : entry.kind === "pattern" ? (entry.pattern?.type === "drums" ? "drums" : "chords") : null] as [string, Stratum | null]]))
+const stratumOf = new Map<string, string | null>(keys.map(key => [key, knowledge.stratum(key)]))
+const Applicable = knowledge.applicable()
 const optionsOf = (lines: IndexLine[]): Record<string, string> => ({
     ...Object.fromEntries(lines.map((line, at) => [`e${at + 1}`,
         `${line.key}: ${line.label ? `${line.label}; ` : ""}${line.summary} (${line.tags.join(", ")})`])),
@@ -170,9 +164,7 @@ const jevJoint = async (client: TypeSafeClient, item: Case): Promise<Pick> => {
     const {wants, pick} = result.answers
     const key = chosen(lines, pick.choice)
     // A style can be served by its drums or chords alone ("a boom bap beat" is judged a style, then served by a pattern).
-    const kind = key === null ? null : stratumOf.get(key)
-    const agree = kind !== null && wants.choice !== "other"
-        && (kind === wants.choice || (wants.choice === "style" && (kind === "drums" || kind === "chords")))
+    const agree = key !== null && serves(wants.choice, knowledge.stratum(key))
     return {apply: agree ? key : null, confidence: Math.min(wants.confidence, pick.confidence), ms: performance.now() - start,
         stratum: wants.choice, tokens: {input: result.usage.input_tokens ?? 0}}
 }
@@ -227,6 +219,25 @@ const claudePick = async (client: Anthropic, model: string, effort: string | und
         cacheRead: usage.cache_read_input_tokens ?? 0, cacheWrite: usage.cache_creation_input_tokens ?? 0}}
 }
 
+// The bench's project as a snapshot, for the route (which reads tracks and their instruments).
+const routeSnapshot = (): Snapshot => {
+    const tracks = (Project.tracks as Array<{ ref: string, name: string, instrument: string, volume_db: number }>).map((track): Track => {
+        const instrument = track.instrument.split(" ")[0]
+        return {ref: track.ref, name: track.name, kind: "notes", instrument, device: {key: instrument, name: instrument, enabled: true},
+            midiEffects: [], effects: [], mix: {volume: track.volume_db, pan: 0, mute: false, solo: false},
+            bars: {from: 1, to: Number(Project.bars)}, lanes: [], regions: []}
+    })
+    return {at: {t: 0, pos: "5.1.1", seq: 0, revision: 0}, detail: "outline", playing: true,
+        playback: {playing: true, pos: "5.1.1", bar: 5, loop: {on: true, from: "1.1.1", to: "9.1.1"}},
+        timeline: {bpm: Number(Project.tempo), signature: [4, 4], length: "9.1.1"}, tracks, master: {volume: 0, effects: []}}
+}
+const routePick = async (gateway: Gateway, item: Case): Promise<Pick> => {
+    const start = performance.now()
+    const picked = await pickKnowledge(gateway, () => {}, knowledge, routeSnapshot(), item.msg)
+    return {apply: picked.path === "apply" ? picked.key : null, confidence: picked.confidence, ms: performance.now() - start,
+        stratum: picked.wants, candidates: picked.path === "hint" ? picked.candidates.map(candidate => candidate.key) : [], judged: picked.judged}
+}
+
 const run = async (pick: (item: Case) => Promise<Pick>, parallel: number) => {
     const picks = new Map<string, Pick>()
     const queue = [...cases]
@@ -250,7 +261,12 @@ const results: Record<string, unknown> = {
 for (const name of pickers) {
     let rows: Awaited<ReturnType<typeof run>>
     let model = ""
-    if (name.startsWith("jev")) {
+    if (name === "route") {
+        if (!process.env.TYPESAFE_API_KEY) {throw new Error("TYPESAFE_API_KEY is not set (takedo/.env)")}
+        const gateway = new Gateway(loadConfig(join(Takedo, "config", "models.json")))
+        model = "the knowledge route (router.ts), Jev"
+        rows = await run(item => routePick(gateway, item), 1)
+    } else if (name.startsWith("jev")) {
         if (!process.env.TYPESAFE_API_KEY) {throw new Error("TYPESAFE_API_KEY is not set (takedo/.env)")}
         const client = new TypeSafeClient()
         model = "jev (TypeSafe default)"
@@ -281,9 +297,15 @@ for (const name of pickers) {
     const ms = rows.filter(row => !row.pick.error).map(row => row.pick.ms)
     console.log(`\n  hits picked right: ${hits.filter(row => row.outcome === "right apply").length}/${hits.length}; `
         + `applies that were wrong or unwanted: ${rows.filter(row => ["wrong apply", "false apply"].includes(row.outcome)).length}`
-        + (name.startsWith("jev") ? `; confident applies (≥ ${Confident}) right: ${sure.filter(row => row.outcome === "right apply").length}/${sure.length}` : "")
+        + (name.startsWith("jev") || name === "route" ? `; confident applies (≥ ${Confident}) right: ${sure.filter(row => row.outcome === "right apply").length}/${sure.length}` : "")
         + `\n  latency p50 ${Math.round(quantile(ms, 0.5))} ms, p90 ${Math.round(quantile(ms, 0.9))} ms`)
-    if (name === "jev-staged" || name === "jev-joint") {
+    if (name === "route") {
+        const handed = rows.filter(row => row.outcome === "missed" && (row.pick.candidates ?? []).length > 0)
+        const helped = handed.filter(row => row.pick.candidates!.some(key => row.item.wanted.includes(key)))
+        console.log(`  missed hits handed to the utility with candidates: ${handed.length}; a right entry among them: ${helped.length}`
+            + `\n  messages with candidates though nothing should apply: ${rows.filter(row => row.item.wanted.length === 0 && (row.pick.candidates ?? []).length > 0).length}`)
+    }
+    if (name === "jev-staged" || name === "jev-joint" || name === "route") {
         // The stratum a message's labels imply: the wanted entries' (when they agree), else other.
         const expected = (item: Case): string => {
             const found = new Set(item.wanted.map(key => stratumOf.get(key) ?? "other"))

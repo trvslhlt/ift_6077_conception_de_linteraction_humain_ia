@@ -1,7 +1,7 @@
 {
  "key": "pattern/gmd-soul-motown-beat-1",
  "kind": "pattern",
- "summary": "soul (motown) groove, 2 bars at 148 BPM, played by a human drummer (Groove MIDI)",
+ "summary": "soul (motown) groove, 2 bars at 148 BPM (medium, 8ths on the hats, straight), played by a human drummer (Groove MIDI)",
  "tags": [
   "soul",
   "motown",
@@ -9,7 +9,8 @@
   "drums",
   "groove",
   "human",
-  "live drums"
+  "live drums",
+  "straight"
  ],
  "group": "Groove MIDI drums, soul (human drummers; 2-bar beats and 1-bar fills)",
  "devices": [],

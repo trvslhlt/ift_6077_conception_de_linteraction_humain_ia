@@ -5,7 +5,7 @@
 //   cat     direction | sound | effect | drums | chords | tempo | mix | arrangement | chat
 //   want    entries that, applied, would do most of what the message asks: a hit if the picker chooses any of them.
 //           Empty: no entry should be applied (the right pick is "none"). A trailing * matches a family
-//           ("pattern/gmd-latin-brazilian-bossa-*").
+//           ("pattern/gmd-latin-brazilian-bossa-*"); "#tag" after either keeps the entries with that tag ("pattern/gmd-*#busy").
 //   helps   entries worth reading even when none should be applied (notes, write-ups, near misses)
 //   gap     for a miss we'd want to fill: the entry that would have served it
 //   src     observed (takedo/sessions logs, 2026-11-06..11) | jev_bench (poc/jev_bench/families.mjs) | simulated
@@ -37,7 +37,7 @@ export const Messages = [
     seen("the keys are a bit too quiet", "mix"),
     seen("@mix_engineer drums down a little", "mix"),
     seen("@arranger drop the keys out at the next bar and bring them back two bars later", "arrangement"),
-    seen("@effect_designer give the keys a big lush reverb", "effect", [], ["note/parameter-units"], {gap: "chain/lush-hall"}),
+    seen("@effect_designer give the keys a big lush reverb", "effect", ["chain/lush-hall"]),
     seen("@team_lead bring the drums down a bit and put an echo on the keys", "effect", [], ["note/delay-step-table", "chain/dub-echo"]),
     seen("@team_lead extend all the clips so they run for 16 bars", "arrangement"),
     seen("@utility with a script, set the Drums volume to -20 dB", "mix"),
@@ -49,7 +49,7 @@ export const Messages = [
     seen("@team_lead keep extending the clips so we can work on it indefinitely", "arrangement"),
     seen("keep going. and lower the tempo", "tempo"),
     seen("@mix_engineer the drums are too quiet", "mix"),
-    seen("i like the base idea i have but want to make it sound bigger and more detailed", "direction", [], ["chain/small-room", "sound/warm-pad-vaporisateur"]),
+    seen("i like the base idea i have but want to make it sound bigger and more detailed", "direction", [], ["chain/small-room", "chain/lush-hall", "chain/wide", "sound/warm-pad-vaporisateur"]),
     seen("make the bass sound livelierand more complex", "sound", [], ["sound/tubular-slap-bass", "sound/tubular-fretless"]),
     seen("if i take it out of loop will it work?", "chat"),
     seen("keep extending the clips so we can work on it indeffinitely. when we are close to the end add more", "arrangement"),
@@ -63,7 +63,7 @@ export const Messages = [
 
     // ---------- jev_bench: the routing and fast-path messages ----------
     jev("the kick is too loud", "mix"),
-    jev("make the hats busier", "drums", ["pattern/trap-halftime"], [], {gap: "a hats-only 16ths pattern"}),
+    jev("make the hats busier", "drums", ["pattern/trap-halftime", "pattern/gmd-*#16ths", "pattern/gmd-*#busy"]),
     jev("this pad sounds too modern", "sound", ["sound/tubular-analog-pad", "sound/tubular-strings", "sound/tubular-choir"], ["sound/warm-pad-vaporisateur", "note/dx7-library"]),
     jev("can we get a riser into bar 17", "effect", [], [], {gap: "sound/noise-riser"}),
     jev("the bass should bounce more", "sound", [], ["sound/tubular-slap-bass"], {gap: "a bouncy bass line pattern"}),
@@ -72,7 +72,7 @@ export const Messages = [
     jev("jazzier chords please", "chords", ["pattern/jazz-ii-v-i", "pattern/prog-jazz-*", "pattern/prog-bossa-nova-*", "pattern/prog-neo-soul-*"]),
     jev("drop everything but the drums at bar 9", "arrangement"),
     jev("how do I set up sidechain myself?", "chat"),
-    jev("more swing", "drums", ["pattern/halftime-shuffle", "pattern/gmd-blues-shuffle-beat-*", "pattern/gmd-funk-purdieshuffle-beat-1", "pattern/gmd-rock-shuffle-beat-*", "pattern/gmd-neworleans-shuffle-beat-1", "pattern/gmd-jazz-swing-beat-*"]),
+    jev("more swing", "drums", ["pattern/gmd-*#swing", "pattern/halftime-shuffle", "pattern/gmd-blues-shuffle-beat-*", "pattern/gmd-funk-purdieshuffle-beat-1", "pattern/gmd-rock-shuffle-beat-*", "pattern/gmd-neworleans-shuffle-beat-1", "pattern/gmd-jazz-swing-beat-*"]),
     jev("it's getting muddy down low", "mix"),
     jev("who's working on the synths right now?", "chat"),
     jev("find me something like Burial's drums", "drums", ["pattern/uk-garage-2step"], ["genre/uk-garage"]),
@@ -84,7 +84,7 @@ export const Messages = [
     jev("bring the bass back on the next bar", "arrangement"),
     jev("bring the bass up a bit", "mix"),
     jev("bring the vinyl down a little", "mix"),
-    jev("busier drums from the next phrase", "drums", ["pattern/gmd-hiphop-beat-*", "pattern/gmd-funk-beat-*", "pattern/trap-halftime"]),
+    jev("busier drums from the next phrase", "drums", ["pattern/gmd-hiphop-beat-*", "pattern/gmd-funk-beat-*", "pattern/trap-halftime", "pattern/gmd-*#busy"]),
     jev("crush the keys hard, right now", "effect", [], ["note/parameter-units"]),
     jev("darker keys, slowly", "effect", [], ["chain/tape-dust", "note/parameter-units"]),
     jev("forget it", "chat"),
@@ -101,7 +101,7 @@ export const Messages = [
     jev("make it less jazzy", "chords", ["pattern/pop-i-v-vi-iv", "pattern/minor-i-vi-iii-vii", "pattern/prog-pop-common-*"]),
     jev("make it sound more like Burial", "direction", ["genre/uk-garage"], ["chain/tape-dust", "production/lofi"]),
     jev("make the keys less crunchy", "effect"),
-    jev("more crunch on the keys", "effect", [], ["note/parameter-units"]),
+    jev("more crunch on the keys", "effect", [], ["note/parameter-units", "chain/saturate"]),
     jev("more", "chat"),
     jev("offbeat hats please", "drums", ["pattern/four-on-the-floor"]),
     jev("open the filter on the keys over the next 4 bars", "effect"),
@@ -135,7 +135,7 @@ export const Messages = [
     m("give the whole thing a vintage tape character", "direction", ["production/lofi", "chain/tape-dust"]),
     m("can you make it more neo soul", "direction", ["genre/neo-soul", "pattern/prog-neo-soul-*", "sound/tubular-rhodes", "sound/tubular-soft-rhds"]),
     m("synthwave it up", "direction", ["genre/synthwave", "pattern/prog-synthwave-*", "sound/tubular-analog-pad", "sound/tubular-synth-bass"], ["production/synthwave"]),
-    m("make it sound more polished and modern", "direction", [], ["production/clean-modern"], {gap: "chains for production/clean-modern (it has no apply)"}),
+    m("make it sound more polished and modern", "direction", ["production/clean-modern"]),
     m("more ambient please", "direction", ["genre/ambient", "pattern/prog-ambient-*", "sound/warm-pad-vaporisateur", "sound/tubular-bell-pad"], ["chain/dub-echo"]),
     m("make it funkier", "direction", ["genre/funk", "pattern/gmd-funk-*", "pattern/dorian-i-IV", "pattern/prog-funk-*", "sound/tubular-clav", "sound/tubular-slap-bass"]),
     m("give it a jazz club feel", "direction", ["genre/jazz", "pattern/jazz-ii-v-i", "pattern/gmd-jazz-swing-beat-*", "pattern/prog-jazz-*", "chain/small-room"]),
@@ -190,12 +190,17 @@ export const Messages = [
     m("dust up the pad a bit", "effect", ["chain/tape-dust"]),
     m("set the delay to dotted eighths", "effect", [], ["note/delay-step-table"]),
     m("make the tremolo faster", "effect", [], ["note/tidal-rate-table"]),
-    m("put a big hall reverb on the pad", "effect", [], ["note/parameter-units"], {gap: "chain/lush-hall"}),
-    m("sidechain the pad to the kick", "effect", [], [], {gap: "chain/sidechain-pump"}),
-    m("add some chorus to the keys", "effect", [], [], {gap: "chain/chorus"}),
-    m("make the drums punchier", "effect", [], [], {gap: "chain/drum-punch"}),
+    m("put a big hall reverb on the pad", "effect", ["chain/lush-hall"]),
+    m("sidechain the pad to the kick", "effect", ["chain/sidechain-pump"]),
+    m("add some chorus to the keys", "effect", ["chain/chorus"]),
+    m("make the drums punchier", "effect", ["chain/drum-punch"]),
     m("lo-fi the drums", "effect", ["chain/tape-dust"], ["production/lofi"]),
     m("bitcrush the hats", "effect", [], ["note/parameter-units"]),
+    m("make the pad wider", "effect", ["chain/wide"]),
+    m("warm up the bass with a bit of saturation", "effect", ["chain/saturate"]),
+    m("gated reverb on the snare, 80s style", "effect", ["chain/gated-room"]),
+    m("make the pad pump like french house", "effect", ["chain/sidechain-pump"]),
+    m("give the strings a cathedral-sized reverb", "effect", ["chain/lush-hall"]),
 
     // ---------- simulated: drums ----------
     m("give me a boom bap beat", "drums", ["pattern/boombap-1", "pattern/gmd-hiphop-beat-*"]),
@@ -219,7 +224,7 @@ export const Messages = [
     m("make the drums sound more human, less quantized", "drums", ["pattern/gmd-hiphop-beat-*"]),
     m("drum and bass breaks", "drums", ["pattern/dnb-two-step", "pattern/gmd-dance-breakbeat-beat-*"]),
     m("a punk beat", "drums", ["pattern/gmd-punk-beat-*"]),
-    m("make the drums simpler", "drums", ["pattern/boombap-1", "pattern/basic-rock"]),
+    m("make the drums simpler", "drums", ["pattern/boombap-1", "pattern/basic-rock", "pattern/gmd-*#simple"]),
     m("blast beat", "drums", [], [], {gap: "pattern/blast-beat"}),
 
     // ---------- simulated: chords ----------

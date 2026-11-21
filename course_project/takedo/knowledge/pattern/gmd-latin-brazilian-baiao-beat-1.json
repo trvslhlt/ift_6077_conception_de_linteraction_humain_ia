@@ -1,7 +1,7 @@
 {
  "key": "pattern/gmd-latin-brazilian-baiao-beat-1",
  "kind": "pattern",
- "summary": "latin (brazilian baiao) groove, 2 bars at 95 BPM, played by a human drummer (Groove MIDI)",
+ "summary": "latin (brazilian baiao) groove, 2 bars at 95 BPM (medium, 16ths on the hats, straight), played by a human drummer (Groove MIDI)",
  "tags": [
   "latin",
   "brazilian",
@@ -9,7 +9,9 @@
   "drums",
   "groove",
   "human",
-  "live drums"
+  "live drums",
+  "16ths",
+  "straight"
  ],
  "group": "Groove MIDI drums, latin (human drummers; 2-bar beats and 1-bar fills)",
  "devices": [],

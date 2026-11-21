@@ -1,7 +1,7 @@
 {
  "key": "pattern/gmd-highlife-beat-2",
  "kind": "pattern",
- "summary": "highlife groove, 2 bars at 126 BPM, played by a human drummer (Groove MIDI)",
+ "summary": "highlife groove, 2 bars at 126 BPM (busy, 8ths on the hats, straight), played by a human drummer (Groove MIDI)",
  "tags": [
   "highlife",
   "afro",
@@ -9,7 +9,9 @@
   "drums",
   "groove",
   "human",
-  "live drums"
+  "live drums",
+  "busy",
+  "straight"
  ],
  "group": "Groove MIDI drums, highlife (human drummers; 2-bar beats and 1-bar fills)",
  "devices": [],

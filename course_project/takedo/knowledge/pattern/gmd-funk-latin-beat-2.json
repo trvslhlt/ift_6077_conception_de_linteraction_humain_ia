@@ -1,7 +1,7 @@
 {
  "key": "pattern/gmd-funk-latin-beat-2",
  "kind": "pattern",
- "summary": "funk (latin) groove, 2 bars at 100 BPM, played by a human drummer (Groove MIDI)",
+ "summary": "funk (latin) groove, 2 bars at 100 BPM (medium, 8ths on the hats, straight), played by a human drummer (Groove MIDI)",
  "tags": [
   "funk",
   "groove",
@@ -9,7 +9,8 @@
   "latin",
   "drums",
   "human",
-  "live drums"
+  "live drums",
+  "straight"
  ],
  "group": "Groove MIDI drums, funk (human drummers; 2-bar beats and 1-bar fills)",
  "devices": [],

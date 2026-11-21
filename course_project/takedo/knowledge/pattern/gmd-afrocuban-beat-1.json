@@ -1,7 +1,7 @@
 {
  "key": "pattern/gmd-afrocuban-beat-1",
  "kind": "pattern",
- "summary": "Afro Cuban groove, 2 bars at 105 BPM, played by a human drummer (Groove MIDI)",
+ "summary": "Afro Cuban groove, 2 bars at 105 BPM (only closed_hat and kick, medium, 16ths on the hats, lightly swung, a sparse kick), played by a human drummer (Groove MIDI)",
  "tags": [
   "afro-cuban",
   "latin",
@@ -9,7 +9,9 @@
   "drums",
   "groove",
   "human",
-  "live drums"
+  "live drums",
+  "16ths",
+  "swing"
  ],
  "group": "Groove MIDI drums, Afro Cuban (human drummers; 2-bar beats and 1-bar fills)",
  "devices": [],

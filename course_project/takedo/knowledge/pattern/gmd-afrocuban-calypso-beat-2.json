@@ -1,7 +1,7 @@
 {
  "key": "pattern/gmd-afrocuban-calypso-beat-2",
  "kind": "pattern",
- "summary": "Afro Cuban (calypso) groove, 2 bars at 108 BPM, played by a human drummer (Groove MIDI)",
+ "summary": "Afro Cuban (calypso) groove, 2 bars at 108 BPM (medium, 8ths on the hats, straight, ghost notes on the snare), played by a human drummer (Groove MIDI)",
  "tags": [
   "afro-cuban",
   "latin",
@@ -10,7 +10,9 @@
   "drums",
   "groove",
   "human",
-  "live drums"
+  "live drums",
+  "straight",
+  "ghost notes"
  ],
  "group": "Groove MIDI drums, Afro Cuban (human drummers; 2-bar beats and 1-bar fills)",
  "devices": [],

@@ -19,7 +19,9 @@ export const Limits = "use only openDAW's built-in devices that the catalog allo
 
 // history: the chat before this message, oldest first, for a message that refers back ("do the rest").
 export type Task = { message: string, piece: string | null, hints: Hints | null,
-    history?: ReadonlyArray<{ from: string, text: string }> }
+    history?: ReadonlyArray<{ from: string, text: string }>,
+    // Knowledge entries Jev judged likely for the message but wasn't sure enough to apply (router.ts, pickKnowledge)
+    candidates?: ReadonlyArray<{ key: string, summary: string }> }
 export type Member = {
     readonly agent: Actor, readonly role: string, readonly name: string
     readonly area: string                           // what the role covers

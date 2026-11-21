@@ -12,6 +12,7 @@ The POCs in `../poc/` are frozen references and benches. Code is copied from the
 ```sh
 make up       # build and start the studio and the backend (page/, shared/, backend/src/ live); the utility alone
 make up ROSTER=team  # the same with the full team
+make up KNOWLEDGE_ROUTE=on   # the utility with Jev's knowledge route in front of it (off by default for now)
 make open     # open http://localhost:8080, then New Project, then the floating robot button
 make test     # smoke test in headless Chromium, against the full team (leaves the backend on it)
 make logs     # follow the studio's and the backend's output
@@ -90,7 +91,10 @@ API keys go in `.env` (git-ignored, and never in a build context): `TYPESAFE_API
     the member's area), snapshot queries, member cards, the team roster for the page; asks for the overview when the
     view is open on a project that has none
   - `router.ts`: the fast path: one Jev request scores the roster and judges the hints (part, change, amount, when);
-    `@member` skips the scores
+    `@member` skips the scores. Also the knowledge route (`pickKnowledge`), in front of the utility: Jev judges what
+    kind of change a message asks for and picks a shortlisted knowledge entry. When both agree and the pick is sure
+    enough, the backend applies the entry with no model turn (`Utility.applyEntry`); otherwise the utility gets
+    the candidates. `router.test.ts`: offline checks with Jev stubbed (`make knowledge`)
   - `members.ts`: the team. Each member turns a task into steps (plan + landing) carried out in parallel under its
     claims; a plan whose first bar passed while it was planned slides later as a whole. The mix engineer (volume and
     pan; "quieter"/"louder" with Jev's hints is code alone), the arranger (mutes at bars) and the effect designer
@@ -210,7 +214,11 @@ Known gaps in what's built:
 - **The utility alone, for now** (2026-11-07): the full team got complex before the basics of an agent working in
   openDAW were solid, so by default (`ROSTER=utility`) every message goes straight to the utility, shown as the Team
   Lead: no Jev routing, no split, no members. It keeps the members' fixed operations as tools (ramps, bar-timed
-  edits). Roles come back one at a time with `ROSTER=team`, which the smoke test uses. It sees the last 12 chat
+  edits). Roles come back one at a time with `ROSTER=team`, which the smoke test uses. Since 2026-11-12, Jev's
+  knowledge route can sit in front of it (`KNOWLEDGE_ROUTE=on`; off by default until the utility's baseline is run;
+  `router.ts`, `pickKnowledge`): a message it is sure an entry serves is applied in
+  about 150 ms without a model turn (66 of 123 such messages on the bench, none wrong), and it hands the utility its
+  candidates otherwise. Not yet run in the studio. It sees the last 12 chat
   lines, so "go on" or "do all of it" refers back. An edit for a later bar answers "scheduled" at once and lands on
   its own, so a staged plan is timed from one playhead instead of waiting out each ramp; a later failure is fed back
   to it, or said to the producer after its reply. On Opus 5.5 (an experiment, config/models.json) it did a real

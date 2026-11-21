@@ -1,0 +1,57 @@
+{
+  "key": "chain/wide",
+  "kind": "chain",
+  "summary": "Wider stereo image: the part (or mix) spread out, mono stays safe",
+  "tags": [
+    "wide",
+    "wider",
+    "stereo",
+    "width",
+    "spread",
+    "big"
+  ],
+  "devices": [
+    "StereoTool"
+  ],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (chains from the bench's gaps)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "body": [
+    "StereoTool's stereo control. amount 0 a little wider, 3 very wide. Keep bass and kick narrow: put it on pads, keys, the master at most amount 1."
+  ],
+  "apply": {
+    "params": {
+      "track": {
+        "type": "track",
+        "about": "the part to put it on, or master"
+      },
+      "amount": {
+        "type": "amount"
+      }
+    },
+    "steps": [
+      {
+        "op": "add_effect",
+        "input": {
+          "track": "$track",
+          "effect": "StereoTool",
+          "settings": [
+            {
+              "param": "stereo",
+              "value": {
+                "dial": [
+                  0.15,
+                  0.7
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

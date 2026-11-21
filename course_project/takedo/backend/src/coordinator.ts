@@ -6,7 +6,7 @@ import {
 import type {Catalog} from "./catalog.ts"
 import type {Gateway, ModelLog} from "./gateway.ts"
 import {createTeam, type Member, type Task} from "./members.ts"
-import {isRole, type Role, route} from "./router.ts"
+import {isRole, type KnowledgePick, pickKnowledge, type Role, route} from "./router.ts"
 import type {SessionLog} from "./sessionLog.ts"
 import {lead, writeOverview} from "./teamLead.ts"
 import {Notebook} from "./notebook.ts"
@@ -24,6 +24,10 @@ const HistoryLines = 12
 // TAKEDO_ROSTER, from `make up ROSTER=…` (the smoke test runs the team).
 const Roster: "utility" | "team" = process.env.TAKEDO_ROSTER === "team" ? "team" : "utility"
 const Terminal: ReadonlyArray<Status["state"]> = ["applied", "dropped", "failed"]
+// The knowledge route (router.ts, pickKnowledge) in front of the utility: on with TAKEDO_KNOWLEDGE_ROUTE=on. Off by
+// default until the utility alone has its baseline (the roadmap: the utility first, then Jev); the utility has the
+// knowledge base either way.
+const KnowledgeRoute = process.env.TAKEDO_KNOWLEDGE_ROUTE === "on"
 
 export class Coordinator {
     readonly #send: (message: BackendToPage) => void
@@ -35,6 +39,7 @@ export class Coordinator {
     readonly #requests = new Map<string, (status: Status) => void>()
     readonly #looks = new Map<number, (result: { ok: boolean, value: string }) => void>()
     readonly #members: ReadonlyArray<Member>
+    readonly #knowledge: Knowledge | null
     readonly #history: Array<{ from: string, text: string }> = []   // the chat so far, for messages that refer back
     #nextQuery = 0
     #project: string | null = null
@@ -54,6 +59,7 @@ export class Coordinator {
         this.#log = log
         this.#notebooks = notebooks
         const team = createTeam(catalog)
+        this.#knowledge = knowledge
         const utility = new Utility(team, catalog, source, knowledge)
         this.#members = Roster === "team" ? [...team, utility] : [utility]
     }
@@ -250,8 +256,11 @@ export class Coordinator {
         const snapshot = await this.snapshot()
         if (snapshot === null) {return this.say("agent:team_lead", "Open a project first.")}
         const utility = this.#members.find(member => member.role === "utility")
-        if (Roster === "utility" && utility !== undefined) {
-            return utility.handle(this, {message, piece: null, hints: null, history}, snapshot)
+        if (Roster === "utility" && utility instanceof Utility) {
+            const task: Task = {message, piece: null, hints: null, history}
+            const picked = await this.#pickKnowledge(snapshot, message, named)
+            if (picked?.path === "apply") {return utility.applyEntry(this, task, picked.key, picked.args, snapshot)}
+            return utility.handle(this, picked?.path === "hint" ? {...task, candidates: picked.candidates} : task, snapshot)
         }
         // A role nobody fills yet is still work the team does: the Team Lead takes it.
         const addressed = named === null ? null : this.#members.find(member => member.role === named)
@@ -267,6 +276,20 @@ export class Coordinator {
         const member = this.#members.find(member => member.role === routed.member)
         if (member === undefined) {return this.#lead(message, snapshot)}
         await member.handle(this, {message, piece: null, hints: routed.hints}, snapshot)
+    }
+
+    // Jev's look at the knowledge base before the utility's turn: null when there's no knowledge base or no Jev, the
+    // message is addressed to someone, or the call fails (the utility then works as before).
+    async #pickKnowledge(snapshot: Snapshot, message: string, named: string | null): Promise<KnowledgePick | null> {
+        if (!KnowledgeRoute || this.#knowledge === null || named !== null || !this.#gateway.available("fast_path")) {return null}
+        try {
+            const picked = await pickKnowledge(this.#gateway, this.modelLog(), this.#knowledge, snapshot, message)
+            this.#log.write("route", {...picked, path: `knowledge_${picked.path}`})
+            return picked
+        } catch (error) {
+            this.#log.write("route", {path: "knowledge_error", error: String(error)})
+            return null
+        }
     }
 
     // What a member's fast operations don't cover, done by the Team Lead's hands (the utility) on a fresh snapshot.

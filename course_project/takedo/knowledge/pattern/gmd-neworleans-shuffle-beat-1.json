@@ -1,7 +1,7 @@
 {
  "key": "pattern/gmd-neworleans-shuffle-beat-1",
  "kind": "pattern",
- "summary": "New Orleans (shuffle) groove, 2 bars at 104 BPM, played by a human drummer (Groove MIDI)",
+ "summary": "New Orleans (shuffle) groove, 2 bars at 104 BPM (busy, 8ths on the hats, straight, ghost notes on the snare, a busy kick), played by a human drummer (Groove MIDI)",
  "tags": [
   "new orleans",
   "second line",
@@ -10,7 +10,10 @@
   "drums",
   "groove",
   "human",
-  "live drums"
+  "live drums",
+  "busy",
+  "straight",
+  "ghost notes"
  ],
  "group": "Groove MIDI drums, New Orleans (human drummers; 2-bar beats and 1-bar fills)",
  "devices": [],

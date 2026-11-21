@@ -1,7 +1,7 @@
 {
  "key": "pattern/gmd-reggae-slow-beat-1",
  "kind": "pattern",
- "summary": "reggae (slow) groove, 2 bars at 64 BPM, played by a human drummer (Groove MIDI)",
+ "summary": "reggae (slow) groove, 2 bars at 64 BPM (medium, 16ths on the hats, straight, a sparse kick), played by a human drummer (Groove MIDI)",
  "tags": [
   "reggae",
   "one drop",
@@ -10,7 +10,9 @@
   "drums",
   "groove",
   "human",
-  "live drums"
+  "live drums",
+  "16ths",
+  "straight"
  ],
  "group": "Groove MIDI drums, reggae (human drummers; 2-bar beats and 1-bar fills)",
  "devices": [],

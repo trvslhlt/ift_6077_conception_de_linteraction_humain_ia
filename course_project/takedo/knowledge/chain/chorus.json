@@ -1,0 +1,107 @@
+{
+  "key": "chain/chorus",
+  "kind": "chain",
+  "summary": "Chorus: a short modulated delay that thickens and widens a part (80s keys, pads, clean guitar)",
+  "tags": [
+    "chorus",
+    "thick",
+    "wide",
+    "80s",
+    "shimmer",
+    "detune",
+    "ensemble",
+    "modulation"
+  ],
+  "devices": [
+    "Delay"
+  ],
+  "links": [
+    "production/synthwave"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (chains from the bench's gaps)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "body": [
+    "Delay with no synced time (delayMusical Off), 12 ms plus an LFO wobble, little feedback, cross for width: openDAW has no chorus device, so this is one built from the delay.",
+    "amount sets the depth and level. Untested by ear: if it flams or pitches too much, lower lfoDepth."
+  ],
+  "apply": {
+    "params": {
+      "track": {
+        "type": "track",
+        "about": "the part to put it on, or master"
+      },
+      "amount": {
+        "type": "amount"
+      }
+    },
+    "steps": [
+      {
+        "op": "add_effect",
+        "input": {
+          "track": "$track",
+          "effect": "Delay",
+          "settings": [
+            {
+              "param": "delayMusical",
+              "value": 0
+            },
+            {
+              "param": "preSyncTimeLeft",
+              "value": 0
+            },
+            {
+              "param": "preSyncTimeRight",
+              "value": 0
+            },
+            {
+              "param": "delayMillis",
+              "value": 12
+            },
+            {
+              "param": "lfoSpeed",
+              "value": 0.6
+            },
+            {
+              "param": "lfoDepth",
+              "value": {
+                "dial": [
+                  2,
+                  7
+                ]
+              }
+            },
+            {
+              "param": "feedback",
+              "value": 0.1
+            },
+            {
+              "param": "cross",
+              "value": 0.6
+            },
+            {
+              "param": "filter",
+              "value": 0
+            },
+            {
+              "param": "wet",
+              "value": {
+                "dial": [
+                  -14,
+                  -5
+                ]
+              }
+            },
+            {
+              "param": "dry",
+              "value": 0
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

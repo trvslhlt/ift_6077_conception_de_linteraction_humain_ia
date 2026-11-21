@@ -9,8 +9,11 @@ URL := http://localhost:$(PORT)
 TYPES_DIR := .opendaw
 # Who's in play: the utility alone (for now), or the full team (`make up ROSTER=team`).
 ROSTER ?= utility
+# The knowledge route in front of the utility (Jev applies an entry it's sure of). Off until the utility's own baseline
+# is run (the roadmap brings Jev back after the utility alone works); `make up KNOWLEDGE_ROUTE=on` to try it.
+KNOWLEDGE_ROUTE ?= off
 
-export PORT ROSTER
+export PORT ROSTER KNOWLEDGE_ROUTE
 COMPOSE := docker compose --profile test
 
 .PHONY: help builder build up down restart logs status open shell test catalog check knowledge knowledge-bench knowledge-import types usage clean
@@ -64,11 +67,11 @@ catalog: build ## Regenerate catalog/generated.json from openDAW (every device's
 check: ## Type-check the backend and shared code (needs `npm ci` in backend/ once)
 	cd backend && npx tsc --noEmit
 
-knowledge: ## Check the knowledge base offline: every entry against the catalog, the music helpers, expansion (needs `npm ci` in backend/ once)
-	cd backend && node --test src/knowledge.test.ts
+knowledge: ## Check the knowledge base offline: every entry against the catalog, the music helpers, expansion, the knowledge route (needs `npm ci` in backend/ once)
+	cd backend && node --test src/knowledge.test.ts src/router.test.ts
 
 # PICKERS=jev and/or claude also asks the models which entry each message needs (costs money; keys from .env).
-knowledge-bench: ## Which producer messages the knowledge base serves (knowledge/bench/; PICKERS="jev claude" to run the pickers)
+knowledge-bench: ## Which producer messages the knowledge base serves (knowledge/bench/; PICKERS="route claude" to run the pickers)
 	cd backend && node $(if $(PICKERS),--env-file=../.env) src/knowledge.bench.ts $(PICKERS)
 
 # The datasets are downloaded by hand into DATASETS (pins and URLs in knowledge/README.md); the DX7 import needs none.

@@ -12,11 +12,16 @@
     "glossy"
   ],
   "devices": [
-    "Reverb"
+    "Reverb",
+    "DattorroReverb",
+    "Gate",
+    "Delay"
   ],
   "links": [
     "genre/synthwave",
-    "genre/synth-pop"
+    "genre/synth-pop",
+    "chain/gated-room",
+    "chain/chorus"
   ],
   "checked": {
     "how": "written",
@@ -27,6 +32,43 @@
   "body": [
     "Gated reverb on the snare: a big short room cut off abruptly.",
     "Chorus and stereo width on pads, bass and leads; bright, little saturation; delays in 8ths or dotted 8ths.",
-    "No chain for it yet: build it with Reverb (short decay, high wet) on the drums and a chorus-like detune on the synths."
-  ]
+    "Apply: chain/gated-room on the drums and chain/chorus on the keys. Pads and the brightness are left to you."
+  ],
+  "apply": {
+    "params": {
+      "drums": {
+        "type": "track",
+        "optional": true,
+        "about": "the drum track"
+      },
+      "keys": {
+        "type": "track",
+        "optional": true,
+        "about": "a synth or keys part"
+      },
+      "amount": {
+        "type": "amount"
+      }
+    },
+    "steps": [
+      {
+        "op": "entry",
+        "key": "chain/gated-room",
+        "args": {
+          "track": "$drums",
+          "amount": "$amount"
+        },
+        "when": "drums"
+      },
+      {
+        "op": "entry",
+        "key": "chain/chorus",
+        "args": {
+          "track": "$keys",
+          "amount": "$amount"
+        },
+        "when": "keys"
+      }
+    ]
+  }
 }

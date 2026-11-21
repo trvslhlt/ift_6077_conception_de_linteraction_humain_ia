@@ -7,6 +7,7 @@
 import {readFileSync, writeFileSync, mkdirSync, readdirSync, rmSync} from "node:fs"
 import {join, dirname} from "node:path"
 import {fileURLToPath} from "node:url"
+import {feelOf} from "./drum-feel.mjs"
 
 const Root = join(dirname(fileURLToPath(import.meta.url)), "..")
 const source = process.argv[2]
@@ -130,13 +131,17 @@ for (const {style, type, rows: members} of [...groups.values()].sort((a, b) => a
             hits = busiest.hits
         }
         if (hits.length < (type === "beat" ? 12 : 6)) {continue}
+        // A beat on one or two drums (a ride alone, a floor tom alone) misleads more than it helps: take the next.
+        if (type === "beat" && new Set(hits.map(([, role]) => role)).size < 3) {continue}
         count++
         const name = `gmd-${slug(style.main)}${style.sub ? `-${slug(style.sub)}` : ""}-${type}${type === "beat" ? `-${count}` : ""}`
         const roles = [...new Set(hits.map(([, role]) => role))].sort()
         const tags = [...new Set([...(Tags[style.main] ?? [style.main]), ...(style.sub ? [pretty(style.sub)] : []), "drums", type === "fill" ? "fill" : "groove", "human", "live drums"])]
+        const feel = feelOf(hits, type === "beat" ? Bars * 4 : 4)
+        tags.push(...feel.tags.filter(tag => !tags.includes(tag)))
         const summary = type === "beat"
-            ? `${label(style)} groove, ${Bars} bars at ${row.bpm} BPM, played by a human drummer (Groove MIDI)`
-            : `${label(style)} fill, 1 bar at ${row.bpm} BPM, played by a human drummer (Groove MIDI)`
+            ? `${label(style)} groove, ${Bars} bars at ${row.bpm} BPM (${feel.words}), played by a human drummer (Groove MIDI)`
+            : `${label(style)} fill, 1 bar at ${row.bpm} BPM (${feel.words}), played by a human drummer (Groove MIDI)`
         const body = [
             `Played at ${row.bpm} BPM; it holds up roughly ±15% from there. Uses ${roles.join(", ")}.`,
             "Human timing and dynamics kept: hits sit a little ahead of or behind the grid, and velocities vary. Don't quantize it unless asked; that's the point of it.",

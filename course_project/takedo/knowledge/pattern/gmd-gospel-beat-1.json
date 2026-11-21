@@ -1,7 +1,7 @@
 {
  "key": "pattern/gmd-gospel-beat-1",
  "kind": "pattern",
- "summary": "gospel groove, 2 bars at 120 BPM, played by a human drummer (Groove MIDI)",
+ "summary": "gospel groove, 2 bars at 120 BPM (medium, 8ths on the hats, straight), played by a human drummer (Groove MIDI)",
  "tags": [
   "gospel",
   "church",
@@ -9,7 +9,8 @@
   "drums",
   "groove",
   "human",
-  "live drums"
+  "live drums",
+  "straight"
  ],
  "group": "Groove MIDI drums, gospel (human drummers; 2-bar beats and 1-bar fills)",
  "devices": [],

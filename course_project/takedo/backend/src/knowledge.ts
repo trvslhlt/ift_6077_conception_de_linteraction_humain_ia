@@ -213,8 +213,33 @@ const references = (value: unknown, found: Set<string> = new Set()): Set<string>
 const isDial = (value: unknown): value is { dial: [number, number] } =>
     isRecord(value) && Array.isArray(value.dial) && value.dial.length === 2 && value.dial.every(end => typeof end === "number")
 
+// The kinds of change a message can ask for that entries make (the fast route's first question, KNOWLEDGE.md,
+// "Which messages it serves"), and which entries make each. Notes, and entries with nothing to apply, make none.
+export const Strata = {
+    style: "A new genre or production style for the track as a whole (\"make it house\", \"more lofi\", \"funkier\")",
+    sound: "A different instrument sound for a part, or a new part with a named sound (\"a rhodes\", \"add strings\")",
+    effect: "A new effect or treatment on a part (reverb, echo, tremolo, telephone, tape, a room)",
+    drums: "A different drum pattern, groove or fill",
+    chords: "A different chord progression or harmony",
+    other: "None of these: a level, mute, pan, tempo or arrangement change, adjusting something already there "
+        + "(\"faster tremolo\", \"less crunchy\", \"darker keys\"), a question, feedback or chat"
+} as const
+export type Stratum = Exclude<keyof typeof Strata, "other">
+const stratumOf = (entry: Entry): Stratum | null => entry.apply === undefined ? null
+    : entry.kind === "genre" || entry.kind === "production" ? "style" : entry.kind === "sound" ? "sound"
+    : entry.kind === "chain" ? "effect" : entry.kind === "pattern" ? (entry.pattern?.type === "drums" ? "drums" : "chords") : null
+// Whether an entry of `kind` can serve a message asking for `wants`: a style can be served by its drums or chords alone.
+export const serves = (wants: string, kind: Stratum | null): boolean =>
+    kind !== null && (kind === wants || (wants === "style" && (kind === "drums" || kind === "chords")))
+
 export type Knowledge = {
     index(): IndexLine[]
+    // The entries that can be applied, and the kind of change each makes (null: it can't be applied).
+    applicable(): IndexLine[]
+    stratum(key: string): Stratum | null
+    // An entry's params, to fill them (null: no entry, or nothing to apply).
+    params(key: string): Record<string, Param> | null
+    devices(key: string): string[]
     // What the model sees with a message: "key: summary" per entry, a family (group) as one line of its keys.
     compact(lines: IndexLine[]): string[]
     get(keys: string[]): Array<Entry & { draft?: true, linked?: IndexLine[] } | { missing: string }>
@@ -569,6 +594,11 @@ export const loadKnowledge = (dir: string, catalog: Catalog, warn: (text: string
     return {
         get size() {return entries.size},
         index: () => [...entries.values()].sort((a, b) => a.key.localeCompare(b.key)).map(line),
+        applicable: () => [...entries.values()].filter(entry => stratumOf(entry) !== null)
+            .sort((a, b) => a.key.localeCompare(b.key)).map(line),
+        stratum: key => {const entry = entries.get(key); return entry === undefined ? null : stratumOf(entry)},
+        params: key => entries.get(key)?.apply?.params ?? null,
+        devices: key => entries.get(key)?.devices ?? [],
         compact: lines => {
             const groups = new Map<string, IndexLine[]>()
             const out: string[] = []

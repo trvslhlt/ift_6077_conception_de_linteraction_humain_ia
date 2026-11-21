@@ -1,14 +1,16 @@
 {
  "key": "pattern/gmd-jazz-swing-beat-1",
  "kind": "pattern",
- "summary": "jazz (swing) groove, 2 bars at 215 BPM, played by a human drummer (Groove MIDI)",
+ "summary": "jazz (swing) groove, 2 bars at 215 BPM (only tom_low, sparse), played by a human drummer (Groove MIDI)",
  "tags": [
   "jazz",
   "swing",
   "drums",
   "groove",
   "human",
-  "live drums"
+  "live drums",
+  "sparse",
+  "simple"
  ],
  "group": "Groove MIDI drums, jazz (human drummers; 2-bar beats and 1-bar fills)",
  "devices": [],

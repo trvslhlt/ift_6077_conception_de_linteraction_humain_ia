@@ -1,7 +1,7 @@
 {
  "key": "pattern/gmd-reggae-beat-2",
  "kind": "pattern",
- "summary": "reggae groove, 2 bars at 141 BPM, played by a human drummer (Groove MIDI)",
+ "summary": "reggae groove, 2 bars at 141 BPM (sparse, 8ths on the hats, swung, a sparse kick), played by a human drummer (Groove MIDI)",
  "tags": [
   "reggae",
   "one drop",
@@ -9,7 +9,11 @@
   "drums",
   "groove",
   "human",
-  "live drums"
+  "live drums",
+  "sparse",
+  "simple",
+  "swing",
+  "shuffle"
  ],
  "group": "Groove MIDI drums, reggae (human drummers; 2-bar beats and 1-bar fills)",
  "devices": [],

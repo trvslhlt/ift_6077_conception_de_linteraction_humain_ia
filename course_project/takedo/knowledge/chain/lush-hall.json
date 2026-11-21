@@ -1,0 +1,97 @@
+{
+  "key": "chain/lush-hall",
+  "kind": "chain",
+  "summary": "A big, lush hall reverb: long modulated tail, soft top, pre-delay so the part stays clear",
+  "tags": [
+    "reverb",
+    "hall",
+    "lush",
+    "big",
+    "space",
+    "ambient",
+    "wash",
+    "cathedral",
+    "pad"
+  ],
+  "devices": [
+    "DattorroReverb"
+  ],
+  "links": [
+    "chain/small-room",
+    "chain/dub-echo"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (chains from the bench's gaps)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "body": [
+    "DattorroReverb (the plate/hall), 30 ms pre-delay, modulated tail (excursion) for the lush shimmer, damping so it isn't bright.",
+    "amount sets the tail and level: 0 a polite hall, 3 a wash. On keys and pads; on drums keep amount ≤ 1. For a short room, chain/small-room."
+  ],
+  "apply": {
+    "params": {
+      "track": {
+        "type": "track",
+        "about": "the part to put it on, or master"
+      },
+      "amount": {
+        "type": "amount"
+      }
+    },
+    "steps": [
+      {
+        "op": "add_effect",
+        "input": {
+          "track": "$track",
+          "effect": "DattorroReverb",
+          "settings": [
+            {
+              "param": "preDelay",
+              "value": 30
+            },
+            {
+              "param": "bandwidth",
+              "value": 0.75
+            },
+            {
+              "param": "decay",
+              "value": {
+                "dial": [
+                  0.7,
+                  0.92
+                ]
+              }
+            },
+            {
+              "param": "damping",
+              "value": 0.35
+            },
+            {
+              "param": "excursionRate",
+              "value": 0.5
+            },
+            {
+              "param": "excursionDepth",
+              "value": 0.8
+            },
+            {
+              "param": "wet",
+              "value": {
+                "dial": [
+                  -18,
+                  -6
+                ]
+              }
+            },
+            {
+              "param": "dry",
+              "value": 0
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

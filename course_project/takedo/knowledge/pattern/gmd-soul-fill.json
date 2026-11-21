@@ -1,7 +1,7 @@
 {
  "key": "pattern/gmd-soul-fill",
  "kind": "pattern",
- "summary": "soul fill, 1 bar at 105 BPM, played by a human drummer (Groove MIDI)",
+ "summary": "soul fill, 1 bar at 105 BPM (only snare and tom_low, medium), played by a human drummer (Groove MIDI)",
  "tags": [
   "soul",
   "motown",

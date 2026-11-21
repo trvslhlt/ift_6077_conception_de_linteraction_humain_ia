@@ -1,14 +1,16 @@
 {
  "key": "pattern/gmd-middleeastern-beat-1",
  "kind": "pattern",
- "summary": "Middle Eastern groove, 2 bars at 126 BPM, played by a human drummer (Groove MIDI)",
+ "summary": "Middle Eastern groove, 2 bars at 126 BPM (medium, 8ths on the hats, straight, ghost notes on the snare, a sparse kick), played by a human drummer (Groove MIDI)",
  "tags": [
   "middle eastern",
   "arabic",
   "drums",
   "groove",
   "human",
-  "live drums"
+  "live drums",
+  "straight",
+  "ghost notes"
  ],
  "group": "Groove MIDI drums, Middle Eastern (human drummers; 2-bar beats and 1-bar fills)",
  "devices": [],

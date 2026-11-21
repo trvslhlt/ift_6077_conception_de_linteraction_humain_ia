@@ -150,6 +150,52 @@ drum or chord pattern. The other rows are the run before that.)
 - **Next for the route:** the joint request in the router (`router.ts`) as a third path. Apply at ≥ 0.8 when the kind
   and the pick agree; otherwise hand the top candidates to the utility.
 
+### Round three: the route, built (2026-11-12)
+
+New since round two:
+- **7 chains from the gaps:** lush hall, chorus, drum punch, sidechain pump, gated room, wide, saturate. Openings
+  noted in each: openDAW has no chorus device, so it's built from Delay, and its compressor has no sidechain input
+  in the catalog, so the pump is faked with Tidal. `production/synthwave` and `production/clean-modern` now apply.
+- **Drum feel from the hits** (`import/drum-feel.mjs`): busy or sparse, 8ths or 16ths, swung or straight, ghost
+  notes, added to every Groove MIDI summary and tags. It found 11 thin beats, such as "jazz swing" played on the
+  floor tom alone, now flagged "only …".
+- **Labels can name entries by tag** (`pattern/gmd-*#busy`). 211 messages; 123 hits (58%); the shortlist finds 120.
+- **The route** (`router.ts`, `pickKnowledge`):
+  - It runs in front of the utility on every message not addressed to someone.
+  - It makes two Jev requests in parallel: one asks the kind of change and the pick, the other the part and amount.
+  - When the kind and pick agree, the kind's confidence is ≥ 0.5 and the pick's is ≥ 0.7, the backend fills the
+    entry's params and applies it (`Utility.applyEntry`, no model turn; the session hears about it with the next
+    message).
+  - Otherwise the utility gets up to 5 candidates as `knowledge_candidates`.
+  - Off by default (`make up KNOWLEDGE_ROUTE=on` turns it on). The roadmap brings Jev back after the utility alone
+    works, and the utility's SDK-port baseline hasn't been run yet. Turning it on is a one-word change when the user
+    decides.
+
+| The route, 211 messages | |
+|---|---|
+| Hits applied directly, right | 66/123 |
+| Applies that were wrong or unwanted | 0 |
+| Messages that needed no entry, left alone | 88/88 |
+| Hits handed to the utility with a right entry among the candidates | 47 of 50 |
+| Latency (both requests in parallel) | p50 148 ms, p90 179 ms |
+
+**The thresholds.**
+- With one combined confidence (the lower of the two answers) at ≥ 0.8, the route applied 47 hits.
+- Logging the two separately showed that the pick's own confidence separates right from wrong. The kind only needs
+  to be more than a guess.
+- On one run, kind ≥ 0.5 with pick ≥ 0.7 gave 70 right applies and 0 bad. A fresh run with those thresholds gave
+  66 and 0.
+- Two runs is little evidence, so watch for wrong applies in real sessions.
+
+**Asking the part and amount in a separate request** didn't change the pick's confidence (47 → 48 applies at the
+old threshold). It is kept anyway, since in parallel it costs nothing.
+
+**What's left to hear.** The page code (`kb.js`) and every entry are unheard in the studio, and the route has
+never run live. When Docker is back, the first live run should check these, in this order:
+1. A route apply on a real project: a chain, a sound, a drum pattern, a genre plan.
+2. Listen, and mark entries heard.
+3. Experiment G with the route on and off.
+
 ## Where it sits
 
 | | Notebook (built) | Knowledge base (this design) |

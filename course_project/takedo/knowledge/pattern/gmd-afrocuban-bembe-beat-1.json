@@ -1,7 +1,7 @@
 {
  "key": "pattern/gmd-afrocuban-bembe-beat-1",
  "kind": "pattern",
- "summary": "Afro Cuban (bembe) groove, 2 bars at 122 BPM, played by a human drummer (Groove MIDI)",
+ "summary": "Afro Cuban (bembe) groove, 2 bars at 122 BPM (only closed_hat and ride, sparse, 8ths on the hats, swung), played by a human drummer (Groove MIDI)",
  "tags": [
   "afro-cuban",
   "latin",
@@ -10,7 +10,11 @@
   "drums",
   "groove",
   "human",
-  "live drums"
+  "live drums",
+  "sparse",
+  "simple",
+  "swing",
+  "shuffle"
  ],
  "group": "Groove MIDI drums, Afro Cuban (human drummers; 2-bar beats and 1-bar fills)",
  "devices": [],

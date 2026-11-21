@@ -1,14 +1,15 @@
 {
  "key": "pattern/gmd-jazz-fill",
  "kind": "pattern",
- "summary": "jazz fill, 1 bar at 125 BPM, played by a human drummer (Groove MIDI)",
+ "summary": "jazz fill, 1 bar at 125 BPM (medium, ghost notes on the snare), played by a human drummer (Groove MIDI)",
  "tags": [
   "jazz",
   "swing",
   "drums",
   "fill",
   "human",
-  "live drums"
+  "live drums",
+  "ghost notes"
  ],
  "group": "Groove MIDI drums, jazz (human drummers; 2-bar beats and 1-bar fills)",
  "devices": [],

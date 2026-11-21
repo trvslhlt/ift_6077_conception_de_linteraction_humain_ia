@@ -1,7 +1,7 @@
 {
  "key": "pattern/gmd-jazz-mediumfast-beat-1",
  "kind": "pattern",
- "summary": "jazz (mediumfast) groove, 2 bars at 180 BPM, played by a human drummer (Groove MIDI)",
+ "summary": "jazz (mediumfast) groove, 2 bars at 180 BPM (medium, 8ths on the hats, swung, ghost notes on the snare, a sparse kick), played by a human drummer (Groove MIDI)",
  "tags": [
   "jazz",
   "swing",
@@ -9,7 +9,9 @@
   "drums",
   "groove",
   "human",
-  "live drums"
+  "live drums",
+  "shuffle",
+  "ghost notes"
  ],
  "group": "Groove MIDI drums, jazz (human drummers; 2-bar beats and 1-bar fills)",
  "devices": [],

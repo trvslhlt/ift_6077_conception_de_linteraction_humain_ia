@@ -1,14 +1,16 @@
 {
  "key": "pattern/gmd-pop-soft-beat-2",
  "kind": "pattern",
- "summary": "pop (soft) groove, 2 bars at 83 BPM, played by a human drummer (Groove MIDI)",
+ "summary": "pop (soft) groove, 2 bars at 83 BPM (sparse, 8ths on the hats, a sparse kick), played by a human drummer (Groove MIDI)",
  "tags": [
   "pop",
   "soft",
   "drums",
   "groove",
   "human",
-  "live drums"
+  "live drums",
+  "sparse",
+  "simple"
  ],
  "group": "Groove MIDI drums, pop (human drummers; 2-bar beats and 1-bar fills)",
  "devices": [],

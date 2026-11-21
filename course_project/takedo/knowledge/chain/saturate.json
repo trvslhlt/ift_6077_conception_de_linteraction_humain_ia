@@ -1,0 +1,80 @@
+{
+  "key": "chain/saturate",
+  "kind": "chain",
+  "summary": "Warm saturation: drives a part into soft clipping for grit and harmonics, level kept",
+  "tags": [
+    "saturation",
+    "drive",
+    "warm",
+    "grit",
+    "crunch",
+    "distortion",
+    "dirty",
+    "analog",
+    "overdrive"
+  ],
+  "devices": [
+    "Waveshaper"
+  ],
+  "links": [
+    "chain/tape-dust"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (chains from the bench's gaps)",
+    "date": "2026-11-12",
+    "opendaw": "652e6ca"
+  },
+  "body": [
+    "Waveshaper with input drive and matching output cut, partly mixed in. amount 0 warmth, 3 crunch. For crushed digital grit use chain/tape-dust's Crusher instead."
+  ],
+  "apply": {
+    "params": {
+      "track": {
+        "type": "track",
+        "about": "the part to put it on, or master"
+      },
+      "amount": {
+        "type": "amount"
+      }
+    },
+    "steps": [
+      {
+        "op": "add_effect",
+        "input": {
+          "track": "$track",
+          "effect": "Waveshaper",
+          "settings": [
+            {
+              "param": "inputGain",
+              "value": {
+                "dial": [
+                  4,
+                  20
+                ]
+              }
+            },
+            {
+              "param": "outputGain",
+              "value": {
+                "dial": [
+                  -3,
+                  -12
+                ]
+              }
+            },
+            {
+              "param": "mix",
+              "value": {
+                "dial": [
+                  0.35,
+                  0.8
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

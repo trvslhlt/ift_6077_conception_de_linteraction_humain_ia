@@ -1,7 +1,7 @@
 {
  "key": "pattern/gmd-punk-beat-2",
  "kind": "pattern",
- "summary": "punk groove, 2 bars at 128 BPM, played by a human drummer (Groove MIDI)",
+ "summary": "punk groove, 2 bars at 128 BPM (medium, 8ths on the hats, straight, ghost notes on the snare), played by a human drummer (Groove MIDI)",
  "tags": [
   "punk",
   "fast",
@@ -9,7 +9,9 @@
   "drums",
   "groove",
   "human",
-  "live drums"
+  "live drums",
+  "straight",
+  "ghost notes"
  ],
  "group": "Groove MIDI drums, punk (human drummers; 2-bar beats and 1-bar fills)",
  "devices": [],
