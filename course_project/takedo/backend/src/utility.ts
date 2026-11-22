@@ -32,7 +32,29 @@ const SourceTools = ["Read", "Grep", "Glob"]
 // One task's edits: what landed (for the card and the reply), what's still landing, and failures nobody's heard yet.
 type Work = { done: string[], pending: Promise<string>[], late: string[] }
 // The message being worked on, for the tools' handlers (one at a time: they share the session).
-type Current = { context: Coordinator, task: Task, work: Work, calls: number }
+type Current = { context: Coordinator, task: Task, work: Work, calls: number, said?: string }
+
+// What the producer reads must be a chat line (INTERACTION.md, "Who speaks in the chat"): the prompt alone didn't hold
+// (a 9-sentence bulleted reply, 2026-11-21), so the reply tool refuses anything else and says what to fix.
+export const MaxReplySentences = 2, MaxReplyChars = 240
+const sentencesIn = (text: string): string[] => text.split(/(?<=[.!?])\s+/).filter(part => part.trim() !== "")
+export const replyProblem = (text: string): string | null => {
+    const trimmed = text.trim()
+    if (trimmed === "") {return "it's empty"}
+    if (/\n/.test(trimmed)) {return "it has line breaks: write one short paragraph"}
+    if (/(^|\s)[-*•]\s|\*\*|^#|`/.test(trimmed)) {return "it has list marks or markdown: write plain sentences"}
+    if (/\b(haven't|have not|didn't|did not|can't|cannot) (heard|hear|listened|confirmed|checked|verified)\b/i.test(trimmed)) {
+        return "drop the caveat about not having heard or checked it"
+    }
+    const count = sentencesIn(trimmed).length
+    if (count > MaxReplySentences) {return `it's ${count} sentences: at most ${MaxReplySentences}`}
+    if (trimmed.length > MaxReplyChars) {return `it's ${trimmed.length} characters: at most ${MaxReplyChars}`}
+    return null
+}
+// When the model ends without calling reply: its first plain sentences, list lines and markdown dropped.
+export const asChatLine = (text: string): string => sentencesIn(text.split("\n")
+    .filter(line => !/^\s*([-*•]|#)/.test(line)).join(" ").replace(/\*\*|`/g, "").trim())
+    .slice(0, MaxReplySentences).join(" ")
 type Session = { inbox: Inbox, query: Query }
 
 // The knowledge base's part of the prompt, left out when there's none (an A/B run with KNOWLEDGE_DIR on an empty folder).
@@ -49,7 +71,7 @@ Tools:
 - look: run read-only JavaScript to inspect the project. Writes fail here.
 - run: change the project with a short script, for what no fixed operation does. It runs inside one edit: one undo step for the producer, rolled back entirely if it throws. It lands on the bar you choose (0: as soon as possible).
 - An edit for a later bar (fixed operation or script) answers "Scheduled" at once and lands on its own: carry on with the next one, so a staged plan is all timed from the same playhead. Failures come back in a later round ("Since then, failed: …"). A look sees only what has landed.
-- When you've finished, reply to the producer as in a chat with a bandmate mid-session: one or two short, plain sentences on what you changed and how it will sound (or why you couldn't). No lists, headings or markdown; no bar numbers, refs, dB values, device settings or tempo steps unless they asked (the team view shows every edit and when it lands); no caveats about not having heard it. Ask at most one short question, only when you need the answer. Your last message is all they see: keep anything you write between tool calls to a few words.
+- reply: when you've finished, call it once with what the producer reads, as in a chat with a bandmate mid-session: one or two short, plain sentences on what you changed and how it will sound (or why you couldn't). No lists or markdown; no bar numbers, refs, dB values, device settings or tempo steps unless they asked (the team view shows every edit and when it lands); no caveats about not having heard or checked it. Ask at most one short question, only when you need the answer. It checks the form and tells you what to fix. Nothing else you write is shown: keep text between tool calls to a few words, and after reply end your turn.
 - Read, Grep, Glob: openDAW's own source, the version that's running; your working directory is its root (packages/…). Read it for what the notes below don't say: a device's fields and their ranges (box schemas in packages/studio/forge-boxes/src/schema/devices/), step tables (adapters in packages/studio/adapters/src/devices/), how an API call works, the user manual (packages/app/manual/public/). Look before writing fields you haven't used.
 ${KnowledgeSlot}- remember, recall, forget: your notebook, kept on disk per project and listed with every message (\`notebook\`: key, kind, summary). Your conversation may be summarized between messages; the notebook isn't. Keep in it what you'll want later: the producer's wishes and taste (note), a staged plan and where it stands (plan), parts you wrote as notes (clip), sounds you designed with their settings (sound), scripts worth reusing (script). "start" (state) is the whole project before the agents' first edit this session, kept for you. "facts" (state) is what's established about this project: its key, tempo, meter, each part's register, and the overview; its summary comes with every message. Write anything pitched (chords, melodies, bass lines) in that key, and keep each part in its role (a part in the bass register stays the bass). If the producer says otherwise, remember the correction under "facts".
 
@@ -230,7 +252,8 @@ export class Utility implements Member {
         }))
         try {
             const summary = await this.#reply(context, session)
-            await this.#finish(context, summary, work)
+            const said = this.#current?.said
+            await this.#finish(context, said ?? asChatLine(summary), work)
         } catch (error) {
             this.close()   // a turn left half-answered can't be continued
             throw error
@@ -274,7 +297,7 @@ export class Utility implements Member {
                 const current = this.#current
                 if (current === null) {return reply("No message is being worked on.")}
                 if (++current.calls > MaxCalls) {
-                    return reply(`Not run: that's ${MaxCalls} calls for this message. Finish now, saying what you changed and what's left undone.`)
+                    return reply(`Not run: that's ${MaxCalls} calls for this message. Finish now: call reply with what you changed and what's left undone.`)
                 }
                 const result = await run(current, input)
                 const late = current.work.late.splice(0)
@@ -294,6 +317,16 @@ export class Utility implements Member {
                 Object.fromEntries(Object.entries(member.input_schema.properties as Record<string, z.core.JSONSchema.JSONSchema>)
                     .map(([name, property]) => [name, z.fromJSONSchema(property)])) as z.ZodRawShape,
                 handler((current, input) => this.#operate(current, owners.get(member.name)!, member.name, input)))),
+            tool("reply", "What the producer reads in the chat, once you've finished: one or two short, plain sentences.", {
+                text: z.string()}, async (input: Record<string, unknown>): Promise<CallToolResult> => {
+                    const current = this.#current
+                    if (current === null) {return reply("No message is being worked on.")}
+                    const text = String(input.text).trim()
+                    const problem = replyProblem(text)
+                    if (problem !== null) {return reply(`Not sent: ${problem}. Call reply again.`)}
+                    current.said = text
+                    return reply("Sent. End your turn now.")
+                }),
             tool("look", "Run read-only JavaScript (an async function body, `takedo` in scope) and see what it returns.", {
                 code: z.string()}, handler((current, input) => this.#look(current.context, String(input.code))),
                 {annotations: {readOnlyHint: true}}),

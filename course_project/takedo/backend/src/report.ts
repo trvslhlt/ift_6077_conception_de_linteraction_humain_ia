@@ -5,6 +5,7 @@ import {existsSync, readdirSync, readFileSync, writeFileSync} from "node:fs"
 import {join} from "node:path"
 import type {Note, Snapshot, Track} from "../../shared/protocol.ts"
 import {analyse, isDrums, type Key} from "./analysis.ts"
+import {MaxReplySentences} from "./utility.ts"
 
 type Line = { from: string, shown?: string, text: string }
 type Run = {
@@ -120,8 +121,8 @@ if (before === undefined || after === undefined) {
     check(failed.length === 0, `${failed.length} edits not done${failed.length > 0 ? `: ${failed.map(entry => entry.detail ?? entry.reason ?? entry.state).join("; ")}` : ""}`)
     check(bunched <= 3, `at most ${bunched} edits landed in one bar`)
     check(run.playing === true, `engine ${run.playing ? "still playing" : "stopped"} at the end`)
-    const long = run.messages.flatMap(message => message.replies).filter(line => sentences(line.text) > 3)
-    check(long.length === 0, `${long.length} replies longer than 3 sentences`)
+    const long = run.messages.flatMap(message => message.replies).filter(line => sentences(line.text) > MaxReplySentences)
+    check(long.length === 0, `${long.length} replies longer than ${MaxReplySentences} sentences`)
 }
 
 const report = out.join("\n") + "\n"
