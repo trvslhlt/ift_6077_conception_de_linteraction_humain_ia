@@ -295,3 +295,37 @@ a quarter of the time for the first direction, with fewer edits (12 against 49).
   each message.
 - **Less gradual than asked.** The drum pattern swaps in one go and the three master effects land on the same bar;
   only the level and tempo are staged. 9 BPM steps are audible.
+
+## H. The lofi scenario, one change at a time (2026-11-21)
+
+**Why.** Live runs judged by ear changed several things at once, and the backend's roster drifting between runs made
+one look like a regression. So: a fixed scenario (`make scenario`: `takedo/scenarios/lofi.json`, G's direction and
+follow-ups on `01_good_base.odb`, headless, the utility alone on Sonnet 5.5) and a report with checks code can make
+(`backend/src/report.ts`), rerun after each change.
+
+**Results.** Each row is one change, committed with its report.
+
+| Change | Chords in key | Replies ≤ 2 sentences | Most edits in a bar | Steps out of order | Edits landed | Cost |
+|---|---|---|---|---|---|---|
+| Baseline (fe95be9) | ❌ 88% (Am7 → Fmaj7: F) | ❌ (6, 4) | ❌ 4 | not checked | 23/23 | $0.21 |
+| Project facts in the notebook (3ea895c) | ✅ 100% (Em9 → Cmaj7) | ❌ (9, bulleted) | 3 | not checked | 21/21 | $0.20 |
+| Reply tool enforcing a chat line (e1a7723) | ✅ | ✅ | ❌ 4 | ❌ 7 pairs | 23/23 | $0.23 |
+| Edits anchored to the task (6857b88) | ✅ | ✅ | ✅ 3 | ✅ 0 | 24/24 | $0.17 |
+| Same, knowledge route on | ✅ | ✅ | ✅ 3 | ✅ 0 | 11/12 | $0.15 + Jev |
+
+**Findings.**
+1. **Record facts; don't make agents re-derive them.** The key was known (overview, analysis) but not where the
+   utility looked; a notebook entry written once from the starting notes fixed it.
+2. **Rules the prompt states, code should check.** Reply length and staging held only once a tool refused or noted
+   the violation; the prompt alone produced a 9-sentence bulleted reply and bunched effects.
+3. **The bug was the timing, not the model.** In a loop, a bar past its end counted from the playhead when each edit
+   arrived; a plan scheduled over 15 s (7 bars) landed out of order. Anchoring a task's edits to one playback point
+   (`When.from`, the page's played-pulse count) fixed it.
+4. **The knowledge route is fast but not yet safe.** It answered the first direction in 0.4 s (the utility: 34 s)
+   by applying `genre/lofi-hip-hop` with Jev's arguments, but Jev chose the acid bass (Cubed, the bass register in the
+   facts) as the entry's `keys` part. The chord step failed only because of a second bug: an entry's two scripts both
+   claim `project.script`, and the second is refused ("not claimed") while the first waits for its bar. Its reply,
+   "Putting in lofi hip hop.", says little.
+
+**Outcome.** The route stays off. Before trying it again: Jev's track arguments checked against the facts (no chord
+part on a bass-register track), an entry's scripts run under one claim, and a reply that says what is changing.
