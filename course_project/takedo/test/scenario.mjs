@@ -32,7 +32,8 @@ const run = {scenario: name, project: scenario.project, started: new Date().toIS
 try {
     await page.goto(URL, {waitUntil: "networkidle", timeout: 180000})
     await page.waitForFunction(() => window.takedo?.debug?.openBundle !== undefined)
-    await page.evaluate(base64 => window.takedo.debug.openBundle(base64), bundle)
+    // Its own name: the backend keeps a notebook per project name, cleared by `make scenario` before each run.
+    await page.evaluate(([base64, name]) => window.takedo.debug.openBundle(base64, name), [bundle, `scenario-${name}`])
     await page.waitForFunction(() => window.takedo.adapter !== null)
     // A fresh browser gets the welcome tour when a project opens; Escape closes it.
     if (await page.getByText("Welcome to openDAW").waitFor({timeout: 5000}).then(() => true, () => false)) {

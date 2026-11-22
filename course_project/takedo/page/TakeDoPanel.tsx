@@ -24,7 +24,7 @@ type DebugNote = [number, number, number]
 type Debug = {
     addSynth(name: string, notes?: ReadonlyArray<DebugNote>, instrument?: InstrumentKey): void
     catalog(): CatalogResult | null                 // `make catalog`: creates and deletes every device in the project
-    openBundle(base64: string): Promise<void>       // `make scenario`: opens an .odb bundle as the current project
+    openBundle(base64: string, name?: string): Promise<void>  // `make scenario`: opens an .odb bundle, renamed if a name is given
 }
 type InstrumentKey = keyof typeof InstrumentFactories.Named
 
@@ -50,9 +50,11 @@ const debugFor = (service: StudioService): Debug => ({
             })),
     catalog: () => service.projectProfileService.getValue().mapOr(({project}) => generateCatalog(project), null),
     // Not saved to the browser's storage: a scenario starts from the bundle every time.
-    openBundle: async (base64: string) => {
+    // Renamed, the project gets its own notebook on the backend (kept per project name).
+    openBundle: async (base64: string, name?: string) => {
         const bytes = Uint8Array.from(atob(base64), character => character.charCodeAt(0))
         const profile = await ProjectBundle.decode(service, bytes.buffer)
+        if (name !== undefined) {profile.updateMetaData("name", name)}
         service.projectProfileService.setValue(Option.wrap(profile))
     }
 })

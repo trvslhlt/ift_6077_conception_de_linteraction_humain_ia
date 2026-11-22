@@ -10,6 +10,7 @@ import {isRole, type KnowledgePick, pickKnowledge, type Role, route} from "./rou
 import type {SessionLog} from "./sessionLog.ts"
 import {lead, writeOverview} from "./teamLead.ts"
 import {Notebook} from "./notebook.ts"
+import {analyse, isDrums} from "./analysis.ts"
 import type {Knowledge} from "./knowledge.ts"
 import {Utility} from "./utility.ts"
 
@@ -48,6 +49,7 @@ export class Coordinator {
     #startKept = false                      // whether this session has kept the project's starting state
     #viewOpen = false
     #overview: "none" | "writing" | "done" = "none"   // for the open project; written once, refreshed on request
+    #overviewLines: ReadonlyArray<{ label: string, text: string }> | null = null
 
     // notebooks: the folder of agents' notebooks, one per project; source: the root of openDAW's source tree, for the
     // utility to read; knowledge: the knowledge base shared across projects (knowledge.ts), if it loaded.
@@ -89,6 +91,7 @@ export class Coordinator {
                 this.#notebook = this.#project === null ? null : new Notebook(this.#notebooks, this.#project)
                 this.#startKept = false
                 this.#overview = "none"
+                this.#overviewLines = null
                 this.#log.write("project", {open: message.open, name: message.name})
                 this.#maybeOverview()
                 return
@@ -205,6 +208,42 @@ export class Coordinator {
         }))
     }
 
+    // The project's facts, in the notebook the first time a message needs them (notebook.ts): the
+    // key and each part's register from the notes as they stand (analysis.ts), tempo and meter, and the overview once
+    // written. Listed with every message, so no task guesses them. Recorded once, so the agents' own notes can't shift
+    // the key; an entry an agent rewrote (it has no recorded_by) is left alone.
+    async #keepFacts(): Promise<void> {
+        const notebook = this.#notebook
+        if (notebook === null || notebook.get("facts") !== null) {return}
+        const snapshot = await this.snapshot("full")
+        if (snapshot === null) {return}
+        const {key, parts} = analyse(snapshot)
+        const described = snapshot.tracks.map(track => {
+            const part = parts[track.ref]
+            if (part === undefined) {return `${track.name} (${track.ref}): no notes`}
+            if (isDrums(track)) {return `${track.name} (${track.ref}): drums`}
+            const pitches = track.regions.flatMap(region => region.notes ?? []).map(([, pitch]) => pitch)
+            const low = Math.max(...pitches) < 60   // nothing above openDAW's C3 (MIDI 60)
+            return `${track.name} (${track.ref}): ${part.register?.low}–${part.register?.high}${low ? ", the bass register" : ""}`
+        })
+        const keyText = key === null ? "unknown (too few notes)" : `${key.tonic} ${key.mode}`
+        const value = {recorded_by: "takedo", from: "the project as it was when the agents first worked on it",
+            key: key === null ? null : {...key, said: keyText}, tempo: snapshot.timeline.bpm,
+            meter: snapshot.timeline.signature.join("/"), parts: described, overview: this.#overviewLines}
+        notebook.set("facts", "state", `Key ${keyText}${key === null ? "" : " (from the notes)"}; ${snapshot.timeline.bpm} BPM, ` +
+            `${value.meter}; ${described.join("; ")}. Use these; if the producer says otherwise, rewrite this entry.`, JSON.stringify(value))
+    }
+
+    // The overview's lines join the facts recorded by code (not an entry an agent rewrote).
+    #factsOverview(lines: ReadonlyArray<{ label: string, text: string }>): void {
+        this.#overviewLines = lines
+        const entry = this.#notebook?.get("facts") ?? null
+        if (entry === null) {return}
+        const value = JSON.parse(entry.value)
+        if (value.recorded_by !== "takedo") {return}
+        this.#notebook!.set("facts", entry.kind, entry.summary, JSON.stringify({...value, overview: lines}))
+    }
+
     // Before the agents' first edit in a session: the whole project, notes included, as it was, in the notebook.
     async #keepStart(): Promise<void> {
         const notebook = this.#notebook
@@ -265,6 +304,7 @@ export class Coordinator {
         if (this.#project === null) {return this.say("agent:team_lead", "Open a project first.")}
         const snapshot = await this.snapshot()
         if (snapshot === null) {return this.say("agent:team_lead", "Open a project first.")}
+        await this.#keepFacts()
         const utility = this.#members.find(member => member.role === "utility")
         if (Roster === "utility" && utility instanceof Utility) {
             const task: Task = {message, piece: null, hints: null, history}
@@ -363,6 +403,7 @@ export class Coordinator {
                 if (!done("done")) {return}
                 this.#log.write("overview", overview)
                 this.#send({type: "overview", state: "done", overview})
+                this.#factsOverview(overview.lines)
             })
             .catch(error => {
                 if (!done("none")) {return}

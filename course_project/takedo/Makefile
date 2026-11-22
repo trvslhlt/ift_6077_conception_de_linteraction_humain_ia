@@ -68,6 +68,7 @@ test: build $(TYPES_DIR)/packages ## Run the smoke test in headless Chromium aga
 SCENARIO ?= lofi
 scenario: build $(TYPES_DIR)/packages ## Play scenarios/$(SCENARIO).json to TakeDo headless and write its report (scenarios/runs/)
 	mkdir -p sessions scenarios/runs
+	rm -f sessions/notebooks/scenario-$(SCENARIO).json
 	$(COMPOSE) up -d --wait --force-recreate backend studio
 	@echo "backend: ROSTER=$(ROSTER) KNOWLEDGE_ROUTE=$(KNOWLEDGE_ROUTE)"
 	$(COMPOSE) run --rm -v $(CURDIR)/scenarios:/scenarios smoke node scenario.mjs /scenarios/$(SCENARIO).json
