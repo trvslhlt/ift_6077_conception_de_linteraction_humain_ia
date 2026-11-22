@@ -1,6 +1,6 @@
 import {randomUUID} from "node:crypto"
 import {
-    type Actor, type Apply, type BackendToPage, type ChangeEvent, type Detail, type MemberCard, type PageToBackend,
+    type Actor, type Apply, type BackendToPage, type ChangeEvent, type Control, type Detail, type MemberCard, type PageToBackend,
     type Plan, type Snapshot, type Status, target, type When
 } from "../../shared/protocol.ts"
 import type {Catalog} from "./catalog.ts"
@@ -24,6 +24,15 @@ const HistoryLines = 12
 // "team": the full team. Decided 2026-11-07, to bring the roles back one at a time once the utility works well.
 // TAKEDO_ROSTER, from `make up ROSTER=…` (the smoke test runs the team).
 const Roster: "utility" | "team" = process.env.TAKEDO_ROSTER === "team" ? "team" : "utility"
+// Controls a member may have on its card at once (INTERACTION.md: one intent control each; a few while it's tried out).
+export const MaxControls = 3
+// A control's position in words, for its owner: where it sits between its two ends.
+export const placed = (control: Control): string => {
+    const {value, low, high} = control
+    const where = value <= 0.05 ? `all the way to "${low}"` : value < 0.35 ? `toward "${low}"` : value <= 0.65 ? `in the middle`
+        : value < 0.95 ? `toward "${high}"` : `all the way to "${high}"`
+    return `${value.toFixed(2)}, ${where} (0 is "${low}", 1 is "${high}")`
+}
 const Terminal: ReadonlyArray<Status["state"]> = ["applied", "dropped", "failed"]
 // The knowledge route (router.ts, pickKnowledge) in front of the utility: on with TAKEDO_KNOWLEDGE_ROUTE=on. Off by
 // default until the utility alone has its baseline (the roadmap: the utility first, then Jev); the utility has the
@@ -52,6 +61,10 @@ export class Coordinator {
     #viewOpen = false
     #overview: "none" | "writing" | "done" = "none"   // for the open project; written once, refreshed on request
     #overviewLines: ReadonlyArray<{ label: string, text: string }> | null = null
+    // Controls moved since their owner last heard; whether a turn to tell it is already queued (only the latest
+    // position counts, so moves made while it works are told together).
+    readonly #moved = new Map<string, number>()
+    #steering = false
 
     // notebooks: the folder of agents' notebooks, one per project; source: the root of openDAW's source tree, for the
     // utility to read; knowledge: the knowledge base shared across projects (knowledge.ts), if it loaded.
@@ -98,6 +111,8 @@ export class Coordinator {
                 this.#overview = "none"
                 this.#overviewLines = null
                 this.#log.write("project", {open: message.open, name: message.name})
+                this.#moved.clear()
+                this.#sendControls()
                 this.#maybeOverview()
                 // A message the backend was restarted in the middle of, picked back up.
                 const utility = this.#members.find(member => member instanceof Utility)
@@ -118,6 +133,9 @@ export class Coordinator {
                 this.#chat(message.text).catch(error => {
                     this.say("agent:team_lead", `Something went wrong: ${String(error)}`)
                 })
+                return
+            case "control":
+                this.#control(message.ref, message.value)
                 return
             case "result":
                 this.#queries.get(message.id)?.(message.snapshot)
@@ -310,6 +328,84 @@ export class Coordinator {
     #remember(from: Actor, text: string): void {
         this.#history.push({from: from === "agent:utility" ? "team_lead" : from.replace("agent:", ""), text})
         this.#history.splice(0, this.#history.length - HistoryLines)
+    }
+
+    // ---------- controls ----------
+
+    // The open project's controls, kept in the notebook ("controls"), so they outlast a restart and their owner sees
+    // each one's position with every message (the entry's summary).
+    controls(): Control[] {
+        const entry = this.#notebook?.get("controls") ?? null
+        if (entry === null) {return []}
+        try {return JSON.parse(entry.value) as Control[]} catch {return []}
+    }
+
+    #setControls(controls: ReadonlyArray<Control>): void {
+        const notebook = this.#notebook
+        if (notebook === null) {return}
+        if (controls.length === 0) {notebook.delete("controls")} else {
+            notebook.set("controls", "state", `Dials on your card, as the producer has them now: ${controls.map(control =>
+                `"${control.label}" (${control.ref}) at ${placed(control)}: ${control.meaning}`).join("; ")}.`, JSON.stringify(controls))
+        }
+        this.#log.write("controls", {controls})
+        this.#sendControls()
+    }
+
+    #sendControls(): void {this.#send({type: "controls", controls: this.controls()})}
+
+    // A member puts a dial on its card, or changes one it has (same ref: the producer's position is kept).
+    offerControl(owner: Actor, offered: Omit<Control, "owner" | "kind" | "widget">): string {
+        if (this.#notebook === null) {return "Not offered: no project is open."}
+        const controls = this.controls()
+        const existing = controls.find(control => control.ref === offered.ref)
+        if (existing !== undefined && existing.owner !== owner) {return `Not offered: ${offered.ref} is ${existing.owner}'s.`}
+        if (existing === undefined && controls.filter(control => control.owner === owner).length >= MaxControls) {
+            return `Not offered: you have ${MaxControls} controls already; remove one that no longer applies first.`
+        }
+        const control: Control = {...offered, owner, kind: "intent", widget: "dial",
+            value: existing?.value ?? Math.min(1, Math.max(0, offered.value))}
+        this.#setControls(existing === undefined ? [...controls, control]
+            : controls.map(candidate => candidate.ref === control.ref ? control : candidate))
+        return `On your card: "${control.label}" at ${placed(control)}. Moving it will reach you as control_moved.`
+    }
+
+    removeControl(owner: Actor, ref: string): string {
+        const controls = this.controls()
+        if (!controls.some(control => control.ref === ref && control.owner === owner)) {return `You have no control ${ref}.`}
+        this.#setControls(controls.filter(control => control.ref !== ref))
+        return `Removed ${ref}.`
+    }
+
+    // The producer let go of a control: a direction to its owner (TAKEDO_API.md, "Controls"), queued behind whatever
+    // it's doing. Its card shows the move was heard at once.
+    #control(ref: string, value: number): void {
+        const controls = this.controls()
+        const moved = controls.find(control => control.ref === ref)
+        if (moved === undefined || !Number.isFinite(value)) {return}
+        const was = this.#moved.has(ref) ? null : moved.value
+        const control = {...moved, value: Math.min(1, Math.max(0, value))}
+        this.#setControls(controls.map(candidate => candidate.ref === ref ? control : candidate))
+        this.#log.write("control", {ref, value: control.value, owner: control.owner})
+        if (!this.#moved.has(ref)) {this.#moved.set(ref, was ?? moved.value)}
+        const utility = this.#members.find(member => member instanceof Utility)
+        if (!(utility instanceof Utility) || control.owner !== utility.agent) {return}
+        this.card({agent: utility.agent, name: utility.name, doing: `heard: ${control.label} ${placed(control).replace(/ \(0 is.*$/, "")}`})
+        if (this.#steering) {return}
+        this.#steering = true
+        utility.steer(this, async () => {
+            this.#steering = false
+            const now = this.controls()
+            const text = [...this.#moved].flatMap(([ref, was]) => {
+                const control = now.find(candidate => candidate.ref === ref)
+                return control === undefined || control.value === was ? []
+                    : [`The producer moved your control "${control.label}" from ${was.toFixed(2)} to ${placed(control)}. It means: ${control.meaning}`]
+            }).join("\n")
+            this.#moved.clear()
+            const snapshot = text === "" ? null : await this.snapshot()
+            if (snapshot === null) {return null}
+            const task: Task = {message: text, piece: null, hints: null, control: true}
+            return {task, snapshot}
+        }).catch(error => this.say("agent:team_lead", `Something went wrong: ${String(error)}`))
     }
 
     // ---------- chat and routing ----------

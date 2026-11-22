@@ -23,7 +23,9 @@ export type Task = { message: string, piece: string | null, hints: Hints | null,
     // Knowledge entries Jev judged likely for the message but wasn't sure enough to apply (router.ts, pickKnowledge)
     candidates?: ReadonlyArray<{ key: string, summary: string }>,
     // The producer addressed this member (@member): it answers in the chat itself (Coordinator.report).
-    direct?: boolean }
+    direct?: boolean,
+    // The message is the producer's move of a control (Coordinator.#control), not something they typed.
+    control?: boolean }
 export type Member = {
     readonly agent: Actor, readonly role: string, readonly name: string
     readonly area: string                           // what the role covers

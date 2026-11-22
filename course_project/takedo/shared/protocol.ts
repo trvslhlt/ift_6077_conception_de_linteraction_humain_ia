@@ -5,7 +5,7 @@
 // Shared by the page (Vite, mounted at src/takedo_shared) and the backend (Node, run with type stripping), so this
 // directory holds erasable TypeScript only: types and plain functions, no enums, no parameter properties.
 
-export const ProtocolVersion = 5
+export const ProtocolVersion = 6
 export const SocketPath = "/takedo"
 
 // ---------- TakeDoAPI subset ----------
@@ -103,6 +103,11 @@ export type ChangeEvent = { seq: number, t: number, pos: string, playing: boolea
 // The team view.
 export type ChatLine = { id: string, t: number, from: Actor, to?: Actor, text: string }
 export type MemberCard = { agent: Actor, name: string, doing: string }
+// A member's control on its card (TAKEDO_API.md, "Controls"; INTERACTION.md's A2UI note): data only, drawn by the page
+// with a widget of its own, so no agent writes UI. Intent dials for now: moving one is a direction to its owner (who
+// reads meaning and the position between the ends low and high), never a change to the project. value: 0..1.
+export type Control = { ref: string, owner: Actor, kind: "intent", widget: "dial", label: string,
+    low: string, high: string, meaning: string, value: number }
 // Who's on the team, for the team view (mentions, autocomplete). role: the @name.
 export type TeamMember = { role: string, name: string, area: string }
 // The project overview (FEATURES.md, "Project overview"): labelled lines from the Team Lead's model; the page adds the
@@ -118,6 +123,7 @@ export type PageToBackend =
     | { type: "view", open: boolean }                     // the team view was shown or hidden
     | { type: "overview" }                                // the producer asked for a fresh overview
     | { type: "chat", text: string }                      // the producer typed in the team view
+    | { type: "control", ref: string, value: number }     // the producer let go of a control at this value
     | { type: "result", id: number, snapshot: Snapshot | null }   // answer to a query; null: no project open
     | { type: "status", status: Status }
     | { type: "change", event: ChangeEvent }
@@ -132,6 +138,7 @@ export type BackendToPage =
     | { type: "apply", request: Apply }
     | { type: "chat", line: ChatLine }
     | { type: "card", card: MemberCard }
+    | { type: "controls", controls: Control[] }            // every member's controls, replacing those shown
     // aliases: agents the producer sees as another (the utility appears as the Team Lead; FEATURES.md, "The team")
     | { type: "team", members: TeamMember[], aliases: Record<string, Actor> }
     | { type: "overview", state: "writing" } | { type: "overview", state: "done", overview: Overview }

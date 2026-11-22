@@ -1,0 +1,9 @@
+{
+ "//": "Member controls, first piece: the lofi direction, then the producer moves the dial the Team Lead offered for it, all the way up, then most of the way back.",
+ "project": "01_good_base.odb",
+ "messages": [
+  {"text": "Slowly, and without sudden large changes, evolve this into a lofi girl beat"},
+  {"control": "", "value": 1},
+  {"control": "", "value": 0.2}
+ ]
+}

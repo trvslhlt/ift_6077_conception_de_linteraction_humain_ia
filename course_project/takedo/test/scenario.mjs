@@ -4,6 +4,7 @@
 // Run via `make scenario SCENARIO=<name>` (scenarios/<name>.json); shares the studio container's network like smoke.mjs.
 // A message may carry restart_after_ms: the backend is killed that long after it's sent (the Makefile does it when this
 // drops scenarios/.restart), and its reply is the one after the page has reconnected.
+// A step may move a control instead of sending text: {"control": "<ref, or omitted for the first one shown>", "value": 0..1}.
 import {chromium} from "playwright"
 import {mkdirSync, readFileSync, writeFileSync} from "node:fs"
 import {basename, dirname, join} from "node:path"
@@ -52,12 +53,34 @@ try {
     // How far the playhead has gone, against the clock: a stalled engine shows as too few pulses played (the report checks).
     const clock = async () => ({t: Date.now(), played: await page.evaluate(() => window.takedo.adapter.playback().played)})
     run.clock = {start: await clock()}
-    for (const {text, restart_after_ms: restartAfter} of scenario.messages) {
+    for (const step of scenario.messages) {
+        const {restart_after_ms: restartAfter} = step
+        let text = step.text
         const seen = (await agentLines()).length
         const start = Date.now()
-        await page.getByTestId("takedo-input").fill(text)
-        await page.getByTestId("takedo-input").press("Enter")
+        // The user's own line (none for a control move), then at least one reply (two after a restart).
         let replies = 1
+        if (step.control !== undefined) {
+            const selector = step.control === "" ? "[data-testid=takedo-control]" : `[data-testid=takedo-control][data-ref="${step.control}"]`
+            const found = await page.waitForSelector(selector, {timeout: 5000}).then(() => true, () => false)
+            const label = found ? await page.evaluate(([selector, value]) => {
+                const control = document.querySelector(selector)
+                const input = control.querySelector("input")
+                input.value = String(Math.round(value * 100))
+                input.dispatchEvent(new Event("change"))
+                return `${control.dataset.ref} (${control.firstElementChild.textContent})`
+            }, [selector, step.value]) : null
+            text = label === null ? `(no control to move${step.control === "" ? "" : ` ${step.control}`})` : `(moved ${label} to ${step.value})`
+            if (label === null) {
+                run.messages.push({text, control: true, replyMs: 0, settledMs: 0, settled: true, replies: []})
+                console.log(`> ${text}`)
+                continue
+            }
+            replies = 0
+        } else {
+            await page.getByTestId("takedo-input").fill(text)
+            await page.getByTestId("takedo-input").press("Enter")
+        }
         if (restartAfter !== undefined) {
             await sleep(restartAfter)
             writeFileSync(join(dirname(file), ".restart"), "")
@@ -70,7 +93,6 @@ try {
             console.log(`  (backend restarted ${(restartAfter / 1000).toFixed(0)} s in; session ${run.sessions.at(-1)})`)
             replies = 2
         }
-        // The user's own line, then at least one reply (two after a restart).
         await page.waitForFunction(([seen, replies]) => document.querySelectorAll("[data-testid=takedo-chat] li").length > seen + replies,
             [seen, replies], {timeout: ReplyMs}).catch(() => {})
         const replyMs = Date.now() - start
@@ -82,9 +104,11 @@ try {
             quiet = await landing() === 0 ? quiet + 1 : 0
         }
         const lines = (await agentLines()).slice(seen).filter(line => line.from !== "user")
-        run.messages.push({text, ...(restartAfter !== undefined ? {restartAfterMs: restartAfter} : {}), replyMs, settledMs: Date.now() - start, settled: quiet >= 3, replies: lines})
+        run.messages.push({text, ...(step.control !== undefined ? {control: true} : {}), ...(restartAfter !== undefined ? {restartAfterMs: restartAfter} : {}), replyMs, settledMs: Date.now() - start, settled: quiet >= 3, replies: lines})
         console.log(`> ${text}\n${lines.map(line => `  ${line.shown ?? line.from}: ${line.text}`).join("\n")}\n  (${(replyMs / 1000).toFixed(1)} s to reply, ${((Date.now() - start) / 1000).toFixed(1)} s to settle)`)
     }
+    run.controls = await page.evaluate(() => [...document.querySelectorAll("[data-testid=takedo-control]")].map(control => ({
+        ref: control.dataset.ref, label: control.firstElementChild.textContent, value: Number(control.querySelector("input").value) / 100})))
     run.after = await full()
     run.playing = await page.evaluate(() => window.opendaw.engine.isPlaying())
     run.clock.end = await clock()

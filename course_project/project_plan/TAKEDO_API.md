@@ -526,6 +526,10 @@ type Control = {
 }
 ```
 
+Built so far (2026-11-22): intent dials only, as `Control` in `takedo/shared/protocol.ts` (`value` 0..1 between
+named ends `low` and `high`); defined by the utility's `offer_control`/`remove_control` tools during a task rather than
+in a prep conversation; a move is a `control` message from the page, logged as `control`.
+
 **Every control in the team view is a direction to the agents, not a change to the project** (decided 2026-10-31).
 Moving one tells the agents something new; the agents make the changes. So the team view never writes openDAW
 itself, and its controls are never holds.

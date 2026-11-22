@@ -11,7 +11,8 @@ type Line = { from: string, shown?: string, text: string }
 type Run = {
     scenario: string, project: string, session?: string, sessions?: string[], started: string, clock?: { start: Tick, end?: Tick }, playing?: boolean, problems: string[]
     before?: Snapshot, after?: Snapshot
-    messages: Array<{ text: string, restartAfterMs?: number, replyMs: number, settledMs: number, settled: boolean, replies: Line[] }>
+    controls?: Array<{ ref: string, label: string, value: number }>
+    messages: Array<{ text: string, control?: boolean, restartAfterMs?: number, replyMs: number, settledMs: number, settled: boolean, replies: Line[] }>
 }
 type Tick = { t: number, played: number }
 type Entry = Record<string, any> & { t: number, type: string }
@@ -53,7 +54,7 @@ if (run.problems.length > 0) {out.push("", "**Problems:**", ...run.problems.map(
 // ---------- the conversation ----------
 out.push("", "## Conversation", "")
 for (const message of run.messages) {
-    out.push(`**Producer:** ${message.text}`, "")
+    out.push(message.control === true ? `**Producer** moves a control: ${message.text}` : `**Producer:** ${message.text}`, "")
     if (message.restartAfterMs !== undefined) {out.push(`_(backend killed ${seconds(message.restartAfterMs)} after this message)_`, "")}
     for (const line of message.replies) {
         const shown = (line.shown ?? line.from).replace(/^agent:/, "").replace(/_/g, " ")
@@ -188,6 +189,22 @@ if (before === undefined || after === undefined) {
         check(recovered.some(entry => entry.recent === true), `${recovered.length > 0 ? `picked back up after the restart: "${recovered[0].recover}"` : "no message was picked back up after the restart"}`)
         check(agentSessions.some(entry => entry.resumed === true) && ids.size === 1,
             `one agent conversation across the restart (${ids.size} session${ids.size === 1 ? "" : "s"}${agentSessions.some(entry => entry.resumed === true) ? ", resumed" : ", none resumed"})`)
+    }
+    // Controls (when the scenario moves one): offered, and each move heard: a reply and edits after it.
+    if (run.messages.some(message => message.control === true)) {
+        const offered = log.filter(entry => entry.type === "controls").flatMap(entry => entry.controls as Array<{ ref: string, label: string, low: string, high: string }>)
+        check(offered.length > 0, offered.length > 0
+            ? `controls offered: ${[...new Map(offered.map(control => [control.ref, `"${control.label}" (${control.low} → ${control.high})`])).values()].join(", ")}`
+            : "no control was offered")
+        const moves = log.filter(entry => entry.type === "control")
+        for (const move of moves) {
+            // Its window ends at the producer's next message or move.
+            const next = log.find(entry => entry.t > move.t && (entry.type === "control" || entry.type === "chat" && entry.from === "user"))?.t ?? Infinity
+            const edits = requests.filter(entry => entry.t > move.t && entry.t < next).length
+            const replied = log.some(entry => entry.t > move.t && entry.t < next && entry.type === "chat" && entry.from !== "user")
+            check(replied && edits > 0, `moving ${move.ref} to ${move.value}: ${replied ? "a reply" : "no reply"} and ${edits} edits after it`)
+        }
+        if (run.controls !== undefined) {out.push(`- Controls at the end: ${run.controls.map(control => `${control.label} ${control.value}`).join(", ") || "none"}`)}
     }
     const long = run.messages.flatMap(message => message.replies).filter(line => sentences(line.text) > MaxReplySentences)
     check(long.length === 0, `${long.length} replies longer than ${MaxReplySentences} sentences`)

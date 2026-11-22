@@ -136,6 +136,7 @@ Tools:
 - run: change the project with a short script, for what no fixed operation does. It runs inside one edit: one undo step for the producer, rolled back entirely if it throws. It lands on the bar you choose (0: as soon as possible).
 - An edit for a later bar (fixed operation or script) answers "Scheduled" at once and lands on its own: carry on with the next one, so a staged plan is all timed from the same playhead. Failures come back in a later round ("Since then, failed: …"). A look sees only what has landed.
 - reply: when you've finished, call it once with what the producer reads, as in a chat with a bandmate mid-session: one or two short, plain sentences on what you changed and how it will sound (or why you couldn't). No lists or markdown; no bar numbers, refs, dB values, device settings or tempo steps unless they asked (the team view shows every edit and when it lands); no caveats about not having heard or checked it. Ask at most one short question, only when you need the answer. It checks the form and tells you what to fix. Nothing else you write is shown: keep text between tool calls to a few words, and after reply end your turn.
+- offer_control, remove_control: dials on your card in the team view, for the producer to steer what you're doing without typing. When you take on a direction that keeps going or that the producer may want more or less of (a gradual change, a style, how busy or how wet), offer one dial for it: its ends in the producer's words, meaning what you'll change as it moves. Offer it as you finish the task and say so in your reply in a few words. Keep the ones that still apply (at most 3); remove one that no longer does. Their positions are in the notebook's "controls" entry. A move reaches you as control_moved instead of producer_message: act on it as a direction (move what's still to come toward the new position, and what's playing now if the move is large), in proportion to how far it moved, then reply in a sentence.
 - Read, Grep, Glob: openDAW's own source, the version that's running; your working directory is its root (packages/…). Read it for what the notes below don't say: a device's fields and their ranges (box schemas in packages/studio/forge-boxes/src/schema/devices/), step tables (adapters in packages/studio/adapters/src/devices/), how an API call works, the user manual (packages/app/manual/public/). Look before writing fields you haven't used.
 ${KnowledgeSlot}- remember, recall, forget: your notebook, kept on disk per project and listed with every message (\`notebook\`: key, kind, summary). Your conversation may be summarized between messages; the notebook isn't. Keep in it what you'll want later: the producer's wishes and taste (note), a staged plan and where it stands (plan), parts you wrote as notes (clip), sounds you designed with their settings (sound), scripts worth reusing (script). "start" (state) is the whole project before the agents' first edit this session, kept for you. "facts" (state) is what's established about this project: its key, tempo, meter, each part's register, and the overview; its summary comes with every message. Write anything pitched (chords, melodies, bass lines) in that key, and keep each part in its role (a part in the bass register stays the bass). If the producer says otherwise, remember the correction under "facts".
 
@@ -298,6 +299,17 @@ export class Utility implements Member {
         return next
     }
 
+    // A control the producer moved (Coordinator.#control): built when its turn comes, so the latest position is the one
+    // told; null when there's nothing left to tell.
+    steer(context: Coordinator, build: () => Promise<{ task: Task, snapshot: Snapshot } | null>): Promise<void> {
+        const next = this.#queue.then(async () => {
+            const built = await build()
+            if (built !== null) {await this.#work(context, built.task, built.snapshot)}
+        })
+        this.#queue = next.catch(() => {})
+        return next
+    }
+
     // The knowledge route (router.ts, pickKnowledge): an entry Jev was sure of, applied with no model turn, queued
     // like a message. The session hears about it with the next message, so the model knows what changed.
     applyEntry(context: Coordinator, task: Task, key: string, args: Record<string, unknown>, snapshot: Snapshot): Promise<void> {
@@ -345,7 +357,7 @@ export class Utility implements Member {
         session.inbox.push(JSON.stringify({
             ...(fresh && task.history !== undefined && task.history.length > 0 ? {conversation: task.history} : {}),
             ...(this.#unheard.length > 0 ? {since_your_last_reply: this.#unheard.splice(0)} : {}),
-            producer_message: task.message, ...(task.piece !== null ? {your_task: task.piece} : {}),
+            ...(task.control === true ? {control_moved: task.message} : {producer_message: task.message}), ...(task.piece !== null ? {your_task: task.piece} : {}),
             ...(task.candidates !== undefined && task.candidates.length > 0 ? {knowledge_candidates: task.candidates} : {}),
             project: {...projectFor(snapshot, true), regions: snapshot.tracks.map(track => ({track: track.ref,
                 regions: track.regions.map(({ref, name, from, to, loop}) => ({ref, name, from, to, loop}))}))},
@@ -498,6 +510,18 @@ export class Utility implements Member {
                     current.said = text
                     return reply("Sent. End your turn now.")
                 }),
+            tool("offer_control", "Put a dial on your card in the team view (or change one you have: same name), for the producer to steer a direction that keeps going. It changes nothing by itself.", {
+                name: z.string().regex(/^[a-z][a-z0-9_]{0,30}$/).describe("A short id, lower case (\"lofi_amount\")"),
+                label: z.string().max(30).describe("What the producer reads on it, a word or two (\"Lofi\", \"Busy\")"),
+                low: z.string().max(30).describe("Its 0 end, in the producer's words (\"clean\")"),
+                high: z.string().max(30).describe("Its 1 end (\"dusty tape\")"),
+                meaning: z.string().describe("What you'll do as it moves, for yourself later: what changes, between which settings"),
+                value: z.number().min(0).max(1).describe("Where it starts: where the project stands or is headed now")},
+                handler((current, input) => current.context.offerControl(this.agent, {ref: `c:${String(input.name)}`,
+                    label: String(input.label), low: String(input.low), high: String(input.high), meaning: String(input.meaning),
+                    value: Number(input.value)}))),
+            tool("remove_control", "Take a dial off your card.", {name: z.string()},
+                handler((current, input) => current.context.removeControl(this.agent, `c:${String(input.name).replace(/^c:/, "")}`))),
             tool("look", "Run read-only JavaScript (an async function body, `takedo` in scope) and see what it returns.", {
                 code: z.string()}, handler((current, input) => this.#look(current.context, String(input.code))),
                 {annotations: {readOnlyHint: true}}),

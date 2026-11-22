@@ -8,7 +8,7 @@ import type {Activity, Adapter as AdapterType} from "./Adapter"
 import {Adapter} from "./Adapter"
 import {type CatalogResult, generateCatalog} from "./Catalog"
 import {Connection, type ConnectionState} from "./Connection"
-import type {Actor, BackendToPage, ChatLine, MemberCard, Playback, TeamMember} from "@/takedo_shared/protocol"
+import type {Actor, BackendToPage, ChatLine, Control, MemberCard, Playback, TeamMember} from "@/takedo_shared/protocol"
 import {MentionInput, withMentions} from "./Mentions"
 
 // The team view's content, in three columns: activity (the connection, the Team Lead's overview of the project, and
@@ -179,8 +179,46 @@ export const TakeDoPanel = ({lifecycle, service, visible}: Construct): HTMLEleme
         )
         chat.scrollTop = chat.scrollHeight
     }
-    // Each card: the member, its area, what it says it's doing, and the controls it offers the producer (none yet:
-    // INTERACTION.md, "Controls"). One per roster member from the start; an agent outside the roster gets one when it acts.
+    // A member's controls, drawn from the data the backend sends with widgets the page owns (INTERACTION.md's A2UI
+    // note): a dial is a range input between its two named ends. Letting go sends the position, a direction to the
+    // member. One element per agent, kept across card refreshes so a refresh never interrupts a drag.
+    const controlBoxes = new Map<string, HTMLElement>()     // shown agent → its controls
+    const controlsBox = (agent: string): HTMLElement => {
+        const existing = controlBoxes.get(agent)
+        if (existing !== undefined) {return existing}
+        const box: HTMLElement = <div data-testid="takedo-card-controls" style={{fontSize: "11px", marginTop: "0.4em",
+            display: "flex", flexDirection: "column", rowGap: "0.5em"}}/>
+        controlBoxes.set(agent, box)
+        showControls(agent, [])
+        return box
+    }
+    const dial = (control: Control): HTMLElement => {
+        const input: HTMLInputElement = (
+            <input type="range" min="0" max="100" step="1" value={String(Math.round(control.value * 100))}
+                   data-testid="takedo-control-input" aria-label={`${control.label}, from ${control.low} to ${control.high}`}
+                   style={{width: "100%", margin: "0.2em 0"}}/>
+        )
+        input.onchange = () => connection.send({type: "control", ref: control.ref, value: Number(input.value) / 100})
+        return (
+            <div data-testid="takedo-control" data-ref={control.ref} title={control.meaning}>
+                <div style={{fontWeight: "bold"}}>{control.label}</div>
+                {input}
+                <div style={{display: "flex", justifyContent: "space-between", opacity: "0.6", fontSize: "10px"}}>
+                    <span>{control.low}</span><span>{control.high}</span>
+                </div>
+            </div>
+        )
+    }
+    const showControls = (agent: string, controls: ReadonlyArray<Control>): void => {
+        const box = controlsBox(agent)
+        // A dial being dragged stays as it is; it reports when it's let go.
+        if (box.contains(document.activeElement) && box.querySelector("input:active") !== null) {return}
+        box.replaceChildren(...(controls.length === 0
+            ? [<div style={{opacity: "0.5"}}>No controls yet</div>]
+            : controls.filter(control => control.widget === "dial").map(dial)))
+    }
+    // Each card: the member, its area, what it says it's doing, and the controls it offers the producer. One per
+    // roster member from the start; an agent outside the roster gets one when it acts.
     const areas = new Map<string, string>()                 // shown agent → its area, from the roster
     const showCard = (card: MemberCard): void => {
         const agent = shown(card.agent)
@@ -194,9 +232,7 @@ export const TakeDoPanel = ({lifecycle, service, visible}: Construct): HTMLEleme
                 <div style={{fontWeight: "bold"}}>{name}</div>
                 {area === undefined ? null : <div style={{fontSize: "11px", opacity: "0.6"}}>{area}</div>}
                 <div data-testid="takedo-card-doing" style={{fontSize: "11px", marginTop: "0.3em"}}>{card.doing || "idle"}</div>
-                <div data-testid="takedo-card-controls" style={{fontSize: "11px", opacity: "0.5", marginTop: "0.3em"}}>
-                    No controls yet
-                </div>
+                {controlsBox(agent)}
             </div>
         )
         const existing = cards.querySelector(`[data-agent="${agent}"]`)
@@ -246,6 +282,16 @@ export const TakeDoPanel = ({lifecycle, service, visible}: Construct): HTMLEleme
     lifecycle.own(connection.subscribeMessages(message => {
         if (message.type === "chat") {addLine(message.line)}
         if (message.type === "card") {showCard(message.card)}
+        if (message.type === "controls") {
+            const owners = new Set([...controlBoxes.keys(), ...message.controls.map(control => shown(control.owner))])
+            owners.forEach(agent => {
+                const own = message.controls.filter(control => shown(control.owner) === agent)
+                if (own.length > 0 && cards.querySelector(`[data-agent="${agent}"]`) === null) {
+                    showCard({agent: own[0].owner, name: speaker(agent), doing: ""})
+                }
+                showControls(agent, own)
+            })
+        }
         if (message.type === "overview") {overview.show(message)}
         if (message.type === "team") {
             team = message.members

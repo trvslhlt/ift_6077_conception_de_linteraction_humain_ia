@@ -105,6 +105,15 @@ on its own. A user's action goes back to the agent as a named event with its con
 controls as a surface on its card; moving one as an event the member hears; the page rendering only components it
 knows (no agent-written HTML); and the same components inside a chat line (a question with choices).
 
+Built (2026-11-22), first piece: the utility (shown as the Team Lead) puts intent dials on its card with
+`offer_control` (a label, its two ends in the producer's words, what it means, a start position; at most 3). The page
+draws them from that data as range inputs; letting go sends the position, which reaches the utility as `control_moved`
+(only the latest position, if it moved again while the utility worked) and is acted on like a direction. The card
+shows "heard: …" at once. Dials are kept in the notebook ("controls"), so the model sees their positions with every
+message. All slow-style (tortoise): no Jev options, no macros, no chat-line components yet. `make scenario
+SCENARIO=controls`: a "Lofi" dial (clean → dusty tape) offered with the lofi direction; moving it to 1 and back to 0.2
+got a one-sentence reply and its ramps within ~5 s each.
+
 ## Modes
 
 The sketch has four: Ready, Planning, Performing, Post-mortem. They bound what the team does (no edits while
