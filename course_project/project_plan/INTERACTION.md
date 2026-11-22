@@ -98,6 +98,13 @@ now"); how directions that pull against each other get resolved, and whether the
 
 Open: whether showing the speed changes how producers use AI controls, and how much they trust them.
 
+Reference for building controls and rich chat lines (noted 2026-11-22, a reference, not a spec): A2UI
+(https://a2ui.org/). An agent streams declarative JSON. A surface is a flat list of components from a catalog the client
+owns (Card, Text, Slider, ChoicePicker, Button, …), with values bound by path into a data model the agent can update
+on its own. A user's action goes back to the agent as a named event with its context. The shapes to borrow: a member's
+controls as a surface on its card; moving one as an event the member hears; the page rendering only components it
+knows (no agent-written HTML); and the same components inside a chat line (a question with choices).
+
 ## Modes
 
 The sketch has four: Ready, Planning, Performing, Post-mortem. They bound what the team does (no edits while

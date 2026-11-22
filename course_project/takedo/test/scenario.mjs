@@ -2,9 +2,12 @@
 // project plays. Records the project before and after (notes included), each message's replies and how long its edits
 // took to land, and the backend's session id; `make scenario` then writes the report from that and the session log.
 // Run via `make scenario SCENARIO=<name>` (scenarios/<name>.json); shares the studio container's network like smoke.mjs.
+// A message may carry restart_after_ms: the backend is killed that long after it's sent (the Makefile does it when this
+// drops scenarios/.restart), and its reply is the one after the page has reconnected.
 import {chromium} from "playwright"
 import {mkdirSync, readFileSync, writeFileSync} from "node:fs"
 import {basename, dirname, join} from "node:path"
+import {setTimeout as sleep} from "node:timers/promises"
 
 const URL = process.env.URL ?? "http://localhost:8080/"
 const [file] = process.argv.slice(2)
@@ -41,17 +44,35 @@ try {
     }
     await page.getByTestId("takedo-toggle").click()
     await page.waitForFunction(() => document.querySelector("[data-testid=takedo-status]")?.dataset.status === "open")
-    run.session = (await page.getByTestId("takedo-session").textContent()).replace("session ", "")
+    const sessionShown = async () => (await page.getByTestId("takedo-session").textContent()).replace("session ", "")
+    run.session = await sessionShown()
+    run.sessions = [run.session]
     run.before = await full()
     await page.evaluate(() => window.opendaw.engine.play())
-    for (const {text} of scenario.messages) {
+    // How far the playhead has gone, against the clock: a stalled engine shows as too few pulses played (the report checks).
+    const clock = async () => ({t: Date.now(), played: await page.evaluate(() => window.takedo.adapter.playback().played)})
+    run.clock = {start: await clock()}
+    for (const {text, restart_after_ms: restartAfter} of scenario.messages) {
         const seen = (await agentLines()).length
         const start = Date.now()
         await page.getByTestId("takedo-input").fill(text)
         await page.getByTestId("takedo-input").press("Enter")
-        // The user's own line, then at least one reply.
-        await page.waitForFunction(seen => document.querySelectorAll("[data-testid=takedo-chat] li").length > seen + 1,
-            seen, {timeout: ReplyMs}).catch(() => {})
+        let replies = 1
+        if (restartAfter !== undefined) {
+            await sleep(restartAfter)
+            writeFileSync(join(dirname(file), ".restart"), "")
+            // The page reconnects to a new backend session; then "picking it back up", then the reply.
+            await page.waitForFunction(old => {
+                const shown = document.querySelector("[data-testid=takedo-session]")?.textContent ?? ""
+                return document.querySelector("[data-testid=takedo-status]")?.dataset.status === "open" && !shown.endsWith(old)
+            }, run.sessions.at(-1), {timeout: 120000})
+            run.sessions.push(await sessionShown())
+            console.log(`  (backend restarted ${(restartAfter / 1000).toFixed(0)} s in; session ${run.sessions.at(-1)})`)
+            replies = 2
+        }
+        // The user's own line, then at least one reply (two after a restart).
+        await page.waitForFunction(([seen, replies]) => document.querySelectorAll("[data-testid=takedo-chat] li").length > seen + replies,
+            [seen, replies], {timeout: ReplyMs}).catch(() => {})
         const replyMs = Date.now() - start
         // Replies can keep coming while the utility works; wait for its edits to land.
         const settleStart = Date.now()
@@ -61,11 +82,12 @@ try {
             quiet = await landing() === 0 ? quiet + 1 : 0
         }
         const lines = (await agentLines()).slice(seen).filter(line => line.from !== "user")
-        run.messages.push({text, replyMs, settledMs: Date.now() - start, settled: quiet >= 3, replies: lines})
+        run.messages.push({text, ...(restartAfter !== undefined ? {restartAfterMs: restartAfter} : {}), replyMs, settledMs: Date.now() - start, settled: quiet >= 3, replies: lines})
         console.log(`> ${text}\n${lines.map(line => `  ${line.shown ?? line.from}: ${line.text}`).join("\n")}\n  (${(replyMs / 1000).toFixed(1)} s to reply, ${((Date.now() - start) / 1000).toFixed(1)} s to settle)`)
     }
     run.after = await full()
     run.playing = await page.evaluate(() => window.opendaw.engine.isPlaying())
+    run.clock.end = await clock()
 } catch (error) {
     problems.push(`runner: ${error.message}`)
     console.error(error)

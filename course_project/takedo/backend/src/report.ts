@@ -9,23 +9,27 @@ import {MaxReplySentences} from "./utility.ts"
 
 type Line = { from: string, shown?: string, text: string }
 type Run = {
-    scenario: string, project: string, session?: string, started: string, playing?: boolean, problems: string[]
+    scenario: string, project: string, session?: string, sessions?: string[], started: string, clock?: { start: Tick, end?: Tick }, playing?: boolean, problems: string[]
     before?: Snapshot, after?: Snapshot
-    messages: Array<{ text: string, replyMs: number, settledMs: number, settled: boolean, replies: Line[] }>
+    messages: Array<{ text: string, restartAfterMs?: number, replyMs: number, settledMs: number, settled: boolean, replies: Line[] }>
 }
+type Tick = { t: number, played: number }
 type Entry = Record<string, any> & { t: number, type: string }
 
 const [runDir, sessionsDir = join(import.meta.dirname, "../../sessions")] = process.argv.slice(2)
 if (runDir === undefined) {throw new Error("usage: node src/report.ts <run dir> [sessions dir]")}
 const run: Run = JSON.parse(readFileSync(join(runDir, "run.json"), "utf8"))
-const sessionDir = run.session === undefined ? undefined
-    : readdirSync(sessionsDir).find(name => name.endsWith(`_${run.session!.slice(0, 8)}`))
-// A line the backend was still writing (or two interleaved) is skipped and counted.
+// One backend session per connection: more than one when the backend was restarted during the run.
+const sessions = run.sessions ?? (run.session === undefined ? [] : [run.session])
+const sessionDirs = sessions.map(session => readdirSync(sessionsDir).find(name => name.endsWith(`_${session.slice(0, 8)}`)))
+const sessionDir = sessionDirs[0]
+// A line the backend was still writing (or two interleaved, or cut by a kill) is skipped and counted.
 const unreadable: string[] = []
-const log: Entry[] = sessionDir === undefined || !existsSync(join(sessionsDir, sessionDir, "log.jsonl")) ? []
-    : readFileSync(join(sessionsDir, sessionDir, "log.jsonl"), "utf8").trim().split("\n").flatMap(line => {
+const logs: Entry[][] = sessionDirs.map(dir => dir === undefined || !existsSync(join(sessionsDir, dir, "log.jsonl")) ? []
+    : readFileSync(join(sessionsDir, dir, "log.jsonl"), "utf8").trim().split("\n").flatMap(line => {
         try {return [JSON.parse(line)]} catch {unreadable.push(line.slice(0, 80)); return []}
-    })
+    }))
+const log: Entry[] = logs.flat()
 
 const Names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 const scale = (key: Key): Set<number> => {
@@ -42,7 +46,7 @@ const seconds = (ms: number): string => `${(ms / 1000).toFixed(1)} s`
 const out: string[] = []
 const check = (ok: boolean, text: string): void => {out.push(`- ${ok ? "✅" : "❌"} ${text}`)}
 out.push(`# ${run.scenario}: ${run.started}`, "",
-    `Project \`${run.project}\`, session \`${run.session ?? "none"}\`${sessionDir === undefined ? " (no session log found)" : ""}.`)
+    `Project \`${run.project}\`, session${sessions.length > 1 ? "s" : ""} ${sessions.map(session => `\`${session}\``).join(", ") || "`none`"}${sessionDir === undefined ? " (no session log found)" : ""}.`)
 if (unreadable.length > 0) {run.problems.push(`${unreadable.length} unreadable session log lines, skipped: ${unreadable.join(" | ")}`)}
 if (run.problems.length > 0) {out.push("", "**Problems:**", ...run.problems.map(problem => `- ${problem}`))}
 
@@ -50,6 +54,7 @@ if (run.problems.length > 0) {out.push("", "**Problems:**", ...run.problems.map(
 out.push("", "## Conversation", "")
 for (const message of run.messages) {
     out.push(`**Producer:** ${message.text}`, "")
+    if (message.restartAfterMs !== undefined) {out.push(`_(backend killed ${seconds(message.restartAfterMs)} after this message)_`, "")}
     for (const line of message.replies) {
         const shown = (line.shown ?? line.from).replace(/^agent:/, "").replace(/_/g, " ")
         out.push(`**${shown}** (${sentences(line.text)} sentences): ${line.text}`, "")
@@ -83,7 +88,9 @@ const outOfOrder = timed.flatMap((first, index) => timed.slice(index + 1).filter
     Math.sign(second.when.bar - first.when.bar) !== Math.sign(landedAt.get(second.id)! - landedAt.get(first.id)!) &&
     Math.abs(landedAt.get(second.id)! - landedAt.get(first.id)!) > barMs / 2).map(second => [first, second]))
 const models = log.filter(entry => entry.type === "model")
-const utilityCost = Math.max(0, ...models.filter(entry => entry.job === "utility").map(entry => entry.costUsd ?? 0))
+// costUsd is the agent process's running total: the largest per backend session, added up across restarts.
+const utilityCost = logs.reduce((sum, entries) => sum + Math.max(0, ...entries
+    .filter(entry => entry.type === "model" && entry.job === "utility").map(entry => entry.costUsd ?? 0)), 0)
 const byJob = new Map<string, { calls: number, ms: number, out: number }>()
 models.forEach(entry => {
     const job = byJob.get(entry.job) ?? {calls: 0, ms: 0, out: 0}
@@ -143,6 +150,22 @@ if (before === undefined || after === undefined) {
     check(outOfOrder.length === 0, `${outOfOrder.length} pairs of steps landed in the opposite order to their bars` +
         `${outOfOrder.length > 0 ? `: ${outOfOrder.slice(0, 3).map(([first, second]) => `${label(first)} (bar ${first.when.bar}) / ${label(second)} (bar ${second.when.bar})`).join("; ")}` : ""}`)
     check(run.playing === true, `engine ${run.playing ? "still playing" : "stopped"} at the end`)
+    // Pulses played against the clock, at the slower of the two tempos (960 a beat): a stall shows as too few.
+    const {start, end} = run.clock ?? {start: undefined, end: undefined}
+    if (start !== undefined && end !== undefined && end.t > start.t) {
+        const expected = (end.t - start.t) / 60000 * Math.min(before.timeline.bpm, after.timeline.bpm) * 960
+        const share = (end.played - start.played) / expected
+        check(share >= 0.8, `playhead moved ${Math.round(share * 100)}% as far as the clock says it should (under 80%: the engine stalled, and edits timed by bars bunch up)`)
+    }
+    // After a restart: the message picked back up, in the same agent conversation (the SDK's session, resumed).
+    if (run.messages.some(message => message.restartAfterMs !== undefined)) {
+        const agentSessions = log.filter(entry => entry.type === "agent_session")
+        const ids = new Set(agentSessions.map(entry => entry.session).filter(id => typeof id === "string"))
+        const recovered = agentSessions.filter(entry => entry.recover !== undefined)
+        check(recovered.some(entry => entry.recent === true), `${recovered.length > 0 ? `picked back up after the restart: "${recovered[0].recover}"` : "no message was picked back up after the restart"}`)
+        check(agentSessions.some(entry => entry.resumed === true) && ids.size === 1,
+            `one agent conversation across the restart (${ids.size} session${ids.size === 1 ? "" : "s"}${agentSessions.some(entry => entry.resumed === true) ? ", resumed" : ", none resumed"})`)
+    }
     const long = run.messages.flatMap(message => message.replies).filter(line => sentences(line.text) > MaxReplySentences)
     check(long.length === 0, `${long.length} replies longer than ${MaxReplySentences} sentences`)
 }

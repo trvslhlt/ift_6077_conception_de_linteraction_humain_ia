@@ -174,6 +174,22 @@ With `persistSession: true` + `resume` the whole (compacted) conversation surviv
 `forkSession` can reopen it before a half-answered turn instead of dropping it. A session store can keep transcripts
 beside `sessions/`. Crash safety is a roadmap priority, so test it with a killed backend mid-turn.
 
+**Built (2026-11-22): the SDK keeps the session.** The utility runs with persistence on, and `CLAUDE_CONFIG_DIR` puts
+transcripts in `sessions/claude/`. Each project's notebook has a sidecar file (`<project>.agent.json`) that names the
+SDK session and the producer's message the session is in the middle of. A new backend resumes that session
+(`resume`). If a message was cut off less than 10 minutes ago, the utility picks it back up when the project
+reopens, says so in the chat, and tells the model its last call may not have finished. A plain `resume` was enough:
+a session hard-killed in the middle of a tool call resumes, and the model knows the call never returned, so
+`resumeSessionAt` wasn't needed. A failed turn keeps the session; a resume that fails before any turn finishes is
+dropped. The 12-line `conversation` fallback stays for projects with no stored session.
+
+Test: `make scenario SCENARIO=restart` kills the backend container 15 s into the lofi message, then sends "keep
+going". In two runs the message was picked back up, the conversation was the same one (resumed), and "keep going"
+carried on from it. The first run's playhead stalled in headless Chromium at the kill, a one-off. A probe without
+models showed the kill alone doesn't stall it, and the report now checks the playhead against the clock. The second
+run's staging was off on "keep going": 4 edits in one bar, and a bar-3 step landing after bar-6 steps in a 4-bar
+loop. That belongs to staging (piece 3), not to crash safety.
+
 ## What agents know
 
 The contracts are specified in [TAKEDO_API.md](TAKEDO_API.md). Agents never see openDAW's API. What they know comes from the **TakeDoAPI**, the project's human-agent

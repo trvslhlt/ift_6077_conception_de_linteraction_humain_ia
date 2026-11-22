@@ -1,5 +1,5 @@
 import {existsSync} from "node:fs"
-import {createSdkMcpServer, query, type Query, type SDKUserMessage, tool} from "@anthropic-ai/claude-agent-sdk"
+import {createSdkMcpServer, getSessionInfo, query, type Query, type SDKUserMessage, tool} from "@anthropic-ai/claude-agent-sdk"
 import type Anthropic from "@anthropic-ai/sdk"
 import type {CallToolResult} from "@modelcontextprotocol/sdk/types.js"
 import {z} from "zod"
@@ -8,7 +8,7 @@ import type {Coordinator} from "./coordinator.ts"
 import type {Catalog} from "./catalog.ts"
 import {Kinds as KnowledgeKinds, type Knowledge} from "./knowledge.ts"
 import {analyse} from "./analysis.ts"
-import {Kinds, type Kind} from "./notebook.ts"
+import {type AgentState, Kinds, type Kind} from "./notebook.ts"
 import {Limits, type LlmMember, type Member, performStep, projectFor, type Task} from "./members.ts"
 
 // The utility (STRATEGY.md, "Keep the open path"): anything openDAW can do that the members' fast operations don't
@@ -28,6 +28,8 @@ import {Limits, type LlmMember, type Member, performStep, projectFor, type Task}
 const MaxCalls = 80
 const MaxRecall = 40000
 const SourceTools = ["Read", "Grep", "Glob"]
+// A message TakeDo was restarted in the middle of is picked back up if it's this recent; older, the model is only told.
+const RecoverMs = 10 * 60000
 
 // One task's edits: what landed (for the card and the reply), what's still landing, and failures nobody's heard yet.
 type Work = { done: string[], pending: Promise<string>[], late: string[] }
@@ -205,6 +207,11 @@ export class Utility implements Member {
     readonly #owners = new Map<string, LlmMember>()   // who owns each borrowed fixed operation
     readonly #indexed = new Set<string>()              // knowledge keys this session has been shown
     #session: Session | null = null
+    // The open session's id (the SDK's), once it has said; whether it was resumed; and turns it has finished since,
+    // so a resume that fails at once is dropped rather than retried forever.
+    #sessionId: string | null = null
+    #resumed = false
+    #okTurns = 0
     #current: Current | null = null
     #queue: Promise<void> = Promise.resolve()
     #unheard: string[] = []   // failures after a reply, for the model with the next message
@@ -226,11 +233,32 @@ export class Utility implements Member {
     // Something the model should know with the next message (an engine crash and what was undone).
     notice(text: string): void {this.#unheard.push(text)}
 
-    // Ends the session (the page went away, or a turn failed); the next message starts a new one.
+    // Ends the session process (the page went away, the project changed, or a turn failed). The SDK keeps the
+    // conversation on disk and the project's notebook says which it was, so the next message resumes it.
     close(): void {
         this.#session?.inbox.close()
         this.#session?.query.close()
         this.#session = null
+        this.#sessionId = null
+    }
+
+    // The project just opened (also after a restart, when the page reconnects): a message the last session was in
+    // the middle of is finished now, told to the model as such.
+    async recover(context: Coordinator): Promise<void> {
+        const notebook = context.notebook
+        const state = notebook?.agentState() ?? null
+        if (notebook === null || state?.pending == null) {return}
+        const {message, t} = state.pending
+        notebook.setAgentState({...state, pending: null})
+        const recent = Date.now() - t < RecoverMs
+        context.event("agent_session", {recover: message, recent})
+        this.#unheard.push(`TakeDo restarted while you were working on the producer's message ${JSON.stringify(message)}: your last tool call may not have finished, and edits you scheduled may or may not have landed. ${recent
+            ? "Finish that message now: check the project first, and don't redo what's already there."
+            : "That was a while ago: don't pick it up unless the producer asks."}`)
+        if (!recent) {return}
+        context.say(this.agent, "I got restarted partway through that; picking it back up.")
+        const snapshot = await context.snapshot()
+        if (snapshot !== null) {await this.handle(context, {message, piece: null, hints: null}, snapshot)}
     }
 
     // One task at a time: they share the session.
@@ -268,8 +296,20 @@ export class Utility implements Member {
 
     async #work(context: Coordinator, task: Task, snapshot: Snapshot): Promise<void> {
         context.card({agent: this.agent, name: this.name, doing: "looking…"})
-        const fresh = this.#session === null
-        const session = this.#session ?? (this.#session = this.#open(context, snapshot))
+        const opening = this.#session === null
+        const stored = opening ? await this.#stored(context) : null
+        const fresh = opening && stored === null
+        const session = this.#session ?? (this.#session = this.#open(context, snapshot, stored?.session))
+        if (opening) {
+            this.#resumed = stored !== null
+            this.#okTurns = 0
+            this.#sessionId = stored?.session ?? null
+            // It has seen the index already, in the conversation it resumes.
+            if (stored !== null) {this.#knowledge?.index().forEach(line => this.#indexed.add(line.key))}
+            context.event("agent_session", {session: this.#sessionId, resumed: stored !== null})
+        }
+        const pending = {message: task.message, t: Date.now()}
+        if (this.#sessionId !== null) {context.notebook?.setAgentState({session: this.#sessionId, pending})}
         const work: Work = {done: [], pending: [], late: []}
         this.#current = {context, task, work, calls: 0, staged: [], anchor: anchorOf(snapshot)}
         session.inbox.push(JSON.stringify({
@@ -284,11 +324,17 @@ export class Utility implements Member {
             ...(fresh ? {devices: this.#devices, ...Object.assign({}, ...this.#team.map(member => member.context(snapshot)))} : {})
         }))
         try {
-            const summary = await this.#reply(context, session)
+            const summary = await this.#reply(context, session, pending)
+            this.#okTurns++
+            if (this.#sessionId !== null) {context.notebook?.setAgentState({session: this.#sessionId, pending: null})}
             const said = this.#current?.said
             await this.#finish(context, said ?? asChatLine(summary), work)
         } catch (error) {
-            this.close()   // a turn left half-answered can't be continued
+            // The producer hears of the failure. The next message resumes the conversation, unless resuming it is
+            // what failed: then it starts a new one.
+            const id = this.#sessionId
+            if (id !== null) {context.notebook?.setAgentState(this.#resumed && this.#okTurns === 0 ? null : {session: id, pending: null})}
+            this.close()
             throw error
         } finally {
             this.#current = null
@@ -297,12 +343,18 @@ export class Utility implements Member {
 
     // Reads the session until this message's turn ends; its last text is what the producer reads. Each turn is
     // logged like a model call (tokens are the main loop's; the cost is the session's running total).
-    async #reply(context: Coordinator, session: Session): Promise<string> {
+    async #reply(context: Coordinator, session: Session, pending: AgentState["pending"]): Promise<string> {
         const {model} = context.gateway.agent("utility")
         while (true) {
             const next = await session.query.next()
             if (next.done === true) {throw new Error("the agent's session ended")}
             const message = next.value
+            // A new session's id comes with its first message: kept with the message it's working on.
+            if (this.#sessionId === null && "session_id" in message && typeof message.session_id === "string") {
+                this.#sessionId = message.session_id
+                context.notebook?.setAgentState({session: message.session_id, pending})
+                context.event("agent_session", {session: message.session_id, resumed: false})
+            }
             if (message.type === "assistant" && message.parent_tool_use_id === null
                 && message.message.content.some(block => block.type === "tool_use" && SourceTools.includes(block.name))) {
                 context.card({agent: this.agent, name: this.name, doing: "reading openDAW's source…"})
@@ -321,9 +373,21 @@ export class Utility implements Member {
         }
     }
 
-    // A new session, with our tools: the members' (from the first snapshot, opened to any ref, so the list never
-    // changes) and the utility's own.
-    #open(context: Coordinator, snapshot: Snapshot): Session {
+    // The project's stored session, if the SDK still has its transcript.
+    async #stored(context: Coordinator): Promise<AgentState | null> {
+        const state = context.notebook?.agentState() ?? null
+        if (state === null) {return null}
+        const found = await getSessionInfo(state.session, {dir: this.#cwd()}).catch(() => undefined)
+        if (found === undefined) {context.notebook?.setAgentState(null)}
+        return found === undefined ? null : state
+    }
+
+    #cwd(): string {return existsSync(this.#source) ? this.#source : process.cwd()}
+
+    // A session with our tools: the members' (from the first snapshot, opened to any ref, so the list never changes)
+    // and the utility's own. resume: a stored session's id, to carry on its conversation (the SDK keeps it on disk,
+    // under CLAUDE_CONFIG_DIR; compose.yaml puts that in sessions/).
+    #open(context: Coordinator, snapshot: Snapshot, resume?: string): Session {
         const {model, effort} = context.gateway.agent("utility")
         const handler = (run: (current: Current, input: Record<string, unknown>) => Promise<string> | string) =>
             async (input: Record<string, unknown>): Promise<CallToolResult> => {
@@ -408,13 +472,13 @@ export class Utility implements Member {
             model, ...(effort !== undefined ? {effort} : {}),
             systemPrompt: System.replace(KnowledgeSlot, this.#knowledge === null ? "" : KnowledgeTools)
                 .replace(KeySlot, this.#knowledge === null ? "" : KnowledgeKey),
-            cwd: existsSync(this.#source) ? this.#source : process.cwd(),
+            cwd: this.#cwd(),
+            ...(resume !== undefined ? {resume} : {}),
             tools: SourceTools,
             allowedTools: [...SourceTools, "mcp__takedo__*"],
             permissionMode: "dontAsk",
             mcpServers: {takedo: createSdkMcpServer({name: "takedo", tools, alwaysLoad: true})},
             settingSources: [],
-            persistSession: false,
             env: {...process.env, CLAUDE_AGENT_SDK_CLIENT_APP: "takedo"},
             stderr: data => console.error(`[utility] ${data.trimEnd()}`)
         }})}

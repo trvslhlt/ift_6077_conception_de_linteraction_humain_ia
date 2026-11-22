@@ -7,7 +7,7 @@ import type {Catalog} from "./catalog.ts"
 import type {Gateway, ModelLog} from "./gateway.ts"
 import {createTeam, type Member, type Task} from "./members.ts"
 import {isRole, type KnowledgePick, pickKnowledge, type Role, route} from "./router.ts"
-import type {SessionLog} from "./sessionLog.ts"
+import type {LogType, SessionLog} from "./sessionLog.ts"
 import {lead, writeOverview} from "./teamLead.ts"
 import {Notebook} from "./notebook.ts"
 import {analyse, isDrums} from "./analysis.ts"
@@ -86,15 +86,24 @@ export class Coordinator {
 
     receive(message: PageToBackend): void {
         switch (message.type) {
-            case "project":
-                this.#project = message.open ? (message.name ?? "untitled") : null
+            case "project": {
+                const name = message.open ? (message.name ?? "untitled") : null
+                // The utility's session belongs to a project (its notebook says which); another project, another.
+                if (name !== this.#project) {this.close()}
+                this.#project = name
                 this.#notebook = this.#project === null ? null : new Notebook(this.#notebooks, this.#project)
                 this.#startKept = false
                 this.#overview = "none"
                 this.#overviewLines = null
                 this.#log.write("project", {open: message.open, name: message.name})
                 this.#maybeOverview()
+                // A message the backend was restarted in the middle of, picked back up.
+                const utility = this.#members.find(member => member instanceof Utility)
+                if (this.#notebook !== null && utility instanceof Utility) {
+                    utility.recover(this).catch(error => this.say("agent:team_lead", `Something went wrong: ${String(error)}`))
+                }
                 return
+            }
             case "view":
                 this.#viewOpen = message.open
                 this.#log.write("view", {open: message.open})
@@ -276,6 +285,9 @@ export class Coordinator {
         this.#log.write("card", card)
         this.#send({type: "card", card})
     }
+
+    // A line in the session log, for members' own events.
+    event(type: LogType, data: object): void {this.#log.write(type, data)}
 
     modelLog(): ModelLog {return entry => this.#log.write("model", entry)}
 

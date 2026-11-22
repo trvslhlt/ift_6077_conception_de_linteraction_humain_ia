@@ -64,14 +64,19 @@ test: build $(TYPES_DIR)/packages ## Run the smoke test in headless Chromium aga
 		echo "backend back on ROSTER=$(ROSTER) KNOWLEDGE_ROUTE=$(KNOWLEDGE_ROUTE)"; exit $$status
 
 # A scenario runs against the backend as `make up` would start it (ROSTER, KNOWLEDGE_ROUTE), recreated so a test or an
-# earlier `make up ROSTER=team` can't leak into it. Costs a model session per run (keys from .env).
+# earlier `make up ROSTER=team` can't leak into it. Costs a model session per run (keys from .env). A message with
+# restart_after_ms kills the backend that long after it's sent: the runner drops scenarios/.restart, and the loop here
+# kills the container (SIGKILL, as a crash would) and starts it again.
 SCENARIO ?= lofi
 scenario: build $(TYPES_DIR)/packages ## Play scenarios/$(SCENARIO).json to TakeDo headless and write its report (scenarios/runs/)
 	mkdir -p sessions scenarios/runs
-	rm -f sessions/notebooks/scenario-$(SCENARIO).json
+	rm -f sessions/notebooks/scenario-$(SCENARIO).json sessions/notebooks/scenario-$(SCENARIO).agent.json scenarios/.restart
 	$(COMPOSE) up -d --wait --force-recreate backend studio
 	@echo "backend: ROSTER=$(ROSTER) KNOWLEDGE_ROUTE=$(KNOWLEDGE_ROUTE)"
-	$(COMPOSE) run --rm -v $(CURDIR)/scenarios:/scenarios smoke node scenario.mjs /scenarios/$(SCENARIO).json
+	( while :; do if [ -f scenarios/.restart ]; then rm -f scenarios/.restart; $(COMPOSE) kill backend; \
+		$(COMPOSE) up -d --wait backend; fi; sleep 0.5; done ) & watcher=$$!; \
+		$(COMPOSE) run --rm -v $(CURDIR)/scenarios:/scenarios smoke node scenario.mjs /scenarios/$(SCENARIO).json; \
+		status=$$?; kill $$watcher; exit $$status
 	cd backend && node src/report.ts "$$(ls -td ../scenarios/runs/*_$(SCENARIO) | head -1)"
 
 catalog: build ## Regenerate catalog/generated.json from openDAW (every device's descriptions and parameters)
