@@ -70,7 +70,7 @@ Rules:
 - Bring in only who the direction needs. A narrow request goes to one.
 - If the direction is ambiguous in a way that would send the team in different directions, bring in no one and ask one short question instead.
 - If it's a question or a remark rather than a direction, answer it in the reply and bring in no one.
-- The producer reads your reply at a glance while playing: one or two short sentences. Don't mention bar numbers or the playhead unless the producer did.`
+- The producer reads your reply at a glance while playing, as in a chat with a bandmate: one or two short, plain sentences, no lists or markdown. Don't mention bar numbers or the playhead unless the producer did.`
 
 export const lead = async (gateway: Gateway, log: ModelLog, snapshot: Snapshot, message: string,
                            team: ReadonlyArray<Member>): Promise<LeadPlan> => {

@@ -21,7 +21,9 @@ export const Limits = "use only openDAW's built-in devices that the catalog allo
 export type Task = { message: string, piece: string | null, hints: Hints | null,
     history?: ReadonlyArray<{ from: string, text: string }>,
     // Knowledge entries Jev judged likely for the message but wasn't sure enough to apply (router.ts, pickKnowledge)
-    candidates?: ReadonlyArray<{ key: string, summary: string }> }
+    candidates?: ReadonlyArray<{ key: string, summary: string }>,
+    // The producer addressed this member (@member): it answers in the chat itself (Coordinator.report).
+    direct?: boolean }
 export type Member = {
     readonly agent: Actor, readonly role: string, readonly name: string
     readonly area: string                           // what the role covers
@@ -56,7 +58,7 @@ const slide = (steps: Step[], now: Snapshot): number => {
 }
 
 // Claims every target, sends every step at once, waits for all, releases, and replies with what happened.
-const carryOut = async (context: Coordinator, member: Member, steps: Step[], snapshot: Snapshot,
+const carryOut = async (context: Coordinator, member: Member, task: Task, steps: Step[], snapshot: Snapshot,
                         reason: string): Promise<void> => {
     const now = await context.snapshot()
     const slid = now === null ? 0 : slide(steps, now)
@@ -64,7 +66,7 @@ const carryOut = async (context: Coordinator, member: Member, steps: Step[], sna
     const claimed = context.claim(member.agent, targets, reason)
     if (!claimed.ok) {
         context.card({agent: member.agent, name: member.name, doing: "waiting"})
-        return context.say(member.agent, `${claimed.holder.replace("agent:", "").replace(/_/g, " ")} is working on that right now.`)
+        return context.report(member.agent, task, `${claimed.holder.replace("agent:", "").replace(/_/g, " ")} is working on that right now.`, true)
     }
     context.card({agent: member.agent, name: member.name, doing: steps.map(step => step.says).join("; ")})
     try {
@@ -72,10 +74,15 @@ const carryOut = async (context: Coordinator, member: Member, steps: Step[], sna
             let landsAt = ""
             const status = await context.request(member.agent, step.plan, step.when, snapshot.at.seq, reason,
                 update => {landsAt = update.landsAt ?? landsAt})
-            return [describe(step, status, landsAt), ...await followUp(context, member.agent, step, status, reason)].join("; ")
+            const full = [describe(step, status, landsAt), ...await followUp(context, member.agent, step, status, reason)].join("; ")
+            return {full, chat: describe(step, status, ""), failed: status.state !== "applied"}
         }))
-        context.card({agent: member.agent, name: member.name, doing: `${results.join("; ")} (done)`})
-        context.say(member.agent, `${results.join("; ")}.${slid > 0 ? ` (${slid} bar${slid > 1 ? "s" : ""} later than planned: the playhead moved on while I planned.)` : ""}`)
+        context.card({agent: member.agent, name: member.name, doing: `${results.map(({full}) => full).join("; ")} (done)`})
+        // The chat gets what changed, in a line; where and when each edit landed (and any slide) is in the activity.
+        const failed = results.filter(result => result.failed)
+        // Addressed directly: everything. Otherwise only what didn't happen is worth the producer's attention.
+        context.report(member.agent, task, `${(task.direct === true || failed.length === 0 ? results : failed).map(({chat}) => chat).join("; ")}.` +
+            `${slid > 0 && task.direct === true ? " A bit later than planned." : ""}`, failed.length > 0)
     } finally {
         context.release(member.agent, targets)
     }
@@ -115,7 +122,7 @@ const followUp = async (context: Coordinator, agent: Actor, step: Step, status: 
 const describe = (step: Step, status: Status, landsAt: string): string => {
     if (status.state === "applied") {return `${step.says}${landsAt ? ` from ${landsAt}` : ""}`}
     if (status.state === "dropped") {return `${step.says}: not done, you're holding it`}
-    return `${step.says}: not done (${status.reason ?? status.state}${status.detail ? `: ${status.detail}` : ""})`
+    return `${step.says}: not done (${status.detail ?? status.reason ?? status.state})`
 }
 
 // ---------- the language-model half ----------
@@ -202,11 +209,11 @@ export abstract class LlmMember implements Member {
         if (steps.length === 0) {
             context.card({agent: this.agent, name: this.name, doing: "idle"})
             if (rest.length > 0) {return handedOff}
-            return context.say(this.agent, [text.trim(), ...problems].filter(line => line !== "").join(" ")
-                || "I couldn't find anything to do there.")
+            return context.report(this.agent, task, [text.trim(), ...problems].filter(line => line !== "").join(" ")
+                || "I couldn't find anything to do there.", true)
         }
-        await carryOut(context, this, steps, snapshot, task.piece ?? task.message)
-        if (problems.length > 0) {context.say(this.agent, `Left out: ${problems.join("; ")}.`)}
+        await carryOut(context, this, task, steps, snapshot, task.piece ?? task.message)
+        if (problems.length > 0) {context.report(this.agent, task, `Left out: ${problems.join("; ")}.`, true)}
         await handedOff
     }
 }
@@ -243,7 +250,7 @@ export class MixEngineer extends LlmMember {
         const [when, beats]: [When, number] = hints.when === "gradual" ? [{at: "next", unit: "bar"}, 2 * beatsPerBar]
             : hints.when === "later" ? [{at: "next", unit: "bar"}, 1] : [{at: "next", unit: "beat"}, 1]
         const label = track?.name ?? "The mix"
-        await carryOut(context, this, [{plan: {op: "ramp", ref: `${ref}.mix.volume`, to, beats}, when,
+        await carryOut(context, this, task, [{plan: {op: "ramp", ref: `${ref}.mix.volume`, to, beats}, when,
             says: `${label} ${hints.change}: ${db(from)} → ${db(to)}`}], snapshot, `${hints.change} ${label}`)
     }
 

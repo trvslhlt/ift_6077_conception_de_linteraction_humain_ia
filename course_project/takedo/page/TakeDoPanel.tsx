@@ -7,11 +7,12 @@ import type {Activity, Adapter as AdapterType} from "./Adapter"
 import {Adapter} from "./Adapter"
 import {type CatalogResult, generateCatalog} from "./Catalog"
 import {Connection, type ConnectionState} from "./Connection"
-import type {BackendToPage, ChatLine, MemberCard, Playback, TeamMember} from "@/takedo_shared/protocol"
+import type {Actor, BackendToPage, ChatLine, MemberCard, Playback, TeamMember} from "@/takedo_shared/protocol"
 import {MentionInput, withMentions} from "./Mentions"
 
-// The team view's content: the connection, the Team Lead's overview of the project, the chat with the team, and a card
-// per member that has done something.
+// The team view's content, in three columns: activity (the connection, the Team Lead's overview of the project, and
+// every edit with where it is), the team (a card per member: what it's doing and the controls it offers the producer),
+// and the chat with the team.
 // The interaction prototype's team view (poc/interaction_prototype) replaces this layout as the pieces arrive.
 // Also owns the page's Adapter, one per open project. window.takedo exposes both for tests and live sessions.
 
@@ -128,7 +129,11 @@ export const TakeDoPanel = ({lifecycle, service, visible}: Construct): HTMLEleme
     const roundTrip: HTMLElement = <span data-testid="takedo-rtt">-</span>
     const ping: HTMLButtonElement = <button data-testid="takedo-ping" style={{fontSize: "10px"}}>ping</button>
     ping.onclick = () => connection.ping().catch(() => {/* shown by the status line */})
-    const cards: HTMLElement = <div data-testid="takedo-cards" style={{display: "flex", flexWrap: "wrap", gap: "0.5em"}}/>
+    const cards: HTMLElement = <div data-testid="takedo-cards" style={{display: "flex", flexDirection: "column", rowGap: "0.5em"}}/>
+    const activityList: HTMLElement = (
+        <ul data-testid="takedo-activity" style={{listStyle: "none", margin: "0", padding: "0", fontSize: "11px",
+            display: "flex", flexDirection: "column", rowGap: "0.3em"}}/>
+    )
     const chat: HTMLElement = (
         <ol data-testid="takedo-chat"
             style={{flex: "1 0 0", overflow: "auto", margin: "0", padding: "0", listStyle: "none",
@@ -164,34 +169,40 @@ export const TakeDoPanel = ({lifecycle, service, visible}: Construct): HTMLEleme
         )
         chat.scrollTop = chat.scrollHeight
     }
-    // Each card: what the member says it's doing, and its edits with where each one is (waiting for a bar, under
-    // way, done, not done), live from the page's adapter, so a wait or a refusal shows instead of silence.
-    const activities = new Map<string, HTMLElement>()       // shown agent → its edits list, kept across card updates
-    const activityOf = (agent: string): HTMLElement => {
-        const existing = activities.get(agent)
-        if (existing !== undefined) {return existing}
-        const list: HTMLElement = <ul data-testid="takedo-card-activity"
-                                      style={{listStyle: "none", margin: "0.3em 0 0", padding: "0", fontSize: "11px"}}/>
-        activities.set(agent, list)
-        return list
-    }
+    // Each card: the member, its area, what it says it's doing, and the controls it offers the producer (none yet:
+    // INTERACTION.md, "Controls"). One per roster member from the start; an agent outside the roster gets one when it acts.
+    const areas = new Map<string, string>()                 // shown agent → its area, from the roster
     const showCard = (card: MemberCard): void => {
         const agent = shown(card.agent)
         const name = agent === card.agent ? card.name : speaker(agent).replace(/^./, letter => letter.toUpperCase())
         const id = agent.replace(/[^a-z_]/g, "")
+        const area = areas.get(agent)
         const element: HTMLElement = (
             <div data-testid={`takedo-card-${id}`} data-agent={agent} data-actual={card.agent}
-                 style={{flex: "1 1 45%", padding: "0.5em", border: "1px solid #444", borderRadius: "6px",
+                 style={{padding: "0.5em", border: "1px solid #444", borderRadius: "6px",
                      background: "rgba(22, 25, 29, 0.95)"}}>
                 <div style={{fontWeight: "bold"}}>{name}</div>
-                <div data-testid="takedo-card-doing" style={{fontSize: "11px"}}>{card.doing}</div>
-                {activityOf(agent)}
+                {area === undefined ? null : <div style={{fontSize: "11px", opacity: "0.6"}}>{area}</div>}
+                <div data-testid="takedo-card-doing" style={{fontSize: "11px", marginTop: "0.3em"}}>{card.doing || "idle"}</div>
+                <div data-testid="takedo-card-controls" style={{fontSize: "11px", opacity: "0.5", marginTop: "0.3em"}}>
+                    No controls yet
+                </div>
             </div>
         )
         const existing = cards.querySelector(`[data-agent="${agent}"]`)
         if (existing === null) {cards.append(element)} else {existing.replaceWith(element)}
     }
-    const MaxActivity = 6
+    const showTeam = (members: ReadonlyArray<TeamMember>): void => {
+        members.forEach(({role, name, area}) => {
+            const agent: Actor = `agent:${role}`
+            areas.set(agent, area)
+            const doing = cards.querySelector(`[data-agent="${agent}"] [data-testid=takedo-card-doing]`)?.textContent ?? ""
+            showCard({agent, name, doing: doing === "idle" ? "" : doing})
+        })
+    }
+    // Every edit, newest first, with who made it and where it is (waiting for a bar, under way, done, not done), live
+    // from the page's adapter, so a wait or a refusal shows instead of silence.
+    const MaxActivity = 40
     const stateText = ({status}: Activity): [string, string] => {
         switch (status.state) {
             case "scheduled": return [`waits for ${status.landsAt ?? "its bar"}`, "#d8b45a"]
@@ -204,17 +215,19 @@ export const TakeDoPanel = ({lifecycle, service, visible}: Construct): HTMLEleme
     }
     const showActivity = (activity: Activity): void => {
         const agent = shown(activity.request.from)
-        if (!activities.has(agent)) {showCard({agent: activity.request.from, name: speaker(agent), doing: ""})}
-        const list = activityOf(agent)
+        if (cards.querySelector(`[data-agent="${agent}"]`) === null) {
+            showCard({agent: activity.request.from, name: speaker(agent), doing: ""})
+        }
         const [text, color] = stateText(activity)
         const row: HTMLElement = (
-            <li data-request={activity.request.id} data-state={activity.status.state}>
-                <span style={{color, fontWeight: "bold"}}>●</span> {activity.label}: <span style={{color}}>{text}</span>
+            <li data-request={activity.request.id} data-state={activity.status.state} data-agent={agent}>
+                <span style={{color, fontWeight: "bold"}}>●</span> <span style={{opacity: "0.7"}}>{speaker(agent)}</span>
+                {" · "}{activity.label}: <span style={{color}}>{text}</span>
             </li>
         )
-        const existing = list.querySelector(`[data-request="${activity.request.id}"]`)
-        if (existing === null) {list.prepend(row)} else {existing.replaceWith(row)}
-        while (list.children.length > MaxActivity) {list.lastElementChild?.remove()}
+        const existing = activityList.querySelector(`[data-request="${activity.request.id}"]`)
+        if (existing === null) {activityList.prepend(row)} else {existing.replaceWith(row)}
+        while (activityList.children.length > MaxActivity) {activityList.lastElementChild?.remove()}
     }
 
     lifecycle.own(connection.subscribe(show))
@@ -228,6 +241,7 @@ export const TakeDoPanel = ({lifecycle, service, visible}: Construct): HTMLEleme
             team = message.members
             aliases = message.aliases
             composer.refresh()
+            showTeam(message.members)
         }
     }))
 
@@ -260,16 +274,26 @@ export const TakeDoPanel = ({lifecycle, service, visible}: Construct): HTMLEleme
         wasOpen = open
     }))
 
+    const heading = (text: string): HTMLElement => (
+        <div style={{fontSize: "10px", letterSpacing: "0.08em", textTransform: "uppercase", opacity: "0.6"}}>{text}</div>
+    )
+    const column = {display: "flex", flexDirection: "column", rowGap: "0.6em", minHeight: "0", minWidth: "0"}
     return (
         <div data-testid="takedo-panel"
-             style={{flex: "1 0 0", display: "grid", gridTemplateColumns: "minmax(260px, 1fr) minmax(360px, 2fr)",
+             style={{flex: "1 0 0", display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
                  columnGap: "1em", padding: "1em", minHeight: "0", fontSize: "13px"}}>
-            <div style={{display: "flex", flexDirection: "column", rowGap: "0.6em", minHeight: "0", overflow: "auto"}}>
+            <div data-testid="takedo-column-activity" style={{...column, overflow: "auto"}}>
+                {heading("Activity")}
                 {status}
                 {overview.element}
+                {activityList}
+            </div>
+            <div data-testid="takedo-column-team" style={{...column, overflow: "auto"}}>
+                {heading("Team")}
                 {cards}
             </div>
-            <div style={{display: "flex", flexDirection: "column", rowGap: "0.6em", minHeight: "0"}}>
+            <div data-testid="takedo-column-chat" style={column}>
+                {heading("Chat")}
                 {chat}
                 {composer.element}
             </div>

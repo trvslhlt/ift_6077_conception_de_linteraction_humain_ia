@@ -58,14 +58,15 @@ try {
     check("team view opens", true)
     const layout = await page.evaluate(() => {
         const view = document.querySelector("[data-testid=takedo-view]").getBoundingClientRect()
-        const chat = document.querySelector("[data-testid=takedo-chat]").getBoundingClientRect()
-        const overview = document.querySelector("[data-testid=takedo-status]").getBoundingClientRect()
-        return {view: view.width / innerWidth, tall: view.height / innerHeight, chatBeside: chat.left > overview.right,
-            chat: chat.width / view.width}
+        const box = testid => document.querySelector(`[data-testid=${testid}]`).getBoundingClientRect()
+        const [activity, team, chat] = ["takedo-column-activity", "takedo-column-team", "takedo-column-chat"].map(box)
+        return {view: view.width / innerWidth, tall: view.height / innerHeight,
+            ordered: activity.right <= team.left && team.right <= chat.left,
+            widths: [activity, team, chat].map(column => column.width / view.width)}
     })
-    check("team view fills the window, chat in its own column",
-        layout.view > 0.9 && layout.tall > 0.7 && layout.chatBeside && layout.chat > 0.5,
-        `view ${Math.round(layout.view * 100)}% × ${Math.round(layout.tall * 100)}%, chat ${Math.round(layout.chat * 100)}% of it`)
+    check("team view fills the window: activity, team and chat in three columns",
+        layout.view > 0.9 && layout.tall > 0.7 && layout.ordered && layout.widths.every(width => width > 0.25),
+        `view ${Math.round(layout.view * 100)}% × ${Math.round(layout.tall * 100)}%, columns ${layout.widths.map(width => `${Math.round(width * 100)}%`).join(" / ")}`)
 
     await waitForStatus("open")
     const session = await page.getByTestId("takedo-session").textContent()
@@ -163,9 +164,10 @@ try {
     check("one undo restores the volume", Math.abs(undone - drumsBefore) < 0.05, `${undone} dB`)
 
     const keysBefore = await volume("Keys")
-    const louder = await say("the keys are a bit too quiet")
+    // Not addressed to the mix engineer: the producer hears the result from the Team Lead.
+    const louder = await say("the keys are a bit too quiet", ["team_lead"])
     const keysAfter = await volume("Keys")
-    check("unaddressed message routed to the mix engineer, keys up", keysAfter > keysBefore + 0.5,
+    check("unaddressed message routed to the mix engineer, keys up, the Team Lead answers", keysAfter > keysBefore + 0.5,
         `${keysBefore} → ${keysAfter.toFixed(1)} dB in ${louder.ms} ms: "${louder.text}"`)
 
     // The producer holds the Drums fader: the request is dropped, not applied.
@@ -200,7 +202,7 @@ try {
         `lanes ${JSON.stringify(keysLanes)}: "${recorded.text}"`)
     const afterTake = await say("@mix_engineer the keys are a bit too quiet")
     check("after the take, its lane is left alone (no live write over automation)",
-        afterTake.text.includes("not_allowed"), `"${afterTake.text}"`)
+        afterTake.text.includes("automation"), `"${afterTake.text}"`)
 
     // ---------- mentions: autocomplete from the team, styled in the input and in the chat ----------
     await page.getByTestId("takedo-input").fill("")
@@ -244,13 +246,22 @@ try {
         `${keysEffects.map(effect => effect.key).join(", ") || "none"} in ${reverbed.ms} ms: "${reverbed.text}"`)
 
     // ---------- the Team Lead (Claude) splits one direction between two members ----------
+    // The members work quietly: their pieces show in the activity and their cards, not in the chat.
     const drumsBeforeLead = await volume("Drums")
-    const led = await say("@team_lead bring the drums down a bit and put an echo on the keys",
-        ["team_lead", "mix_engineer", "effect_designer"], 60000)
+    const membersBefore = await Promise.all(["mix_engineer", "effect_designer"].map(agent => memberLines(agent).count()))
+    const led = await say("@team_lead bring the drums down a bit and put an echo on the keys", ["team_lead"], 60000)
+    await page.waitForFunction(drumsBefore => {
+        const tracks = window.takedo.adapter.snapshot().tracks
+        return tracks.find(track => track.name === "Drums").mix.volume < drumsBefore - 0.5 &&
+            tracks.find(track => track.name === "Keys").effects.some(effect => effect.key === "Delay")
+    }, drumsBeforeLead, {timeout: 60000}).catch(() => {})
     const keysAfterLead = (await track("Keys")).effects.map(effect => effect.key)
     check("@team_lead: drums down and a delay on the keys",
         await volume("Drums") < drumsBeforeLead - 0.5 && keysAfterLead.includes("Delay"),
         `${led.ms} ms: "${led.text}"`)
+    const membersAfter = await Promise.all(["mix_engineer", "effect_designer"].map(agent => memberLines(agent).count()))
+    check("the members the Team Lead brought in stay out of the chat", membersAfter.every((count, index) => count === membersBefore[index]),
+        `${membersBefore.join(", ")} → ${membersAfter.join(", ")} lines`)
 
     // The open path: something no member has an operation for goes to the utility, which does it with a script.
     const extended = await say("@team_lead extend all the clips so they run for 16 bars", ["team_lead", "utility"], 120000)
@@ -324,8 +335,8 @@ try {
     check("in a loop, an edit on the loop's start lands as it wraps", landed[0].state === "applied", JSON.stringify(landed[0]))
     check("in a loop, an edit past its end lands after that many bars of playing",
         landed[1].state === "applied" && landed[1].ms > landed[0].ms, JSON.stringify(landed[1]))
-    const activityRows = await page.locator("[data-agent='agent:mix_engineer'] [data-testid='takedo-card-activity'] li").count()
-    check("the card lists its edits and where they are", activityRows > 0, `${activityRows} rows`)
+    const activityRows = await page.locator("[data-testid='takedo-activity'] li[data-agent='agent:mix_engineer']").count()
+    check("the activity lists the member's edits and where they are", activityRows > 0, `${activityRows} rows`)
 
     // A script writing values outside openDAW's ranges (resonance 0 made a Vaporisateur write NaN and crashed the
     // engine, 2026-11-07) gets them corrected inside its edit, and the engine keeps playing.

@@ -276,3 +276,22 @@ Logs in `takedo/sessions/`; Claude Code's run is in its own transcript.
 ranges and step tables), the range guard (built), a snapshot taken before an agent's first edit, and a word to the
 producer when a staged plan collapses because playback is stopped. Open: whether Opus's cost is acceptable for the
 study, or how far Sonnet or Haiku get with the improved setup (not measured).
+
+**Rerun on the Agent SDK (2026-11-21, `sessions/2026-11-22T00-24-38-646Z_9f8bcdea`).** The SDK port's baseline:
+utility alone, Sonnet 5.5 at medium effort, SDK 0.3.330, knowledge route off (the utility still has the knowledge tools).
+Same project and first direction; the follow-ups weren't sent.
+
+| Run | What it did | Model calls, cost | What stopped it |
+|---|---|---|---|
+| Utility, Sonnet 5.5, Agent SDK (00:33 UTC) | One reply, 12 timed edits planned from one playhead: a boom-bap pattern on the 808 (knowledge entry), a new Keys track with a soft-Rhodes DX7 patch (entry) playing an Am7 → Fmaj7 vamp (entry), a tape-dust chain on the master (Crusher, Revamp low-pass, dark dotted delay), the drums easing −6 → −10 dB over 32 beats, tempo 119 → 110 → 102 → 95 → 88 over ~12 bars | 1 SDK turn of 17 rounds, 24 s, $0.14 (193k cache read, 36k cache write, 2.9k out) | Nothing; every edit landed, no crash. Left the acid line alone |
+
+Against the earlier Sonnet run: the whole transformation in the first reply (that run needed two "keep going"s), and
+it reached for the knowledge base unprompted (4 entries). Against Opus's 30-round run: about a tenth of the cost and
+a quarter of the time for the first direction, with fewer edits (12 against 49). Two problems:
+- **Wrong key.** The chords are in C major (Am7 → Fmaj7); the project is G major / E minor, so the F naturals
+  clash with the acid line's F#. The overview (which said E minor) goes to the Team Lead but not to the utility, and
+  the utility passed `key: "C major"` itself instead of leaving it out for the estimator (`analysis.ts`, which skips
+  drums), then told the producer "I assumed C major". Fix: give the utility the estimated key (or the overview) with
+  each message.
+- **Less gradual than asked.** The drum pattern swaps in one go and the three master effects land on the same bar;
+  only the level and tempo are staged. 9 BPM steps are audible.

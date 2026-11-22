@@ -54,11 +54,14 @@ open: ## Open the studio in the default browser
 shell: ## Shell into the running backend container
 	$(COMPOSE) exec backend sh
 
-test: ROSTER = team
-test: build $(TYPES_DIR)/packages ## Run the smoke test in headless Chromium against the full team (leaves the backend on it; `make up` goes back)
+# The test needs the full team; afterwards the backend goes back to the roster `make up` would start (pass or fail),
+# so a session right after a test isn't silently on the team.
+test: build $(TYPES_DIR)/packages ## Run the smoke test in headless Chromium against the full team, then restore the backend's roster
 	mkdir -p sessions
-	$(COMPOSE) up -d --wait studio backend
-	$(COMPOSE) run --rm smoke
+	ROSTER=team $(COMPOSE) up -d --wait studio backend
+	ROSTER=team $(COMPOSE) run --rm smoke; status=$$?; \
+		$(COMPOSE) up -d --wait backend >/dev/null 2>&1; \
+		echo "backend back on ROSTER=$(ROSTER) KNOWLEDGE_ROUTE=$(KNOWLEDGE_ROUTE)"; exit $$status
 
 catalog: build ## Regenerate catalog/generated.json from openDAW (every device's descriptions and parameters)
 	$(COMPOSE) run --rm -v $(CURDIR)/catalog:/out \

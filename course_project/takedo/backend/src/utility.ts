@@ -49,7 +49,7 @@ Tools:
 - look: run read-only JavaScript to inspect the project. Writes fail here.
 - run: change the project with a short script, for what no fixed operation does. It runs inside one edit: one undo step for the producer, rolled back entirely if it throws. It lands on the bar you choose (0: as soon as possible).
 - An edit for a later bar (fixed operation or script) answers "Scheduled" at once and lands on its own: carry on with the next one, so a staged plan is all timed from the same playhead. Failures come back in a later round ("Since then, failed: …"). A look sees only what has landed.
-- When you've finished, end with one or two sentences for the producer on what you did (or why you couldn't). Your last message is all they see: keep anything you write between tool calls to a few words.
+- When you've finished, reply to the producer as in a chat with a bandmate mid-session: one or two short, plain sentences on what you changed and how it will sound (or why you couldn't). No lists, headings or markdown; no bar numbers, refs, dB values, device settings or tempo steps unless they asked (the team view shows every edit and when it lands); no caveats about not having heard it. Ask at most one short question, only when you need the answer. Your last message is all they see: keep anything you write between tool calls to a few words.
 - Read, Grep, Glob: openDAW's own source, the version that's running; your working directory is its root (packages/…). Read it for what the notes below don't say: a device's fields and their ranges (box schemas in packages/studio/forge-boxes/src/schema/devices/), step tables (adapters in packages/studio/adapters/src/devices/), how an API call works, the user manual (packages/app/manual/public/). Look before writing fields you haven't used.
 ${KnowledgeSlot}- remember, recall, forget: your notebook, kept on disk per project and listed with every message (\`notebook\`: key, kind, summary). Your conversation may be summarized between messages; the notebook isn't. Keep in it what you'll want later: the producer's wishes and taste (note), a staged plan and where it stands (plan), parts you wrote as notes (clip), sounds you designed with their settings (sound), scripts worth reusing (script). "start" (state) is the whole project before the agents' first edit this session, kept for you.
 
@@ -202,7 +202,7 @@ export class Utility implements Member {
                 this.#unheard.push(`The fast route applied ${key} for the producer's message ${JSON.stringify(task.message)}, without you: ${result}`)
                 const failed = result.startsWith("Not applied")
                 await this.#finish(context, failed ? `I couldn't apply ${key}: ${result.replace(/^Not applied: /, "")}`
-                    : `Applied ${key.split("/")[1].replace(/-/g, " ")} (${key.split("/")[0]}): ${work.done.join("; ") || "under way"}.`, work)
+                    : `Putting in ${key.split("/")[1].replace(/-/g, " ")}.`, work)
             } finally {
                 this.#current = null
             }
@@ -513,7 +513,12 @@ export class Utility implements Member {
             context.card({agent: this.agent, name: this.name, doing: work.done.length > 0 ? `${work.done.join("; ")} (done)` : "idle"})
             if (work.late.length === 0) {return}
             const late = work.late.map(line => line.replace(/\.+$/, "")).join("; ")
-            context.say(this.agent, `Not done after all: ${late}.`)
+            // The lines are written for the model ("Leave that control alone"); the producer gets them reworded.
+            const forProducer = work.late.map(line => line
+                .replace(/: undone, it changed a control the producer is holding\. Leave that control alone\.?$/, ": undone, you're holding that control")
+                .replace(/: failed \([^)]*\): (.*?)\.? Nothing was changed\.?$/, (_, detail: string) => `: didn't work${detail.trim() ? ` (${detail.trim()})` : ""}`)
+                .replace(/\.+$/, "")).join("; ")
+            context.say(this.agent, `Not done after all: ${forProducer}.`)
             this.#unheard.push(`Failed: ${late}`)
         })
     }

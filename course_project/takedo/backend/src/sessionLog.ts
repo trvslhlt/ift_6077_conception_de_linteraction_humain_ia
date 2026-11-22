@@ -5,7 +5,7 @@ import {join} from "node:path"
 // arrival order. Lines the backend adds carry the latest page seq they had seen. Checkpoint and raw updates come later.
 
 export type LogType = "session" | "project" | "chat" | "route" | "claim" | "request" | "status" | "change" | "model"
-    | "card" | "view" | "overview" | "by_hand" | "look" | "engine"
+    | "card" | "view" | "overview" | "by_hand" | "look" | "engine" | "unsaid"
 
 export class SessionLog {
     readonly #file: string

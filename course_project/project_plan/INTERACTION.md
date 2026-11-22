@@ -11,7 +11,21 @@ is scripted and the DAW is a mock-up: tracks, a playhead, mute buttons and one f
 - **The team button.** Floats over the DAW (as in the `team_view` POC); opens the team view.
 - **The team view.** One view that grows through the session. When it first opens it holds the project overview
   and the chat with the team lead. As members join, their cards appear beside the chat. Same view, later stage;
-  not a second screen.
+  not a second screen. Built (2026-11-21) as three columns: activity (connection, overview, every edit and where it
+  is), the team (a card per member: area, what it's doing, the controls it offers), and the chat.
+
+## Who speaks in the chat
+
+Decided by the producer (2026-11-21). The chat is a high-level conversation with the Team Lead, like talking to a
+bandmate mid-session: short, plain, no technical reports. The producer talks to the Team Lead and hears back from it.
+The other members speak in the chat only when:
+- the producer addresses one (`@mix_engineer …`): it answers itself;
+- one has a direct question for the producer;
+- one has controls ready for the producer to use.
+
+Otherwise what members do shows in the activity column and their cards, not the chat. A piece of a direction that
+didn't happen (refused, failed, a held control) is passed on by the Team Lead in a line. Built in the backend
+(`Coordinator.report`); members' questions and controls aren't built yet.
 
 ## A session, step by step
 

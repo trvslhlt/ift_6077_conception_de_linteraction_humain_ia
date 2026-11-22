@@ -223,6 +223,16 @@ export class Coordinator {
         this.#send({type: "chat", line})
     }
 
+    // A member's word for the producer (INTERACTION.md, "Who speaks in the chat"). The producer talks with the Team
+    // Lead: a member speaks for itself only when the producer addressed it (@member). Otherwise a problem is passed on
+    // by the Team Lead, and so is the result of a message Jev routed to this member alone (it's the only answer the
+    // producer gets); a piece of a direction the Team Lead split stays in the member's card and the activity.
+    report(agent: Actor, task: Task, text: string, problem: boolean): void {
+        if (task.direct === true) {return this.say(agent, text)}
+        if (problem || task.piece === null) {return this.say("agent:team_lead", text)}
+        this.#log.write("unsaid", {agent, text})
+    }
+
     card(card: MemberCard): void {
         this.#log.write("card", card)
         this.#send({type: "card", card})
@@ -266,7 +276,7 @@ export class Coordinator {
         const addressed = named === null ? null : this.#members.find(member => member.role === named)
         if (named === "team_lead" || addressed === undefined) {return this.#lead(message, snapshot)}
         if (addressed !== null && !addressed.wantsHints) {
-            return addressed.handle(this, {message, piece: null, hints: null}, snapshot)
+            return addressed.handle(this, {message, piece: null, hints: null, direct: true}, snapshot)
         }
         const missing = this.#gateway.missing("fast_path")
         if (missing !== null) {return this.say("agent:team_lead", `I can't reach Jev: ${missing}.`)}
@@ -275,7 +285,7 @@ export class Coordinator {
         if (routed.path === "slow") {return this.#lead(message, snapshot)}
         const member = this.#members.find(member => member.role === routed.member)
         if (member === undefined) {return this.#lead(message, snapshot)}
-        await member.handle(this, {message, piece: null, hints: routed.hints}, snapshot)
+        await member.handle(this, {message, piece: null, hints: routed.hints, direct: addressed !== null}, snapshot)
     }
 
     // Jev's look at the knowledge base before the utility's turn: null when there's no knowledge base or no Jev, the
@@ -318,7 +328,7 @@ export class Coordinator {
             const member = this.#members.find(member => member.role === role)
             const task: Task = {message, piece, hints: null}
             return member?.handle(this, task, snapshot).catch(error =>
-                this.say(member.agent, `Something went wrong: ${String(error)}`))
+                this.report(member.agent, task, `Something went wrong with the ${member.name.toLowerCase()}'s part: ${String(error)}`, true))
         }))
     }
 
