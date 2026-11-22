@@ -15,6 +15,7 @@ make up ROSTER=team  # the same with the full team
 make up KNOWLEDGE_ROUTE=on   # the utility with Jev's knowledge route in front of it (off by default for now)
 make open     # open http://localhost:8080, then New Project, then the floating robot button
 make test     # smoke test in headless Chromium, against the full team (then puts the backend back on ROSTER)
+make scenario # play scenarios/lofi.json (SCENARIO=<name>) headless against the backend as `make up` starts it; report in scenarios/runs/
 make logs     # follow the studio's and the backend's output
 make catalog  # regenerate catalog/generated.json from openDAW (after bumping the openDAW pin)
 make check    # type-check the backend and shared code (run `npm ci` in backend/ once first)

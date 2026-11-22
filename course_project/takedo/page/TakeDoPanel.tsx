@@ -1,7 +1,8 @@
 import {createElement} from "@opendaw/lib-jsx"
-import {Lifecycle, ObservableValue, Terminator} from "@opendaw/lib-std"
+import {Lifecycle, ObservableValue, Option, Terminator} from "@opendaw/lib-std"
 import {PPQN} from "@opendaw/lib-dsp"
 import {AudioUnitBoxAdapter, InstrumentFactories, type InstrumentFactory} from "@opendaw/studio-adapters"
+import {ProjectBundle} from "@opendaw/studio-core"
 import type {StudioService} from "@/service/StudioService"
 import type {Activity, Adapter as AdapterType} from "./Adapter"
 import {Adapter} from "./Adapter"
@@ -23,6 +24,7 @@ type DebugNote = [number, number, number]
 type Debug = {
     addSynth(name: string, notes?: ReadonlyArray<DebugNote>, instrument?: InstrumentKey): void
     catalog(): CatalogResult | null                 // `make catalog`: creates and deletes every device in the project
+    openBundle(base64: string): Promise<void>       // `make scenario`: opens an .odb bundle as the current project
 }
 type InstrumentKey = keyof typeof InstrumentFactories.Named
 
@@ -46,7 +48,13 @@ const debugFor = (service: StudioService): Debug => ({
                 notes.forEach(([start, pitch, length]) => project.api.createNoteEvent({owner: region,
                     position: start * PPQN.SemiQuaver, duration: length * PPQN.SemiQuaver, pitch, velocity: 0.8}))
             })),
-    catalog: () => service.projectProfileService.getValue().mapOr(({project}) => generateCatalog(project), null)
+    catalog: () => service.projectProfileService.getValue().mapOr(({project}) => generateCatalog(project), null),
+    // Not saved to the browser's storage: a scenario starts from the bundle every time.
+    openBundle: async (base64: string) => {
+        const bytes = Uint8Array.from(atob(base64), character => character.charCodeAt(0))
+        const profile = await ProjectBundle.decode(service, bytes.buffer)
+        service.projectProfileService.setValue(Option.wrap(profile))
+    }
 })
 
 const Labels: Record<ConnectionState["status"], string> = {

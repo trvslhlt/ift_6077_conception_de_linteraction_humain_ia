@@ -16,7 +16,7 @@ KNOWLEDGE_ROUTE ?= off
 export PORT ROSTER KNOWLEDGE_ROUTE
 COMPOSE := docker compose --profile test
 
-.PHONY: help builder build up down restart logs status open shell test catalog check knowledge knowledge-bench knowledge-import types usage clean
+.PHONY: help builder build up down restart logs status open shell test scenario catalog check knowledge knowledge-bench knowledge-import types usage clean
 
 help: ## List targets
 	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
@@ -62,6 +62,16 @@ test: build $(TYPES_DIR)/packages ## Run the smoke test in headless Chromium aga
 	ROSTER=team $(COMPOSE) run --rm smoke; status=$$?; \
 		$(COMPOSE) up -d --wait backend >/dev/null 2>&1; \
 		echo "backend back on ROSTER=$(ROSTER) KNOWLEDGE_ROUTE=$(KNOWLEDGE_ROUTE)"; exit $$status
+
+# A scenario runs against the backend as `make up` would start it (ROSTER, KNOWLEDGE_ROUTE), recreated so a test or an
+# earlier `make up ROSTER=team` can't leak into it. Costs a model session per run (keys from .env).
+SCENARIO ?= lofi
+scenario: build $(TYPES_DIR)/packages ## Play scenarios/$(SCENARIO).json to TakeDo headless and write its report (scenarios/runs/)
+	mkdir -p sessions scenarios/runs
+	$(COMPOSE) up -d --wait --force-recreate backend studio
+	@echo "backend: ROSTER=$(ROSTER) KNOWLEDGE_ROUTE=$(KNOWLEDGE_ROUTE)"
+	$(COMPOSE) run --rm -v $(CURDIR)/scenarios:/scenarios smoke node scenario.mjs /scenarios/$(SCENARIO).json
+	cd backend && node src/report.ts "$$(ls -td ../scenarios/runs/*_$(SCENARIO) | head -1)"
 
 catalog: build ## Regenerate catalog/generated.json from openDAW (every device's descriptions and parameters)
 	$(COMPOSE) run --rm -v $(CURDIR)/catalog:/out \

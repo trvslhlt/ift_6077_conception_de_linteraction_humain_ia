@@ -39,7 +39,7 @@ export const findKey = (notes: ReadonlyArray<Note>): Key | null => {
     return {tonic: best.tonic, mode: best.mode, confidence: Number(best.r.toFixed(2)), runnerUp: `${next.tonic} ${next.mode}`}
 }
 
-const isDrums = (track: Track): boolean => track.device?.content !== undefined && "pads" in track.device.content
+export const isDrums = (track: Track): boolean => track.device?.content !== undefined && "pads" in track.device.content
 
 export type PartAnalysis = {
     notes: number
