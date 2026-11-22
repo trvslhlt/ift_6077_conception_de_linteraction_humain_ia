@@ -6,7 +6,7 @@ import {
 import type {Catalog} from "./catalog.ts"
 import type {Gateway, ModelLog} from "./gateway.ts"
 import {createTeam, type Member, type Task} from "./members.ts"
-import {isRole, type KnowledgePick, pickKnowledge, type Role, route} from "./router.ts"
+import {isRole, type KnowledgePick, type PartRole, pickKnowledge, type Role, route} from "./router.ts"
 import type {LogType, SessionLog} from "./sessionLog.ts"
 import {lead, writeOverview} from "./teamLead.ts"
 import {Notebook} from "./notebook.ts"
@@ -35,7 +35,9 @@ export class Coordinator {
     readonly #gateway: Gateway
     readonly #catalog: Catalog
     readonly #log: SessionLog
-    readonly #claims = new Map<string, { holder: Actor, until: number }>()
+    // count: the holder's claims on it not yet released (an agent's scripts share "project.script": the first to land
+    // mustn't free it for the others still waiting).
+    readonly #claims = new Map<string, { holder: Actor, until: number, count: number }>()
     readonly #queries = new Map<number, (snapshot: Snapshot | null) => void>()
     readonly #requests = new Map<string, (status: Status) => void>()
     readonly #looks = new Map<number, (result: { ok: boolean, value: string }) => void>()
@@ -178,13 +180,21 @@ export class Coordinator {
             const claim = this.#claims.get(ref)
             if (claim !== undefined && claim.until > now && claim.holder !== agent) {return {ok: false, holder: claim.holder}}
         }
-        refs.forEach(ref => this.#claims.set(ref, {holder: agent, until: now + ClaimMs}))
+        refs.forEach(ref => {
+            const held = this.#claims.get(ref)
+            const count = held !== undefined && held.holder === agent && held.until > now ? held.count + 1 : 1
+            this.#claims.set(ref, {holder: agent, until: now + ClaimMs, count})
+        })
         this.#log.write("claim", {agent, refs, reason, until: now + ClaimMs})
         return {ok: true}
     }
 
     release(agent: Actor, refs: ReadonlyArray<string>): void {
-        refs.forEach(ref => {if (this.#claims.get(ref)?.holder === agent) {this.#claims.delete(ref)}})
+        refs.forEach(ref => {
+            const held = this.#claims.get(ref)
+            if (held?.holder !== agent) {return}
+            if (held.count > 1) {this.#claims.set(ref, {...held, count: held.count - 1})} else {this.#claims.delete(ref)}
+        })
         this.#log.write("claim", {agent, refs, released: true})
     }
 
@@ -235,10 +245,15 @@ export class Coordinator {
             const low = Math.max(...pitches) < 60   // nothing above openDAW's C3 (MIDI 60)
             return `${track.name} (${track.ref}): ${part.register?.low}–${part.register?.high}${low ? ", the bass register" : ""}`
         })
+        // Each part's role, for code that picks parts (the knowledge route): from the notes, as described above.
+        const roles: Record<string, PartRole> = Object.fromEntries(snapshot.tracks.map(track => {
+            const pitches = track.regions.flatMap(region => region.notes ?? []).map(([, pitch]) => pitch)
+            return [track.ref, pitches.length === 0 ? "empty" : isDrums(track) ? "drums" : Math.max(...pitches) < 60 ? "bass" : "pitched"]
+        }))
         const keyText = key === null ? "unknown (too few notes)" : `${key.tonic} ${key.mode}`
         const value = {recorded_by: "takedo", from: "the project as it was when the agents first worked on it",
             key: key === null ? null : {...key, said: keyText}, tempo: snapshot.timeline.bpm,
-            meter: snapshot.timeline.signature.join("/"), parts: described, overview: this.#overviewLines}
+            meter: snapshot.timeline.signature.join("/"), parts: described, roles, overview: this.#overviewLines}
         notebook.set("facts", "state", `Key ${keyText}${key === null ? "" : " (from the notes)"}; ${snapshot.timeline.bpm} BPM, ` +
             `${value.meter}; ${described.join("; ")}. Use these; if the producer says otherwise, rewrite this entry.`, JSON.stringify(value))
     }
@@ -345,7 +360,9 @@ export class Coordinator {
     async #pickKnowledge(snapshot: Snapshot, message: string, named: string | null): Promise<KnowledgePick | null> {
         if (!KnowledgeRoute || this.#knowledge === null || named !== null || !this.#gateway.available("fast_path")) {return null}
         try {
-            const picked = await pickKnowledge(this.#gateway, this.modelLog(), this.#knowledge, snapshot, message)
+            const facts = this.#notebook?.get("facts") ?? null
+            const roles = facts === null ? {} : (JSON.parse(facts.value).roles ?? {}) as Record<string, PartRole>
+            const picked = await pickKnowledge(this.#gateway, this.modelLog(), this.#knowledge, snapshot, message, roles)
             this.#log.write("route", {...picked, path: `knowledge_${picked.path}`})
             return picked
         } catch (error) {

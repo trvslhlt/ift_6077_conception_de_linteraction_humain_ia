@@ -82,7 +82,30 @@ const bunched = times.reduce((most, t, index) => Math.max(most, times.slice(inde
 const messageTimes = log.filter(entry => entry.type === "chat" && entry.from === "user").map(entry => entry.t)
 const windowOf = (t: number): number => messageTimes.filter(start => start <= t).length
 const landedAt = new Map(applied.map(entry => [entry.request, startedAt.get(entry.request) ?? entry.t]))
-const timed = requests.filter(entry => entry.when?.at === "bar" && landedAt.has(entry.id))
+// A plan's bars in the order it means them: anchored in a loop (When's from), a bar inside the loop behind the anchor's
+// bar is the next pass, so it counts a loop later.
+const loopBars = run.before?.playback.loop.on === true
+    ? [Number(run.before.playback.loop.from.split(".")[0]), Number(run.before.playback.loop.to.split(".")[0])] : null
+const barPulses = run.before === undefined ? 3840 : 960 * 4 * run.before.timeline.signature[0] / run.before.timeline.signature[1]
+const unrolled = (when: Entry): number => {
+    if (loopBars === null || when.from === undefined) {return when.bar}
+    const [from, to] = loopBars
+    const anchorBar = Math.floor(when.from.position / barPulses) + 1
+    return when.bar >= from && when.bar < to && when.bar < anchorBar ? when.bar + (to - from) : when.bar
+}
+// A ramp on an effect added in the same plan (add_effect's then) can't start before the effect is on: its bar counts as
+// no earlier than the effect's.
+const addedAt = new Map<string, number>()
+statuses.forEach(entry => {
+    const device = entry.result?.device?.ref
+    const when = requests.find(request => request.id === entry.request)?.when
+    if (entry.state === "applied" && typeof device === "string" && typeof when?.bar === "number") {addedAt.set(device, unrolled(when))}
+})
+const barOf = (entry: Entry): number => {
+    const parent = [...addedAt].find(([device]) => typeof entry.plan.ref === "string" && entry.plan.ref.startsWith(`${device}.`))
+    return parent === undefined ? unrolled(entry.when) : Math.max(unrolled(entry.when), parent[1])
+}
+const timed = requests.filter(entry => entry.when?.at === "bar" && landedAt.has(entry.id)).map((entry): Entry => ({...entry, when: {...entry.when, bar: barOf(entry)}}))
 const outOfOrder = timed.flatMap((first, index) => timed.slice(index + 1).filter(second =>
     windowOf(first.t) === windowOf(second.t) && first.when.bar !== second.when.bar &&
     Math.sign(second.when.bar - first.when.bar) !== Math.sign(landedAt.get(second.id)! - landedAt.get(first.id)!) &&

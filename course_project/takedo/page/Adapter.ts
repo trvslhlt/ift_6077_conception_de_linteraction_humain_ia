@@ -83,6 +83,10 @@ export class Adapter implements Terminable {
     #lastAgentEdit: { label: string, steps: number } | null = null   // the latest script or added effect, for a crash
     #historySteps = 0
     #played = 0                                                 // pulses played, through each pass of the loop
+    // Counts losses of the backend. An edit still waiting for its bar when the backend goes away is dropped: the
+    // agent that planned it is gone, and the one that resumes picks the plan up from what has landed (2026-11-22: a
+    // killed backend's tempo plan kept landing between the resumed one's steps).
+    #connectionLosses = 0
     #lastPosition = 0
     readonly #ramping = new Map<string, string>()               // parameter address → the request ramping it now                                           // changes to the undo history (edits, undos, redos)
     #touched: Map<string, { address: Address, previous: unknown }> | null = null   // what a running script changed, first value
@@ -97,6 +101,7 @@ export class Adapter implements Terminable {
         this.#env = scriptEnv(project, ref => this.#resolve(ref), () => this.snapshot(), () => this.#bar(),
             position => this.#pos(position))
         this.#terminator.own(connection.subscribeMessages(message => this.#receive(message)))
+        this.#terminator.own(connection.subscribe(state => {if (state.status === "closed") {this.#connectionLosses++}}))
         this.#terminator.own(project.boxGraph.subscribeToAllUpdates({onUpdate: update => this.#observe(update)}))
         const onHold = (event: Event): void => {
             if (!(event instanceof CustomEvent)) {return}
@@ -505,6 +510,8 @@ export class Adapter implements Terminable {
             this.#status(request, {state: "failed", reason: landing.error, detail: landing.detail})
             return false
         }
+        const losses = this.#connectionLosses
+        const lost = (): boolean => losses !== this.#connectionLosses
         const bars = landing.after === undefined ? 0 : Math.round(landing.after / this.#bar())
         this.#status(request, {state: "scheduled",
             landsAt: `${this.#pos(landing.at)}${bars > 0 ? ` (after ${bars} bars of playing)` : ""}`})
@@ -515,6 +522,7 @@ export class Adapter implements Terminable {
             let played = 0
             while (engine.isPlaying.getValue() && played < landing.after) {
                 await this.#clock.tick()
+                if (lost()) {return false}
                 const position = engine.position.getValue()
                 played += position >= last ? position - last
                     : (loopArea.to.getValue() - last) + (position - loopArea.from.getValue())
@@ -526,6 +534,7 @@ export class Adapter implements Terminable {
         // already passed waits for the next pass, and one on the loop's start lands as the loop wraps.
         let armed = last < landing.at
         while (engine.isPlaying.getValue()) {
+            if (lost()) {return false}
             const position = engine.position.getValue()
             if (position < landing.at || position < last) {armed = true}
             if (armed && position >= landing.at) {break}
@@ -552,13 +561,22 @@ export class Adapter implements Terminable {
             if (looping && at < loopFrom) {
                 return {error: "not_allowed", detail: `bar ${when.bar} is before the loop (${this.#pos(loopFrom)} to ${this.#pos(loopTo)})`}
             }
-            if (looping && at >= loopTo && loopTo > loopFrom) {
-                // From where the playhead is in the loop (or the loop's start, if it's outside and about to jump in);
-                // with an anchor, from where it was then, less what has played since (none left: as soon as possible).
+            if (looping && loopTo > loopFrom && (at >= loopTo || when.from !== undefined)) {
+                // From where the playhead is in the loop (or the loop's start, if it's outside and about to jump in).
+                // With an anchor (a plan's steps), every bar counts from where the playhead was then, less what has
+                // played since: a bar inside the loop is its next pass after the anchor (the anchor's own bar: the next
+                // bar line, as "now"), a bar past the end is unrolled, so the steps land in their bars' order. One
+                // whose time has gone by lands on the next bar line.
                 const origin = (from: ppqn) => from >= loopFrom && from < loopTo ? from : loopFrom
-                const after = when.from === undefined ? at - origin(position)
-                    : at - origin(when.from.position) - (this.#played - when.from.played)
-                return {at: loopFrom + (at - loopFrom) % (loopTo - loopFrom), after: Math.max(0, after)}
+                let after: number
+                if (when.from === undefined) {
+                    after = at - origin(position)
+                } else {
+                    const offset = at - origin(when.from.position)
+                    after = (at < loopTo && offset <= -this.#bar() ? offset + (loopTo - loopFrom) : offset) - (this.#played - when.from.played)
+                }
+                const bar = this.#bar()
+                return {at: loopFrom + (at - loopFrom) % (loopTo - loopFrom), after: after >= 0 ? after : ((after % bar) + bar) % bar}
             }
             if (!looping && at < earliest) {return {error: "too_late", detail: `bar ${when.bar} has passed`}}
             return {at}

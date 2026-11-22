@@ -38,7 +38,7 @@ const jev = (answers: Answers): Gateway => ({
             part: {choice: answers.part, confidence}, amount: {score: answers.amount ?? 1}}
     }
 }) as unknown as Gateway
-const pick = (message: string, answers: Answers) => pickKnowledge(jev(answers), () => {}, knowledge, snapshot, message)
+const pick = (message: string, answers: Answers, roles = {}) => pickKnowledge(jev(answers), () => {}, knowledge, snapshot, message, roles)
 
 describe("knowledge route", () => {
     it("applies a genre's plan with the drums and the keys found by name", async () => {
@@ -63,6 +63,15 @@ describe("knowledge route", () => {
         assert.ok(beat.path === "apply" && beat.args.track === "t1")
         const chords = await pick("give me a ii V I", {wants: "chords", key: "pattern/jazz-ii-v-i", part: "t3"})
         assert.ok(chords.path === "apply" && chords.args.track === "t2", "not the bass, though the part was the bass")
+    })
+    it("keeps chords off a part the facts say is a bass, whatever its name", async () => {
+        // 2026-11-21: Cubed, an acid bass not named one, got the lofi entry's chords.
+        const picked = await pick("evolve this into a lofi beat", {wants: "style", key: "genre/lofi-hip-hop", part: "whole_mix"},
+            {t1: "drums", t2: "bass", t3: "bass", t4: "pitched"})
+        assert.ok(picked.path === "apply" && picked.args.drums === "t1" && picked.args.keys === "t4")
+        const none = await pick("evolve this into a lofi beat", {wants: "style", key: "genre/lofi-hip-hop", part: "whole_mix"},
+            {t1: "drums", t2: "bass", t3: "bass", t4: "bass"})
+        assert.ok(none.path === "hint" && none.candidates[0].key === "genre/lofi-hip-hop", "no chordal part: the utility adds one")
     })
     it("lets a style be served by a pattern", async () => {
         const picked = await pick("give me a boom bap beat", {wants: "style", key: "pattern/boombap-1", part: "t1"})

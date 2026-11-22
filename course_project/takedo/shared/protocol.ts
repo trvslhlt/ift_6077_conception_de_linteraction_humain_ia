@@ -60,8 +60,9 @@ export type Snapshot = {
 
 // Requests (TAKEDO_API.md, "Requests"): the coordinator plans, the adapter applies. Values are in the parameter's own
 // units (dB for volume, -1..1 for pan, 0/1 for mute and other switches).
-// from: the playback a plan is timed from (a task's start). A bar past the loop's end then counts bars of playing from
-// there, not from the playhead when the request arrives, so steps scheduled seconds apart keep their order and spacing.
+// from: the playback a plan is timed from (a task's start). In a loop, its bars then count from there, not from the
+// playhead when each request arrives (a bar inside the loop: its next pass after from; past the end: bars of playing),
+// so steps scheduled seconds apart keep their order and spacing.
 export type When = { at: "asap" } | { at: "next", unit: "beat" | "bar" }
     | { at: "bar", bar: number, from?: { position: number, played: number } }
 export type RampPlan = { op: "ramp", ref: string, to: number, beats: number }

@@ -108,12 +108,18 @@ const Chordal = /key|piano|rhodes|pad|chord|organ|synth|string|tubular|vaporisat
 const describe = (track: Snapshot["tracks"][number]): string => `${track.name} ${track.instrument ?? ""}`
 
 // The track refs a plan's params name, from the part Jev judged and the tracks' names and instruments.
-const fill = (knowledge: Knowledge, key: string, snapshot: Snapshot, part: string, amount: number): Record<string, unknown> | null => {
+// A part's role as the project's facts recorded it (Coordinator, keepFacts): from its notes, not its name.
+export type PartRole = "drums" | "bass" | "pitched" | "empty"
+
+const fill = (knowledge: Knowledge, key: string, snapshot: Snapshot, part: string, amount: number,
+              roles: Record<string, PartRole>): Record<string, unknown> | null => {
     const params = knowledge.params(key)
     if (params === null) {return null}
     const notes = snapshot.tracks.filter(track => track.kind === "notes")
-    const drums = notes.find(track => Drums.test(describe(track)))?.ref ?? null
+    const drums = notes.find(track => roles[track.ref] === "drums")?.ref ?? notes.find(track => Drums.test(describe(track)))?.ref ?? null
+    // Not the drums, and not a bass: by name, or by its notes (Cubed, an acid bass, took chords on 2026-11-21).
     const chordal = (track: Snapshot["tracks"][number]) => !Drums.test(describe(track)) && !Bass.test(track.name)
+        && roles[track.ref] !== "bass" && roles[track.ref] !== "drums"
     const asked = snapshot.tracks.find(track => track.ref === part)
     const keys = (asked !== undefined && chordal(asked) ? asked.ref : null)
         ?? notes.find(track => chordal(track) && Chordal.test(describe(track)))?.ref ?? notes.find(chordal)?.ref ?? null
@@ -122,7 +128,8 @@ const fill = (knowledge: Knowledge, key: string, snapshot: Snapshot, part: strin
     for (const [name, param] of Object.entries(params)) {
         if (param.type === "amount") {args[name] = Math.round(Math.max(0, Math.min(3, amount)))}
         else if (name === "drums") {args[name] = drums}
-        else if (name === "keys") {args[name] = keys}
+        // No chordal part: the plan's chords would be skipped, so the utility takes it (it can add one).
+        else if (name === "keys") {if (keys === null) {return null} else {args[name] = keys}}
         else if (param.type === "track" && name === "track") {
             // A pattern goes on its part; a sound replaces the voice of a part with the same instrument, else a new
             // track; an effect goes where the message points (the whole mix: the master).
@@ -136,7 +143,7 @@ const fill = (knowledge: Knowledge, key: string, snapshot: Snapshot, part: strin
 }
 
 export const pickKnowledge = async (gateway: Gateway, log: ModelLog, knowledge: Knowledge, snapshot: Snapshot,
-                                    message: string): Promise<KnowledgePick> => {
+                                    message: string, roles: Record<string, PartRole> = {}): Promise<KnowledgePick> => {
     const lines = shortlist(knowledge.applicable(), message, KnowledgeList).map(({line}) => line)
     const parts: Record<string, string> = Object.fromEntries(snapshot.tracks.map(track =>
         [track.ref, `the ${track.name}${track.instrument ? ` (${track.instrument})` : ""}`]))
@@ -163,7 +170,7 @@ export const pickKnowledge = async (gateway: Gateway, log: ModelLog, knowledge: 
     const judged = {pick: key, wants: answers.wants.confidence, pick_confidence: answers.pick.confidence}
     if (wants === "other") {return {path: "none", wants, confidence: answers.wants.confidence, judged}}
     if (key !== null && serves(wants, knowledge.stratum(key)) && answers.wants.confidence >= KindTop && answers.pick.confidence >= PickTop) {
-        const args = fill(knowledge, key, snapshot, where.part.choice, where.amount.score)
+        const args = fill(knowledge, key, snapshot, where.part.choice, where.amount.score, roles)
         if (args !== null) {return {path: "apply", key, args, confidence, wants, judged}}
     }
     // Not sure enough, or params it can't fill: the pick first, then the kind's best shortlisted entries.

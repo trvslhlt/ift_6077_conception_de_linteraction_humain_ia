@@ -190,6 +190,28 @@ models showed the kill alone doesn't stall it, and the report now checks the pla
 run's staging was off on "keep going": 4 edits in one bar, and a bar-3 step landing after bar-6 steps in a 4-bar
 loop. That belongs to staging (piece 3), not to crash safety.
 
+**Fixed after (2026-11-22), from the scenario runs:**
+- **Edits from before a restart.** A killed backend's edits that were still waiting for their bar kept landing between
+  the steps of the resumed plan: two tempo plans at once. The page now drops edits still waiting when the backend
+  connection goes, and the resumed turn is told so.
+- **Bars inside the loop.** These are now timed from the plan's anchor too: the next pass after it, and the anchor's
+  own bar is the next bar line. Before, they waited for the playhead, so bar 3 landed after bar 6. The anchor moves
+  back by the model's thinking time in whole passes of a short loop (up to 8 bars), so each step keeps its place in
+  the loop. Moving by whole bars had put "bar 1" on bar 3.
+- **A bar's limit.** A fourth single edit on one bar is refused; the staging note alone didn't hold.
+- **Claims are counted.** An agent's first script to land no longer frees the shared claim that its next script
+  needs (the knowledge route's "not claimed").
+- **Knowledge route.** The facts record each part's role from its notes (drums, bass, pitched), and the route keeps
+  chords off a bass whatever its name. With no chordal part, it hands the message to the utility instead of skipping
+  the chords. Its reply says what it put in. The route stays off: none of these were run live with it on.
+- **The report.** It counts a ramp on a just-added effect at the effect's bar, counts an anchored bar behind the
+  anchor as the next pass, and checks the playhead against the clock.
+
+Last runs: `make test` passes; lofi and restart pass every check except bar order. The remaining out-of-order pairs
+and the one 4-edit bar are the model's plans: early bars sent after later ones (they land on the next bar line, and
+the tool says so), and a 3-effect chain put on a bar that already had an edit. One lofi run had a Rhodes part only 50%
+in key: the model's notes. These are left as variance to watch, not code to fix.
+
 ## What agents know
 
 The contracts are specified in [TAKEDO_API.md](TAKEDO_API.md). Agents never see openDAW's API. What they know comes from the **TakeDoAPI**, the project's human-agent
