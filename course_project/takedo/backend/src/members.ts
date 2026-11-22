@@ -116,7 +116,10 @@ const followUp = async (context: Coordinator, agent: Actor, step: Step, status: 
     if (status.state !== "applied" || step.then === undefined || added === undefined) {return []}
     const now = await context.snapshot()
     if (now === null) {return []}
-    return Promise.all(step.then(added, now).map(next => performStep(context, agent, next, reason)))
+    // A ramp's bar is on the same timeline as the step that added the effect: it keeps that step's anchor.
+    const from = step.when.at === "bar" ? step.when.from : undefined
+    return Promise.all(step.then(added, now).map(next => performStep(context, agent,
+        from !== undefined && next.when.at === "bar" ? {...next, when: {...next.when, from}} : next, reason)))
 }
 
 const describe = (step: Step, status: Status, landsAt: string): string => {

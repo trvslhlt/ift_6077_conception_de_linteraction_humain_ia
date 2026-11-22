@@ -82,6 +82,8 @@ export class Adapter implements Terminable {
     #applying: { actor: Actor, request: string } | null = null  // set around our own writes (origin tagging)
     #lastAgentEdit: { label: string, steps: number } | null = null   // the latest script or added effect, for a crash
     #historySteps = 0
+    #played = 0                                                 // pulses played, through each pass of the loop
+    #lastPosition = 0
     readonly #ramping = new Map<string, string>()               // parameter address → the request ramping it now                                           // changes to the undo history (edits, undos, redos)
     #touched: Map<string, { address: Address, previous: unknown }> | null = null   // what a running script changed, first value
     #updates = 0                                                // updates a running script made
@@ -106,6 +108,8 @@ export class Adapter implements Terminable {
         document.addEventListener("parameter-hold", onHold)
         this.#terminator.own({terminate: () => document.removeEventListener("parameter-hold", onHold)})
         this.#terminator.own(project.editing.subscribe(() => {this.#historySteps++}))
+        this.#lastPosition = project.engine.position.getValue()
+        this.#terminator.own(project.engine.position.subscribe(owner => this.#follow(owner.getValue())))
         this.#watchEngine(project)
     }
 
@@ -129,6 +133,18 @@ export class Adapter implements Terminable {
         const undo = last !== null && last.steps === this.#historySteps
         if (undo) {this.#project.editing.undo()}
         this.#connection.send({type: "engine", undone: undo ? last.label : null})
+    }
+
+    // Counts played pulses: forward motion while playing, and the loop's wrap as the rest of the pass plus the new start.
+    #follow(position: ppqn): void {
+        const {engine, timelineBox: {loopArea}} = this.#project
+        const last = this.#lastPosition
+        this.#lastPosition = position
+        if (!engine.isPlaying.getValue()) {return}
+        if (position >= last) {this.#played += position - last; return}
+        if (loopArea.enabled.getValue()) {
+            this.#played += Math.max(0, loopArea.to.getValue() - last) + Math.max(0, position - loopArea.from.getValue())
+        }
     }
 
     terminate(): void {
@@ -176,7 +192,8 @@ export class Adapter implements Terminable {
         return {
             playing: engine.isPlaying.getValue(), pos: this.#pos(), bar: Math.floor(position / this.#bar()) + 1,
             loop: {on: loopArea.enabled.getValue(), from: this.#pos(loopArea.from.getValue()),
-                to: this.#pos(loopArea.to.getValue())}
+                to: this.#pos(loopArea.to.getValue())},
+            position, played: this.#played
         }
     }
 
@@ -536,9 +553,12 @@ export class Adapter implements Terminable {
                 return {error: "not_allowed", detail: `bar ${when.bar} is before the loop (${this.#pos(loopFrom)} to ${this.#pos(loopTo)})`}
             }
             if (looping && at >= loopTo && loopTo > loopFrom) {
-                // From where the playhead is in the loop (or the loop's start, if it's outside and about to jump in).
-                const after = at - (position >= loopFrom && position < loopTo ? position : loopFrom)
-                return {at: loopFrom + (at - loopFrom) % (loopTo - loopFrom), after}
+                // From where the playhead is in the loop (or the loop's start, if it's outside and about to jump in);
+                // with an anchor, from where it was then, less what has played since (none left: as soon as possible).
+                const origin = (from: ppqn) => from >= loopFrom && from < loopTo ? from : loopFrom
+                const after = when.from === undefined ? at - origin(position)
+                    : at - origin(when.from.position) - (this.#played - when.from.played)
+                return {at: loopFrom + (at - loopFrom) % (loopTo - loopFrom), after: Math.max(0, after)}
             }
             if (!looping && at < earliest) {return {error: "too_late", detail: `bar ${when.bar} has passed`}}
             return {at}

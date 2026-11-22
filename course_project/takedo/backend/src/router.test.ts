@@ -20,7 +20,7 @@ const track = (ref: string, name: string, instrument: string): Track => ({
 })
 const snapshot: Snapshot = {
     at: {t: 0, pos: "1.1.1", seq: 0, revision: 0}, detail: "outline", playing: true,
-    playback: {playing: true, pos: "2.1.1", bar: 2, loop: {on: true, from: "1.1.1", to: "5.1.1"}},
+    playback: {playing: true, pos: "2.1.1", bar: 2, loop: {on: true, from: "1.1.1", to: "5.1.1"}, position: 3840, played: 0},
     timeline: {bpm: 90, signature: [4, 4], length: "5.1.1"},
     tracks: [track("t1", "Drums", "Playfield"), track("t2", "Keys", "Tubular"), track("t3", "Bass", "Vaporisateur"), track("t4", "Pad", "Vaporisateur")],
     master: {volume: 0, effects: []}

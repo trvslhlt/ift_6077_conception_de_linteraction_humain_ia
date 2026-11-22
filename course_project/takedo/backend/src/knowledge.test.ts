@@ -29,7 +29,7 @@ const drumsTrack = track("t1", "Drums", "Playfield", {device: {key: "Playfield",
         {note: 42, name: "TR-808 Closed Hat"}, {note: 46, name: "TR-808 Open Hat"}]}}})
 const snapshot: Snapshot = {
     at: {t: 0, pos: "1.1.1", seq: 0, revision: 0}, detail: "outline", playing: true,
-    playback: {playing: true, pos: "2.1.1", bar: 2, loop: {on: true, from: "1.1.1", to: "5.1.1"}},
+    playback: {playing: true, pos: "2.1.1", bar: 2, loop: {on: true, from: "1.1.1", to: "5.1.1"}, position: 3840, played: 0},
     timeline: {bpm: 119, signature: [4, 4], length: "5.1.1"},
     tracks: [drumsTrack, track("t2", "Keys", "Tubular"), track("t3", "Bass", "Vaporisateur", {bars: null})],
     master: {volume: 0, effects: []}

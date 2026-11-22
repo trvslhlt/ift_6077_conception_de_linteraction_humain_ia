@@ -228,7 +228,7 @@ const routeSnapshot = (): Snapshot => {
             bars: {from: 1, to: Number(Project.bars)}, lanes: [], regions: []}
     })
     return {at: {t: 0, pos: "5.1.1", seq: 0, revision: 0}, detail: "outline", playing: true,
-        playback: {playing: true, pos: "5.1.1", bar: 5, loop: {on: true, from: "1.1.1", to: "9.1.1"}},
+        playback: {playing: true, pos: "5.1.1", bar: 5, loop: {on: true, from: "1.1.1", to: "9.1.1"}, position: 15360, played: 0},
         timeline: {bpm: Number(Project.tempo), signature: [4, 4], length: "9.1.1"}, tracks, master: {volume: 0, effects: []}}
 }
 const routePick = async (gateway: Gateway, item: Case): Promise<Pick> => {

@@ -3,7 +3,7 @@ import {createSdkMcpServer, query, type Query, type SDKUserMessage, tool} from "
 import type Anthropic from "@anthropic-ai/sdk"
 import type {CallToolResult} from "@modelcontextprotocol/sdk/types.js"
 import {z} from "zod"
-import type {Actor, Plan, Snapshot, Status, When} from "../../shared/protocol.ts"
+import type {Actor, Plan, Playback, Snapshot, Status, When} from "../../shared/protocol.ts"
 import type {Coordinator} from "./coordinator.ts"
 import type {Catalog} from "./catalog.ts"
 import {Kinds as KnowledgeKinds, type Knowledge} from "./knowledge.ts"
@@ -32,7 +32,39 @@ const SourceTools = ["Read", "Grep", "Glob"]
 // One task's edits: what landed (for the card and the reply), what's still landing, and failures nobody's heard yet.
 type Work = { done: string[], pending: Promise<string>[], late: string[] }
 // The message being worked on, for the tools' handlers (one at a time: they share the session).
-type Current = { context: Coordinator, task: Task, work: Work, calls: number, said?: string }
+type Current = { context: Coordinator, task: Task, work: Work, calls: number, said?: string, staged: Staged[], anchor: Anchor }
+// Where the playhead was when the producer's message arrived, and when: the task's edits are timed from it (When's from).
+type Anchor = { position: number, played: number, bar: number, t: number, moved?: boolean } | null
+const anchorOf = (snapshot: Snapshot): Anchor => snapshot.playback.position === undefined ? null
+    : {position: snapshot.playback.position, played: snapshot.playback.played, bar: snapshot.playback.bar, t: Date.now()}
+const anchored = (when: When, anchor: Anchor): When =>
+    when.at === "bar" && anchor !== null ? {...when, from: {position: anchor.position, played: anchor.played}} : when
+type Staged = { atBar: number, lands: number, edits: number }   // lands: estimated time (ms) the edit lands
+
+// Bars of playing until an edit for at_bar lands, as the bus times it (the page's Adapter): 0 is the next bar; inside a
+// loop, the next time the playhead reaches that bar; past its end (or with no loop), bars counted from the playhead.
+export const barsUntil = (playback: Playback, atBar: number): number => {
+    const now = playback.bar
+    if (atBar <= 0) {return 1}
+    const {loop} = playback
+    const [from, to] = [Number(loop.from.split(".")[0]), Number(loop.to.split(".")[0]) - 1]
+    if (loop.on && atBar >= from && atBar <= to && atBar <= now) {return (to - now + 1) + (atBar - from)}
+    return Math.max(1, atBar - now)
+}
+
+// A word on a gradual change's shape, with the edit's result (decided 2026-11-21: code checks, the prompt explains):
+// several edits landing on one bar, or a step landing before one planned for an earlier bar (the loop's trap).
+export const stagingNote = (staged: ReadonlyArray<Staged>, next: Staged, barMs: number): string => {
+    const together = staged.filter(other => Math.abs(other.lands - next.lands) < barMs / 2)
+        .reduce((sum, other) => sum + other.edits, next.edits)
+    // The bars' order and the landing order disagree, either way round.
+    const overtaken = staged.filter(other => other.atBar > 0 && next.atBar > 0 && other.atBar !== next.atBar &&
+        Math.sign(next.atBar - other.atBar) !== Math.sign(next.lands - other.lands) && Math.abs(next.lands - other.lands) > barMs / 2)
+    const notes = [
+        ...(together >= 3 ? [`${together} edits now land on the same bar: for a gradual change, spread them out (one or two per bar)`] : []),
+        ...(overtaken.length > 0 ? [`this and the step you set for bar ${overtaken[0].atBar} land in the opposite order to their bars: in the loop, a bar inside it comes round again only after the loop ends, while a bar past its end counts bars of playing. Time staged steps past the loop's end (playback.bar + n) so they keep their order`] : [])]
+    return notes.length === 0 ? "" : `\nNote: ${notes.join("; ")}.`
+}
 
 // What the producer reads must be a chat line (INTERACTION.md, "Who speaks in the chat"): the prompt alone didn't hold
 // (a 9-sentence bulleted reply, 2026-11-21), so the reply tool refuses anything else and says what to fix.
@@ -100,7 +132,8 @@ Rules:
 - Change only what the task asks. Decided limits, for now: ${Limits} \`devices\` lists the devices you may add, by kind, as named in openDAW's factories.
 - Anything else openDAW can do, you can: never answer that it can't be done or wasn't built; look up how and do it.
 - Land changes ahead of the playhead (\`playback.bar\`) when timing matters; structural changes (lengths, new regions) can land as soon as possible.
-- When the loop is on (\`playback.loop\`), a bar inside it lands the next time the playhead reaches it, and a bar past the loop's end counts bars of playing from the playhead, as if the loop were unrolled (playhead in bar 2 of a 4-bar loop, at_bar 10: after 8 bars of playing, at the loop's bar 2), so the steps of a gradual change keep their spacing. Results then say "at 1.1.1 (after 8 bars of playing)": that is the bar you asked for, landed on time.
+- When the loop is on (\`playback.loop\`), a bar inside it lands the next time the playhead reaches it, and a bar past the loop's end counts bars of playing from where the playhead was when the producer's message arrived (the summary's playback.bar), however long you take to schedule it, as if the loop were unrolled (playhead in bar 2 of a 4-bar loop, at_bar 10: after 8 bars of playing, at the loop's bar 2), so the steps of a gradual change keep their spacing. Results then say "at 1.1.1 (after 8 bars of playing)": that is the bar you asked for, landed on time.
+- Staging a gradual change: one or two edits per bar, the steps a few bars apart; with the loop on, time every step past the loop's end (playback.bar + n) so they land in order. Bring an effect in gently (dry, or its mix low) and raise it with add_effect's then, not at full strength. A knowledge chain's effects all land on one bar: give it a bar of its own. Results add a note when edits bunch or land out of order.
 - A region's notes play on every pass of its loop: a script that rewrites them changes every repeat from when it lands, which is how a staged change evolves the part over time.
 ${KeySlot}- Do the whole task before you finish: never stop after a first part to offer the next, or ask whether to do a part that was asked for. Make several calls per round when they don't depend on each other.
 - If something fails twice the same way, stop and say what's in the way.`
@@ -217,7 +250,7 @@ export class Utility implements Member {
                 }))
             }
             const work: Work = {done: [], pending: [], late: []}
-            const current: Current = {context, task, work, calls: 0}
+            const current: Current = {context, task, work, calls: 0, staged: [], anchor: anchorOf(snapshot)}
             this.#current = current
             try {
                 const result = await this.#applyKnowledge(current, key, args, 0)
@@ -238,7 +271,7 @@ export class Utility implements Member {
         const fresh = this.#session === null
         const session = this.#session ?? (this.#session = this.#open(context, snapshot))
         const work: Work = {done: [], pending: [], late: []}
-        this.#current = {context, task, work, calls: 0}
+        this.#current = {context, task, work, calls: 0, staged: [], anchor: anchorOf(snapshot)}
         session.inbox.push(JSON.stringify({
             ...(fresh && task.history !== undefined && task.history.length > 0 ? {conversation: task.history} : {}),
             ...(this.#unheard.length > 0 ? {since_your_last_reply: this.#unheard.splice(0)} : {}),
@@ -299,7 +332,30 @@ export class Utility implements Member {
                 if (++current.calls > MaxCalls) {
                     return reply(`Not run: that's ${MaxCalls} calls for this message. Finish now: call reply with what you changed and what's left undone.`)
                 }
-                const result = await run(current, input)
+                const atBar = typeof input.at_bar === "number" ? input.at_bar : null
+                const before = atBar === null ? null : await current.context.snapshot()
+                // The plan starts at its first timed edit, not when the message arrived: the model's thinking time
+                // (15 s, 7 bars, 2026-11-21) shouldn't eat its first steps. Bar numbers keep the summary's meaning.
+                const anchor = current.anchor
+                if (anchor !== null && anchor.moved !== true && before !== null && atBar !== null && atBar > 0) {
+                    current.anchor = {...anchor, played: before.playback.played, t: Date.now(), moved: true}
+                }
+                let result = await run(current, input)
+                if (before !== null && atBar !== null && !/^Not\b|failed/.test(result)) {
+                    const barMs = 60000 / before.timeline.bpm * before.timeline.signature[0]
+                    const edits = Number(/^\S+: (\d+) edits?\./.exec(result)?.[1] ?? 1)
+                    const anchor = current.anchor
+                    const pastLoop = before.playback.loop.on && atBar >= Number(before.playback.loop.to.split(".")[0])
+                    const lands = anchor !== null && pastLoop ? anchor.t + Math.max(1, atBar - anchor.bar) * barMs
+                        : Date.now() + barsUntil(before.playback, atBar) * barMs
+                    const next = {atBar, lands, edits}
+                    result += stagingNote(current.staged, next, barMs)
+                    if (pastLoop && anchor !== null && lands < Date.now() - barMs / 2) {
+                        const played = Math.round((Date.now() - anchor.t) / barMs)
+                        result += `\nNote: bar ${atBar} had already gone by (about ${played} bars have played since your first timed edit), so this lands now, out of its place in the plan. Schedule a plan's steps together, before reading or looking further.`
+                    }
+                    current.staged.push(next)
+                }
                 const late = current.work.late.splice(0)
                 return reply(late.length > 0 ? `${result}\nSince then, failed: ${late.join("; ")}.` : result)
             }
@@ -490,6 +546,7 @@ export class Utility implements Member {
         const step = owner.step(name, input, snapshot)
         if (typeof step === "string") {return `Not done: ${step}.`}
         context.card({agent: this.agent, name: this.name, doing: step.says})
+        step.when = anchored(step.when, current.anchor)
         return this.#start(work, onStatus => performStep(context, this.agent, step, task.piece ?? task.message, onStatus)
             .then(result => {
                 work.done.push(result)
@@ -524,7 +581,7 @@ export class Utility implements Member {
         context.card({agent: this.agent, name: this.name, doing: description})
         const claimed = context.claim(this.agent, ["project.script"], description)
         if (!claimed.ok) {return "Another script is running; try again in a moment."}
-        const when: When = bar > 0 ? {at: "bar", bar} : {at: "asap"}
+        const when: When = anchored(bar > 0 ? {at: "bar", bar} : {at: "asap"}, current.anchor)
         const fresh = await context.snapshot()
         return this.#start(work, async onStatus => {
             try {

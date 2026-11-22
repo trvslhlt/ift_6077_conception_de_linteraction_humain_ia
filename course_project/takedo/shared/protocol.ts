@@ -42,7 +42,10 @@ export type Track = {
     lanes: string[]                                 // refs of its mix parameters that have an automation lane
     regions: Region[]
 }
-export type Playback = { playing: boolean, pos: string, bar: number, loop: { on: boolean, from: string, to: string } }
+// position: the playhead in pulses. played: pulses played since the page began following this project, counting each
+// pass of the loop; with position, an anchor that bars of playing can be counted from (When's from).
+export type Playback = { playing: boolean, pos: string, bar: number, loop: { on: boolean, from: string, to: string },
+    position: number, played: number }
 export type Snapshot = {
     // seq: the adapter's change counter this snapshot reflects. revision: counts every update to the project, including
     // kinds not yet reported as changes (tracks, regions, notes), so "has anything changed since" can be answered.
@@ -57,7 +60,10 @@ export type Snapshot = {
 
 // Requests (TAKEDO_API.md, "Requests"): the coordinator plans, the adapter applies. Values are in the parameter's own
 // units (dB for volume, -1..1 for pan, 0/1 for mute and other switches).
-export type When = { at: "asap" } | { at: "next", unit: "beat" | "bar" } | { at: "bar", bar: number }
+// from: the playback a plan is timed from (a task's start). A bar past the loop's end then counts bars of playing from
+// there, not from the playhead when the request arrives, so steps scheduled seconds apart keep their order and spacing.
+export type When = { at: "asap" } | { at: "next", unit: "beat" | "bar" }
+    | { at: "bar", bar: number, from?: { position: number, played: number } }
 export type RampPlan = { op: "ramp", ref: string, to: number, beats: number }
 export type SetPlan = { op: "set", ref: string, to: number }
 // Appended to the chain, with settings (parameter paths, as the catalog lists them) applied in the same edit.

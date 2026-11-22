@@ -20,8 +20,12 @@ if (runDir === undefined) {throw new Error("usage: node src/report.ts <run dir> 
 const run: Run = JSON.parse(readFileSync(join(runDir, "run.json"), "utf8"))
 const sessionDir = run.session === undefined ? undefined
     : readdirSync(sessionsDir).find(name => name.endsWith(`_${run.session!.slice(0, 8)}`))
+// A line the backend was still writing (or two interleaved) is skipped and counted.
+const unreadable: string[] = []
 const log: Entry[] = sessionDir === undefined || !existsSync(join(sessionsDir, sessionDir, "log.jsonl")) ? []
-    : readFileSync(join(sessionsDir, sessionDir, "log.jsonl"), "utf8").trim().split("\n").map(line => JSON.parse(line))
+    : readFileSync(join(sessionsDir, sessionDir, "log.jsonl"), "utf8").trim().split("\n").flatMap(line => {
+        try {return [JSON.parse(line)]} catch {unreadable.push(line.slice(0, 80)); return []}
+    })
 
 const Names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 const scale = (key: Key): Set<number> => {
@@ -39,6 +43,7 @@ const out: string[] = []
 const check = (ok: boolean, text: string): void => {out.push(`- ${ok ? "✅" : "❌"} ${text}`)}
 out.push(`# ${run.scenario}: ${run.started}`, "",
     `Project \`${run.project}\`, session \`${run.session ?? "none"}\`${sessionDir === undefined ? " (no session log found)" : ""}.`)
+if (unreadable.length > 0) {run.problems.push(`${unreadable.length} unreadable session log lines, skipped: ${unreadable.join(" | ")}`)}
 if (run.problems.length > 0) {out.push("", "**Problems:**", ...run.problems.map(problem => `- ${problem}`))}
 
 // ---------- the conversation ----------
@@ -61,8 +66,22 @@ const applied = statuses.filter(entry => entry.state === "applied")
 const failed = [...final.values()].filter(entry => entry.state === "failed" || entry.state === "dropped")
 // Edits landing together: the most applied in any window of one bar (at the tempo the run started at).
 const barMs = run.before === undefined ? 2000 : 60000 / run.before.timeline.bpm * run.before.timeline.signature[0]
-const times = applied.map(entry => entry.t).sort((a, b) => a - b)
+// When an edit starts to land: its first "running" (a ramp) or "applied" status; a ramp reports applied when it ends.
+const startedAt = new Map<string, number>()
+statuses.forEach(entry => {
+    if ((entry.state === "running" || entry.state === "applied") && !startedAt.has(entry.request)) {startedAt.set(entry.request, entry.t)}
+})
+const times = applied.map(entry => startedAt.get(entry.request) ?? entry.t).sort((a, b) => a - b)
 const bunched = times.reduce((most, t, index) => Math.max(most, times.slice(index).filter(other => other - t < barMs).length), 0)
+// Steps of one message landing in the opposite order to their bars (the loop's trap): pairs, per producer message.
+const messageTimes = log.filter(entry => entry.type === "chat" && entry.from === "user").map(entry => entry.t)
+const windowOf = (t: number): number => messageTimes.filter(start => start <= t).length
+const landedAt = new Map(applied.map(entry => [entry.request, startedAt.get(entry.request) ?? entry.t]))
+const timed = requests.filter(entry => entry.when?.at === "bar" && landedAt.has(entry.id))
+const outOfOrder = timed.flatMap((first, index) => timed.slice(index + 1).filter(second =>
+    windowOf(first.t) === windowOf(second.t) && first.when.bar !== second.when.bar &&
+    Math.sign(second.when.bar - first.when.bar) !== Math.sign(landedAt.get(second.id)! - landedAt.get(first.id)!) &&
+    Math.abs(landedAt.get(second.id)! - landedAt.get(first.id)!) > barMs / 2).map(second => [first, second]))
 const models = log.filter(entry => entry.type === "model")
 const utilityCost = Math.max(0, ...models.filter(entry => entry.job === "utility").map(entry => entry.costUsd ?? 0))
 const byJob = new Map<string, { calls: number, ms: number, out: number }>()
@@ -120,6 +139,9 @@ if (before === undefined || after === undefined) {
     if (added.length > 0) {out.push(`- New tracks: ${added.map(track => `${track.name} (${track.device?.name ?? track.instrument ?? "?"})`).join(", ")}`)}
     check(failed.length === 0, `${failed.length} edits not done${failed.length > 0 ? `: ${failed.map(entry => entry.detail ?? entry.reason ?? entry.state).join("; ")}` : ""}`)
     check(bunched <= 3, `at most ${bunched} edits landed in one bar`)
+    const label = (entry: Entry): string => entry.plan.description ?? `${entry.plan.op} ${entry.plan.ref ?? entry.plan.device ?? ""}`.trim()
+    check(outOfOrder.length === 0, `${outOfOrder.length} pairs of steps landed in the opposite order to their bars` +
+        `${outOfOrder.length > 0 ? `: ${outOfOrder.slice(0, 3).map(([first, second]) => `${label(first)} (bar ${first.when.bar}) / ${label(second)} (bar ${second.when.bar})`).join("; ")}` : ""}`)
     check(run.playing === true, `engine ${run.playing ? "still playing" : "stopped"} at the end`)
     const long = run.messages.flatMap(message => message.replies).filter(line => sentences(line.text) > MaxReplySentences)
     check(long.length === 0, `${long.length} replies longer than ${MaxReplySentences} sentences`)
