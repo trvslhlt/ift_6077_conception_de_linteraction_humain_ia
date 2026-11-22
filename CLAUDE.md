@@ -18,7 +18,7 @@ The integrated prototype is `course_project/takedo/` (page + Node backend); the 
 
 ## Docker conventions
 
-- Host is Apple Silicon (arm64), Docker Desktop with 8 GB of memory and a 32 GB virtual disk (tight: one openDAW build plus the Playwright image needs ~15 GB). Shared with other course projects: never run global `docker system/builder/volume prune`.
+- Host is Apple Silicon (arm64), Docker Desktop with about 12 GB of memory and a 64 GB virtual disk (one openDAW build plus the Playwright image needs ~15 GB). The virtual disk grows on demand, so the Mac's own free space is the real limit: with the Mac's disk full, builds fail with `input/output error` while Docker still reports free space. Check `df -h /System/Volumes/Data` first. Shared with other course projects: never run global `docker system/builder/volume prune`.
 - Each POC folder is its own compose project; its `make clean` removes exactly that project's containers, network and images, and nothing else. Pattern: `course_project/poc/hello_world/Makefile`.
 - All builds share one buildx builder, `opendaw-poc`, defined in `docker/builder.mk` (each POC Makefile includes it). One cache means POCs that share build steps get cache hits; a POC's `make clean` never removes it, `make -C docker clean` does. A POC that builds openDAW should keep hello_world's build stage instruction-for-instruction so it stays a cache hit.
 - `.dockerignore` files are allowlists (`*` then `!file`), so `.env` and secrets never enter a build context.

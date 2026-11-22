@@ -164,6 +164,16 @@ Code driving a debugging Chrome (no in-studio interface, turn-based, guarantees 
 solo exploration or Wizard-of-Oz sessions), and `claude -p` headless (same engine, but tools need a separate MCP
 server). First step: port the utility (`ROSTER=utility`) and rerun G's lofi direction against both earlier runs.
 
+**Planned (2026-11-21): bump the SDK and let it keep the session.** The port is not yet run in the studio, and the pin
+(0.3.312) is behind (0.3.330; no breaking change touches TakeDo: its MCP server is already top-level, and it uses no
+hooks, sandbox or Bash). Order: bump the pin before the baseline run, so the baseline is on the current SDK; then the
+baseline (`ROSTER=utility`, route off) and the first live knowledge-route run; then replace the remaining hand-rolled
+session handling. Today the utility runs with `persistSession: false` and, when its session dies (crash, half-answered
+turn, backend restart), opens a fresh one primed with the last 12 chat lines (`utility.ts`, `conversation`).
+With `persistSession: true` + `resume` the whole (compacted) conversation survives, and `resumeSessionAt` or
+`forkSession` can reopen it before a half-answered turn instead of dropping it. A session store can keep transcripts
+beside `sessions/`. Crash safety is a roadmap priority, so test it with a killed backend mid-turn.
+
 ## What agents know
 
 The contracts are specified in [TAKEDO_API.md](TAKEDO_API.md). Agents never see openDAW's API. What they know comes from the **TakeDoAPI**, the project's human-agent
