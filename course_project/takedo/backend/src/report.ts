@@ -188,7 +188,7 @@ if (before === undefined || after === undefined) {
     if (start !== undefined && end !== undefined && end.t > start.t) {
         const expected = (end.t - start.t) / 60000 * Math.min(before.timeline.bpm, after.timeline.bpm) * 960
         const share = (end.played - start.played) / expected
-        check(share >= 0.8, `playhead moved ${Math.round(share * 100)}% as far as the clock says it should (under 80%: the engine stalled, and edits timed by bars bunch up)`)
+        check(share >= 0.8, `playhead moved ${Math.round(share * 100)}% as far as the clock says it should (under 80%: the playhead fell behind, from a tempo near 0 or a stalled engine; the run's samples show which, and edits timed by bars bunch up)`)
     }
     // After a restart: the message picked back up, in the same agent conversation (the SDK's session, resumed).
     if (run.messages.some(message => message.restartAfterMs !== undefined)) {

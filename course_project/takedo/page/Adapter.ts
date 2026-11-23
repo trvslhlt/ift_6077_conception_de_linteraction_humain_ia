@@ -3,8 +3,9 @@ import {PPQN, ppqn} from "@opendaw/lib-dsp"
 import {Address, Box, PrimitiveUpdate, Update} from "@opendaw/lib-box"
 import {
     AudioRegionBoxAdapter, AudioUnitBoxAdapter, AutomatableParameterFieldAdapter, DeviceBoxAdapter, Devices,
-    EffectDeviceBoxAdapter, NoteRegionBoxAdapter, PlayfieldDeviceBoxAdapter, TrackBoxAdapter
+    EffectDeviceBoxAdapter, NoteRegionBoxAdapter, PlayfieldDeviceBoxAdapter, TempoRange, TrackBoxAdapter
 } from "@opendaw/studio-adapters"
+import {ValueEventBox, ValueEventCollectionBox} from "@opendaw/studio-boxes"
 import {EffectFactories, type EffectFactory, type Project} from "@opendaw/studio-core"
 import type {
     Actor, AddEffectPlan, Apply, BackendToPage, Change, Content, Detail, Device, FailReason, Note, ParamState, Playback, Region,
@@ -402,7 +403,11 @@ export class Adapter implements Terminable {
         try {
             this.#tagged(request, () => this.#project.editing.modify(() => {
                 value = runScript(plan.code, this.#env)
-                if (this.guarding) {corrections = this.#guard()}
+                if (this.guarding) {
+                    corrections = this.#guard()
+                    const tempo = this.#tempoProblem()
+                    if (tempo !== null) {throw new Error(tempo)}
+                }
             }))
         } catch (error) {
             return this.#status(request, {state: "failed", reason: "invalid_args", detail: errorText(error)})
@@ -438,6 +443,27 @@ export class Adapter implements Terminable {
             })
         }
         return corrections
+    }
+
+    // The project's tempo and every tempo event, against openDAW's TempoRange (in BPM). A tempo event's value is a plain
+    // value-event field with no declared range, so the field guard can't catch it: a script that wrote normalized values
+    // ((bpm - 60) / 180) set the tempo to 0.33 BPM and the playhead all but stopped for 6 minutes (2026-11-23). Thrown
+    // inside the edit, so openDAW rolls the whole script back.
+    #tempoProblem(): string | null {
+        const {timelineBox} = this.#project
+        const bad = (bpm: number): boolean => !Number.isFinite(bpm) || bpm < TempoRange.min || bpm > TempoRange.max
+        const range = `${TempoRange.min} to ${TempoRange.max} BPM`
+        if (bad(timelineBox.bpm.getValue())) {return `not applied: the tempo would be ${timelineBox.bpm.getValue()} BPM, outside ${range}`}
+        const collection = timelineBox.tempoTrack.events.targetVertex
+        if (collection.isEmpty()) {return null}
+        const box = collection.unwrap().box
+        if (!(box instanceof ValueEventCollectionBox)) {return null}
+        const values = box.events.pointerHub.incoming()
+            .map(pointer => pointer.box).filter((box): box is ValueEventBox => box instanceof ValueEventBox)
+            .map(box => box.value.getValue())
+        const out = values.filter(bad)
+        return out.length === 0 ? null : `not applied: tempo events are in BPM (${range}), as the project's tempo is, not normalized; ` +
+            `this would set ${out.length} to ${out.slice(0, 3).map(value => Math.round(value * 1000) / 1000).join(", ")}`
     }
 
     // A ref as a script sees it: the adapter openDAW's UI uses.

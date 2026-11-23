@@ -7,6 +7,7 @@
 // A step may move a control instead of sending text: {"control": "<ref, or omitted for the first one shown>", "value": 0..1};
 // A message with "no_settle": true moves on as soon as it's answered, without waiting for its edits to land.
 // or change a parameter in openDAW as the producer would, with no reply expected: {"set": "t1.mix.volume", "value": -20}.
+// {"wait_ms": 30000} just lets the project play (a probe with no agents: only set and wait steps).
 import {chromium} from "playwright"
 import {mkdirSync, readFileSync, writeFileSync} from "node:fs"
 import {basename, dirname, join} from "node:path"
@@ -27,6 +28,11 @@ const page = await (await browser.newContext({viewport: {width: 1440, height: 90
 page.setDefaultTimeout(60000)
 const problems = []
 page.on("pageerror", error => problems.push(`pageerror: ${error.message}`))
+// The page's warnings and errors, timed (a stall's cause may show here).
+const consoleLines = []
+page.on("console", message => {
+    if (["warning", "error"].includes(message.type()) && consoleLines.length < 300) {consoleLines.push({t: Date.now(), type: message.type(), text: message.text().slice(0, 300)})}
+})
 
 const agentLines = () => page.evaluate(() => [...document.querySelectorAll("[data-testid=takedo-chat] li")]
     .map(line => ({from: line.dataset.from, shown: line.dataset.shown, text: line.lastElementChild?.textContent ?? ""})))
@@ -37,6 +43,7 @@ const landing = () => page.evaluate(() => document.querySelectorAll(
     "[data-testid=takedo-activity] li[data-state=scheduled], [data-testid=takedo-activity] li[data-state=running], [data-testid=takedo-activity] li[data-state=queued]").length
     + (/running|thinking|heard/.test(document.querySelector('[data-agent="agent:team_lead"] [data-testid=takedo-card-doing]')?.textContent ?? "") ? 1 : 0))
 
+let sampler
 const run = {scenario: name, project: scenario.project, started: new Date().toISOString(), messages: [], problems}
 try {
     await page.goto(URL, {waitUntil: "networkidle", timeout: 180000})
@@ -58,6 +65,26 @@ try {
     // How far the playhead has gone, against the clock: a stalled engine shows as too few pulses played (the report checks).
     const clock = async () => ({t: Date.now(), played: await page.evaluate(() => window.takedo.adapter.playback().played)})
     run.clock = {start: await clock()}
+    // Every 2 s: the playhead's pulses, the audio clock, the engine's CPU load and the page's main-thread lag (the
+    // longest a 100 ms timer ran late since the last sample), so a stall shows which of them stopped.
+    await page.evaluate(() => {
+        window.__lag = {max: 0, last: performance.now()}
+        setInterval(() => {
+            const now = performance.now()
+            window.__lag.max = Math.max(window.__lag.max, now - window.__lag.last - 100)
+            window.__lag.last = now
+        }, 100)
+    })
+    run.samples = []
+    sampler = setInterval(() => {
+        page.evaluate(() => {
+            const service = window.takedo?.service, engine = service?.engine
+            const lag = window.__lag.max
+            window.__lag.max = 0
+            return {played: window.takedo.adapter?.playback().played ?? null, ctx: service?.audioContext?.currentTime ?? null,
+                state: service?.audioContext?.state ?? null, cpu: engine?.cpuLoad?.getValue?.() ?? null, lag: Math.round(lag)}
+        }).then(sample => run.samples.push({t: Date.now(), ...sample}), () => {})
+    }, 2000)
     for (const step of scenario.messages) {
         // restart_replies: agent lines to wait for after a restart (2: "picking it back up" and the reply; 1 when the
         // backend is killed after the reply, while its edits wait for their bars).
@@ -67,6 +94,10 @@ try {
         const start = Date.now()
         // The user's own line (none for a control move), then at least one reply (two after a restart).
         let replies = 1
+        if (step.wait_ms !== undefined) {
+            await page.waitForTimeout(step.wait_ms)
+            continue
+        }
         if (step.set !== undefined) {
             const ok = await page.evaluate(([ref, value]) => window.takedo.adapter.setAsProducer(ref, value), [step.set, step.value])
             await page.waitForTimeout(2000)   // the page folds a gesture before reporting it
@@ -131,7 +162,9 @@ try {
     problems.push(`runner: ${error.message}`)
     console.error(error)
 } finally {
+    clearInterval(sampler)
     run.finished = new Date().toISOString()
+    run.console = consoleLines
     const out = join(dirname(file), "runs", `${run.started.replace(/[:.]/g, "-")}_${name}`)
     mkdirSync(out, {recursive: true})
     writeFileSync(join(out, "run.json"), JSON.stringify(run, null, 1))

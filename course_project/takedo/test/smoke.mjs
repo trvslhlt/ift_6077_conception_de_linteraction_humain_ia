@@ -363,6 +363,35 @@ try {
         guarded.state === "applied" && (guarded.result?.corrected?.length ?? 0) === 3 && stillPlaying,
         JSON.stringify(guarded.result?.corrected ?? guarded))
 
+    // Tempo automation written in normalized values, not BPM (the script from a 2026-11-23 run, which set the tempo to
+    // 0.33 BPM: the playhead all but stopped for 6 minutes). Refused and rolled back; the playhead keeps its speed.
+    const tempoScript = await page.evaluate(() => new Promise(resolve => {
+        const {adapter} = window.takedo
+        const id = crypto.randomUUID()
+        const subscription = adapter.subscribeActivity(({request, status}) => {
+            if (request.id !== id || !["applied", "failed", "dropped"].includes(status.state)) {return}
+            subscription.terminate()
+            resolve(status)
+        })
+        const code = `const coll = project.timelineBox.tempoTrack.events.targetVertex.unwrap().box;
+            const adapter = project.boxAdapters.adapterFor(coll, lib.adapters.ValueEventCollectionBoxAdapter);
+            const norm = b => (b - 60) / 180;
+            adapter.createEvent({position: 0, index: 0, value: norm(119), interpolation: {type: "linear"}});
+            adapter.createEvent({position: 16 * bar, index: 0, value: norm(82), interpolation: {type: "none"}});
+            return "ok";`
+        adapter.apply({id, from: "agent:utility", plan: {op: "script", code, description: "normalized tempo"}, when: {at: "asap"},
+            seq: adapter.snapshot().at.seq})
+    }))
+    const pulsesPerSecond = await page.evaluate(async () => {
+        const before = window.takedo.adapter.playback().played, start = performance.now()
+        await new Promise(resolve => setTimeout(resolve, 2000))
+        return (window.takedo.adapter.playback().played - before) / ((performance.now() - start) / 1000)
+    })
+    const bpm = await page.evaluate(() => window.takedo.adapter.snapshot().timeline.bpm)
+    check("tempo events outside openDAW's BPM range are refused, playhead keeps its speed",
+        tempoScript.state === "failed" && /tempo events are in BPM/.test(tempoScript.detail ?? "") && pulsesPerSecond > bpm * 16 * 0.8,
+        `${tempoScript.state}: ${tempoScript.detail ?? ""}; ${Math.round(pulsesPerSecond)} pulses/s at ${bpm} BPM`)
+
     if (process.env.SCREENSHOT) {await page.screenshot({path: process.env.SCREENSHOT})}
 
     // A hidden tab: animation frames stop, so landing and ramping must not depend on them (page/Clock.ts).

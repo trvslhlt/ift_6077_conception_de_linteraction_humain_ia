@@ -271,9 +271,8 @@ Built (2026-11-22), step 2's second piece: the captain split from the utility (`
   - The cancel run stopped the tempo job 6 s into its planning.
   - The restart runs handed the cut-off jobs out again, and every edit landed.
   - The hand run kept the producer's level.
-  - Engine stalls (playhead at 1–8% of the clock) in four of six runs matched another course project's sandbox
-    container using 2–9 cores. The two runs without stalls were the two with the lowest load. So a stall flags a
-    busy host, not TakeDo; when it shows up, rerun the scenario on a quiet host before judging its landing checks.
+  - Engine "stalls" (playhead at 1–8% of the clock) in four of six runs. I first put them down to another course
+    project's container using 2–9 cores; that was wrong (see "The stalls' cause" below).
 - Rerun on a quiet host (2026-11-23), and two fixes:
   - **Corrections join their plan.** Told "keep the tempo", the captain cancelled the tempo job, then gave the
     master half of it to a new direction. That gave two plans sent 50 s apart from different anchors: 36 pairs out
@@ -285,11 +284,18 @@ Built (2026-11-22), step 2's second piece: the captain split from the utility (`
     drums never happened. A refusal now lists the nearest bars with room. The worker prompt says a steady glide is
     one ramp, not a step per bar, and never to stage a placeholder. The next hand run had no refusals and no probes.
   - Still open:
-    - Stalls also came in 2 of 6 runs with no other container busy (17% and 9%), so they aren't all load from
-      outside TakeDo.
     - Up to 5 edits landed in one bar (the limit is per plan; immediate edits and other plans aren't counted).
     - In one controls run, the session log lost lines (4 cut mid-line, nothing after 4.5 min while the backend kept
       replying), so its slow second dial reply (240 s) couldn't be traced.
+- **The stalls' cause (2026-11-23): a tempo near 0, written by a worker's script.** The runner now samples, every 2 s,
+  the playhead, the audio clock, the engine's CPU load and main-thread lag (`run.samples`). In a stalled hand run the
+  audio clock ran at 1.0 s/s, the main thread never lagged over 0.1 s and the CPU load was 0, but the playhead moved
+  5 pulses/s: a tempo of about 0.3 BPM. The tempo worker had written tempo automation with a raw adapter, guessing
+  values were normalized (`(bpm - 60) / 180`); openDAW's tempo events are plain BPM (`TempoRange`, 30 to 1000), and only
+  its scripting API clamps them. The page's guard checked declared field ranges, and a tempo event's value has none.
+  Fix: after every script, inside its edit, the page checks the project tempo and every tempo event against
+  `TempoRange`; outside it, the script throws, openDAW rolls it all back, and the worker reads "tempo events are in BPM".
+  `make test` sends the exact script from that run and checks it's refused and the playhead keeps its speed.
 
 ## Still open
 
