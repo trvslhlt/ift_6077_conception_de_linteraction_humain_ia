@@ -255,7 +255,7 @@ export const TakeDoPanel = ({lifecycle, service, visible}: Construct): HTMLEleme
             case "queued": return ["waits: you're holding a control", "#d8b45a"]
             case "running": return ["under way", "#7fc8f8"]
             case "applied": return ["done", "#7fbf7f"]
-            case "dropped": return ["not done: you're holding it", "#e08080"]
+            case "dropped": return status.reason === "cancelled" ? ["cancelled", "#999999"] : ["not done: you're holding it", "#e08080"]
             case "failed": return [`not done: ${status.detail ?? status.reason ?? "failed"}`, "#e08080"]
         }
     }

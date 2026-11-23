@@ -90,6 +90,7 @@ export class Adapter implements Terminable {
     readonly #env: ScriptEnv
     readonly #activity = new Set<(activity: Activity) => void>()
     readonly #labels = new Map<string, string>()                // request id → what it does, while it's open
+    readonly #cancelled = new Set<string>()                     // requests taken back while waiting for their bar
 
     constructor(project: Project, connection: Connection) {
         this.#project = project
@@ -277,6 +278,10 @@ export class Adapter implements Terminable {
 
     #receive(message: BackendToPage): void {
         switch (message.type) {
+            case "cancel":
+                // Kept even if it hasn't reached its wait yet; one that already landed just stays in the set.
+                this.#cancelled.add(message.request)
+                return
             case "query":
                 this.#connection.send({type: "result", id: message.id, snapshot: this.snapshot(message.detail)})
                 return
@@ -508,6 +513,13 @@ export class Adapter implements Terminable {
     // Reports scheduled and waits for the landing; false (after reporting failed) if it can't land.
     async #land(request: Apply): Promise<boolean> {
         const {engine} = this.#project
+        // Taken back by an agent before it landed (BackendToPage "cancel"): dropped, and said so.
+        const cancelled = (): boolean => {
+            if (!this.#cancelled.delete(request.id)) {return false}
+            this.#status(request, {state: "dropped", reason: "cancelled", detail: "cancelled before it landed"})
+            return true
+        }
+        if (cancelled()) {return false}
         if (!engine.isPlaying.getValue() || request.when.at === "asap") {
             this.#status(request, {state: "scheduled", landsAt: this.#pos()})
             return true
@@ -527,6 +539,7 @@ export class Adapter implements Terminable {
             let played = 0
             while (engine.isPlaying.getValue() && played < landing.after) {
                 await this.#clock.tick()
+                if (cancelled()) {return false}
                 const position = engine.position.getValue()
                 played += position >= last ? position - last
                     : (loopArea.to.getValue() - last) + (position - loopArea.from.getValue())
@@ -538,6 +551,7 @@ export class Adapter implements Terminable {
         // already passed waits for the next pass, and one on the loop's start lands as the loop wraps.
         let armed = last < landing.at
         while (engine.isPlaying.getValue()) {
+            if (cancelled()) {return false}
             const position = engine.position.getValue()
             if (position < landing.at || position < last) {armed = true}
             if (armed && position >= landing.at) {break}

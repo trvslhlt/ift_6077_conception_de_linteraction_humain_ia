@@ -5,6 +5,7 @@
 // A message may carry restart_after_ms: the backend is killed that long after it's sent (the Makefile does it when this
 // drops scenarios/.restart), and its reply is the one after the page has reconnected.
 // A step may move a control instead of sending text: {"control": "<ref, or omitted for the first one shown>", "value": 0..1};
+// A message with "no_settle": true moves on as soon as it's answered, without waiting for its edits to land.
 // or change a parameter in openDAW as the producer would, with no reply expected: {"set": "t1.mix.volume", "value": -20}.
 import {chromium} from "playwright"
 import {mkdirSync, readFileSync, writeFileSync} from "node:fs"
@@ -110,7 +111,7 @@ try {
         // Replies can keep coming while the utility works; wait for its edits to land.
         const settleStart = Date.now()
         let quiet = 0
-        while (Date.now() - settleStart < SettleMs && quiet < 3) {
+        while (step.no_settle !== true && Date.now() - settleStart < SettleMs && quiet < 3) {
             await page.waitForTimeout(1000)
             quiet = await landing() === 0 ? quiet + 1 : 0
         }

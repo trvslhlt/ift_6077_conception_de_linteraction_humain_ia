@@ -127,7 +127,7 @@ const followUp = async (context: Coordinator, agent: Actor, step: Step, status: 
 
 const describe = (step: Step, status: Status, landsAt: string): string => {
     if (status.state === "applied") {return `${step.says}${landsAt ? ` from ${landsAt}` : ""}`}
-    if (status.state === "dropped") {return `${step.says}: not done, you're holding it`}
+    if (status.state === "dropped") {return status.reason === "cancelled" ? `${step.says}: cancelled` : `${step.says}: not done, you're holding it`}
     return `${step.says}: not done (${status.detail ?? status.reason ?? status.state})`
 }
 

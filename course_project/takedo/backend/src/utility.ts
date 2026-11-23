@@ -99,6 +99,7 @@ Tools:
 - An edit for a later bar (fixed operation or script, at_bar above 0) is staged: it answers at once, and the whole plan goes out together when you reply, timed from where the playhead was when the message arrived, so its steps land in their bars' order however long you take. Edits for now (at_bar 0) land at once. Failures of staged edits reach you with the next message. A look sees only what has landed.
 - reply: when you've finished, call it once with what the producer reads, as in a chat with a bandmate mid-session: one or two short, plain sentences on what you changed and how it will sound (or why you couldn't). No lists or markdown; no bar numbers, refs, dB values, device settings or tempo steps unless they asked (the team view shows every edit and when it lands); no caveats about not having heard or checked it. Ask at most one short question, only when you need the answer. It checks the form and tells you what to fix. Nothing else you write is shown: keep text between tool calls to a few words, and after reply end your turn.
 - offer_control, remove_control: dials on your card in the team view, for the producer to steer what you're doing without typing. When you take on a direction that keeps going or that the producer may want more or less of (a gradual change, a style, how busy or how wet), offer one dial for it: its ends in the producer's words, meaning what you'll change as it moves. Offer it as you finish the task and say so in your reply in a few words. Keep the ones that still apply (at most 3); remove one that no longer does. Their positions are in the notebook's "controls" entry. A move reaches you as control_moved instead of producer_message: act on it as a direction (move what's still to come toward the new position, and what's playing now if the move is large), in proportion to how far it moved, then reply in a sentence.
+- cancel: take back timed edits that haven't landed (coming_steps, with each message, lists them by the message they're for). Use it when the producer says stop, less, or changes their mind about something still coming, or when a step would undo what they just did by hand. What has landed stays; to undo it, change it back.
 - producer_changed (with a message) and "Meanwhile the producer changed by hand" (in a tool result): what the producer did in openDAW themselves since you last heard (levels, pans, effect settings). That's their call: keep it and build on it, and don't move those settings back or plan over them unless they ask; mention it in your reply only when it changes what you do.
 - Read, Grep, Glob: openDAW's own source, the version that's running; your working directory is its root (packages/…). Read it for what the notes below don't say: a device's fields and their ranges (box schemas in packages/studio/forge-boxes/src/schema/devices/), step tables (adapters in packages/studio/adapters/src/devices/), how an API call works, the user manual (packages/app/manual/public/). Look before writing fields you haven't used.
 ${KnowledgeSlot}- remember, recall, forget: your notebook, kept on disk per project and listed with every message (\`notebook\`: key, kind, summary). Your conversation may be summarized between messages; the notebook isn't. Keep in it what you'll want later: the producer's wishes and taste (note), a staged plan and where it stands (plan), parts you wrote as notes (clip), sounds you designed with their settings (sound), scripts worth reusing (script). "start" (state) is the whole project before the agents' first edit this session, kept for you. "facts" (state) is what's established about this project: its key, tempo, meter, each part's register, and the overview; its summary comes with every message. Write anything pitched (chords, melodies, bass lines) in that key, and keep each part in its role (a part in the bass register stays the bass). If the producer says otherwise, remember the correction under "facts".
@@ -235,6 +236,14 @@ export class Utility implements Member {
         this.#reconciled = coming.length === 0 && lost.length === 0 ? null : {coming, lost}
     }
 
+    // Timed edits not landed yet, by direction, with short ids for cancel (none: {}).
+    #coming(context: Coordinator): Record<string, unknown> {
+        const outstanding = context.board.outstanding()
+        if (outstanding.length === 0) {return {}}
+        return {coming_steps: outstanding.map(({direction, steps}) => ({for: direction?.text ?? "?",
+            steps: steps.map(step => `${step.id.slice(0, 8)}: ${step.says} (bar ${step.bar}, ${step.state === "staged" ? "staged" : "waiting"})`)}))}
+    }
+
     // The producer's changes in openDAW since the model last heard, under key (none: {}).
     #hand(context: Coordinator, key: string): Record<string, unknown> {
         const {lines, next} = context.handChanges(this.#handSeen)
@@ -353,7 +362,7 @@ export class Utility implements Member {
         session.inbox.push(JSON.stringify({
             ...(fresh && task.history !== undefined && task.history.length > 0 ? {conversation: task.history} : {}),
             ...(this.#unheard.length > 0 ? {since_your_last_reply: this.#unheard.splice(0)} : {}),
-            ...(task.control === true ? {control_moved: task.message} : {producer_message: task.message}), ...this.#hand(context, "producer_changed"), ...(task.piece !== null ? {your_task: task.piece} : {}),
+            ...(task.control === true ? {control_moved: task.message} : {producer_message: task.message}), ...this.#hand(context, "producer_changed"), ...this.#coming(context), ...(task.piece !== null ? {your_task: task.piece} : {}),
             ...(task.candidates !== undefined && task.candidates.length > 0 ? {knowledge_candidates: task.candidates} : {}),
             project: {...projectFor(snapshot, true), regions: snapshot.tracks.map(track => ({track: track.ref,
                 regions: track.regions.map(({ref, name, from, to, loop}) => ({ref, name, from, to, loop}))}))},
@@ -476,6 +485,12 @@ export class Utility implements Member {
                 handler((current, input) => current.context.offerControl(this.agent, {ref: `c:${String(input.name)}`,
                     label: String(input.label), low: String(input.low), high: String(input.high), meaning: String(input.meaning),
                     value: Number(input.value)}))),
+            tool("cancel", "Take back timed edits that haven't landed yet (coming_steps lists them with each message).", {
+                steps: z.array(z.string()).describe("Step ids from coming_steps, or [\"all\"] for every one")},
+                handler((current, input) => {
+                    const ids = (input.steps as string[]).map(String)
+                    return current.context.cancel(ids.includes("all") ? "all" : ids)
+                })),
             tool("remove_control", "Take a dial off your card.", {name: z.string()},
                 handler((current, input) => current.context.removeControl(this.agent, `c:${String(input.name).replace(/^c:/, "")}`))),
             tool("look", "Run read-only JavaScript (an async function body, `takedo` in scope) and see what it returns.", {
@@ -633,7 +648,8 @@ export class Utility implements Member {
         let started: (text: string) => void = () => {}
         const early = new Promise<string>(resolve => {started = resolve})
         const finished = edit(status => {
-            if (status.state === "failed" || status.state === "dropped") {failed = true}
+            // A cancelled step isn't a failure: it was taken back on purpose.
+            if (status.state === "failed" || (status.state === "dropped" && status.reason !== "cancelled")) {failed = true}
             if (status.state === "scheduled") {started(`Scheduled, lands at ${status.landsAt ?? "the bar you chose"}; you'll hear back only if it fails. Go on.`)}
             if (status.state === "running") {started("Under way; you'll hear back only if it fails. Go on.")}
         }).then(text => {
@@ -692,6 +708,7 @@ export class Utility implements Member {
         if (current.anchor !== null) {current.anchor = commitAnchor(current.anchor, now)}
         const slide = planSlide(steps.map(step => step.bar), now)
         for (const step of steps) {
+            if (context.board.step(step.id)?.state !== "sent") {continue}   // cancelled meanwhile
             const bar = step.bar + slide
             const {action} = step
             const owner = "op" in action ? this.#owners.get(action.op) : undefined
@@ -745,6 +762,7 @@ export class Utility implements Member {
                     const corrected = status.result?.corrected ?? []
                     return `Applied${landsAt ? ` at ${landsAt}` : ""}: ${status.result?.updates ?? 0} changes. Returned: ${status.result?.value ?? "undefined"}${corrected.length > 0 ? `. Corrected, outside openDAW's ranges (look up a field's range before writing it): ${corrected.join("; ")}` : ""}`
                 }
+                if (status.state === "dropped" && status.reason === "cancelled") {return `${description}: cancelled before it landed.`}
                 if (status.state === "dropped") {return `${description}: undone, it changed a control the producer is holding. Leave that control alone.`}
                 return `${description}: failed (${status.reason}): ${status.detail ?? ""}. Nothing was changed.`
             } finally {

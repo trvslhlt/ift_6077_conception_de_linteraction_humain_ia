@@ -69,7 +69,7 @@ const statuses = log.filter(entry => entry.type === "status")
 const final = new Map<string, Entry>()
 statuses.forEach(entry => final.set(entry.request, entry))
 const applied = statuses.filter(entry => entry.state === "applied")
-const failed = [...final.values()].filter(entry => entry.state === "failed" || entry.state === "dropped")
+const failed = [...final.values()].filter(entry => entry.state === "failed" || (entry.state === "dropped" && entry.reason !== "cancelled"))
 // Edits landing together: the most applied in any window of one bar (at the tempo the run started at).
 const barMs = run.before === undefined ? 2000 : 60000 / run.before.timeline.bpm * run.before.timeline.signature[0]
 // When an edit starts to land: its first "running" (a ramp) or "applied" status; a ramp reports applied when it ends.
@@ -121,12 +121,12 @@ models.forEach(entry => {
     byJob.set(entry.job, {calls: job.calls + 1, ms: job.ms + (entry.ms ?? 0), out: job.out + (entry.outputTokens ?? 0)})
 })
 out.push("## Edits", "",
-    `${requests.length} requested, ${applied.length} applied, ${failed.length} not done; landed over ${times.length > 1 ? seconds(times[times.length - 1] - times[0]) : "0 s"}; at most ${bunched} in one bar.`, "",
+    `${requests.length} requested, ${applied.length} applied, ${failed.length} not done, ${[...final.values()].filter(entry => entry.reason === "cancelled").length} cancelled; landed over ${times.length > 1 ? seconds(times[times.length - 1] - times[0]) : "0 s"}; at most ${bunched} in one bar.`, "",
     ...requests.map(entry => {
         const plan = entry.plan
         const what = plan.op === "script" ? plan.description ?? "script" : plan.op === "ramp" ? `${plan.ref} → ${plan.to} over ${plan.beats} beats`
             : plan.op === "add_effect" ? `${plan.device} on ${plan.track}` : `${plan.op} ${plan.ref ?? plan.track ?? ""}`
-        const state = final.get(entry.id)?.state ?? "no status"
+        const state = final.get(entry.id)?.reason === "cancelled" ? "cancelled" : final.get(entry.id)?.state ?? "no status"
         return `- ${String(entry.from).replace("agent:", "")}: ${what}${entry.when?.at === "bar" ? `, bar ${entry.when.bar}` : ""} (${state})`
     }), "",
     `Model calls: ${[...byJob].map(([job, {calls, ms, out}]) => `${job} ${calls} (${seconds(ms)}, ${out} tokens out)`).join(", ") || "none"}; utility cost $${utilityCost.toFixed(2)}.`)
@@ -225,6 +225,14 @@ if (before === undefined || after === undefined) {
             && other.changes.some((change: { ref: string }) => change.ref === set.ref))?.t ?? Infinity))
         check(typeof now === "number" && Math.abs(now - set.value) <= Math.max(1, Math.abs(set.value) * 0.05),
             `the producer's ${set.ref} at ${set.value}: ${typeof now === "number" ? `${Math.round(now * 10) / 10} at the end` : "not found"}; ${agentAfter.length} agent edits on it after`)
+    }
+    // Cancels (the board): every step taken back was cancelled, none landed after.
+    const cancels = log.filter(entry => entry.type === "board" && entry.event === "cancel")
+    if (cancels.length > 0) {
+        const steps = cancels.flatMap(entry => entry.steps as string[])
+        const requestOf = new Map(log.filter(entry => entry.type === "board" && entry.event === "linked").map(entry => [entry.step, entry.request]))
+        const landed = steps.filter(step => final.get(requestOf.get(step))?.state === "applied")
+        check(steps.length > 0 && landed.length === 0, `cancelled ${steps.length} waiting steps${landed.length > 0 ? `, but ${landed.length} landed anyway` : ", none landed"}`)
     }
     const long = run.messages.flatMap(message => message.replies).filter(line => sentences(line.text) > MaxReplySentences)
     check(long.length === 0, `${long.length} replies longer than ${MaxReplySentences} sentences`)

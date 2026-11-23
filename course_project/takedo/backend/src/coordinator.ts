@@ -347,6 +347,15 @@ export class Coordinator {
         this.#history.splice(0, this.#history.length - HistoryLines)
     }
 
+    // Takes back steps that haven't landed (board.ts, Board.cancel), on the page too.
+    cancel(ids: ReadonlyArray<string> | "all"): string {
+        const {cancelled, requests, missed} = this.board.cancel(ids)
+        requests.forEach(request => this.#send({type: "cancel", request}))
+        if (cancelled.length === 0) {return `Nothing cancelled${missed.length > 0 ? `: no step not yet landed starts with ${missed.join(", ")}` : ": nothing is waiting"}.`}
+        return `Cancelled ${cancelled.length}: ${cancelled.map(step => `${step.says} (bar ${step.bar})`).join("; ")}.` +
+            `${missed.length > 0 ? ` Not found (or landed already): ${missed.join(", ")}.` : ""} What has landed stays.`
+    }
+
     // ---------- controls ----------
 
     // The open project's controls, kept in the notebook ("controls"), so they outlast a restart and their owner sees

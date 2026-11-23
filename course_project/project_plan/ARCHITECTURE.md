@@ -241,6 +241,12 @@ over fast), worker sessions fresh per piece so jobs run in parallel, and waiting
 baseline, lofi scenario: every check green, $0.03 for the utility (Sonnet: $0.23), 78 s to the first reply (Sonnet:
 ~30 s). One judgment slip: on "keep going" it took the landed tempo steps for one jump and asked instead of going on.
 
+Built (2026-11-22): cancelling. The page takes back a request still waiting for its bar (BackendToPage `cancel`;
+status dropped, reason cancelled, not a failure); the board cancels steps by id (a staged step at once, a sent one on
+the page). The agent sees the steps not landed yet with each message (`coming_steps`, short ids, by the message
+they're for) and has a `cancel` tool. `make scenario SCENARIO=cancel` (the producer changes their mind about the
+tempo while the lofi plan waits): the 7 waiting tempo steps were cancelled, none landed, the rest of the plan landed.
+
 ## Still open
 
 These are for the detailed design, whatever the shape:

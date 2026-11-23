@@ -20,7 +20,8 @@ export type Direction = { id: string, text: string, t: number, control: boolean 
 export type Action = { op: string, input: Record<string, unknown> } | { script: string, description: string }
 // sent: handed to the page, its request not heard of yet; waiting: for its bar or under way; lost: the page doesn't
 // have it (it was reloaded) or it was staged when its turn was cut off.
-export type StepState = "staged" | "sent" | "waiting" | "landed" | "failed" | "lost"
+// cancelled: taken back before it landed (Board.cancel).
+export type StepState = "staged" | "sent" | "waiting" | "landed" | "failed" | "lost" | "cancelled"
 export type Step = { id: string, direction: string, agent: Actor, bar: number, says: string, action: Action,
     state: StepState, t: number, request?: string, detail?: string }
 const Open: ReadonlyArray<StepState> = ["sent", "waiting"]
@@ -114,7 +115,7 @@ export class Board {
     status(status: Status): void {
         const step = this.#steps.find(candidate => candidate.request === status.request)
         if (step === undefined) {return}
-        const state: StepState = status.state === "applied" ? "landed"
+        const state: StepState = status.state === "applied" ? "landed" : status.reason === "cancelled" ? "cancelled"
             : status.state === "failed" || status.state === "dropped" ? "failed" : "waiting"
         if (state === step.state) {return}
         step.state = state
@@ -145,6 +146,35 @@ export class Board {
 
     // Steps still to land, across directions.
     coming(): Step[] {return this.#steps.filter(step => Open.includes(step.state))}
+
+    step(id: string): Step | null {return this.#steps.find(step => step.id === id) ?? null}
+
+    // Steps not landed yet, staged or sent, in bar order within each direction, for agents to see and cancel.
+    outstanding(): Array<{ direction: Direction | undefined, steps: Step[] }> {
+        const open = this.#steps.filter(step => step.state === "staged" || Open.includes(step.state))
+        return [...new Set(open.map(step => step.direction))].map(direction => ({direction: this.#directions.get(direction),
+            steps: open.filter(step => step.direction === direction).sort((a, b) => a.bar - b.bar)}))
+    }
+
+    // Takes back steps that haven't landed (ids, or a unique start of one; "all": every one): a staged step, or one sent
+    // but not yet carried out, is cancelled at once; for one the page has, returns its request to cancel there (the
+    // page's status then marks it). Unknown or already landed ids come back in missed.
+    cancel(ids: ReadonlyArray<string> | "all"): { cancelled: Step[], requests: string[], missed: string[] } {
+        const open = this.#steps.filter(step => step.state === "staged" || Open.includes(step.state))
+        const missed: string[] = []
+        const chosen = ids === "all" ? open : ids.flatMap(id => {
+            const found = open.filter(step => step.id.startsWith(id))
+            if (found.length !== 1) {missed.push(id)}
+            return found.length === 1 ? found : []
+        })
+        const requests: string[] = []
+        chosen.forEach(step => {
+            if (step.request !== undefined) {requests.push(step.request)} else {step.state = "cancelled"}
+        })
+        this.#log({event: "cancel", steps: chosen.map(step => step.id), requests, missed})
+        this.#save()
+        return {cancelled: chosen, requests, missed}
+    }
 
     clear(): void {
         this.#directions.clear()

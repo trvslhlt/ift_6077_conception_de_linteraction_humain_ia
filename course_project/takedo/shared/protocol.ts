@@ -81,7 +81,8 @@ export type Apply = { id: string, from: Actor, plan: Plan, when: When, seq: numb
 export const target = (plan: Plan): string =>
     plan.op === "add_effect" ? `${plan.track}.effects` : plan.op === "script" ? "project.script" : plan.ref
 
-export type FailReason = "invalid_args" | "unknown_ref" | "not_allowed" | "held" | "out_of_range"
+// cancelled: an agent took back a request still waiting for its bar (state dropped).
+export type FailReason = "invalid_args" | "unknown_ref" | "not_allowed" | "held" | "cancelled" | "out_of_range"
     | "value_not_taken" | "too_late" | "too_large" | "conflict" | "stale" | "opendaw_error"
 export type Status = {
     request: string, t: number, pos: string
@@ -138,6 +139,7 @@ export type BackendToPage =
     | { type: "query", id: number, query: "snapshot", detail: Detail }
     | { type: "look", id: number, code: string }          // read-only JavaScript, an async function body, `takedo` in scope
     | { type: "apply", request: Apply }
+    | { type: "cancel", request: string }                 // take back a request still waiting for its bar
     | { type: "chat", line: ChatLine }
     | { type: "card", card: MemberCard }
     | { type: "controls", controls: Control[] }            // every member's controls, replacing those shown

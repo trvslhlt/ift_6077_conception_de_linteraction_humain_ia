@@ -74,3 +74,26 @@ describe("the board across a restart", () => {
         assert.equal(restarted.coming().length, 0)
     })
 })
+
+describe("cancelling", () => {
+    it("cancels a staged step at once, hands back the request of one the page has, and misses landed or unknown ids", () => {
+        const board = new Board(() => {})
+        const {id} = board.direction("make it lofi")
+        const steps = [3, 5, 7].map(bar => board.stage(id, "agent:utility", bar, `tempo ${bar}`, script))
+        if (!steps.every(step => step.ok)) {throw new Error("not staged")}
+        const [a, b, c] = steps.map(step => step.ok ? step.step : null) as [import("./board.ts").Step, import("./board.ts").Step, import("./board.ts").Step]
+        board.take(id)
+        board.link(a.id, "r1")
+        board.link(b.id, "r2")
+        board.status({request: "r1", t: 0, pos: "", state: "applied"})
+        const staged = board.stage(id, "agent:utility", 9, "tempo 9", script)
+        const result = board.cancel([b.id.slice(0, 8), a.id.slice(0, 8), staged.ok ? staged.step.id : "?", "nope"])
+        assert.deepEqual(result.requests, ["r2"])
+        assert.equal(board.step(staged.ok ? staged.step.id : "")?.state, "cancelled")
+        assert.equal(result.missed.length, 2, "landed and unknown")
+        board.status({request: "r2", t: 0, pos: "", state: "dropped", reason: "cancelled"})
+        assert.equal(board.step(b.id)?.state, "cancelled")
+        assert.deepEqual(board.cancel("all").cancelled.map(step => step.id), [c.id], "sent, not yet linked: cancelled at once")
+        assert.equal(board.step(c.id)?.state, "cancelled")
+    })
+})

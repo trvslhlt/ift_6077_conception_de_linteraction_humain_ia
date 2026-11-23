@@ -1,0 +1,8 @@
+{
+ "//": "Cancelling waiting steps: the lofi direction, and as soon as it's answered (its staged plan still waiting for its bars) the producer changes their mind about the tempo. The tempo steps still to come should be cancelled; the rest of the plan goes on.",
+ "project": "01_good_base.odb",
+ "messages": [
+  {"text": "Slowly, and without sudden large changes, evolve this into a lofi girl beat", "no_settle": true},
+  {"text": "actually, keep the tempo where it is now: drop the tempo changes that haven't happened yet"}
+ ]
+}
