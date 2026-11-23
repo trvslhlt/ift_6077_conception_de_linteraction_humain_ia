@@ -54,14 +54,14 @@ open: ## Open the studio in the default browser
 shell: ## Shell into the running backend container
 	$(COMPOSE) exec backend sh
 
-# The test needs the full team; afterwards the backend goes back to the roster `make up` would start (pass or fail),
-# so a session right after a test isn't silently on the team.
-test: build $(TYPES_DIR)/packages ## Run the smoke test in headless Chromium against the full team, then restore the backend's roster
+# The test runs against the backend as `make up` starts it: the captain and its workers. Its new project is named
+# "Untitled", and agents keep a notebook and session per project name, so the last test's are cleared first (a resumed
+# captain session from old runs carried 590k tokens and refused the work, 2026-11-23).
+test: build $(TYPES_DIR)/packages ## Run the smoke test in headless Chromium against the captain and its workers
 	mkdir -p sessions
-	ROSTER=team $(COMPOSE) up -d --wait studio backend
-	ROSTER=team $(COMPOSE) run --rm smoke; status=$$?; \
-		$(COMPOSE) up -d --wait backend >/dev/null 2>&1; \
-		echo "backend back on ROSTER=$(ROSTER) KNOWLEDGE_ROUTE=$(KNOWLEDGE_ROUTE)"; exit $$status
+	rm -f sessions/notebooks/Untitled.json sessions/notebooks/Untitled.agent.json sessions/notebooks/Untitled.board.json
+	ROSTER=utility $(COMPOSE) up -d --wait studio backend
+	ROSTER=utility $(COMPOSE) run --rm smoke
 
 # A scenario runs against the backend as `make up` would start it (ROSTER, KNOWLEDGE_ROUTE), recreated so a test or an
 # earlier `make up ROSTER=team` can't leak into it. Costs a model session per run (keys from .env). A message with

@@ -1,5 +1,6 @@
 // TakeDo smoke test: boots the studio in headless Chromium, opens a new project and the team view, and checks the
-// page reaches the backend (welcome, ping, reconnecting), the Team Lead's overview, and the mix engineer's edits.
+// page reaches the backend (welcome, ping, reconnecting), the Team Lead's overview, one message through the captain
+// and a worker, and the page's own guarantees for edits (sent straight to it, no model).
 // Run via `make test`; it shares the studio container's network, so the page is at localhost.
 import {chromium} from "playwright"
 
@@ -129,48 +130,60 @@ try {
     const again = await page.getByTestId("takedo-session").textContent()
     check("reconnects after the socket drops", again !== session && /session /.test(again), again)
 
-    // ---------- one message through B: chat → Jev → mix engineer → claim → ramp in the page → reply ----------
+    // ---------- one message through the team: chat → captain → a worker → claim → ramp in the page → reply ----------
     const volume = name => page.evaluate(name =>
         window.takedo.adapter.snapshot().tracks.find(track => track.name === name).mix.volume, name)
-    const memberLines = (agent = "mix_engineer") => page.locator(`[data-testid=takedo-chat] li[data-from="agent:${agent}"]`)
-    // Sends a message and waits for the next line from each of the given members (their reply, after their edits).
-    const say = async (text, agents = ["mix_engineer"], timeout = 20000) => {
-        const before = await Promise.all(agents.map(agent => memberLines(agent).count()))
-        const start = Date.now()
-        await page.getByTestId("takedo-input").fill(text)
-        await page.getByTestId("takedo-input").press("Enter")
-        await Promise.all(agents.map((agent, index) => page.waitForFunction(([agent, count]) =>
-            document.querySelectorAll(`[data-testid=takedo-chat] li[data-from="agent:${agent}"]`).length > count,
-            [agent, before[index]], {timeout})))
-        const texts = await Promise.all(agents.map(agent => memberLines(agent).last().textContent()))
-        return {text: texts.join(" | "), ms: Date.now() - start}
-    }
+    const agentLines = (agent = "team_lead") => page.locator(`[data-testid=takedo-chat] li[data-from="agent:${agent}"]`)
     const track = name => page.evaluate(name => window.takedo.adapter.snapshot().tracks.find(track => track.name === name), name)
     await page.evaluate(() => window.opendaw.engine.play())
     const drumsBefore = await volume("Drums")
-    const quieter = await say("@mix_engineer the drums are too loud")
+    const before = await agentLines().count()
+    const start = Date.now()
+    await page.getByTestId("takedo-input").fill("the drums are too loud")
+    await page.getByTestId("takedo-input").press("Enter")
+    await page.waitForFunction(count => document.querySelectorAll('[data-testid=takedo-chat] li[data-from="agent:team_lead"]').length > count,
+        before, {timeout: 60000})
+    const reply = await agentLines().last().textContent()
+    // The captain replies as it hands the piece out; the worker's edit lands after.
+    await page.waitForFunction(before => window.takedo.adapter.snapshot().tracks.find(track => track.name === "Drums").mix.volume < before - 0.5,
+        drumsBefore, {timeout: 120000}).catch(() => {})
     const drumsAfter = await volume("Drums")
-    check("@mix_engineer: drums turned down during playback", drumsAfter < drumsBefore - 0.5,
-        `${drumsBefore} → ${drumsAfter.toFixed(1)} dB in ${quieter.ms} ms: "${quieter.text}"`)
+    check("a message through the captain and a worker: drums turned down during playback", drumsAfter < drumsBefore - 0.5,
+        `${drumsBefore} → ${drumsAfter.toFixed(1)} dB in ${Date.now() - start} ms: "${reply}"`)
     check("engine kept playing", await page.evaluate(() => window.opendaw.engine.isPlaying()))
-    check("member card shows the change",
-        (await page.getByTestId("takedo-card-agentmix_engineer").textContent()).includes("done"))
+    const speakers = await page.evaluate(() => [...new Set([...document.querySelectorAll("[data-testid=takedo-chat] li")]
+        .map(line => line.dataset.from).filter(from => from !== "user"))])
+    check("only the Team Lead speaks in the chat", speakers.every(from => from === "agent:team_lead"), speakers.join(", "))
 
-    // One undo step for the whole ramp. openDAW's shortcut needs focus outside the chat input.
+    // ---------- the page's guarantees, sent straight to it (no model) ----------
+    // An edit as a worker sends it; resolves with its last status (applied, dropped or failed).
+    const apply = (plan, when = {at: "asap"}) => page.evaluate(([plan, when]) => new Promise(resolve => {
+        const {adapter} = window.takedo
+        const id = crypto.randomUUID()
+        const subscription = adapter.subscribeActivity(({request, status}) => {
+            if (request.id !== id || !["applied", "dropped", "failed"].includes(status.state)) {return}
+            subscription.terminate()
+            resolve(status)
+        })
+        adapter.apply({id, from: "agent:utility", plan, when, seq: adapter.snapshot().at.seq})
+        setTimeout(() => {subscription.terminate(); resolve({state: "timeout"})}, 30000)
+    }), [plan, when])
+    const ref = name => page.evaluate(name => window.takedo.adapter.snapshot().tracks.find(track => track.name === name).ref, name)
+    const [drums, keys] = [await ref("Drums"), await ref("Keys")]
+
+    // One undo step for a whole ramp. openDAW's shortcut needs focus outside the chat input.
+    const rampBefore = await volume("Drums")
+    const ramped = await apply({op: "ramp", ref: `${drums}.mix.volume`, to: rampBefore - 6, beats: 2})
+    await page.waitForTimeout(1500)
+    const rampAfter = await volume("Drums")
     await page.locator("body").click({position: {x: 400, y: 300}})
     await page.locator("body").press("ControlOrMeta+z")
     await page.waitForTimeout(200)
     const undone = await volume("Drums")
-    check("one undo restores the volume", Math.abs(undone - drumsBefore) < 0.05, `${undone} dB`)
+    check("one undo restores a whole ramp", ramped.state === "applied" && rampAfter < rampBefore - 3 && Math.abs(undone - rampBefore) < 0.05,
+        `${rampBefore} → ${rampAfter.toFixed(1)} → ${undone.toFixed(1)} dB`)
 
-    const keysBefore = await volume("Keys")
-    // Not addressed to the mix engineer: the producer hears the result from the Team Lead.
-    const louder = await say("the keys are a bit too quiet", ["team_lead"])
-    const keysAfter = await volume("Keys")
-    check("unaddressed message routed to the mix engineer, keys up, the Team Lead answers", keysAfter > keysBefore + 0.5,
-        `${keysBefore} → ${keysAfter.toFixed(1)} dB in ${louder.ms} ms: "${louder.text}"`)
-
-    // The producer holds the Drums fader: the request is dropped, not applied.
+    // The producer holds the Drums fader: an edit on it is dropped, and so is a script that touches it.
     await page.evaluate(() => {
         const project = window.takedo.service.projectProfileService.getValue().unwrap().project
         const unit = project.rootBoxAdapter.audioUnits.adapters().find(unit => unit.label === "Drums")
@@ -178,9 +191,14 @@ try {
         document.dispatchEvent(new CustomEvent("parameter-hold", {detail: {parameter: window.__drumsVolume, held: true}}))
     })
     const heldBefore = await volume("Drums")
-    const held = await say("@mix_engineer drums down a little")
-    check("held fader: request dropped", held.text.includes("holding") && await volume("Drums") === heldBefore,
-        `"${held.text}"`)
+    const held = await apply({op: "set", ref: `${drums}.mix.volume`, to: heldBefore - 3})
+    check("held fader: an edit on it is dropped", held.state === "dropped" && held.reason === "held" && await volume("Drums") === heldBefore,
+        JSON.stringify(held))
+    const heldScript = await apply({op: "script", description: "drums to -20 by script", code: `
+        const unit = project.rootBoxAdapter.audioUnits.adapters().find(unit => unit.label === "Drums")
+        unit.box.volume.setValue(-20)`})
+    check("held fader: a script touching it is undone", heldScript.state === "dropped" && await volume("Drums") === heldBefore,
+        `${heldScript.state}: ${heldScript.detail ?? ""}`)
     await page.evaluate(() =>
         document.dispatchEvent(new CustomEvent("parameter-hold", {detail: {parameter: window.__drumsVolume, held: false}})))
 
@@ -188,116 +206,60 @@ try {
     await page.evaluate(async () => {
         const project = window.takedo.service.projectProfileService.getValue().unwrap().project
         project.startRecording(false)
-        while (!project.engine.isRecording.getValue()) {await new Promise(resolve => setTimeout(resolve, 20))}
+        // openDAW reads the engine's state on animation frames; if they stop, this never turns (the stall), so give up.
+        const deadline = Date.now() + 10000
+        while (!project.engine.isRecording.getValue()) {
+            if (Date.now() > deadline) {throw new Error("recording never started: the engine's state stopped updating (playhead frozen?)")}
+            await new Promise(resolve => setTimeout(resolve, 20))
+        }
     })
-    const recorded = await say("@mix_engineer the keys are too loud")
+    const recorded = await apply({op: "ramp", ref: `${keys}.mix.volume`, to: (await volume("Keys")) - 4, beats: 2})
+    await page.waitForTimeout(1500)
     await page.evaluate(async () => {
         const project = window.takedo.service.projectProfileService.getValue().unwrap().project
         project.stopRecording()
-        while (project.engine.isRecording.getValue()) {await new Promise(resolve => setTimeout(resolve, 20))}
+        const deadline = Date.now() + 10000
+        while (project.engine.isRecording.getValue()) {
+            if (Date.now() > deadline) {throw new Error("recording never stopped: the engine's state stopped updating (playhead frozen?)")}
+            await new Promise(resolve => setTimeout(resolve, 20))
+        }
         if (!project.engine.isPlaying.getValue()) {window.opendaw.engine.play()}
     })
     const keysLanes = (await track("Keys")).lanes
-    check("while recording, the agent's change is recorded as automation", keysLanes.length === 1,
-        `lanes ${JSON.stringify(keysLanes)}: "${recorded.text}"`)
-    const afterTake = await say("@mix_engineer the keys are a bit too quiet")
+    check("while recording, an agent's change is recorded as automation", recorded.state === "applied" && keysLanes.length === 1,
+        `lanes ${JSON.stringify(keysLanes)}`)
+    const afterTake = await apply({op: "ramp", ref: `${keys}.mix.volume`, to: 0, beats: 2})
     check("after the take, its lane is left alone (no live write over automation)",
-        afterTake.text.includes("automation"), `"${afterTake.text}"`)
+        afterTake.state === "failed" && /automation/.test(afterTake.detail ?? ""), JSON.stringify(afterTake))
 
-    // ---------- mentions: autocomplete from the team, styled in the input and in the chat ----------
+    // ---------- mentions: autocomplete from the team, styled in the input ----------
     await page.getByTestId("takedo-input").fill("")
     await page.getByTestId("takedo-input").pressSequentially("@")
     const options = await page.getByTestId("takedo-mention-option").evaluateAll(items => items.map(item => item.dataset.role))
-    check("@ lists the team, without the utility",
-        ["team_lead", "mix_engineer", "arranger", "effect_designer"].every(role => options.includes(role))
-            && !options.includes("utility"), options.join(", "))
-    await page.getByTestId("takedo-input").pressSequentially("ar")
-    const narrowed = await page.getByTestId("takedo-mention-option").evaluateAll(items => items.map(item => item.dataset.role))
+    check("@ lists the Team Lead, without the utility", options.includes("team_lead") && !options.includes("utility"), options.join(", "))
+    await page.getByTestId("takedo-input").pressSequentially("te")
     await page.getByTestId("takedo-input").press("Tab")
     const completed = await page.getByTestId("takedo-input").inputValue()
-    check("autocomplete completes a mention", narrowed.length === 1 && completed === "@arranger ",
-        `${narrowed.join(", ")} → "${completed}"`)
-    check("mention styled while typing",
-        await page.locator("[data-testid=takedo-mention][data-role=arranger]").count() === 1)
+    check("autocomplete completes a mention", completed === "@team_lead ", `"${completed}"`)
+    check("mention styled while typing", await page.locator("[data-testid=takedo-mention][data-role=team_lead]").count() === 1)
+    await page.getByTestId("takedo-input").fill("")
 
-    // ---------- the arranger (Claude): mute at the next bar, back two bars later ----------
-    await page.evaluate(() => {
-        window.__keysMuted = false
-        window.__muteWatch = setInterval(() => {
-            if (window.takedo.adapter.snapshot().tracks.find(track => track.name === "Keys").mix.mute) {window.__keysMuted = true}
-        }, 50)
-    })
-    const arranged = await say("@arranger drop the keys out at the next bar and bring them back two bars later",
-        ["arranger"], 40000)
-    const keysMuted = await page.evaluate(() => {
-        clearInterval(window.__muteWatch)
-        return window.__keysMuted
-    })
-    check("@arranger: keys dropped out and came back", keysMuted && !(await track("Keys")).mix.mute,
-        `${arranged.ms} ms: "${arranged.text}"`)
-    check("mention styled in the chat",
-        await page.locator("[data-testid=takedo-chat] li[data-from=user] [data-testid=takedo-mention][data-role=arranger]").count() > 0)
-
-    // ---------- the effect designer (Claude, with the catalog): an effect chosen by sound ----------
-    const reverbed = await say("@effect_designer give the keys a big lush reverb", ["effect_designer"], 40000)
+    // ---------- the open path: an effect by fixed operation, a track by script, faded in by a ramp ----------
+    const reverbed = await apply({op: "add_effect", track: keys, device: "DattorroReverb", factory: "DattorroReverb", settings: []})
     const keysEffects = (await track("Keys")).effects
-    check("@effect_designer: reverb added to the keys",
-        keysEffects.some(effect => ["DattorroReverb", "Reverb", "Convolver"].includes(effect.key)),
-        `${keysEffects.map(effect => effect.key).join(", ") || "none"} in ${reverbed.ms} ms: "${reverbed.text}"`)
-
-    // ---------- the Team Lead (Claude) splits one direction between two members ----------
-    // The members work quietly: their pieces show in the activity and their cards, not in the chat.
-    const drumsBeforeLead = await volume("Drums")
-    const membersBefore = await Promise.all(["mix_engineer", "effect_designer"].map(agent => memberLines(agent).count()))
-    const led = await say("@team_lead bring the drums down a bit and put an echo on the keys", ["team_lead"], 60000)
-    await page.waitForFunction(drumsBefore => {
-        const tracks = window.takedo.adapter.snapshot().tracks
-        return tracks.find(track => track.name === "Drums").mix.volume < drumsBefore - 0.5 &&
-            tracks.find(track => track.name === "Keys").effects.some(effect => effect.key === "Delay")
-    }, drumsBeforeLead, {timeout: 60000}).catch(() => {})
-    const keysAfterLead = (await track("Keys")).effects.map(effect => effect.key)
-    check("@team_lead: drums down and a delay on the keys",
-        await volume("Drums") < drumsBeforeLead - 0.5 && keysAfterLead.includes("Delay"),
-        `${led.ms} ms: "${led.text}"`)
-    const membersAfter = await Promise.all(["mix_engineer", "effect_designer"].map(agent => memberLines(agent).count()))
-    check("the members the Team Lead brought in stay out of the chat", membersAfter.every((count, index) => count === membersBefore[index]),
-        `${membersBefore.join(", ")} → ${membersAfter.join(", ")} lines`)
-
-    // The open path: something no member has an operation for goes to the utility, which does it with a script.
-    const extended = await say("@team_lead extend all the clips so they run for 16 bars", ["team_lead", "utility"], 120000)
-    // The reply can come before a script scheduled for a later bar lands.
-    await page.waitForFunction(() => window.takedo.adapter.snapshot().tracks.every(track => (track.bars?.to ?? 0) >= 16),
-        null, {timeout: 30000}).catch(() => {})
-    const ends = (await page.evaluate(() => window.takedo.adapter.snapshot().tracks.map(track => [track.name, track.bars?.to ?? 0])))
-    check("@team_lead → utility: every clip extended to 16 bars by script",
-        ends.every(([, to]) => to >= 16), `${ends.map(([name, to]) => `${name} to bar ${to}`).join(", ")} in ${extended.ms} ms: "${extended.text}"`)
-    const utilityShown = await memberLines("utility").last().evaluate(line =>
-        ({speaker: line.firstElementChild.textContent, shownAs: line.dataset.shown}))
-    const chatText = await page.getByTestId("takedo-chat").textContent()
-    check("the utility appears as the Team Lead, never by name",
-        utilityShown.speaker === "team lead" && !/utility/i.test(chatText.replace(/@utility/g, "")),
-        `shown as "${utilityShown.speaker}"`)
-    // Script and fixed operation together: a script makes a track, the next round fades it in with the mix engineer's
-    // volume tool (which a script can't do: it changes things at one instant).
-    const made = await say("@utility add a new Vaporisateur track called Lead with a bar of notes at -30 dB, then fade it up to 0 dB over 8 beats",
-        ["utility"], 120000)
-    // The reply comes once the fade is scheduled; it lands and runs after. The utility may schedule it well ahead of the
-    // playhead (one run put it about 20 bars out, ~40 s at 120 BPM), so wait for that plus the fade itself.
-    await page.waitForFunction(() => (window.takedo.adapter.snapshot().tracks.find(track => track.name === "Lead")?.mix.volume ?? -60) > -1,
-        null, {timeout: 75000}).catch(() => {})
+    check("add_effect: a reverb on the keys", reverbed.state === "applied" && keysEffects.some(effect => effect.key === "DattorroReverb"),
+        `${reverbed.state}: ${keysEffects.map(effect => effect.key).join(", ") || "none"}`)
+    const made = await apply({op: "script", description: "a Lead track at -30 dB", code: `
+        const made = api.createInstrument(lib.adapters.InstrumentFactories.Vaporisateur)
+        made.instrumentBox.label.setValue("Lead"); made.audioUnitBox.volume.setValue(-30)
+        const region = api.createNoteRegion({trackBox: made.trackBox, position: 0, duration: bar, name: "Lead"})
+        api.createNoteEvent({owner: region, position: 0, duration: 960, pitch: 72, velocity: 0.6})`})
+    const leadRef = made.state === "applied" ? await ref("Lead") : null
+    const faded = leadRef === null ? {state: "no track"} : await apply({op: "ramp", ref: `${leadRef}.mix.volume`, to: 0, beats: 4})
+    await page.waitForTimeout(2500)
     const lead = await track("Lead")
-    check("@utility: a scripted track, faded in by a fixed operation",
-        lead !== undefined && lead.mix.volume > -1, `${lead === undefined ? "no Lead track" : `Lead at ${lead.mix.volume.toFixed(1)} dB`} in ${made.ms} ms: "${made.text}"`)
-
-    // A script that changes a control the producer holds is undone, whatever the code does.
-    await page.evaluate(() =>
-        document.dispatchEvent(new CustomEvent("parameter-hold", {detail: {parameter: window.__drumsVolume, held: true}})))
-    const heldScriptBefore = await volume("Drums")
-    const heldScript = await say("@utility with a script, set the Drums volume to -20 dB", ["utility"], 120000)
-    check("@utility: a script touching a held control is undone",
-        await volume("Drums") === heldScriptBefore, `${heldScriptBefore} → ${await volume("Drums")} dB: "${heldScript.text}"`)
-    await page.evaluate(() =>
-        document.dispatchEvent(new CustomEvent("parameter-hold", {detail: {parameter: window.__drumsVolume, held: false}})))
+    check("a scripted track, faded in by a fixed operation", lead !== undefined && faded.state === "applied" && lead.mix.volume > -1,
+        `${lead === undefined ? `no Lead track (${made.state}: ${made.detail ?? ""})` : `Lead at ${lead.mix.volume.toFixed(1)} dB`}`)
 
     // Landing in a loop, sent straight to the page (no model): on the loop's start, which the playhead only reaches by
     // wrapping, and past the loop's end, which counts bars of playing.
@@ -324,7 +286,7 @@ try {
                     resolve({state: status.state, ms: Math.round(performance.now() - start), states})
                 }
             })
-            adapter.apply({id, from: "agent:mix_engineer", plan: {op: "set", ref: `${pad}.mix.volume`, to},
+            adapter.apply({id, from: "agent:utility", plan: {op: "set", ref: `${pad}.mix.volume`, to},
                 when: {at: "bar", bar}, seq: Number.MAX_SAFE_INTEGER})
             setTimeout(() => {subscription.terminate(); resolve({state: "timeout", states})}, 20000)
         })
@@ -335,8 +297,8 @@ try {
     check("in a loop, an edit on the loop's start lands as it wraps", landed[0].state === "applied", JSON.stringify(landed[0]))
     check("in a loop, an edit past its end lands after that many bars of playing",
         landed[1].state === "applied" && landed[1].ms > landed[0].ms, JSON.stringify(landed[1]))
-    const activityRows = await page.locator("[data-testid='takedo-activity'] li[data-agent='agent:mix_engineer']").count()
-    check("the activity lists the member's edits and where they are", activityRows > 0, `${activityRows} rows`)
+    const activityRows = await page.locator("[data-testid='takedo-activity'] li[data-agent='agent:utility']").count()
+    check("the activity lists the agents' edits and where they are", activityRows > 0, `${activityRows} rows`)
 
     // A script writing values outside openDAW's ranges (resonance 0 made a Vaporisateur write NaN and crashed the
     // engine, 2026-11-07) gets them corrected inside its edit, and the engine keeps playing.
@@ -405,7 +367,7 @@ try {
     } else {
         const before = await volume("Keys")
         const start = Date.now()
-        await page.evaluate(() => window.takedo.connection.send({type: "chat", text: "@mix_engineer keys down a bit"}))
+        await apply({op: "ramp", ref: `${keys}.mix.volume`, to: before - 3, beats: 1})
         await page.waitForFunction(before =>
             window.takedo.adapter.snapshot().tracks.find(track => track.name === "Keys").mix.volume < before - 0.5,
             before, {timeout: 10000, polling: 100}).catch(() => {})
