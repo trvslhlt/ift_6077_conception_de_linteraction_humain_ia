@@ -75,7 +75,7 @@ scenario: build $(TYPES_DIR)/packages ## Play scenarios/$(SCENARIO).json to Take
 	@echo "backend: ROSTER=$(ROSTER) KNOWLEDGE_ROUTE=$(KNOWLEDGE_ROUTE)"
 	( while :; do if [ -f scenarios/.restart ]; then rm -f scenarios/.restart; $(COMPOSE) kill backend; \
 		$(COMPOSE) up -d --wait backend; fi; sleep 0.5; done ) & watcher=$$!; \
-		$(COMPOSE) run --rm -v $(CURDIR)/scenarios:/scenarios smoke node scenario.mjs /scenarios/$(SCENARIO).json; \
+		$(COMPOSE) run --rm -e COUNT_FRAMES=$(COUNT_FRAMES) -v $(CURDIR)/scenarios:/scenarios smoke node scenario.mjs /scenarios/$(SCENARIO).json; \
 		status=$$?; kill $$watcher; exit $$status
 	cd backend && node src/report.ts "$$(ls -td ../scenarios/runs/*_$(SCENARIO) | head -1)"
 

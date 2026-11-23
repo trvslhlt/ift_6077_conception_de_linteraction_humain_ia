@@ -68,18 +68,23 @@ try {
     // Every 2 s: the playhead's pulses, the audio clock, the engine's CPU load, the page's main-thread lag (the
     // longest a 100 ms timer ran late since the last sample), animation frames, visibility and the engine's own
     // position, so a stall shows which of them stopped.
-    await page.evaluate(() => {
+    // COUNT_FRAMES=0 leaves the frame counter out: its own animation-frame loop may keep headless Chromium's frames
+    // coming, and so hide a stall (2026-11-23: 10 runs in a row without one after it was added).
+    await page.evaluate(countFrames => {
         window.__lag = {max: 0, last: performance.now()}
         // Animation frames since the last sample: openDAW reads the engine's state (position, playing) only on them.
-        window.__frames = 0
-        const frame = () => {window.__frames++; requestAnimationFrame(frame)}
-        requestAnimationFrame(frame)
+        window.__frames = null
+        if (countFrames) {
+            window.__frames = 0
+            const frame = () => {window.__frames++; requestAnimationFrame(frame)}
+            requestAnimationFrame(frame)
+        }
         setInterval(() => {
             const now = performance.now()
             window.__lag.max = Math.max(window.__lag.max, now - window.__lag.last - 100)
             window.__lag.last = now
         }, 100)
-    })
+    }, process.env.COUNT_FRAMES !== "0")
     run.samples = []
     sampler = setInterval(() => {
         page.evaluate(async () => {
@@ -89,7 +94,7 @@ try {
                 new Promise(resolve => setTimeout(() => resolve(null), 500))])
             const lag = window.__lag.max, frames = window.__frames
             window.__lag.max = 0
-            window.__frames = 0
+            if (window.__frames !== null) {window.__frames = 0}
             return {played: window.takedo.adapter?.playback().played ?? null, ctx: service?.audioContext?.currentTime ?? null,
                 state: service?.audioContext?.state ?? null, cpu: engine?.cpuLoad?.getValue?.() ?? null, lag: Math.round(lag),
                 frames, visible: document.visibilityState, engine: window.opendaw?.engine?.position?.() ?? null, loaded}
