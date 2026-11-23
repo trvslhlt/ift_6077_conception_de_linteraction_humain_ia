@@ -296,6 +296,20 @@ Built (2026-11-22), step 2's second piece: the captain split from the utility (`
   Fix: after every script, inside its edit, the page checks the project tempo and every tempo event against
   `TempoRange`; outside it, the script throws, openDAW rolls it all back, and the worker reads "tempo events are in BPM".
   `make test` sends the exact script from that run and checks it's refused and the playhead keeps its speed.
+- **A second kind of stall, still unexplained (2026-11-23).**
+  - What it looks like: the playhead stops completely (0 pulses/s), often 10–20 s into a run, sometimes before any
+    agent edit has landed. The audio clock runs at 1.0 s/s, the main thread isn't lagging, and there are no page
+    errors and no engine-crash event.
+  - Ruled out:
+    - The engine alone: two runs with no agents (`scenarios/idle.json`) played at full speed.
+    - The sampler's own animation-frame loop: four runs with `COUNT_FRAMES=0` were clean.
+  - When it happened: in clusters (04:29–06:03 UTC, 15:50, 18:03–18:26), then 14 clean runs in a row. That points
+    to something about the host at those times, not a fixed TakeDo action.
+  - Next: the next stall's samples say whether animation frames stopped (openDAW reads the engine's position only on
+    them), whether the engine's own position froze, and whether it reports loading incomplete.
+  - Seen on the way: openDAW's `AnimationFrame` loop skips clearing its queue when a callback throws, so one throw
+    would freeze every later callback (the engine-position read among them) for good. No run threw, so it isn't this
+    stall.
 
 ## Still open
 
