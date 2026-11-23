@@ -287,6 +287,15 @@ Built (2026-11-22), step 2's second piece: the captain split from the utility (`
     - Up to 5 edits landed in one bar (the limit is per plan; immediate edits and other plans aren't counted).
     - In one controls run, the session log lost lines (4 cut mid-line, nothing after 4.5 min while the backend kept
       replying), so its slow second dial reply (240 s) couldn't be traced.
+- **Each part goes out when its worker finishes (2026-11-23, the producer's choice).** Waiting for a direction's
+  slowest worker held a whole plan back: in a manual session the drum worker took 113 s, so nothing landed until
+  122 s, while the reply said "over the next 16 bars". Now each job's steps go out as it finishes, from the
+  direction's anchor moved past the playhead by whole loop passes, so a late part keeps its own order and spacing;
+  parts aren't in lockstep. The report checks order within a part. First runs: first edit at 21–29 s (was ~120 s),
+  parts sent at 28/51/55/150 s and 52/52/109 s, 0 of a part's steps out of order, at most 3 edits in one bar.
+  Where the time goes now: the drum worker wrote 25.7k tokens of notes (7 stages, each a whole pattern) over 23 round
+  trips. Next speed lever: generators in code (the model picks style and parameters, code writes the notes), then
+  knowledge entries, then Jev.
 - **The stalls' cause (2026-11-23): a tempo near 0, written by a worker's script.** The runner now samples, every 2 s,
   the playhead, the audio clock, the engine's CPU load and main-thread lag (`run.samples`). In a stalled hand run the
   audio clock ran at 1.0 s/s, the main thread never lagged over 0.1 s and the CPU load was 0, but the playhead moved

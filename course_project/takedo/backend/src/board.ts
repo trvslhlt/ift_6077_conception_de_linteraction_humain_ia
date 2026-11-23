@@ -100,9 +100,9 @@ export class Board {
 
     staged(direction: string): Step[] {return this.#steps.filter(step => step.direction === direction && step.state === "staged")}
 
-    // The direction's staged steps, in bar order, marked sent: the caller carries them out.
-    take(direction: string): Step[] {
-        const steps = this.staged(direction).sort((a, b) => a.bar - b.bar)
+    // The direction's staged steps (only one job's, given its id), in bar order, marked sent: the caller carries them out.
+    take(direction: string, job?: string): Step[] {
+        const steps = this.staged(direction).filter(step => job === undefined || step.job === job).sort((a, b) => a.bar - b.bar)
         steps.forEach(step => {step.state = "sent"})
         if (steps.length > 0) {this.#log({event: "sent", direction, steps: steps.map(step => step.id)})}
         this.#save()

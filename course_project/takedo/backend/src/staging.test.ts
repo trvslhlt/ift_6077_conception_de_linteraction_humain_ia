@@ -26,6 +26,16 @@ describe("the board", () => {
         assert.equal(board.staged(other.id).length, 1, "another direction's steps stay")
         assert.equal(board.drop(other.id), 1)
     })
+    it("hands over one job's steps without the others' (each part goes out when it's planned)", () => {
+        const board = new Board(() => {})
+        const {id} = board.direction("make it lofi")
+        const drums = board.job(id, "drums"), bass = board.job(id, "bass")
+        board.stage(id, "agent:utility", 6, "bass 6", script, MaxPerBar, bass.id)
+        board.stage(id, "agent:utility", 4, "drums 4", script, MaxPerBar, drums.id)
+        board.stage(id, "agent:utility", 2, "bass 2", script, MaxPerBar, bass.id)
+        assert.deepEqual(board.take(id, bass.id).map(step => step.says), ["bass 2", "bass 6"])
+        assert.deepEqual(board.staged(id).map(step => step.says), ["drums 4"])
+    })
     it("refuses a fourth step on one bar of a plan, unless the caller lifts the limit (a knowledge entry)", () => {
         const board = new Board(() => {})
         const {id} = board.direction("make it lofi")

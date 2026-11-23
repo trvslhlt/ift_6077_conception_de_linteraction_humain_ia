@@ -724,7 +724,7 @@ export class Utility implements Member {
     // said and told to the model with the next message (#finish).
     async #commit(current: Current): Promise<void> {
         const {context} = current
-        const steps = context.board.take(current.direction.id)
+        const steps = context.board.take(current.direction.id, current.job)
         if (steps.length === 0) {return}
         const now = await context.snapshot()
         if (now === null) {
@@ -839,9 +839,11 @@ export class Utility implements Member {
 
     // Sends a direction's staged steps, all its workers' (Coordinator, when its last job is done): any worker can, since
     // steps are data. Failures go to the captain (Coordinator.jobLate) once everything has landed.
-    async send(context: Coordinator, direction: Direction, anchor: Anchor | null): Promise<void> {
+    // job: send only that job's steps (each worker's part goes out when it's planned, 2026-11-23).
+    async send(context: Coordinator, direction: Direction, anchor: Anchor | null, job?: string): Promise<void> {
         const work: Work = {done: [], pending: [], late: []}
-        await this.#commit({context, task: {message: direction.text, piece: null, hints: null}, work, calls: 0, direction, anchor})
+        await this.#commit({context, task: {message: direction.text, piece: null, hints: null}, work, calls: 0, direction, anchor,
+            ...(job !== undefined ? {job} : {})})
         void Promise.all(work.pending).then(() => {
             context.card({agent: this.agent, name: this.name, doing: "idle"})
             if (work.late.length > 0) {context.jobLate(null, work.late.map(line => line.replace(/\.+$/, "")).join("; "), direction)}

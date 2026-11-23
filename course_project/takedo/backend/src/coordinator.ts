@@ -558,22 +558,22 @@ export class Coordinator {
             return worker.job(this, {id: job.id, piece, message: direction.text, direction, anchor}, snapshot)
         })().then(async report => {
             this.board.jobDone(job.id, "done", report)
-            await this.#sendWhenDone(worker, direction, anchor)
+            await this.#sendJob(worker, direction, anchor, job.id)
             this.#report({kind: "job_finished", text: `${job.id} (${piece}): ${report}`, direction})
         }, async error => {
             this.board.jobDone(job.id, "failed", String(error))
-            await this.#sendWhenDone(worker, direction, anchor)
+            await this.#sendJob(worker, direction, anchor, job.id)
             this.#report({kind: "job_failed", text: `${job.id} (${piece}): stopped with an error: ${String(error)}`, direction})
         })
         return `Started ${job.id}. Its report comes back as job_finished.`
     }
 
-    // A direction's plan goes out together once none of its jobs is still running (board.ts: one anchor for all its
-    // pieces, however long each took to plan).
-    async #sendWhenDone(worker: Utility, direction: Direction, anchor: Anchor | null): Promise<void> {
-        if (this.board.running().some(job => job.direction === direction.id)) {return}
-        if (this.board.staged(direction.id).length === 0) {return}
-        await worker.send(this, direction, anchor).catch(error => this.#log.write("board", {event: "send_failed", error: String(error)}))
+    // A job's part goes out as soon as it's planned, from the direction's anchor (moved past the playhead by whole loop
+    // passes, so a part planned late keeps its own order and spacing). Parts aren't in lockstep: waiting for the
+    // slowest held a whole plan back 2 minutes in one session (2026-11-23), and the producer chose speed.
+    async #sendJob(worker: Utility, direction: Direction, anchor: Anchor | null, job: string): Promise<void> {
+        if (!this.board.staged(direction.id).some(step => step.job === job)) {return}
+        await worker.send(this, direction, anchor, job).catch(error => this.#log.write("board", {event: "send_failed", error: String(error)}))
     }
 
     // A job's edits (or a direction's sent plan's: id null) that failed after the job reported.

@@ -107,8 +107,15 @@ const barOf = (entry: Entry): number => {
     return parent === undefined ? unrolled(entry.when) : Math.max(unrolled(entry.when), parent[1])
 }
 const timed = requests.filter(entry => entry.when?.at === "bar" && landedAt.has(entry.id)).map((entry): Entry => ({...entry, when: {...entry.when, bar: barOf(entry)}}))
+// Each worker's part goes out when it's planned, so parts aren't in lockstep: order is checked within a part (a job's
+// steps), across all of a window's edits only when the job isn't known.
+const jobOfStep = new Map(log.filter(entry => entry.type === "board" && entry.event === "staged" && entry.job !== undefined)
+    .map(entry => [entry.id, entry.job]))
+const jobOfRequest = new Map(log.filter(entry => entry.type === "board" && entry.event === "linked")
+    .map(entry => [entry.request, jobOfStep.get(entry.step)]))
+const samePart = (a: Entry, b: Entry): boolean => jobOfRequest.get(a.id) === jobOfRequest.get(b.id)
 const outOfOrder = timed.flatMap((first, index) => timed.slice(index + 1).filter(second =>
-    windowOf(first.t) === windowOf(second.t) && first.when.bar !== second.when.bar &&
+    windowOf(first.t) === windowOf(second.t) && samePart(first, second) && first.when.bar !== second.when.bar &&
     Math.sign(second.when.bar - first.when.bar) !== Math.sign(landedAt.get(second.id)! - landedAt.get(first.id)!) &&
     Math.abs(landedAt.get(second.id)! - landedAt.get(first.id)!) > barMs / 2).map(second => [first, second]))
 const models = log.filter(entry => entry.type === "model")
@@ -180,7 +187,7 @@ if (before === undefined || after === undefined) {
     check(failed.length === 0, `${failed.length} edits not done${failed.length > 0 ? `: ${failed.map(entry => entry.detail ?? entry.reason ?? entry.state).join("; ")}` : ""}`)
     check(bunched <= 3, `at most ${bunched} edits landed in one bar`)
     const label = (entry: Entry): string => entry.plan.description ?? `${entry.plan.op} ${entry.plan.ref ?? entry.plan.device ?? ""}`.trim()
-    check(outOfOrder.length === 0, `${outOfOrder.length} pairs of steps landed in the opposite order to their bars` +
+    check(outOfOrder.length === 0, `${outOfOrder.length} pairs of a part's steps landed in the opposite order to their bars` +
         `${outOfOrder.length > 0 ? `: ${outOfOrder.slice(0, 3).map(([first, second]) => `${label(first)} (bar ${first.when.bar}) / ${label(second)} (bar ${second.when.bar})`).join("; ")}` : ""}`)
     check(run.playing === true, `engine ${run.playing ? "still playing" : "stopped"} at the end`)
     // Pulses played against the clock, at the slower of the two tempos (960 a beat): a stall shows as too few.
