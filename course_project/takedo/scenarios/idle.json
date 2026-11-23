@@ -1,0 +1,7 @@
+{
+ "//": "No agents: the project plays for two minutes with nothing sent. If the playhead stops here, the stall is the engine or the browser, not TakeDo's edits (2026-11-23 stall hunt).",
+ "project": "01_good_base.odb",
+ "messages": [
+  {"wait_ms": 120000}
+ ]
+}

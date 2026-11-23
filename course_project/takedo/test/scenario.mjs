@@ -65,10 +65,15 @@ try {
     // How far the playhead has gone, against the clock: a stalled engine shows as too few pulses played (the report checks).
     const clock = async () => ({t: Date.now(), played: await page.evaluate(() => window.takedo.adapter.playback().played)})
     run.clock = {start: await clock()}
-    // Every 2 s: the playhead's pulses, the audio clock, the engine's CPU load and the page's main-thread lag (the
-    // longest a 100 ms timer ran late since the last sample), so a stall shows which of them stopped.
+    // Every 2 s: the playhead's pulses, the audio clock, the engine's CPU load, the page's main-thread lag (the
+    // longest a 100 ms timer ran late since the last sample), animation frames, visibility and the engine's own
+    // position, so a stall shows which of them stopped.
     await page.evaluate(() => {
         window.__lag = {max: 0, last: performance.now()}
+        // Animation frames since the last sample: openDAW reads the engine's state (position, playing) only on them.
+        window.__frames = 0
+        const frame = () => {window.__frames++; requestAnimationFrame(frame)}
+        requestAnimationFrame(frame)
         setInterval(() => {
             const now = performance.now()
             window.__lag.max = Math.max(window.__lag.max, now - window.__lag.last - 100)
@@ -77,12 +82,17 @@ try {
     })
     run.samples = []
     sampler = setInterval(() => {
-        page.evaluate(() => {
+        page.evaluate(async () => {
             const service = window.takedo?.service, engine = service?.engine
-            const lag = window.__lag.max
+            // Whether the engine says everything (samples, instruments) has loaded; null if it doesn't answer in 0.5 s.
+            const loaded = await Promise.race([engine?.queryLoadingComplete?.() ?? Promise.resolve(null),
+                new Promise(resolve => setTimeout(() => resolve(null), 500))])
+            const lag = window.__lag.max, frames = window.__frames
             window.__lag.max = 0
+            window.__frames = 0
             return {played: window.takedo.adapter?.playback().played ?? null, ctx: service?.audioContext?.currentTime ?? null,
-                state: service?.audioContext?.state ?? null, cpu: engine?.cpuLoad?.getValue?.() ?? null, lag: Math.round(lag)}
+                state: service?.audioContext?.state ?? null, cpu: engine?.cpuLoad?.getValue?.() ?? null, lag: Math.round(lag),
+                frames, visible: document.visibilityState, engine: window.opendaw?.engine?.position?.() ?? null, loaded}
         }).then(sample => run.samples.push({t: Date.now(), ...sample}), () => {})
     }, 2000)
     for (const step of scenario.messages) {
