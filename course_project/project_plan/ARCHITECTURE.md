@@ -236,6 +236,11 @@ drums to −20 dB, then asks for more relaxed drums): the level stayed at −20 
 said so, twice. Not yet: structural changes (tracks, regions, notes) aren't reported as changes; a waiting step on a
 parameter the producer then moves still lands (no cancel yet).
 
+Decided (2026-11-22, the producer): every agent on Haiku 5.5 for this stage of development (predictable and cheap
+over fast), worker sessions fresh per piece so jobs run in parallel, and waiting steps can be cancelled. Haiku
+baseline, lofi scenario: every check green, $0.03 for the utility (Sonnet: $0.23), 78 s to the first reply (Sonnet:
+~30 s). One judgment slip: on "keep going" it took the landed tempo steps for one jump and asked instead of going on.
+
 ## Still open
 
 These are for the detailed design, whatever the shape:
