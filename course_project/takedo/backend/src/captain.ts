@@ -31,7 +31,7 @@ With it: project (tracks with refs, tempo, playback.bar: where the playhead is n
 
 Tools:
 - assign: hand one piece to a fresh worker. A worker can do anything openDAW supports (sounds, notes and parts, drum patterns, effects, levels, tempo, new tracks) and has the team's knowledge base of genres, sounds, effect chains and patterns. It starts with no memory of the conversation, so a piece must stand alone: what to change, on which tracks (by name and ref), toward what, and over which bars. Bars count from where the playhead was when the producer's message arrived (project.playback.bar): a gradual change takes 8 to 16 bars, or what the producer said. Give independent parts to separate workers, which run at the same time: for a style change, typically drums, harmony and keys, bass, tempo, and master effects. Never give two workers the same track or the same setting, and keep any one bar to at most three edits across pieces (give pieces their own bars where they'd crowd). A simple request is one piece. Hand out every part the message needs in this turn.
-- cancel: take back what hasn't landed: steps (coming_steps), or a piece still being planned (its job id from jobs_running: the job stops and its steps go with it). Use it when the producer says stop, less, or changes their mind about something still coming; cancel the job when the piece is still running. What has landed stays; to undo it, assign a piece that changes it back.
+- cancel: take back what hasn't landed: steps (coming_steps), or a piece still being planned (its job id from jobs_running: the job stops and its steps go with it). Use it when the producer says stop, less, or changes their mind about something still coming; cancel the job when the piece is still running. To change one part of a plan still being made, cancel that part's job, then assign what replaces it: a piece assigned after cancelling a running job joins that job's plan and lands with the rest of it. What has landed stays; to undo it, assign a piece that changes it back.
 - offer_control, remove_control: dials on your card, for the producer to steer a direction that keeps going (how far toward a style, how busy, how wet) without typing. Whenever a producer_message starts a gradual change or a style direction, offer one dial for it in that same turn, before you reply, and mention it in a few words: its ends in the producer's words, meaning what moving it should change. At most 3; remove one that no longer applies. When one moves (control_moved), act on it like a direction: assign a piece that moves what's still to come toward the new position, in proportion to how far it moved.
 - look: read-only JavaScript to inspect the project (an async function body, \`takedo\` in scope: project, snapshot()). Only when the summary doesn't answer what you need.
 - remember, recall, forget: your notebook, kept on disk per project. Keep the producer's wishes and taste (note) and each direction and how it's split (plan).
@@ -50,7 +50,8 @@ type Session = { inbox: Inbox, query: Query }
 export type Turn = { kind: "producer_message" | "control_moved", text: string, history?: ReadonlyArray<{ from: string, text: string }> }
     | { kind: "job_finished" | "job_failed" | "job_failed_later" | "restarted", text: string, direction?: Direction }
 // The turn being worked on: its direction (the producer's message's, or the job's it reports on) and anchor.
-type Current = { context: Coordinator, turn: Turn, direction: Direction, anchor: Anchor | null, calls: number, said?: string }
+// revising: a job this turn cancelled while it was planning; the pieces assigned after it join its plan.
+type Current = { context: Coordinator, turn: Turn, direction: Direction, anchor: Anchor | null, calls: number, said?: string, revising?: string }
 
 const text = (value: string): CallToolResult => ({content: [{type: "text", text: value}]})
 const anchorOf = (snapshot: Snapshot): Anchor | null => snapshot.playback.position === undefined ? null
@@ -248,12 +249,22 @@ export class Captain {
             }
         const tools = [
             tool("assign", "Hand one piece of the work to a fresh worker, which runs at the same time as the others. Answers at once; its report comes back as job_finished.", {
-                piece: z.string().describe("The piece, standing alone: what to change, on which tracks (names and refs), toward what, over which bars")},
-                handler((current, input) => current.context.assign(current.direction, current.anchor, String(input.piece)))),
+                piece: z.string().describe("The piece, standing alone: what to change, on which tracks (names and refs), toward what, over which bars"),
+                with: z.string().optional().describe("A job id (jobs_running): this piece joins that job's plan, counting bars from the same place and landing together with it. Left out: a new direction, or, after you cancel a running job this turn, that job's plan")},
+                handler((current, input) => {
+                    const joins = typeof input.with === "string" ? input.with : current.revising
+                    const job = joins === undefined ? undefined : current.context.board.jobOf(joins)
+                    const direction = job === undefined ? undefined : current.context.board.directionOf(job.direction)
+                    if (input.with !== undefined && direction === undefined) {return `Not started: no job ${String(input.with)}. Leave out with for a new direction.`}
+                    return direction === undefined ? current.context.assign(current.direction, current.anchor, String(input.piece))
+                        : current.context.assign(direction, this.#anchors.get(direction.id) ?? current.anchor, String(input.piece))
+                })),
             tool("cancel", "Take back what hasn't landed yet: steps (coming_steps), or whole pieces still being planned (jobs_running: their steps with them).", {
                 steps: z.array(z.string()).describe("Step ids from coming_steps, job ids from jobs_running (\"j3\"), or [\"all\"] for everything")},
                 handler((current, input) => {
                     const ids = (input.steps as string[]).map(String)
+                    const revising = ids.find(id => current.context.board.running().some(job => job.id === id))
+                    if (revising !== undefined) {current.revising = revising}
                     return current.context.cancel(ids.includes("all") ? "all" : ids)
                 })),
             tool("offer_control", "Put a dial on your card in the team view (or change one you have: same name), for the producer to steer a direction that keeps going. It changes nothing by itself.", {

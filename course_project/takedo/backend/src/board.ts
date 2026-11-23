@@ -70,6 +70,12 @@ export class Board {
     }
 
     // Steps of a direction on a bar, staged or sent.
+    // The bars nearest the given one (within 4, earlier ones first on a tie) that have room for another step.
+    room(direction: string, bar: number, limit = MaxPerBar): number[] {
+        return [1, 2, 3, 4].flatMap(distance => [bar - distance, bar + distance])
+            .filter(other => other >= 1 && this.count(direction, other) < limit).slice(0, 4)
+    }
+
     count(direction: string, bar: number): number {
         return this.#steps.filter(step => step.direction === direction && step.bar === bar).length
     }
@@ -82,7 +88,8 @@ export class Board {
             return {ok: false, reason: "the Team Lead cancelled this piece. Stop here: call reply saying so"}
         }
         if (this.count(direction, bar) >= limit) {
-            return {ok: false, reason: `bar ${bar} already has ${MaxPerBar} edits in this plan, the most one bar takes in a gradual change. Put this on another bar`}
+            const room = this.room(direction, bar, limit)
+            return {ok: false, reason: `bar ${bar} already has ${MaxPerBar} edits in this plan (other pieces share its bars), the most one bar takes in a gradual change. ${room.length > 0 ? `Bars near it with room: ${room.join(", ")}.` : "No bar near it has room."} Put this on one of those, or do it with fewer edits (one ramp in place of a step per bar). Never stage a placeholder to find room`}
         }
         const step: Step = {id: randomUUID(), direction, agent, bar, says, action, state: "staged", t: Date.now(), ...(job !== undefined ? {job} : {})}
         this.#steps.push(step)

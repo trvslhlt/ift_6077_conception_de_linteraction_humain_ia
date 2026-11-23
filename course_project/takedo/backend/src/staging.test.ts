@@ -34,6 +34,14 @@ describe("the board", () => {
         assert.equal(board.stage(id, "agent:utility", 9, "fx", script, Infinity).ok, true)
         assert.equal(board.stage(board.direction("other").id, "agent:utility", 9, "fx", script).ok, true, "per plan")
     })
+    it("names the nearest bars with room when it refuses one", () => {
+        const board = new Board(() => {})
+        const {id} = board.direction("make it lofi")
+        for (const bar of [8, 9, 10]) {for (let index = 0; index < MaxPerBar; index++) {board.stage(id, "agent:utility", bar, "fx", script)}}
+        const refused = board.stage(id, "agent:utility", 9, "fx", script)
+        assert.equal(refused.ok, false)
+        assert.match(refused.ok ? "" : refused.reason, /Bars near it with room: 7, 11, 6, 12\./)
+    })
     it("moves the anchor past the playhead by whole passes of a short loop, else by whole bars", () => {
         const anchor = {position: 2 * bar, played: 0, bar: 3}
         assert.equal(commitAnchor(anchor, now(0)).played, 0, "nothing has played: as it was")

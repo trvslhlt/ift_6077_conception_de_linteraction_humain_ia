@@ -274,6 +274,22 @@ Built (2026-11-22), step 2's second piece: the captain split from the utility (`
   - Engine stalls (playhead at 1–8% of the clock) in four of six runs matched another course project's sandbox
     container using 2–9 cores. The two runs without stalls were the two with the lowest load. So a stall flags a
     busy host, not TakeDo; when it shows up, rerun the scenario on a quiet host before judging its landing checks.
+- Rerun on a quiet host (2026-11-23), and two fixes:
+  - **Corrections join their plan.** Told "keep the tempo", the captain cancelled the tempo job, then gave the
+    master half of it to a new direction. That gave two plans sent 50 s apart from different anchors: 36 pairs out
+    of order. Now a piece assigned in the same turn as a running job's cancel joins that job's plan (its direction
+    and anchor). `assign` also takes `with: <job id>` to join a plan explicitly. Relying on the prompt alone didn't
+    work: the captain ignored a prompt rule asking it to use `with`.
+  - **Per-bar refusals name bars with room.** The captain gave tempo, bass and master a step on every bar 1–16, so the
+    drum worker was refused on every bar. It staged no-op "probe" scripts to find room, and the first stage of the
+    drums never happened. A refusal now lists the nearest bars with room. The worker prompt says a steady glide is
+    one ramp, not a step per bar, and never to stage a placeholder. The next hand run had no refusals and no probes.
+  - Still open:
+    - Stalls also came in 2 of 6 runs with no other container busy (17% and 9%), so they aren't all load from
+      outside TakeDo.
+    - Up to 5 edits landed in one bar (the limit is per plan; immediate edits and other plans aren't counted).
+    - In one controls run, the session log lost lines (4 cut mid-line, nothing after 4.5 min while the backend kept
+      replying), so its slow second dial reply (240 s) couldn't be traced.
 
 ## Still open
 
