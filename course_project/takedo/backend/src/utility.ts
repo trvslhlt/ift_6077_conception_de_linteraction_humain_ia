@@ -4,7 +4,7 @@ import type Anthropic from "@anthropic-ai/sdk"
 import type {CallToolResult} from "@modelcontextprotocol/sdk/types.js"
 import {z} from "zod"
 import type {Actor, Plan, Snapshot, Status, When} from "../../shared/protocol.ts"
-import {type Action, type Anchor, commitAnchor, type Direction, MaxPerBar, planSlide} from "./board.ts"
+import {type Action, type Anchor, commitAnchor, type Direction, MaxPerBar, planSlide, type Step as BoardStep} from "./board.ts"
 import type {Coordinator} from "./coordinator.ts"
 import type {Catalog} from "./catalog.ts"
 import {Kinds as KnowledgeKinds, type Knowledge} from "./knowledge.ts"
@@ -208,6 +208,8 @@ export class Utility implements Member {
     #current: Current | null = null
     #queue: Promise<void> = Promise.resolve()
     #unheard: string[] = []   // failures after a reply, for the model with the next message
+    // The board's steps after a restart (Coordinator, "waiting"): still coming, and lost; told with the next turn.
+    #reconciled: { coming: BoardStep[], lost: BoardStep[] } | null = null
 
     // team: the members whose fixed operations it borrows; catalog: which devices it may add; source: the root of
     // openDAW's source tree, the session's working directory; knowledge: the knowledge base (knowledge.ts), if loaded.
@@ -225,6 +227,21 @@ export class Utility implements Member {
 
     // Something the model should know with the next message (an engine crash and what was undone).
     notice(text: string): void {this.#unheard.push(text)}
+
+    // The board after (re)connecting: steps still coming and steps lost, told with the next turn (recover, or #work).
+    reconciled(coming: BoardStep[], lost: BoardStep[]): void {
+        this.#reconciled = coming.length === 0 && lost.length === 0 ? null : {coming, lost}
+    }
+
+    // The reconciled board in words, for the model: once.
+    #boardNote(): string {
+        const reconciled = this.#reconciled
+        this.#reconciled = null
+        if (reconciled === null) {return ""}
+        const list = (steps: BoardStep[]) => steps.map(step => `${step.says} (bar ${step.bar}${step.detail !== undefined ? `, ${step.detail}` : ""})`).join("; ")
+        return [reconciled.coming.length > 0 ? `Timed edits still coming as planned (they kept waiting; don't plan them again): ${list(reconciled.coming)}.` : "",
+            reconciled.lost.length > 0 ? `Timed edits that won't land: ${list(reconciled.lost)}.` : ""].filter(text => text !== "").join(" ")
+    }
 
     // Ends the session process (the page went away, the project changed, or a turn failed). The SDK keeps the
     // conversation on disk and the project's notebook says which it was, so the next message resumes it.
@@ -245,7 +262,10 @@ export class Utility implements Member {
         notebook.setAgentState({...state, pending: null})
         const recent = Date.now() - t < RecoverMs
         context.event("agent_session", {recover: message, recent})
-        this.#unheard.push(`TakeDo restarted while you were working on the producer's message ${JSON.stringify(message)}: your last tool call may not have finished; edits that had landed are in the project, and any still waiting for their bar were dropped. ${recent
+        // A round trip to the page first: the page sends which edits are still waiting before it answers (the board).
+        await context.snapshot()
+        const board = this.#boardNote()
+        this.#unheard.push(`TakeDo restarted while you were working on the producer's message ${JSON.stringify(message)}: your last tool call may not have finished; edits for now that had landed are in the project.${board === "" ? "" : ` ${board}`} ${recent
             ? "Finish that message now: check the project first, and don't redo what's already there."
             : "That was a while ago: don't pick it up unless the producer asks."}`)
         if (!recent) {return}
@@ -316,6 +336,8 @@ export class Utility implements Member {
         }
         const pending = {message: task.message, t: Date.now()}
         if (this.#sessionId !== null) {context.notebook?.setAgentState({session: this.#sessionId, pending})}
+        const boardNote = this.#boardNote()
+        if (boardNote !== "") {this.#unheard.push(boardNote)}
         const work: Work = {done: [], pending: [], late: []}
         const direction = context.board.direction(task.message, task.control === true)
         this.#current = {context, task, work, calls: 0, direction, anchor: anchorOf(snapshot)}
@@ -616,8 +638,8 @@ export class Utility implements Member {
 
     // A fixed operation, borrowed: a lookup answers at once; anything else becomes the owner's step on a fresh
     // snapshot, run as the utility's.
-    // A timed one is staged on the board (#stage) unless it's being sent (send: the plan is going out, #commit).
-    async #operate(current: Current, owner: LlmMember, name: string, input: Record<string, unknown>, send = false): Promise<string> {
+    // A timed one is staged on the board (#stage) unless it's being sent (sending: the board's step, #commit).
+    async #operate(current: Current, owner: LlmMember, name: string, input: Record<string, unknown>, sending?: BoardStep): Promise<string> {
         const found = owner.lookup(name, input)
         if (found !== null) {return found}
         const {context, task, work} = current
@@ -625,7 +647,8 @@ export class Utility implements Member {
         if (snapshot === null) {return "Not done: no project is open."}
         const step = owner.step(name, input, snapshot)
         if (typeof step === "string") {return `Not done: ${step}.`}
-        if (!send && step.when.at === "bar") {return this.#stage(current, step.when.bar, step.says, {op: name, input})}
+        if (sending === undefined && step.when.at === "bar") {return this.#stage(current, step.when.bar, step.says, {op: name, input})}
+        step.board = sending?.id
         context.card({agent: this.agent, name: this.name, doing: step.says})
         step.when = anchored(step.when, current.anchor)
         return this.#start(work, onStatus => performStep(context, this.agent, step, task.piece ?? task.message, onStatus)
@@ -662,8 +685,8 @@ export class Utility implements Member {
             const {action} = step
             const owner = "op" in action ? this.#owners.get(action.op) : undefined
             const result = "op" in action
-                ? owner === undefined ? `no member offers ${action.op}` : await this.#operate(current, owner, action.op, {...action.input, at_bar: bar}, true)
-                : await this.#run(current, action.description, action.script, bar, true)
+                ? owner === undefined ? `no member offers ${action.op}` : await this.#operate(current, owner, action.op, {...action.input, at_bar: bar}, step)
+                : await this.#run(current, action.description, action.script, bar, step)
             if (/^Not\b|failed|^no member|Another script/.test(result)) {current.work.late.push(`${step.says}: ${result}`)}
         }
     }
@@ -690,9 +713,9 @@ export class Utility implements Member {
         return ok ? value : `Error: ${value}`
     }
 
-    async #run(current: Current, description: string, code: string, bar: number, send = false): Promise<string> {
+    async #run(current: Current, description: string, code: string, bar: number, sending?: BoardStep): Promise<string> {
         const {context, work} = current
-        if (!send && bar > 0) {return this.#stage(current, bar, description, {script: code, description})}
+        if (sending === undefined && bar > 0) {return this.#stage(current, bar, description, {script: code, description})}
         context.card({agent: this.agent, name: this.name, doing: description})
         const claimed = context.claim(this.agent, ["project.script"], description)
         if (!claimed.ok) {return "Another script is running; try again in a moment."}
@@ -705,7 +728,7 @@ export class Utility implements Member {
                     fresh?.at.seq ?? 0, description, update => {
                         landsAt = update.landsAt ?? landsAt
                         onStatus(update)
-                    })
+                    }, sending?.id)
                 if (status.state === "applied") {
                     work.done.push(`${description}${landsAt ? ` (from ${landsAt})` : ""}`)
                     const corrected = status.result?.corrected ?? []

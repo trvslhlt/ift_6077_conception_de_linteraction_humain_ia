@@ -83,10 +83,6 @@ export class Adapter implements Terminable {
     #lastAgentEdit: { label: string, steps: number } | null = null   // the latest script or added effect, for a crash
     #historySteps = 0
     #played = 0                                                 // pulses played, through each pass of the loop
-    // Counts losses of the backend. An edit still waiting for its bar when the backend goes away is dropped: the
-    // agent that planned it is gone, and the one that resumes picks the plan up from what has landed (2026-11-22: a
-    // killed backend's tempo plan kept landing between the resumed one's steps).
-    #connectionLosses = 0
     #lastPosition = 0
     readonly #ramping = new Map<string, string>()               // parameter address → the request ramping it now                                           // changes to the undo history (edits, undos, redos)
     #touched: Map<string, { address: Address, previous: unknown }> | null = null   // what a running script changed, first value
@@ -101,7 +97,6 @@ export class Adapter implements Terminable {
         this.#env = scriptEnv(project, ref => this.#resolve(ref), () => this.snapshot(), () => this.#bar(),
             position => this.#pos(position))
         this.#terminator.own(connection.subscribeMessages(message => this.#receive(message)))
-        this.#terminator.own(connection.subscribe(state => {if (state.status === "closed") {this.#connectionLosses++}}))
         this.#terminator.own(project.boxGraph.subscribeToAllUpdates({onUpdate: update => this.#observe(update)}))
         const onHold = (event: Event): void => {
             if (!(event instanceof CustomEvent)) {return}
@@ -498,6 +493,10 @@ export class Adapter implements Terminable {
         return true
     }
 
+    // Requests still waiting for their bar or under way. They outlive a backend restart (2026-11-22: the board keeps the
+    // plan, and the backend that comes back is told which are still coming, so it doesn't plan them again).
+    waiting(): string[] {return [...this.#labels.keys()]}
+
     // Reports scheduled and waits for the landing; false (after reporting failed) if it can't land.
     async #land(request: Apply): Promise<boolean> {
         const {engine} = this.#project
@@ -510,8 +509,6 @@ export class Adapter implements Terminable {
             this.#status(request, {state: "failed", reason: landing.error, detail: landing.detail})
             return false
         }
-        const losses = this.#connectionLosses
-        const lost = (): boolean => losses !== this.#connectionLosses
         const bars = landing.after === undefined ? 0 : Math.round(landing.after / this.#bar())
         this.#status(request, {state: "scheduled",
             landsAt: `${this.#pos(landing.at)}${bars > 0 ? ` (after ${bars} bars of playing)` : ""}`})
@@ -522,7 +519,6 @@ export class Adapter implements Terminable {
             let played = 0
             while (engine.isPlaying.getValue() && played < landing.after) {
                 await this.#clock.tick()
-                if (lost()) {return false}
                 const position = engine.position.getValue()
                 played += position >= last ? position - last
                     : (loopArea.to.getValue() - last) + (position - loopArea.from.getValue())
@@ -534,7 +530,6 @@ export class Adapter implements Terminable {
         // already passed waits for the next pass, and one on the loop's start lands as the loop wraps.
         let armed = last < landing.at
         while (engine.isPlaying.getValue()) {
-            if (lost()) {return false}
             const position = engine.position.getValue()
             if (position < landing.at || position < last) {armed = true}
             if (armed && position >= landing.at) {break}

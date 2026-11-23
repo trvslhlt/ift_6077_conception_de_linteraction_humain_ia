@@ -1,0 +1,8 @@
+{
+ "//": "The board's waiting steps across a backend restart: the lofi direction, the backend killed after the reply while its staged plan waits for its bars; the steps should keep waiting and land, and the next message shouldn't plan them again.",
+ "project": "01_good_base.odb",
+ "messages": [
+  {"text": "Slowly, and without sudden large changes, evolve this into a lofi girl beat", "restart_after_ms": 50000, "restart_replies": 1},
+  {"text": "keep going"}
+ ]
+}

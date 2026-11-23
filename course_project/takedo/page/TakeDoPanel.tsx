@@ -306,6 +306,10 @@ export const TakeDoPanel = ({lifecycle, service, visible}: Construct): HTMLEleme
     const announce = (): void => {
         const name = service.projectProfileService.getValue().mapOr(({meta}) => meta.name, null)
         connection.send(name === null ? {type: "project", open: false} : {type: "project", open: true, name})
+        // What happened while the backend was away, then the edits still coming: in that order, so one that landed
+        // meanwhile isn't taken for lost.
+        connection.flush()
+        if (handle.adapter !== null) {connection.send({type: "waiting", requests: handle.adapter.waiting()})}
         connection.send({type: "view", open: visible.getValue()})
     }
     lifecycle.own(visible.subscribe(owner => connection.send({type: "view", open: owner.getValue()})))

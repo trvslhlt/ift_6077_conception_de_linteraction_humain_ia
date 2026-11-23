@@ -32,6 +32,9 @@ export class Notebook {
         } catch {/* a new project, or an unreadable file: start empty */}
     }
 
+    // The board's file (board.ts), beside the notebook.
+    get boardFile(): string {return this.#file.replace(/\.json$/, ".board.json")}
+
     has(key: string): boolean {return this.#entries.has(key)}
 
     // What the model sees with each message: every entry but its value.

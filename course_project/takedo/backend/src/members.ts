@@ -37,7 +37,8 @@ export type Member = {
 
 // says: what it did, for the reply ("Keys muted"). then: steps on the effect an add_effect made, once it's on (its
 // parameters have no refs before), from the effect and a fresh snapshot.
-export type Step = { plan: Plan, when: When, says: string, then?: (added: Device, now: Snapshot) => Step[] }
+// board: the board's step it carries out (board.ts), linked to its request.
+export type Step = { plan: Plan, when: When, says: string, then?: (added: Device, now: Snapshot) => Step[], board?: string }
 
 const MinDb = -60, MaxDb = 6
 const db = (value: number): string => value <= MinDb ? "-inf dB" : `${value > 0 ? "+" : ""}${value.toFixed(1)} dB`
@@ -104,7 +105,7 @@ export const performStep = async (context: Coordinator, agent: Actor, step: Step
             update => {
                 landsAt = update.landsAt ?? landsAt
                 onStatus(update)
-            })
+            }, step.board)
         return [`${describe(step, status, landsAt)}${slid > 0 ? ` (${slid} bar${slid > 1 ? "s" : ""} later than planned)` : ""}`,
             ...await followUp(context, agent, step, status, reason)].join("; ")
     } finally {

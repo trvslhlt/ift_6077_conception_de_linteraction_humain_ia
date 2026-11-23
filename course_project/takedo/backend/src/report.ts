@@ -12,7 +12,7 @@ type Run = {
     scenario: string, project: string, session?: string, sessions?: string[], started: string, clock?: { start: Tick, end?: Tick }, playing?: boolean, problems: string[]
     before?: Snapshot, after?: Snapshot
     controls?: Array<{ ref: string, label: string, value: number }>
-    messages: Array<{ text: string, control?: boolean, restartAfterMs?: number, replyMs: number, settledMs: number, settled: boolean, replies: Line[] }>
+    messages: Array<{ text: string, control?: boolean, restartAfterMs?: number, restartReplies?: number, replyMs: number, settledMs: number, settled: boolean, replies: Line[] }>
 }
 type Tick = { t: number, played: number }
 type Entry = Record<string, any> & { t: number, type: string }
@@ -186,7 +186,17 @@ if (before === undefined || after === undefined) {
         const agentSessions = log.filter(entry => entry.type === "agent_session")
         const ids = new Set(agentSessions.map(entry => entry.session).filter(id => typeof id === "string"))
         const recovered = agentSessions.filter(entry => entry.recover !== undefined)
-        check(recovered.some(entry => entry.recent === true), `${recovered.length > 0 ? `picked back up after the restart: "${recovered[0].recover}"` : "no message was picked back up after the restart"}`)
+        // Only when the kill cut a turn off (restart_replies 1: it came after the reply, nothing to pick up).
+        if (run.messages.some(message => message.restartAfterMs !== undefined && message.restartReplies !== 1)) check(recovered.some(entry => entry.recent === true), `${recovered.length > 0 ? `picked back up after the restart: "${recovered[0].recover}"` : "no message was picked back up after the restart"}`)
+        // Timed edits waiting at the restart kept waiting and landed (the board, reconciled when the page reconnected).
+        const reconciled = log.filter(entry => entry.type === "board" && entry.event === "reconciled" && (entry.coming.length > 0 || entry.lost.length > 0)).at(-1)
+        if (reconciled !== undefined) {
+            const requestOf = new Map(log.filter(entry => entry.type === "board" && entry.event === "linked").map(entry => [entry.step, entry.request]))
+            const landed = (reconciled.coming as string[]).filter(step => final.get(requestOf.get(step))?.state === "applied")
+            const gone = (reconciled.gone ?? []) as string[]
+            check(landed.length === reconciled.coming.length && gone.length === 0,
+                `after the restart: ${landed.length} of ${reconciled.coming.length} timed edits still waiting landed; ${gone.length} gone from the page; ${reconciled.lost.length - gone.length} staged and never sent (re-planned by the resumed turn)`)
+        }
         check(agentSessions.some(entry => entry.resumed === true) && ids.size === 1,
             `one agent conversation across the restart (${ids.size} session${ids.size === 1 ? "" : "s"}${agentSessions.some(entry => entry.resumed === true) ? ", resumed" : ", none resumed"})`)
     }

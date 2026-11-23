@@ -217,7 +217,16 @@ when the turn ends the direction's steps go out together in bar order, from the 
 playhead by whole loop passes. The backend's landing predictions are gone (only the page times edits), and the
 per-bar limit is a count of a plan's steps, knowledge entries included. Lofi scenario: every check green, 0 steps out
 of bar order (1–5 pairs in the runs before). Trade: a plan's timed steps now wait for the reply (edits for now still
-land at once). Next in step 1: waiting steps kept with the project and re-sent after a restart.
+land at once).
+
+Built (2026-11-22), step 1's second piece: waiting steps outlive a backend restart. The board is saved beside the
+notebook (`<project>.board.json`), each sent step linked to its request. The page no longer drops waiting edits when
+it loses the backend; it keeps statuses and changes made meanwhile and delivers them on reconnect, then says which
+requests are still waiting, and the board reconciles: still coming, landed, or lost (sent but gone from the page, or
+staged when the turn was cut off and never sent). The resumed agent is told which are still coming, so it doesn't plan
+them again. Nothing is re-sent: the page kept them. `make scenario SCENARIO=restart-waiting` (killed after the reply):
+4 of 4 waiting edits landed, and "keep going" left them alone; `SCENARIO=restart` (killed mid-turn): all checks green.
+Step 1 left: nothing; next is step 2, the captain split from the utility.
 
 ## Still open
 

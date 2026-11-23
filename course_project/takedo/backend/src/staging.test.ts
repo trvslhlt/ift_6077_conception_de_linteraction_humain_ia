@@ -48,3 +48,29 @@ describe("the board", () => {
         assert.equal(planSlide([2, 4], now(0, true, "3.2.1")), 0)
     })
 })
+
+describe("the board across a restart", () => {
+    it("keeps steps the page still has, and marks the rest lost: sent and gone, or staged and never sent", async () => {
+        const {mkdtempSync} = await import("node:fs")
+        const {join} = await import("node:path")
+        const {tmpdir} = await import("node:os")
+        const file = join(mkdtempSync(join(tmpdir(), "board-")), "p.board.json")
+        const board = new Board(() => {})
+        board.open(file)
+        const {id} = board.direction("make it lofi")
+        const [a, b] = [board.stage(id, "agent:utility", 3, "a", script), board.stage(id, "agent:utility", 5, "b", script)]
+        board.take(id)
+        if (!a.ok || !b.ok) {throw new Error("not staged")}
+        board.link(a.step.id, "r1")
+        board.link(b.step.id, "r2")
+        board.status({request: "r1", t: 0, pos: "", state: "scheduled"})
+        board.stage(id, "agent:utility", 7, "c", script)
+        const restarted = new Board(() => {})
+        restarted.open(file)
+        const {coming, lost} = restarted.reconcile(["r1"])
+        assert.deepEqual(coming.map(step => step.says), ["a"])
+        assert.deepEqual(lost.map(step => [step.says, step.detail]), [["b", "the page no longer has it"], ["c", "never sent: its turn was cut off"]])
+        restarted.status({request: "r1", t: 0, pos: "", state: "applied"})
+        assert.equal(restarted.coming().length, 0)
+    })
+})

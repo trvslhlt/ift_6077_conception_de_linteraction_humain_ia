@@ -15,6 +15,9 @@ export type ConnectionState = {
 }
 
 const RetryMs = [250, 500, 1000, 2000, 5000]
+// What happened while the backend was away, delivered when it's back (flush): edits' statuses and the producer's changes.
+const Kept: ReadonlyArray<PageToBackend["type"]> = ["status", "change"]
+const MaxKept = 1000
 
 export class Connection implements Terminable {
     readonly #notifier = new Notifier<ConnectionState>()
@@ -25,6 +28,7 @@ export class Connection implements Terminable {
     #retries = 0
     #retryTimer: ReturnType<typeof setTimeout> | null = null
     #nextPing = 0
+    #kept: PageToBackend[] = []
     #terminated = false
 
     constructor() {this.#open()}
@@ -36,9 +40,21 @@ export class Connection implements Terminable {
     // Every message from the backend except the connection's own (welcome, pong, error).
     subscribeMessages(observer: Observer<BackendToPage>): Subscription {return this.#messages.subscribe(observer)}
 
-    // Dropped while not connected: the backend asks again for what it needs after reconnecting.
+    // Not connected: statuses and changes are kept for flush(); anything else is dropped (the backend asks again for
+    // what it needs after reconnecting).
     send(message: PageToBackend): void {
-        if (this.#state.status === "open") {this.#send(message)}
+        if (this.#state.status === "open") {
+            this.#send(message)
+        } else if (Kept.includes(message.type)) {
+            this.#kept.push(message)
+            this.#kept.splice(0, this.#kept.length - MaxKept)
+        }
+    }
+
+    // Sends what was kept while the backend was away; the page calls it once it has told the backend which project is open.
+    flush(): void {
+        if (this.#state.status !== "open") {return}
+        this.#kept.splice(0).forEach(message => this.#send(message))
     }
 
     // Resolves with the round trip in ms; rejects if the socket isn't open or closes first.

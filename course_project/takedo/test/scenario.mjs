@@ -54,7 +54,9 @@ try {
     const clock = async () => ({t: Date.now(), played: await page.evaluate(() => window.takedo.adapter.playback().played)})
     run.clock = {start: await clock()}
     for (const step of scenario.messages) {
-        const {restart_after_ms: restartAfter} = step
+        // restart_replies: agent lines to wait for after a restart (2: "picking it back up" and the reply; 1 when the
+        // backend is killed after the reply, while its edits wait for their bars).
+        const {restart_after_ms: restartAfter, restart_replies: restartReplies = 2} = step
         let text = step.text
         const seen = (await agentLines()).length
         const start = Date.now()
@@ -91,7 +93,7 @@ try {
             }, run.sessions.at(-1), {timeout: 120000})
             run.sessions.push(await sessionShown())
             console.log(`  (backend restarted ${(restartAfter / 1000).toFixed(0)} s in; session ${run.sessions.at(-1)})`)
-            replies = 2
+            replies = restartReplies
         }
         await page.waitForFunction(([seen, replies]) => document.querySelectorAll("[data-testid=takedo-chat] li").length > seen + replies,
             [seen, replies], {timeout: ReplyMs}).catch(() => {})
@@ -104,7 +106,7 @@ try {
             quiet = await landing() === 0 ? quiet + 1 : 0
         }
         const lines = (await agentLines()).slice(seen).filter(line => line.from !== "user")
-        run.messages.push({text, ...(step.control !== undefined ? {control: true} : {}), ...(restartAfter !== undefined ? {restartAfterMs: restartAfter} : {}), replyMs, settledMs: Date.now() - start, settled: quiet >= 3, replies: lines})
+        run.messages.push({text, ...(step.control !== undefined ? {control: true} : {}), ...(restartAfter !== undefined ? {restartAfterMs: restartAfter, restartReplies} : {}), replyMs, settledMs: Date.now() - start, settled: quiet >= 3, replies: lines})
         console.log(`> ${text}\n${lines.map(line => `  ${line.shown ?? line.from}: ${line.text}`).join("\n")}\n  (${(replyMs / 1000).toFixed(1)} s to reply, ${((Date.now() - start) / 1000).toFixed(1)} s to settle)`)
     }
     run.controls = await page.evaluate(() => [...document.querySelectorAll("[data-testid=takedo-control]")].map(control => ({

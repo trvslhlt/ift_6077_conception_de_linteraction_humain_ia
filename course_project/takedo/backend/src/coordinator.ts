@@ -108,12 +108,10 @@ export class Coordinator {
             case "project": {
                 const name = message.open ? (message.name ?? "untitled") : null
                 // The utility's session belongs to a project (its notebook says which); another project, another.
-                if (name !== this.#project) {
-                    this.close()
-                    this.board.clear()
-                }
+                if (name !== this.#project) {this.close()}
                 this.#project = name
                 this.#notebook = this.#project === null ? null : new Notebook(this.#notebooks, this.#project)
+                this.board.open(this.#notebook?.boardFile ?? null)
                 this.#startKept = false
                 this.#overview = "none"
                 this.#overviewLines = null
@@ -144,12 +142,18 @@ export class Coordinator {
             case "control":
                 this.#control(message.ref, message.value)
                 return
+            case "waiting": {
+                const {coming, lost} = this.board.reconcile(message.requests)
+                this.#members.forEach(member => {if (member instanceof Utility) {member.reconciled(coming, lost)}})
+                return
+            }
             case "result":
                 this.#queries.get(message.id)?.(message.snapshot)
                 this.#queries.delete(message.id)
                 return
             case "status":
                 this.#log.write("status", message.status)
+                this.board.status(message.status)
                 this.#requests.get(message.status.request)?.(message.status)
                 if (Terminal.includes(message.status.state)) {this.#requests.delete(message.status.request)}
                 return
@@ -225,9 +229,11 @@ export class Coordinator {
 
     // Sends a plan to the adapter; resolves with its terminal status. Requires the plan to be in the agent's area
     // (TAKEDO_API.md, "Team") and the agent's claim on its target.
+    // step: the board's step it carries out, if any (board.ts), linked to the request.
     request(agent: Actor, plan: Plan, when: When, seq: number, reason: string,
-            onStatus: (status: Status) => void = () => {}): Promise<Status> {
+            onStatus: (status: Status) => void = () => {}, step?: string): Promise<Status> {
         const id = randomUUID()
+        if (step !== undefined) {this.board.link(step, id)}
         if (this.#members.find(member => member.agent === agent)?.may(plan) !== true) {
             const status: Status = {request: id, t: Date.now(), pos: "", state: "failed", reason: "not_allowed",
                 detail: `${plan.op} on ${target(plan)} is outside ${agent}'s area`}

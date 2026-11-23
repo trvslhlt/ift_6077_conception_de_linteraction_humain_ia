@@ -124,6 +124,8 @@ export type PageToBackend =
     | { type: "overview" }                                // the producer asked for a fresh overview
     | { type: "chat", text: string }                      // the producer typed in the team view
     | { type: "control", ref: string, value: number }     // the producer let go of a control at this value
+    // After (re)connecting: the requests still waiting for their bar or under way (they outlive a backend restart).
+    | { type: "waiting", requests: string[] }
     | { type: "result", id: number, snapshot: Snapshot | null }   // answer to a query; null: no project open
     | { type: "status", status: Status }
     | { type: "change", event: ChangeEvent }

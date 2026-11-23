@@ -70,7 +70,7 @@ test: build $(TYPES_DIR)/packages ## Run the smoke test in headless Chromium aga
 SCENARIO ?= lofi
 scenario: build $(TYPES_DIR)/packages ## Play scenarios/$(SCENARIO).json to TakeDo headless and write its report (scenarios/runs/)
 	mkdir -p sessions scenarios/runs
-	rm -f sessions/notebooks/scenario-$(SCENARIO).json sessions/notebooks/scenario-$(SCENARIO).agent.json scenarios/.restart
+	rm -f sessions/notebooks/scenario-$(SCENARIO).json sessions/notebooks/scenario-$(SCENARIO).agent.json sessions/notebooks/scenario-$(SCENARIO).board.json scenarios/.restart
 	$(COMPOSE) up -d --wait --force-recreate backend studio
 	@echo "backend: ROSTER=$(ROSTER) KNOWLEDGE_ROUTE=$(KNOWLEDGE_ROUTE)"
 	( while :; do if [ -f scenarios/.restart ]; then rm -f scenarios/.restart; $(COMPOSE) kill backend; \
