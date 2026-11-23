@@ -228,6 +228,14 @@ them again. Nothing is re-sent: the page kept them. `make scenario SCENARIO=rest
 4 of 4 waiting edits landed, and "keep going" left them alone; `SCENARIO=restart` (killed mid-turn): all checks green.
 Step 1 left: nothing; next is step 2, the captain split from the utility.
 
+Built (2026-11-22), step 2's first piece (issue 1): the team hears the producer's DAW changes. The coordinator keeps the
+producer's value changes (the page already reported them, tagged by actor); the utility gets them, folded per
+parameter, as `producer_changed` with each message and as "Meanwhile the producer changed by hand" in tool results
+mid-turn, with the rule to build on them rather than undo them. `make scenario SCENARIO=hand` (the producer pulls the
+drums to −20 dB, then asks for more relaxed drums): the level stayed at −20 with no agent edits on it, and the reply
+said so, twice. Not yet: structural changes (tracks, regions, notes) aren't reported as changes; a waiting step on a
+parameter the producer then moves still lands (no cancel yet).
+
 ## Still open
 
 These are for the detailed design, whatever the shape:

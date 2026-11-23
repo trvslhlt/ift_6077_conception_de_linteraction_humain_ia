@@ -4,7 +4,8 @@
 // Run via `make scenario SCENARIO=<name>` (scenarios/<name>.json); shares the studio container's network like smoke.mjs.
 // A message may carry restart_after_ms: the backend is killed that long after it's sent (the Makefile does it when this
 // drops scenarios/.restart), and its reply is the one after the page has reconnected.
-// A step may move a control instead of sending text: {"control": "<ref, or omitted for the first one shown>", "value": 0..1}.
+// A step may move a control instead of sending text: {"control": "<ref, or omitted for the first one shown>", "value": 0..1};
+// or change a parameter in openDAW as the producer would, with no reply expected: {"set": "t1.mix.volume", "value": -20}.
 import {chromium} from "playwright"
 import {mkdirSync, readFileSync, writeFileSync} from "node:fs"
 import {basename, dirname, join} from "node:path"
@@ -62,6 +63,14 @@ try {
         const start = Date.now()
         // The user's own line (none for a control move), then at least one reply (two after a restart).
         let replies = 1
+        if (step.set !== undefined) {
+            const ok = await page.evaluate(([ref, value]) => window.takedo.adapter.setAsProducer(ref, value), [step.set, step.value])
+            await page.waitForTimeout(2000)   // the page folds a gesture before reporting it
+            text = `(the producer set ${step.set} to ${step.value} in openDAW${ok ? "" : ": no such parameter"})`
+            run.messages.push({text, set: {ref: step.set, value: step.value, ok}, replyMs: 0, settledMs: 0, settled: true, replies: []})
+            console.log(`> ${text}`)
+            continue
+        }
         if (step.control !== undefined) {
             const selector = step.control === "" ? "[data-testid=takedo-control]" : `[data-testid=takedo-control][data-ref="${step.control}"]`
             const found = await page.waitForSelector(selector, {timeout: 5000}).then(() => true, () => false)

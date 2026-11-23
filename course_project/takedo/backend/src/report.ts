@@ -12,7 +12,7 @@ type Run = {
     scenario: string, project: string, session?: string, sessions?: string[], started: string, clock?: { start: Tick, end?: Tick }, playing?: boolean, problems: string[]
     before?: Snapshot, after?: Snapshot
     controls?: Array<{ ref: string, label: string, value: number }>
-    messages: Array<{ text: string, control?: boolean, restartAfterMs?: number, restartReplies?: number, replyMs: number, settledMs: number, settled: boolean, replies: Line[] }>
+    messages: Array<{ text: string, set?: { ref: string, value: number, ok: boolean }, control?: boolean, restartAfterMs?: number, restartReplies?: number, replyMs: number, settledMs: number, settled: boolean, replies: Line[] }>
 }
 type Tick = { t: number, played: number }
 type Entry = Record<string, any> & { t: number, type: string }
@@ -54,7 +54,7 @@ if (run.problems.length > 0) {out.push("", "**Problems:**", ...run.problems.map(
 // ---------- the conversation ----------
 out.push("", "## Conversation", "")
 for (const message of run.messages) {
-    out.push(message.control === true ? `**Producer** moves a control: ${message.text}` : `**Producer:** ${message.text}`, "")
+    out.push(message.set !== undefined ? `**Producer**, by hand: ${message.text}` : message.control === true ? `**Producer** moves a control: ${message.text}` : `**Producer:** ${message.text}`, "")
     if (message.restartAfterMs !== undefined) {out.push(`_(backend killed ${seconds(message.restartAfterMs)} after this message)_`, "")}
     for (const line of message.replies) {
         const shown = (line.shown ?? line.from).replace(/^agent:/, "").replace(/_/g, " ")
@@ -215,6 +215,16 @@ if (before === undefined || after === undefined) {
             check(replied && edits > 0, `moving ${move.ref} to ${move.value}: ${replied ? "a reply" : "no reply"} and ${edits} edits after it`)
         }
         if (run.controls !== undefined) {out.push(`- Controls at the end: ${run.controls.map(control => `${control.label} ${control.value}`).join(", ") || "none"}`)}
+    }
+    // The producer's own changes (set steps): kept at the end, within a dB or a few percent of where they put them.
+    for (const {set} of run.messages) {
+        if (set === undefined) {continue}
+        const [track, , param] = set.ref.split(".")
+        const now = track === "master" ? after.master.volume : (after.tracks.find(candidate => candidate.ref === track)?.mix as Record<string, number> | undefined)?.[param]
+        const agentAfter = requests.filter(entry => entry.plan.ref === set.ref && entry.t > (log.find(other => other.type === "change" && other.actor === "user"
+            && other.changes.some((change: { ref: string }) => change.ref === set.ref))?.t ?? Infinity))
+        check(typeof now === "number" && Math.abs(now - set.value) <= Math.max(1, Math.abs(set.value) * 0.05),
+            `the producer's ${set.ref} at ${set.value}: ${typeof now === "number" ? `${Math.round(now * 10) / 10} at the end` : "not found"}; ${agentAfter.length} agent edits on it after`)
     }
     const long = run.messages.flatMap(message => message.replies).filter(line => sentences(line.text) > MaxReplySentences)
     check(long.length === 0, `${long.length} replies longer than ${MaxReplySentences} sentences`)

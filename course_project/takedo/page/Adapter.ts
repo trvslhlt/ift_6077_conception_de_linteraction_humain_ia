@@ -493,6 +493,14 @@ export class Adapter implements Terminable {
         return true
     }
 
+    // A parameter set as the producer would (not tagged as an agent's), for tests: false if there's no such ref.
+    setAsProducer(ref: string, value: number): boolean {
+        const param = this.#allParams().find(candidate => candidate.ref === ref)
+        if (param === undefined) {return false}
+        this.#project.editing.modify(() => param.parameter.setValue(value))
+        return true
+    }
+
     // Requests still waiting for their bar or under way. They outlive a backend restart (2026-11-22: the board keeps the
     // plan, and the backend that comes back is told which are still coming, so it doesn't plan them again).
     waiting(): string[] {return [...this.#labels.keys()]}

@@ -65,6 +65,9 @@ export class Coordinator {
     // Controls moved since their owner last heard; whether a turn to tell it is already queued (only the latest
     // position counts, so moves made while it works are told together).
     readonly #moved = new Map<string, number>()
+    // The producer's own changes in openDAW (value changes, a gesture folded into one), in order, for the agents
+    // (ARCHITECTURE.md, issue 1); cleared when another project opens.
+    readonly #handChanges: Array<{ t: number, pos: string, ref: string, label: string, from: number, to: number }> = []
     // The team's shared state as data (board.ts); cleared when another project opens.
     readonly board: Board
     #steering = false
@@ -112,6 +115,7 @@ export class Coordinator {
                 this.#project = name
                 this.#notebook = this.#project === null ? null : new Notebook(this.#notebooks, this.#project)
                 this.board.open(this.#notebook?.boardFile ?? null)
+                this.#handChanges.length = 0
                 this.#startKept = false
                 this.#overview = "none"
                 this.#overviewLines = null
@@ -553,5 +557,22 @@ export class Coordinator {
     #change(event: ChangeEvent): void {
         this.#log.seen(event.seq)
         this.#log.write("change", event)
+        if (event.actor !== "user") {return}
+        event.changes.forEach(({ref, label, from, to}) => this.#handChanges.push({t: event.t, pos: event.pos, ref, label, from, to}))
+    }
+
+    // The producer's changes from index on, folded per parameter (first from, last to), in words; and the index to
+    // ask from next time. A parameter moved and put back is left out.
+    handChanges(from: number): { lines: string[], next: number } {
+        const folded = new Map<string, { label: string, from: number, to: number, pos: string, t: number }>()
+        // Asked from past the end: the list was cleared (another project), so from its start.
+        this.#handChanges.slice(from > this.#handChanges.length ? 0 : from).forEach(change => {
+            const was = folded.get(change.ref)
+            folded.set(change.ref, {label: change.label, from: was?.from ?? change.from, to: change.to, pos: change.pos, t: change.t})
+        })
+        const value = (number: number): string => String(Math.round(number * 100) / 100)
+        const lines = [...folded].filter(([, change]) => Math.abs(change.to - change.from) > 1e-6).map(([ref, change]) =>
+            `${change.label} (${ref}): ${value(change.from)} → ${value(change.to)}, at ${change.pos}, ${Math.round((Date.now() - change.t) / 1000)} s ago`)
+        return {lines, next: this.#handChanges.length}
     }
 }

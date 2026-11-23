@@ -99,6 +99,7 @@ Tools:
 - An edit for a later bar (fixed operation or script, at_bar above 0) is staged: it answers at once, and the whole plan goes out together when you reply, timed from where the playhead was when the message arrived, so its steps land in their bars' order however long you take. Edits for now (at_bar 0) land at once. Failures of staged edits reach you with the next message. A look sees only what has landed.
 - reply: when you've finished, call it once with what the producer reads, as in a chat with a bandmate mid-session: one or two short, plain sentences on what you changed and how it will sound (or why you couldn't). No lists or markdown; no bar numbers, refs, dB values, device settings or tempo steps unless they asked (the team view shows every edit and when it lands); no caveats about not having heard or checked it. Ask at most one short question, only when you need the answer. It checks the form and tells you what to fix. Nothing else you write is shown: keep text between tool calls to a few words, and after reply end your turn.
 - offer_control, remove_control: dials on your card in the team view, for the producer to steer what you're doing without typing. When you take on a direction that keeps going or that the producer may want more or less of (a gradual change, a style, how busy or how wet), offer one dial for it: its ends in the producer's words, meaning what you'll change as it moves. Offer it as you finish the task and say so in your reply in a few words. Keep the ones that still apply (at most 3); remove one that no longer does. Their positions are in the notebook's "controls" entry. A move reaches you as control_moved instead of producer_message: act on it as a direction (move what's still to come toward the new position, and what's playing now if the move is large), in proportion to how far it moved, then reply in a sentence.
+- producer_changed (with a message) and "Meanwhile the producer changed by hand" (in a tool result): what the producer did in openDAW themselves since you last heard (levels, pans, effect settings). That's their call: keep it and build on it, and don't move those settings back or plan over them unless they ask; mention it in your reply only when it changes what you do.
 - Read, Grep, Glob: openDAW's own source, the version that's running; your working directory is its root (packages/…). Read it for what the notes below don't say: a device's fields and their ranges (box schemas in packages/studio/forge-boxes/src/schema/devices/), step tables (adapters in packages/studio/adapters/src/devices/), how an API call works, the user manual (packages/app/manual/public/). Look before writing fields you haven't used.
 ${KnowledgeSlot}- remember, recall, forget: your notebook, kept on disk per project and listed with every message (\`notebook\`: key, kind, summary). Your conversation may be summarized between messages; the notebook isn't. Keep in it what you'll want later: the producer's wishes and taste (note), a staged plan and where it stands (plan), parts you wrote as notes (clip), sounds you designed with their settings (sound), scripts worth reusing (script). "start" (state) is the whole project before the agents' first edit this session, kept for you. "facts" (state) is what's established about this project: its key, tempo, meter, each part's register, and the overview; its summary comes with every message. Write anything pitched (chords, melodies, bass lines) in that key, and keep each part in its role (a part in the bass register stays the bass). If the producer says otherwise, remember the correction under "facts".
 
@@ -210,6 +211,7 @@ export class Utility implements Member {
     #unheard: string[] = []   // failures after a reply, for the model with the next message
     // The board's steps after a restart (Coordinator, "waiting"): still coming, and lost; told with the next turn.
     #reconciled: { coming: BoardStep[], lost: BoardStep[] } | null = null
+    #handSeen = 0             // the producer's changes told so far (Coordinator.handChanges)
 
     // team: the members whose fixed operations it borrows; catalog: which devices it may add; source: the root of
     // openDAW's source tree, the session's working directory; knowledge: the knowledge base (knowledge.ts), if loaded.
@@ -231,6 +233,13 @@ export class Utility implements Member {
     // The board after (re)connecting: steps still coming and steps lost, told with the next turn (recover, or #work).
     reconciled(coming: BoardStep[], lost: BoardStep[]): void {
         this.#reconciled = coming.length === 0 && lost.length === 0 ? null : {coming, lost}
+    }
+
+    // The producer's changes in openDAW since the model last heard, under key (none: {}).
+    #hand(context: Coordinator, key: string): Record<string, unknown> {
+        const {lines, next} = context.handChanges(this.#handSeen)
+        this.#handSeen = next
+        return lines.length === 0 ? {} : {[key]: lines}
     }
 
     // The reconciled board in words, for the model: once.
@@ -344,7 +353,7 @@ export class Utility implements Member {
         session.inbox.push(JSON.stringify({
             ...(fresh && task.history !== undefined && task.history.length > 0 ? {conversation: task.history} : {}),
             ...(this.#unheard.length > 0 ? {since_your_last_reply: this.#unheard.splice(0)} : {}),
-            ...(task.control === true ? {control_moved: task.message} : {producer_message: task.message}), ...(task.piece !== null ? {your_task: task.piece} : {}),
+            ...(task.control === true ? {control_moved: task.message} : {producer_message: task.message}), ...this.#hand(context, "producer_changed"), ...(task.piece !== null ? {your_task: task.piece} : {}),
             ...(task.candidates !== undefined && task.candidates.length > 0 ? {knowledge_candidates: task.candidates} : {}),
             project: {...projectFor(snapshot, true), regions: snapshot.tracks.map(track => ({track: track.ref,
                 regions: track.regions.map(({ref, name, from, to, loop}) => ({ref, name, from, to, loop}))}))},
@@ -427,7 +436,9 @@ export class Utility implements Member {
                 if (++current.calls > MaxCalls) {
                     return reply(`Not run: that's ${MaxCalls} calls for this message. Finish now: call reply with what you changed and what's left undone.`)
                 }
-                const result = await run(current, input)
+                let result = await run(current, input)
+                const hand = this.#hand(current.context, "meanwhile").meanwhile
+                if (hand !== undefined) {result += `\nMeanwhile the producer changed by hand: ${(hand as string[]).join("; ")}.`}
                 const late = current.work.late.splice(0)
                 return reply(late.length > 0 ? `${result}\nSince then, failed: ${late.join("; ")}.` : result)
             }
