@@ -14,7 +14,7 @@ type JobConfig =
 type Config = { jobs: Record<string, JobConfig> }
 export type ModelLog = (entry: { job: string, provider: string, model: string, ms: number, inputTokens: number,
     outputTokens?: number, cacheRead?: number, cacheWrite?: number, agent?: string, error?: string,
-    turns?: number, costUsd?: number }) => void
+    turns?: number, costUsd?: number, session?: string }) => void   // session: an agent's SDK session (costUsd is its running total)
 
 export const loadConfig = (path: string): Config => JSON.parse(readFileSync(path, "utf8"))
 

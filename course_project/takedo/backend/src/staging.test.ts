@@ -97,3 +97,19 @@ describe("cancelling", () => {
         assert.equal(board.step(c.id)?.state, "cancelled")
     })
 })
+
+describe("cancelling a piece still being planned", () => {
+    it("stops the job: its staged steps cancelled, and what it stages after refused", () => {
+        const board = new Board(() => {})
+        const {id} = board.direction("make it lofi")
+        const tempo = board.job(id, "tempo"), drums = board.job(id, "drums")
+        board.stage(id, "agent:utility", 3, "tempo 3", script, MaxPerBar, tempo.id)
+        board.stage(id, "agent:utility", 3, "drums 3", script, MaxPerBar, drums.id)
+        const result = board.cancel([tempo.id])
+        assert.deepEqual(result.cancelled.map(step => step.says), ["tempo 3"])
+        assert.deepEqual(result.jobs.map(job => job.id), [tempo.id])
+        assert.equal(board.stage(id, "agent:utility", 5, "tempo 5", script, MaxPerBar, tempo.id).ok, false)
+        assert.equal(board.stage(id, "agent:utility", 5, "drums 5", script, MaxPerBar, drums.id).ok, true)
+        assert.deepEqual(board.running().map(job => job.id), [drums.id])
+    })
+})

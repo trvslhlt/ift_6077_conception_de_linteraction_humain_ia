@@ -10,7 +10,9 @@ import {isRole, type KnowledgePick, type PartRole, pickKnowledge, type Role, rou
 import type {LogType, SessionLog} from "./sessionLog.ts"
 import {lead, writeOverview} from "./teamLead.ts"
 import {Notebook} from "./notebook.ts"
-import {Board} from "./board.ts"
+import {type Anchor, Board, type Direction} from "./board.ts"
+import {Captain} from "./captain.ts"
+import type {LlmMember} from "./members.ts"
 import {analyse, isDrums} from "./analysis.ts"
 import type {Knowledge} from "./knowledge.ts"
 import {Utility} from "./utility.ts"
@@ -20,9 +22,10 @@ import {Utility} from "./utility.ts"
 
 const ClaimMs = 30000
 const HistoryLines = 12
-// Who's in play. "utility": the utility alone takes every message, with no Jev routing and no Team Lead split, while
-// the basics of agents working in openDAW get worked out (it keeps the members' fixed operations as its tools);
-// "team": the full team. Decided 2026-11-07, to bring the roles back one at a time once the utility works well.
+// Who's in play. "utility" (the default; the name is older than what it now runs): the captain takes every message
+// and hands pieces to workers, the utility in a fresh session per piece, running in parallel (ARCHITECTURE.md, "The
+// team's structure", 2026-11-22); "team": the older full team (Jev routing, the one-off Team Lead split, specialists
+// handing leftovers to one long-lived utility session), kept until it's retired (step 3).
 // TAKEDO_ROSTER, from `make up ROSTER=…` (the smoke test runs the team).
 const Roster: "utility" | "team" = process.env.TAKEDO_ROSTER === "team" ? "team" : "utility"
 // Controls a member may have on its card at once (INTERACTION.md: one intent control each; a few while it's tried out).
@@ -52,6 +55,12 @@ export class Coordinator {
     readonly #requests = new Map<string, (status: Status) => void>()
     readonly #looks = new Map<number, (result: { ok: boolean, value: string }) => void>()
     readonly #members: ReadonlyArray<Member>
+    readonly #team: ReadonlyArray<LlmMember>
+    readonly #source: string
+    readonly #captain: Captain | null
+    // Job reports not yet told to the captain, and whether a turn to tell it is queued (several are told together).
+    readonly #reports: Array<{ kind: "job_finished" | "job_failed" | "job_failed_later", text: string, direction?: Direction }> = []
+    #reporting = false
     readonly #knowledge: Knowledge | null
     readonly #history: Array<{ from: string, text: string }> = []   // the chat so far, for messages that refer back
     #nextQuery = 0
@@ -86,12 +95,18 @@ export class Coordinator {
         this.#knowledge = knowledge
         const utility = new Utility(team, catalog, source, knowledge)
         this.#members = Roster === "team" ? [...team, utility] : [utility]
+        this.#team = team
+        this.#source = source
+        this.#captain = Roster === "team" ? null : new Captain(source)
     }
 
     get gateway(): Gateway {return this.#gateway}
 
     // The page went away: end the utility's agent session.
-    close(): void {this.#members.forEach(member => {if (member instanceof Utility) {member.close()}})}
+    close(): void {
+        this.#members.forEach(member => {if (member instanceof Utility) {member.close()}})
+        this.#captain?.close()
+    }
 
     // The open project's notebook (notebook.ts); null with no project open.
     get notebook(): Notebook | null {return this.#notebook}
@@ -99,7 +114,8 @@ export class Coordinator {
     // Tells the page who's on the team (the Team Lead first), for mentions and autocomplete. The utility isn't shown:
     // the producer sees its work as the Team Lead's (an alias; it keeps its own claims, attribution and log lines).
     start(): void {
-        this.#send({type: "team", aliases: {"agent:utility": "agent:team_lead"}, members: [
+        // With the captain, the Team Lead is the captain itself, and the workers show as the utility.
+        this.#send({type: "team", aliases: this.#captain === null ? {"agent:utility": "agent:team_lead"} : {}, members: [
             {role: "team_lead", name: "Team lead", area: Roster === "team"
                 ? "the front door: hands your direction to the team, and does the rest itself" : "does what you ask in openDAW"},
             ...this.#members.filter(member => member.role !== "utility")
@@ -125,7 +141,9 @@ export class Coordinator {
                 this.#maybeOverview()
                 // A message the backend was restarted in the middle of, picked back up.
                 const utility = this.#members.find(member => member instanceof Utility)
-                if (this.#notebook !== null && utility instanceof Utility) {
+                if (this.#notebook !== null && this.#captain !== null) {
+                    this.#captain.recover(this).catch(error => this.say("agent:team_lead", `Something went wrong: ${String(error)}`))
+                } else if (this.#notebook !== null && utility instanceof Utility) {
                     utility.recover(this).catch(error => this.say("agent:team_lead", `Something went wrong: ${String(error)}`))
                 }
                 return
@@ -148,7 +166,12 @@ export class Coordinator {
                 return
             case "waiting": {
                 const {coming, lost} = this.board.reconcile(message.requests)
-                this.#members.forEach(member => {if (member instanceof Utility) {member.reconciled(coming, lost)}})
+                if (this.#captain !== null) {
+                    // Workers' sessions don't outlive the backend: a job still running was cut off.
+                    this.#captain.reconciled(coming, lost, this.board.loseRunning())
+                } else {
+                    this.#members.forEach(member => {if (member instanceof Utility) {member.reconciled(coming, lost)}})
+                }
                 return
             }
             case "result":
@@ -175,6 +198,7 @@ export class Coordinator {
                     : `The audio engine crashed and is restarting. I undid my last change ("${message.undone}"), the likely cause.`
                 this.say("agent:team_lead", text)
                 this.#members.forEach(member => {if (member instanceof Utility) {member.notice(text)}})
+                this.#captain?.notice(text)
                 return
             }
         }
@@ -349,10 +373,11 @@ export class Coordinator {
 
     // Takes back steps that haven't landed (board.ts, Board.cancel), on the page too.
     cancel(ids: ReadonlyArray<string> | "all"): string {
-        const {cancelled, requests, missed} = this.board.cancel(ids)
+        const {cancelled, requests, missed, jobs} = this.board.cancel(ids)
         requests.forEach(request => this.#send({type: "cancel", request}))
-        if (cancelled.length === 0) {return `Nothing cancelled${missed.length > 0 ? `: no step not yet landed starts with ${missed.join(", ")}` : ": nothing is waiting"}.`}
-        return `Cancelled ${cancelled.length}: ${cancelled.map(step => `${step.says} (bar ${step.bar})`).join("; ")}.` +
+        const stopped = jobs.length > 0 ? ` Stopped ${jobs.map(job => job.id).join(", ")}: nothing more of ${jobs.length > 1 ? "theirs" : "its"} will be staged.` : ""
+        if (cancelled.length === 0) {return `${stopped === "" ? "Nothing cancelled" : stopped.trim()}${missed.length > 0 ? ` Not found, or landed already: ${missed.join(", ")}.` : stopped === "" ? ": nothing is waiting." : ""}`}
+        return `Cancelled ${cancelled.length}: ${cancelled.map(step => `${step.says} (bar ${step.bar})`).join("; ")}.${stopped}` +
             `${missed.length > 0 ? ` Not found (or landed already): ${missed.join(", ")}.` : ""} What has landed stays.`
     }
 
@@ -413,6 +438,30 @@ export class Coordinator {
         this.#setControls(controls.map(candidate => candidate.ref === ref ? control : candidate))
         this.#log.write("control", {ref, value: control.value, owner: control.owner})
         if (!this.#moved.has(ref)) {this.#moved.set(ref, was ?? moved.value)}
+        const describe = (): string => {
+            const now = this.controls()
+            const text = [...this.#moved].flatMap(([ref, was]) => {
+                const control = now.find(candidate => candidate.ref === ref)
+                return control === undefined || control.value === was ? []
+                    : [`The producer moved your control "${control.label}" from ${was.toFixed(2)} to ${placed(control)}. It means: ${control.meaning}`]
+            }).join("\n")
+            this.#moved.clear()
+            return text
+        }
+        const captain = this.#captain
+        if (captain !== null) {
+            if (control.owner !== captain.agent) {return}
+            this.card({agent: captain.agent, name: captain.name, doing: `heard: ${control.label} ${placed(control).replace(/ \(0 is.*$/, "")}`})
+            if (this.#steering) {return}
+            this.#steering = true
+            captain.later(this, async () => {
+                this.#steering = false
+                const text = describe()
+                const snapshot = text === "" ? null : await this.snapshot()
+                return snapshot === null ? null : {turn: {kind: "control_moved", text}, snapshot}
+            }).catch(error => this.say("agent:team_lead", `Something went wrong: ${String(error)}`))
+            return
+        }
         const utility = this.#members.find(member => member instanceof Utility)
         if (!(utility instanceof Utility) || control.owner !== utility.agent) {return}
         this.card({agent: utility.agent, name: utility.name, doing: `heard: ${control.label} ${placed(control).replace(/ \(0 is.*$/, "")}`})
@@ -454,6 +503,9 @@ export class Coordinator {
         const snapshot = await this.snapshot()
         if (snapshot === null) {return this.say("agent:team_lead", "Open a project first.")}
         await this.#keepFacts()
+        if (this.#captain !== null) {
+            return this.#captain.handle(this, {kind: "producer_message", text: message, history}, snapshot)
+        }
         const utility = this.#members.find(member => member.role === "utility")
         if (Roster === "utility" && utility instanceof Utility) {
             const task: Task = {message, piece: null, hints: null, history}
@@ -491,6 +543,61 @@ export class Coordinator {
             this.#log.write("route", {path: "knowledge_error", error: String(error)})
             return null
         }
+    }
+
+    // ---------- jobs (the captain's workers) ----------
+
+    // Hands a piece of a direction to a fresh worker (the utility in job mode), which runs at once, alongside any
+    // others; its timed steps join the direction's plan from the same anchor. Its report goes to the captain.
+    assign(direction: Direction, anchor: Anchor | null, piece: string): string {
+        const job = this.board.job(direction.id, piece)
+        const worker = new Utility(this.#team, this.#catalog, this.#source, this.#knowledge, "job")
+        void (async () => {
+            const snapshot = await this.snapshot()
+            if (snapshot === null) {throw new Error("no project is open")}
+            return worker.job(this, {id: job.id, piece, message: direction.text, direction, anchor}, snapshot)
+        })().then(async report => {
+            this.board.jobDone(job.id, "done", report)
+            await this.#sendWhenDone(worker, direction, anchor)
+            this.#report({kind: "job_finished", text: `${job.id} (${piece}): ${report}`, direction})
+        }, async error => {
+            this.board.jobDone(job.id, "failed", String(error))
+            await this.#sendWhenDone(worker, direction, anchor)
+            this.#report({kind: "job_failed", text: `${job.id} (${piece}): stopped with an error: ${String(error)}`, direction})
+        })
+        return `Started ${job.id}. Its report comes back as job_finished.`
+    }
+
+    // A direction's plan goes out together once none of its jobs is still running (board.ts: one anchor for all its
+    // pieces, however long each took to plan).
+    async #sendWhenDone(worker: Utility, direction: Direction, anchor: Anchor | null): Promise<void> {
+        if (this.board.running().some(job => job.direction === direction.id)) {return}
+        if (this.board.staged(direction.id).length === 0) {return}
+        await worker.send(this, direction, anchor).catch(error => this.#log.write("board", {event: "send_failed", error: String(error)}))
+    }
+
+    // A job's edits (or a direction's sent plan's: id null) that failed after the job reported.
+    jobLate(id: string | null, text: string, direction?: Direction): void {
+        const job = id === null ? undefined : this.board.jobOf(id)
+        this.#report({kind: "job_failed_later", text: `${id ?? "the plan"}: failed after planning: ${text}`,
+            direction: direction ?? (job === undefined ? undefined : this.board.directionOf(job.direction))})
+    }
+
+    // Job reports reach the captain together, in one turn built when its time comes.
+    #report(report: { kind: "job_finished" | "job_failed" | "job_failed_later", text: string, direction?: Direction }): void {
+        const captain = this.#captain
+        if (captain === null) {return}
+        this.#reports.push(report)
+        if (this.#reporting) {return}
+        this.#reporting = true
+        captain.later(this, async () => {
+            this.#reporting = false
+            const reports = this.#reports.splice(0)
+            const snapshot = reports.length === 0 ? null : await this.snapshot()
+            if (snapshot === null) {return null}
+            const kind = reports.some(report => report.kind !== "job_finished") ? reports.find(report => report.kind !== "job_finished")!.kind : "job_finished"
+            return {turn: {kind, text: reports.map(report => report.text).join("\n"), direction: reports[0].direction}, snapshot}
+        }).catch(error => this.say("agent:team_lead", `Something went wrong: ${String(error)}`))
     }
 
     // What a member's fast operations don't cover, done by the Team Lead's hands (the utility) on a fresh snapshot.

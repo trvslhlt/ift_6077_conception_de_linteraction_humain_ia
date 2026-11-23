@@ -5,6 +5,7 @@
     "overview": {"provider": "anthropic", "model": "claude-haiku-5-5", "effort": "low", "maxTokens": 4000},
     "team_lead": {"provider": "anthropic", "model": "claude-haiku-5-5", "effort": "low", "maxTokens": 4000},
     "member": {"provider": "anthropic", "model": "claude-haiku-5-5", "effort": "low", "maxTokens": 6000},
+    "captain": {"provider": "anthropic", "model": "claude-haiku-5-5", "effort": "medium", "maxTokens": 16000},
     "utility": {"provider": "anthropic", "model": "claude-haiku-5-5", "effort": "medium", "maxTokens": 16000}
   }
 }

@@ -38,7 +38,7 @@ type Work = { done: string[], pending: Promise<string>[], late: string[] }
 // on the board, which holds its timed edits until the turn ends; applying: a knowledge entry's edits are being staged
 // (its own steps may share a bar beyond the per-bar limit, which it was checked against as a whole).
 type Current = { context: Coordinator, task: Task, work: Work, calls: number, said?: string, direction: Direction,
-    anchor: Anchor | null, applying?: boolean, applied?: string[], appliedBars?: number }   // applied: what a knowledge entry's steps said they'd do (the fast route's reply)
+    anchor: Anchor | null, applying?: boolean, applied?: string[], appliedBars?: number, job?: string }   // job: a worker's piece   // applied: what a knowledge entry's steps said they'd do (the fast route's reply)
 // Where the playhead was when the producer's message arrived: the plan's bars count from it (When's from).
 const anchorOf = (snapshot: Snapshot): Anchor | null => snapshot.playback.position === undefined ? null
     : {position: snapshot.playback.position, played: snapshot.playback.played, bar: snapshot.playback.bar}
@@ -88,7 +88,7 @@ const KnowledgeTools = `- knowledge, apply_knowledge, learn: the team's knowledg
 `
 const KnowledgeKey = "- A chord pattern needs the project's key: pass the one in your notebook's facts.\n"
 const KnowledgeSlot = "\u0000knowledge-tools", KeySlot = "\u0000knowledge-key"
-const System = `You are the utility on an AI music production team (the producer sees you as the Team Lead: speak as "I", and never call yourself the utility) working live in openDAW (a web DAW) with a producer, usually while the track plays. You can do anything openDAW supports, working on the project directly with JavaScript. Your conversation carries on across the producer's messages (each brings a fresh project summary), but its older parts are summarized when it grows long: keep what you'll need later in your notebook. You get the producer's message, the chat before you joined, if any (\`conversation\`); "go on", "do the rest" or "all of it" refer to what came before, and your task when the work was split (do only that part).
+export const System = `You are the utility on an AI music production team (the producer sees you as the Team Lead: speak as "I", and never call yourself the utility) working live in openDAW (a web DAW) with a producer, usually while the track plays. You can do anything openDAW supports, working on the project directly with JavaScript. Your conversation carries on across the producer's messages (each brings a fresh project summary), but its older parts are summarized when it grows long: keep what you'll need later in your notebook. You get the producer's message, the chat before you joined, if any (\`conversation\`); "go on", "do the rest" or "all of it" refer to what came before, and your task when the work was split (do only that part).
 
 A direction toward a style, genre or feel ("make it lofi", "evolve this into dub") asks for the whole transformation, not a first step. Work out what that style needs here: tempo and feel, drums (pattern, swing, ghost notes, velocities), harmony (chords, voicings, extensions), each part's sound (instrument choice and settings, a new track when a part's instrument can't get there), effects and mix. Do all of it. When it should happen gradually, stage it: changes timed across the bars it names (or 8 to 16 bars), each stage small, all scheduled before you finish.
 
@@ -135,8 +135,18 @@ Rules:
 ${KeySlot}- Do the whole task before you finish: never stop after a first part to offer the next, or ask whether to do a part that was asked for. Make several calls per round when they don't depend on each other.
 - If something fails twice the same way, stop and say what's in the way.`
 
+// The worker's prompt (the captain roster, ARCHITECTURE.md "The team's structure"): the same, but it does one piece
+// the captain handed it, in a fresh session, reports to the captain, and leaves controls and cancelling to the captain.
+export const WorkerSystem = System
+    .replace(`You are the utility on an AI music production team (the producer sees you as the Team Lead: speak as "I", and never call yourself the utility) working live in openDAW (a web DAW) with a producer, usually while the track plays. You can do anything openDAW supports, working on the project directly with JavaScript. Your conversation carries on across the producer's messages (each brings a fresh project summary), but its older parts are summarized when it grows long: keep what you'll need later in your notebook. You get the producer's message, the chat before you joined, if any (\`conversation\`); "go on", "do the rest" or "all of it" refer to what came before, and your task when the work was split (do only that part).`, `You are a worker on an AI music production team working live in openDAW (a web DAW) with a producer, usually while the track plays. The Team Lead hands you one piece of a direction (your_task, with the producer_message it is for); other workers may be doing other pieces at the same time, so do only yours and change only what it names. You can do anything openDAW supports, working on the project directly with JavaScript. You start fresh for each piece: your notebook holds what earlier work kept.`)
+    .replace(`A direction toward a style, genre or feel ("make it lofi", "evolve this into dub") asks for the whole transformation, not a first step. Work out what that style needs here: tempo and feel, drums (pattern, swing, ghost notes, velocities), harmony (chords, voicings, extensions), each part's sound (instrument choice and settings, a new track when a part's instrument can't get there), effects and mix. Do all of it. When it should happen gradually, stage it: changes timed across the bars it names (or 8 to 16 bars), each stage small, all scheduled before you finish.`, `Do the whole piece. When it should happen gradually, stage it: changes timed across the bars it names (or 8 to 16 bars), each stage small, all scheduled before you finish.`)
+    .replace(`- reply: when you've finished, call it once with what the producer reads, as in a chat with a bandmate mid-session: one or two short, plain sentences on what you changed and how it will sound (or why you couldn't). No lists or markdown; no bar numbers, refs, dB values, device settings or tempo steps unless they asked (the team view shows every edit and when it lands); no caveats about not having heard or checked it. Ask at most one short question, only when you need the answer. It checks the form and tells you what to fix. Nothing else you write is shown: keep text between tool calls to a few words, and after reply end your turn.`, `- reply: when you've finished, call it once with your report to the Team Lead: one or two plain sentences on what you changed or staged and anything you couldn't do (and why). No lists or markdown. After reply end your turn.`)
+    .replace(`- offer_control, remove_control: dials on your card in the team view, for the producer to steer what you're doing without typing. When you take on a direction that keeps going or that the producer may want more or less of (a gradual change, a style, how busy or how wet), offer one dial for it: its ends in the producer's words, meaning what you'll change as it moves. Offer it as you finish the task and say so in your reply in a few words. Keep the ones that still apply (at most 3); remove one that no longer does. Their positions are in the notebook's "controls" entry. A move reaches you as control_moved instead of producer_message: act on it as a direction (move what's still to come toward the new position, and what's playing now if the move is large), in proportion to how far it moved, then reply in a sentence.` + "\n", "")
+    .replace(`- cancel: take back timed edits that haven't landed (coming_steps, with each message, lists them by the message they're for). Use it when the producer says stop, less, or changes their mind about something still coming, or when a step would undo what they just did by hand. What has landed stays; to undo it, change it back.` + "\n", "")
+    .replace(`every bar counts from where the playhead was when the producer's message arrived (the summary's playback.bar)`, `every bar counts from where the playhead was when the producer's message arrived (playback_at_message.bar)`)
+
 // The producer's messages, fed to the session as they come (streaming input), so it stays open between them.
-class Inbox implements AsyncIterable<SDKUserMessage> {
+export class Inbox implements AsyncIterable<SDKUserMessage> {
     readonly #waiting: SDKUserMessage[] = []
     #wake: (() => void) | null = null
     #closed = false
@@ -216,7 +226,13 @@ export class Utility implements Member {
 
     // team: the members whose fixed operations it borrows; catalog: which devices it may add; source: the root of
     // openDAW's source tree, the session's working directory; knowledge: the knowledge base (knowledge.ts), if loaded.
-    constructor(team: ReadonlyArray<LlmMember>, catalog: Catalog, source: string, knowledge: Knowledge | null = null) {
+    // mode: "session", one long-lived session for every message (the ROSTER=team path, until it's retired); "job", a
+    // worker for one piece the captain hands out, in a fresh session (job()).
+    readonly #mode: "session" | "job"
+
+    constructor(team: ReadonlyArray<LlmMember>, catalog: Catalog, source: string, knowledge: Knowledge | null = null,
+                mode: "session" | "job" = "session") {
+        this.#mode = mode
         this.#team = team
         this.#source = source
         this.#knowledge = knowledge
@@ -401,8 +417,11 @@ export class Utility implements Member {
             // A new session's id comes with its first message: kept with the message it's working on.
             if (this.#sessionId === null && "session_id" in message && typeof message.session_id === "string") {
                 this.#sessionId = message.session_id
-                context.notebook?.setAgentState({session: message.session_id, pending})
-                context.event("agent_session", {session: message.session_id, resumed: false})
+                // A worker's session is never resumed: the captain's is the project's (captain.ts).
+                if (this.#mode === "session") {
+                    context.notebook?.setAgentState({session: message.session_id, pending})
+                    context.event("agent_session", {session: message.session_id, resumed: false})
+                }
             }
             if (message.type === "assistant" && message.parent_tool_use_id === null
                 && message.message.content.some(block => block.type === "tool_use" && SourceTools.includes(block.name))) {
@@ -410,7 +429,7 @@ export class Utility implements Member {
             }
             if (message.type !== "result") {continue}
             const {usage} = message
-            context.modelLog()({job: "utility", provider: "anthropic", model, ms: message.duration_ms,
+            context.modelLog()({job: "utility", provider: "anthropic", model, ms: message.duration_ms, session: message.session_id,
                 inputTokens: usage.input_tokens, outputTokens: usage.output_tokens,
                 cacheRead: usage.cache_read_input_tokens, cacheWrite: usage.cache_creation_input_tokens,
                 turns: message.num_turns, costUsd: message.total_cost_usd, agent: this.agent,
@@ -442,6 +461,10 @@ export class Utility implements Member {
             async (input: Record<string, unknown>): Promise<CallToolResult> => {
                 const current = this.#current
                 if (current === null) {return reply("No message is being worked on.")}
+                // A worker whose piece the Team Lead cancelled stops at its next call.
+                if (current.job !== undefined && current.context.board.jobOf(current.job)?.state === "cancelled") {
+                    return reply("Not run: the Team Lead cancelled this piece. Stop here: call reply saying so.")
+                }
                 if (++current.calls > MaxCalls) {
                     return reply(`Not run: that's ${MaxCalls} calls for this message. Finish now: call reply with what you changed and what's left undone.`)
                 }
@@ -475,6 +498,8 @@ export class Utility implements Member {
                     current.said = text
                     return reply("Sent. End your turn now.")
                 }),
+            // The captain's in the captain roster (captain.ts): a worker leaves controls and cancelling to it.
+            ...(this.#mode === "job" ? [] : [
             tool("offer_control", "Put a dial on your card in the team view (or change one you have: same name), for the producer to steer a direction that keeps going. It changes nothing by itself.", {
                 name: z.string().regex(/^[a-z][a-z0-9_]{0,30}$/).describe("A short id, lower case (\"lofi_amount\")"),
                 label: z.string().max(30).describe("What the producer reads on it, a word or two (\"Lofi\", \"Busy\")"),
@@ -492,7 +517,8 @@ export class Utility implements Member {
                     return current.context.cancel(ids.includes("all") ? "all" : ids)
                 })),
             tool("remove_control", "Take a dial off your card.", {name: z.string()},
-                handler((current, input) => current.context.removeControl(this.agent, `c:${String(input.name).replace(/^c:/, "")}`))),
+                handler((current, input) => current.context.removeControl(this.agent, `c:${String(input.name).replace(/^c:/, "")}`)))
+            ]),
             tool("look", "Run read-only JavaScript (an async function body, `takedo` in scope) and see what it returns.", {
                 code: z.string()}, handler((current, input) => this.#look(current.context, String(input.code))),
                 {annotations: {readOnlyHint: true}}),
@@ -516,7 +542,7 @@ export class Utility implements Member {
         const inbox = new Inbox()
         return {inbox, query: query({prompt: inbox, options: {
             model, ...(effort !== undefined ? {effort} : {}),
-            systemPrompt: System.replace(KnowledgeSlot, this.#knowledge === null ? "" : KnowledgeTools)
+            systemPrompt: (this.#mode === "job" ? WorkerSystem : System).replace(KnowledgeSlot, this.#knowledge === null ? "" : KnowledgeTools)
                 .replace(KeySlot, this.#knowledge === null ? "" : KnowledgeKey),
             cwd: this.#cwd(),
             ...(resume !== undefined ? {resume} : {}),
@@ -688,7 +714,7 @@ export class Utility implements Member {
     // A timed edit, kept on the board until the turn ends (ARCHITECTURE.md, "The team's structure").
     #stage(current: Current, bar: number, says: string, action: Action): string {
         const {board} = current.context
-        const staged = board.stage(current.direction.id, this.agent, bar, says, action, current.applying === true ? Infinity : MaxPerBar)
+        const staged = board.stage(current.direction.id, this.agent, bar, says, action, current.applying === true ? Infinity : MaxPerBar, current.job)
         if (!staged.ok) {return `Not staged: ${staged.reason}.`}
         return `Staged for bar ${bar} (${board.count(current.direction.id, bar)} on that bar in this plan); it goes out with the rest when you reply.`
     }
@@ -773,6 +799,55 @@ export class Utility implements Member {
 
     // Says the summary at once and frees the utility for the next message; the card follows the edits still landing,
     // and anything that fails after is said too, and told to the model with the next message.
+    // A worker's piece (mode "job"): a fresh session, the captain's direction and anchor, so its timed steps join the
+    // plan's other pieces on one timeline. Resolves with its report to the captain; its timed steps stay staged on the
+    // board until the direction's last job is done, then go out together (send), so pieces planned at different
+    // speeds still land in their bars' order.
+    async job(context: Coordinator, job: { id: string, piece: string, message: string, direction: Direction, anchor: Anchor | null },
+              snapshot: Snapshot): Promise<string> {
+        context.card({agent: this.agent, name: this.name, doing: `${job.id}: ${job.piece}`})
+        const session = this.#session = this.#open(context, snapshot)
+        const work: Work = {done: [], pending: [], late: []}
+        const current: Current = {context, task: {message: job.message, piece: job.piece, hints: null}, work, calls: 0,
+            direction: job.direction, anchor: job.anchor, job: job.id}
+        this.#current = current
+        this.#handSeen = 0
+        session.inbox.push(JSON.stringify({
+            your_task: job.piece, producer_message: job.message,
+            ...(job.anchor !== null ? {playback_at_message: {bar: job.anchor.bar}} : {}),
+            ...this.#hand(context, "producer_changed"),
+            project: {...projectFor(snapshot, true), regions: snapshot.tracks.map(track => ({track: track.ref,
+                regions: track.regions.map(({ref, name, from, to, loop}) => ({ref, name, from, to, loop}))}))},
+            notebook: context.notebook?.list() ?? [],
+            ...this.#knowledgeLines(true),
+            devices: this.#devices, ...Object.assign({}, ...this.#team.map(member => member.context(snapshot)))
+        }))
+        try {
+            const summary = await this.#reply(context, session, null)
+            const report = current.said ?? asChatLine(summary)
+            context.card({agent: this.agent, name: this.name, doing: `${job.id} planned`})
+            if (work.late.length > 0) {context.jobLate(job.id, work.late.map(line => line.replace(/\.+$/, "")).join("; "))}
+            return report || (work.done.length > 0 ? `${work.done.join("; ")}.` : "Changed nothing.")
+        } catch (error) {
+            context.board.drop(job.direction.id)
+            throw error
+        } finally {
+            this.#current = null
+            this.close()
+        }
+    }
+
+    // Sends a direction's staged steps, all its workers' (Coordinator, when its last job is done): any worker can, since
+    // steps are data. Failures go to the captain (Coordinator.jobLate) once everything has landed.
+    async send(context: Coordinator, direction: Direction, anchor: Anchor | null): Promise<void> {
+        const work: Work = {done: [], pending: [], late: []}
+        await this.#commit({context, task: {message: direction.text, piece: null, hints: null}, work, calls: 0, direction, anchor})
+        void Promise.all(work.pending).then(() => {
+            context.card({agent: this.agent, name: this.name, doing: "idle"})
+            if (work.late.length > 0) {context.jobLate(null, work.late.map(line => line.replace(/\.+$/, "")).join("; "), direction)}
+        })
+    }
+
     async #finish(context: Coordinator, summary: string, work: Work): Promise<void> {
         context.say(this.agent, summary.trim() || (work.done.length > 0 ? `${work.done.join("; ")}.` : "I didn't change anything."))
         void Promise.all(work.pending).then(() => {

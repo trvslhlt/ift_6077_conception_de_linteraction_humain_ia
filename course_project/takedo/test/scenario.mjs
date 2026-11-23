@@ -19,7 +19,7 @@ const scenario = JSON.parse(readFileSync(file, "utf8"))
 const name = basename(file, ".json")
 const bundle = readFileSync(join(dirname(file), "projects", scenario.project)).toString("base64")
 // An edit is still landing while its row says so; a message is settled when none is, or after this long.
-const SettleMs = scenario.settle_ms ?? 150000
+const SettleMs = scenario.settle_ms ?? 300000
 const ReplyMs = scenario.reply_ms ?? 240000
 
 const browser = await chromium.launch({args: ["--autoplay-policy=no-user-gesture-required"]})
@@ -31,8 +31,11 @@ page.on("pageerror", error => problems.push(`pageerror: ${error.message}`))
 const agentLines = () => page.evaluate(() => [...document.querySelectorAll("[data-testid=takedo-chat] li")]
     .map(line => ({from: line.dataset.from, shown: line.dataset.shown, text: line.lastElementChild?.textContent ?? ""})))
 const full = () => page.evaluate(() => window.takedo.adapter.snapshot("full"))
+// Still going: edits waiting or under way, or the Team Lead with jobs running or a turn in progress (workers plan in the
+// background after the captain has replied, and their edits only show once they've planned).
 const landing = () => page.evaluate(() => document.querySelectorAll(
-    "[data-testid=takedo-activity] li[data-state=scheduled], [data-testid=takedo-activity] li[data-state=running], [data-testid=takedo-activity] li[data-state=queued]").length)
+    "[data-testid=takedo-activity] li[data-state=scheduled], [data-testid=takedo-activity] li[data-state=running], [data-testid=takedo-activity] li[data-state=queued]").length
+    + (/running|thinking|heard/.test(document.querySelector('[data-agent="agent:team_lead"] [data-testid=takedo-card-doing]')?.textContent ?? "") ? 1 : 0))
 
 const run = {scenario: name, project: scenario.project, started: new Date().toISOString(), messages: [], problems}
 try {

@@ -23,8 +23,12 @@ export type Action = { op: string, input: Record<string, unknown> } | { script: 
 // cancelled: taken back before it landed (Board.cancel).
 export type StepState = "staged" | "sent" | "waiting" | "landed" | "failed" | "lost" | "cancelled"
 export type Step = { id: string, direction: string, agent: Actor, bar: number, says: string, action: Action,
-    state: StepState, t: number, request?: string, detail?: string }
+    state: StepState, t: number, request?: string, detail?: string, job?: string }   // job: the worker's piece that staged it
 const Open: ReadonlyArray<StepState> = ["sent", "waiting"]
+// A piece of a direction the captain handed to a worker (a fresh agent session); lost: cut off by a restart.
+// cancelled: taken back while its worker was still planning (its steps with it; anything it stages after is refused).
+export type Job = { id: string, direction: string, piece: string, state: "running" | "done" | "failed" | "lost" | "cancelled", t: number,
+    summary?: string }
 
 // Edits one bar takes in a gradual change; a step past it is refused (2026-11-22: a note alone didn't hold, four edits
 // on bar 12, a tempo step and three effects).
@@ -34,6 +38,7 @@ export class Board {
     readonly #log: (data: object) => void
     readonly #directions = new Map<string, Direction>()
     #steps: Step[] = []
+    #jobs: Job[] = []
     #file: string | null = null
 
     constructor(log: (data: object) => void) {this.#log = log}
@@ -44,15 +49,16 @@ export class Board {
         this.#file = file
         if (file === null) {return}
         try {
-            const stored = JSON.parse(readFileSync(file, "utf8")) as { directions: Direction[], steps: Step[] }
+            const stored = JSON.parse(readFileSync(file, "utf8")) as { directions: Direction[], steps: Step[], jobs?: Job[] }
             stored.directions.forEach(direction => this.#directions.set(direction.id, direction))
             this.#steps = stored.steps
+            this.#jobs = stored.jobs ?? []
         } catch {/* a new project, or an unreadable file: start empty */}
     }
 
     #save(): void {
         if (this.#file === null) {return}
-        writeFileSync(this.#file, JSON.stringify({directions: [...this.#directions.values()], steps: this.#steps}))
+        writeFileSync(this.#file, JSON.stringify({directions: [...this.#directions.values()], steps: this.#steps, jobs: this.#jobs}))
     }
 
     direction(text: string, control = false): Direction {
@@ -71,13 +77,16 @@ export class Board {
     // A step for later, or the reason it's refused.
     // limit: steps the bar may hold (a knowledge entry's, checked as a whole, may go over).
     stage(direction: string, agent: Actor, bar: number, says: string, action: Action,
-          limit = MaxPerBar): { ok: true, step: Step } | { ok: false, reason: string } {
+          limit = MaxPerBar, job?: string): { ok: true, step: Step } | { ok: false, reason: string } {
+        if (job !== undefined && this.jobOf(job)?.state === "cancelled") {
+            return {ok: false, reason: "the Team Lead cancelled this piece. Stop here: call reply saying so"}
+        }
         if (this.count(direction, bar) >= limit) {
             return {ok: false, reason: `bar ${bar} already has ${MaxPerBar} edits in this plan, the most one bar takes in a gradual change. Put this on another bar`}
         }
-        const step: Step = {id: randomUUID(), direction, agent, bar, says, action, state: "staged", t: Date.now()}
+        const step: Step = {id: randomUUID(), direction, agent, bar, says, action, state: "staged", t: Date.now(), ...(job !== undefined ? {job} : {})}
         this.#steps.push(step)
-        this.#log({event: "staged", id: step.id, direction, agent, bar, says})
+        this.#log({event: "staged", id: step.id, direction, agent, bar, says, ...(job !== undefined ? {job} : {})})
         this.#save()
         return {ok: true, step}
     }
@@ -144,6 +153,42 @@ export class Board {
         return {coming, lost}
     }
 
+    // ---------- jobs ----------
+
+    job(direction: string, piece: string): Job {
+        const job: Job = {id: `j${this.#jobs.length + 1}`, direction, piece, state: "running", t: Date.now()}
+        this.#jobs.push(job)
+        this.#log({event: "job", ...job})
+        this.#save()
+        return job
+    }
+
+    jobDone(id: string, state: "done" | "failed", summary: string): void {
+        const job = this.#jobs.find(candidate => candidate.id === id)
+        if (job === undefined || job.state !== "running") {return}
+        job.state = state
+        job.summary = summary
+        this.#log({event: "job_done", id, state, summary})
+        this.#save()
+    }
+
+    running(): Job[] {return this.#jobs.filter(job => job.state === "running")}
+
+    jobOf(id: string): Job | undefined {return this.#jobs.find(job => job.id === id)}
+
+    directionOf(id: string): Direction | undefined {return this.#directions.get(id)}
+
+    // After a restart: jobs that were running were cut off with their sessions.
+    loseRunning(): Job[] {
+        const lost = this.running()
+        lost.forEach(job => {job.state = "lost"})
+        if (lost.length > 0) {
+            this.#log({event: "jobs_lost", jobs: lost.map(job => job.id)})
+            this.#save()
+        }
+        return lost
+    }
+
     // Steps still to land, across directions.
     coming(): Step[] {return this.#steps.filter(step => Open.includes(step.state))}
 
@@ -159,26 +204,32 @@ export class Board {
     // Takes back steps that haven't landed (ids, or a unique start of one; "all": every one): a staged step, or one sent
     // but not yet carried out, is cancelled at once; for one the page has, returns its request to cancel there (the
     // page's status then marks it). Unknown or already landed ids come back in missed.
-    cancel(ids: ReadonlyArray<string> | "all"): { cancelled: Step[], requests: string[], missed: string[] } {
+    // A job's id ("j3") cancels the job, if it's still running, and every step it has staged or sent.
+    cancel(ids: ReadonlyArray<string> | "all"): { cancelled: Step[], requests: string[], missed: string[], jobs: Job[] } {
         const open = this.#steps.filter(step => step.state === "staged" || Open.includes(step.state))
         const missed: string[] = []
-        const chosen = ids === "all" ? open : ids.flatMap(id => {
+        const jobs = ids === "all" ? this.running() : ids.flatMap(id => this.#jobs.filter(job => job.id === id && job.state === "running"))
+        jobs.forEach(job => {job.state = "cancelled"})
+        const byJob = open.filter(step => step.job !== undefined && jobs.some(job => job.id === step.job))
+        const chosen = ids === "all" ? open : [...byJob, ...ids.filter(id => !/^j\d+$/.test(id)).flatMap(id => {
             const found = open.filter(step => step.id.startsWith(id))
             if (found.length !== 1) {missed.push(id)}
             return found.length === 1 ? found : []
-        })
+        })]
+        missed.push(...(ids === "all" ? [] : ids.filter(id => /^j\d+$/.test(id) && !jobs.some(job => job.id === id))))
         const requests: string[] = []
         chosen.forEach(step => {
             if (step.request !== undefined) {requests.push(step.request)} else {step.state = "cancelled"}
         })
-        this.#log({event: "cancel", steps: chosen.map(step => step.id), requests, missed})
+        this.#log({event: "cancel", steps: chosen.map(step => step.id), requests, missed, jobs: jobs.map(job => job.id)})
         this.#save()
-        return {cancelled: chosen, requests, missed}
+        return {cancelled: chosen, requests, missed, jobs}
     }
 
     clear(): void {
         this.#directions.clear()
         this.#steps = []
+        this.#jobs = []
         this.#file = null
     }
 }

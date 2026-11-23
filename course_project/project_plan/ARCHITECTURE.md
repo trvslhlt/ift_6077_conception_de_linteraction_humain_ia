@@ -247,6 +247,34 @@ the page). The agent sees the steps not landed yet with each message (`coming_st
 they're for) and has a `cancel` tool. `make scenario SCENARIO=cancel` (the producer changes their mind about the
 tempo while the lofi plan waits): the 7 waiting tempo steps were cancelled, none landed, the rest of the plan landed.
 
+Built (2026-11-22), step 2's second piece: the captain split from the utility (`takedo/backend/src/captain.ts`).
+- **Captain**: the Team Lead the producer talks with, one long-lived Haiku session per project (resumed after a
+  restart; the crash recovery moved here from the utility). It never edits. Tools: `assign` (a self-contained piece
+  to a fresh worker), `cancel`, `offer_control`/`remove_control`, `look`, notebook, `reply`. Each turn is a
+  producer_message, control_moved, job_finished/job_failed/job_failed_later, or restarted, with the project summary,
+  producer_changed, coming_steps and jobs_running. Reply is required for the producer's turns and optional for the
+  team's own news. Control moves and job reports are coalesced into one turn when several arrive while it's busy.
+- **Workers**: the utility in job mode (`Utility.job`), a fresh SDK session per piece, run in parallel, never
+  resumed. Its prompt is the utility's with the first paragraph, the reply line and the timing anchor changed, and
+  without controls or cancel. Its timed steps stay staged on the board under the captain's direction; when the
+  direction's last running job is done, all its steps go out together from one anchor (`Utility.send`), so pieces
+  planned at different speeds still land in their bars' order (sending each worker's steps as it finished put a
+  slow worker's bar 2 after a fast one's bar 4: 331 pairs out of order in one run).
+- **Board**: also records jobs; a restart marks running jobs lost and the captain gets a `restarted` turn to hand
+  them out again. The captain's `cancel` takes job ids too: a job still planning is stopped (what it stages after is
+  refused, and its tool calls are refused), and the steps it already staged are cancelled.
+- The `ROSTER=team` path keeps the one long-lived utility session until step 3 retires it (the smoke test runs it).
+- `make scenario` waits while the Team Lead's card says jobs are running (they plan after the captain replies), and
+  its settle limit is 300 s. The report adds up agent cost per SDK session.
+- Battery on 2026-11-23, all on Haiku 5.5 ($0.06–0.18 per scenario):
+  - The controls run offers a dial, and each move gets a reply and edits.
+  - The cancel run stopped the tempo job 6 s into its planning.
+  - The restart runs handed the cut-off jobs out again, and every edit landed.
+  - The hand run kept the producer's level.
+  - Engine stalls (playhead at 1–8% of the clock) in four of six runs matched another course project's sandbox
+    container using 2–9 cores. The two runs without stalls were the two with the lowest load. So a stall flags a
+    busy host, not TakeDo; when it shows up, rerun the scenario on a quiet host before judging its landing checks.
+
 ## Still open
 
 These are for the detailed design, whatever the shape:

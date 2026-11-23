@@ -112,9 +112,18 @@ const outOfOrder = timed.flatMap((first, index) => timed.slice(index + 1).filter
     Math.sign(second.when.bar - first.when.bar) !== Math.sign(landedAt.get(second.id)! - landedAt.get(first.id)!) &&
     Math.abs(landedAt.get(second.id)! - landedAt.get(first.id)!) > barMs / 2).map(second => [first, second]))
 const models = log.filter(entry => entry.type === "model")
-// costUsd is the agent process's running total: the largest per backend session, added up across restarts.
-const utilityCost = logs.reduce((sum, entries) => sum + Math.max(0, ...entries
-    .filter(entry => entry.type === "model" && entry.job === "utility").map(entry => entry.costUsd ?? 0)), 0)
+// costUsd is an agent session's running total: the largest per session (the SDK's, when logged; else per backend
+// session), added up, per job (the captain's and the workers').
+const agentCost = (job: string): number => {
+    const most = new Map<string, number>()
+    logs.forEach((entries, index) => entries.filter(entry => entry.type === "model" && entry.job === job).forEach(entry => {
+        const key = entry.session ?? `backend-${index}`
+        most.set(key, Math.max(most.get(key) ?? 0, entry.costUsd ?? 0))
+    }))
+    return [...most.values()].reduce((sum, cost) => sum + cost, 0)
+}
+const utilityCost = agentCost("utility"), captainCost = agentCost("captain")
+const workerSessions = new Set(log.filter(entry => entry.type === "model" && entry.job === "utility").map(entry => entry.session)).size
 const byJob = new Map<string, { calls: number, ms: number, out: number }>()
 models.forEach(entry => {
     const job = byJob.get(entry.job) ?? {calls: 0, ms: 0, out: 0}
@@ -129,7 +138,7 @@ out.push("## Edits", "",
         const state = final.get(entry.id)?.reason === "cancelled" ? "cancelled" : final.get(entry.id)?.state ?? "no status"
         return `- ${String(entry.from).replace("agent:", "")}: ${what}${entry.when?.at === "bar" ? `, bar ${entry.when.bar}` : ""} (${state})`
     }), "",
-    `Model calls: ${[...byJob].map(([job, {calls, ms, out}]) => `${job} ${calls} (${seconds(ms)}, ${out} tokens out)`).join(", ") || "none"}; utility cost $${utilityCost.toFixed(2)}.`)
+    `Model calls: ${[...byJob].map(([job, {calls, ms, out}]) => `${job} ${calls} (${seconds(ms)}, ${out} tokens out)`).join(", ") || "none"}; agents $${(utilityCost + captainCost).toFixed(2)} (captain $${captainCost.toFixed(2)}, workers $${utilityCost.toFixed(2)} over ${workerSessions} session${workerSessions === 1 ? "" : "s"}).`)
 
 // ---------- the music ----------
 out.push("", "## Checks", "")
@@ -186,8 +195,15 @@ if (before === undefined || after === undefined) {
         const agentSessions = log.filter(entry => entry.type === "agent_session")
         const ids = new Set(agentSessions.map(entry => entry.session).filter(id => typeof id === "string"))
         const recovered = agentSessions.filter(entry => entry.recover !== undefined)
-        // Only when the kill cut a turn off (restart_replies 1: it came after the reply, nothing to pick up).
-        if (run.messages.some(message => message.restartAfterMs !== undefined && message.restartReplies !== 1)) check(recovered.some(entry => entry.recent === true), `${recovered.length > 0 ? `picked back up after the restart: "${recovered[0].recover}"` : "no message was picked back up after the restart"}`)
+        // Jobs the restart cut off (the captain's workers): handed out again afterwards.
+        const jobsLost = log.find(entry => entry.type === "board" && entry.event === "jobs_lost")
+        if (jobsLost !== undefined) {
+            const again = log.filter(entry => entry.type === "board" && entry.event === "job" && entry.t > jobsLost.t)
+            check(again.length > 0, `${jobsLost.jobs.length} jobs cut off by the restart; ${again.length} handed out after it`)
+        }
+        // Only when the kill cut a turn off (restart_replies 1: it came after the reply, nothing to pick up; or the
+        // captain had already replied and only its workers were cut off).
+        if (jobsLost === undefined && run.messages.some(message => message.restartAfterMs !== undefined && message.restartReplies !== 1)) check(recovered.some(entry => entry.recent === true), `${recovered.length > 0 ? `picked back up after the restart: "${recovered[0].recover}"` : "no message was picked back up after the restart"}`)
         // Timed edits waiting at the restart kept waiting and landed (the board, reconciled when the page reconnected).
         const reconciled = log.filter(entry => entry.type === "board" && entry.event === "reconciled" && (entry.coming.length > 0 || entry.lost.length > 0)).at(-1)
         if (reconciled !== undefined) {
@@ -232,7 +248,13 @@ if (before === undefined || after === undefined) {
         const steps = cancels.flatMap(entry => entry.steps as string[])
         const requestOf = new Map(log.filter(entry => entry.type === "board" && entry.event === "linked").map(entry => [entry.step, entry.request]))
         const landed = steps.filter(step => final.get(requestOf.get(step))?.state === "applied")
-        check(steps.length > 0 && landed.length === 0, `cancelled ${steps.length} waiting steps${landed.length > 0 ? `, but ${landed.length} landed anyway` : ", none landed"}`)
+        if (steps.length > 0) {check(landed.length === 0, `cancelled ${steps.length} waiting steps${landed.length > 0 ? `, but ${landed.length} landed anyway` : ", none landed"}`)}
+        // Cancelled jobs (pieces still being planned): nothing staged by them after the cancel.
+        const jobs = cancels.flatMap(entry => (entry.jobs as string[] | undefined ?? []).map(job => ({job, t: entry.t as number})))
+        if (jobs.length > 0) {
+            const after = jobs.filter(({job, t}) => log.some(entry => entry.type === "board" && entry.event === "staged" && entry.job === job && entry.t > t))
+            check(after.length === 0, `cancelled ${jobs.length} piece${jobs.length === 1 ? "" : "s"} still being planned (${jobs.map(({job}) => job).join(", ")})${after.length > 0 ? `, but ${after.length} staged after` : ", nothing staged after"}`)
+        }
     }
     const long = run.messages.flatMap(message => message.replies).filter(line => sentences(line.text) > MaxReplySentences)
     check(long.length === 0, `${long.length} replies longer than ${MaxReplySentences} sentences`)
