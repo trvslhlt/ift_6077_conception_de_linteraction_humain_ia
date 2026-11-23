@@ -315,6 +315,17 @@ Built (2026-11-22), step 2's second piece: the captain split from the utility (`
 
 These are for the detailed design, whatever the shape:
 
+- **Takes: create rather than mutate, held until a problem calls for it** (2026-11-23). For content (notes, patterns,
+  new sounds), a worker would write a new region or track beside the old one and switch at a bar (mute/unmute or a
+  crossfade), keeping the old take. Settings (effect parameters, mix, tempo, master) stay mutations.
+  - Gains: each job owns what it creates, so writers don't collide; a switch is one small edit at one bar; cancel or
+    undo is switching back; the producer's hand edits are never touched; the session leaves takes to pick from.
+  - Costs: a gradual morph becomes a sequence of takes or a crossfade, which sounds different; new instruments cost
+    CPU (muted ones may too); the project fills with tracks and regions that need clear names.
+  - Why held: the failures seen so far are scheduling, ordering and rejected values, not writers colliding on content,
+    so it doesn't fix a pressing problem. Take it up if collisions, messy cancels, or producers wanting earlier
+    versions show up. First piece then: note rewrites as a take on the same track, judged on the lofi, cancel and hand
+    scenarios against current runs.
 - **How much members prepare ahead follows how much the producer plans** (2026-11-06). As with vibe coding, the
   more the producer plans, the better the result. For a planned performance, the prep conversation gives members
   what to prepare: the sections, the cues, and the range each control should cover. For an exploration, members
