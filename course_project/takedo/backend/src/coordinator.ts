@@ -10,6 +10,7 @@ import {isRole, type KnowledgePick, type PartRole, pickKnowledge, type Role, rou
 import type {LogType, SessionLog} from "./sessionLog.ts"
 import {lead, writeOverview} from "./teamLead.ts"
 import {Notebook} from "./notebook.ts"
+import {Board} from "./board.ts"
 import {analyse, isDrums} from "./analysis.ts"
 import type {Knowledge} from "./knowledge.ts"
 import {Utility} from "./utility.ts"
@@ -64,6 +65,8 @@ export class Coordinator {
     // Controls moved since their owner last heard; whether a turn to tell it is already queued (only the latest
     // position counts, so moves made while it works are told together).
     readonly #moved = new Map<string, number>()
+    // The team's shared state as data (board.ts); cleared when another project opens.
+    readonly board: Board
     #steering = false
 
     // notebooks: the folder of agents' notebooks, one per project; source: the root of openDAW's source tree, for the
@@ -75,6 +78,7 @@ export class Coordinator {
         this.#catalog = catalog
         this.#log = log
         this.#notebooks = notebooks
+        this.board = new Board(data => this.#log.write("board", data))
         const team = createTeam(catalog)
         this.#knowledge = knowledge
         const utility = new Utility(team, catalog, source, knowledge)
@@ -104,7 +108,10 @@ export class Coordinator {
             case "project": {
                 const name = message.open ? (message.name ?? "untitled") : null
                 // The utility's session belongs to a project (its notebook says which); another project, another.
-                if (name !== this.#project) {this.close()}
+                if (name !== this.#project) {
+                    this.close()
+                    this.board.clear()
+                }
                 this.#project = name
                 this.#notebook = this.#project === null ? null : new Notebook(this.#notebooks, this.#project)
                 this.#startKept = false

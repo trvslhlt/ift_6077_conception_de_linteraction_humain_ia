@@ -172,6 +172,53 @@ agents. Two things to keep from the others:
 
 Total: ~0.3 s plus the landing margin, without a language-model call.
 
+## The team's structure (decided 2026-11-22)
+
+Until now one agent, the utility, did everything (understood the message, planned, edited, replied), and "Team Lead"
+named three unrelated things: a one-off call that split directions (`lead()`, the `ROSTER=team` path), the overview
+writer, and how the utility appears in the UI. The scenario runs showed what one agent doing everything costs: it
+can't be steered while it works (a control move waits behind a 40 s turn); its plans land in the order it finishes
+writing them, not in the order of their bars; and the plan exists only in its context and notebook, where code can't
+check or show it, and a fast path can't act on it.
+
+The structure from here on. The names are working names; "Team Lead" may stay as what the producer sees.
+
+| Role | What | Owns |
+|---|---|---|
+| **Board** | code, in the backend | the shared state as data: directions, their pieces and who has them, staged steps with bars, claims, facts, controls, and the status of each. Agents read and write it through tools; code enforces it (order, per-bar limits, claims). |
+| **Captain** | one long-lived agent | what a message means for the work: a new direction, a change to one, a one-off edit, a question. Writes the plan to the board, hands out pieces, watches status. Makes no edits itself, so it can always respond. |
+| **Workers** | the utility and the specialists | turn a piece into edits. The utility catches whatever no specialist covers. Pieces can run in parallel. |
+| **Voice** | the captain's reply for now | turns the team's events into short lines for the producer. The producer's words go to the captain as they are, with no model rewriting them first (it would add delay mid-performance and lose nuance). |
+
+Issues taken on at the same time, because the board carries them:
+
+1. **The team hears the producer's DAW changes.** The page sends every change, but until now it was only logged. The
+   board keeps the change stream; the captain gets "changed since you last looked" with each turn, so it doesn't
+   undo the producer's hand, can take a demonstration, and doesn't plan from a project that changed under it.
+2. **One scheduler.** When an edit lands was worked out twice, predicted in the backend (`barsFromAnchor`) and
+   decided in the page (`Adapter.#landing`); most timing bugs were the two disagreeing. Staged steps are data, the
+   page's scheduler (which has the clock) is the only one that times them, and the backend reads where they sit.
+3. **Waiting steps outlive a restart.** They lived only in the page's memory, so a backend restart had to drop them.
+   The board keeps them with the project and re-sends what hasn't landed.
+4. **Every step belongs to a direction**, so cancelling a direction, steering it with a control and "what's left of
+   it" have something to act on.
+5. **One team path.** The `ROSTER=team` path (one-off splitter, Jev routing, specialists handing leftovers on)
+   predates the Agent SDK, and the smoke test runs on it while `make scenario` runs the utility. It is retired as the
+   captain arrives; the specialists' fixed operations stay as tools, and the smoke test moves to the real setup.
+
+Order, one piece at a time (each judged by `make scenario`): (1) the board: directions and staged steps as data, each
+step tied to its direction, timed by one scheduler, kept with the project; (2) the captain split from the utility,
+with the DAW changes since its last turn; (3) the old team path retired and the specialists brought back as workers,
+one at a time. The coordinator, which today does all of the backend's work, shrinks as the board takes its state.
+
+Built (2026-11-22), step 1's first piece: `takedo/backend/src/board.ts`. Directions (one per message or control move
+for now) and their timed steps, as data (an operation and its input, or a script). A timed edit is staged, not sent;
+when the turn ends the direction's steps go out together in bar order, from the message's anchor moved past the
+playhead by whole loop passes. The backend's landing predictions are gone (only the page times edits), and the
+per-bar limit is a count of a plan's steps, knowledge entries included. Lofi scenario: every check green, 0 steps out
+of bar order (1–5 pairs in the runs before). Trade: a plan's timed steps now wait for the reply (edits for now still
+land at once). Next in step 1: waiting steps kept with the project and re-sent after a restart.
+
 ## Still open
 
 These are for the detailed design, whatever the shape:

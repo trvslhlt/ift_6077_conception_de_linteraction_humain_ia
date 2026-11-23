@@ -1,39 +1,50 @@
-// When the utility's edits land, and the note it gets when a gradual change bunches up or runs out of order (`make knowledge`).
+// The board's staged steps (board.ts): held per direction, a bar's limit, sent in bar order from one anchor moved past
+// the playhead. Run from backend/: node --test src/staging.test.ts
 import {describe, it} from "node:test"
 import assert from "node:assert/strict"
-import {barsFromAnchor, barsUntil, MaxPerBar, stagingNote, together} from "./utility.ts"
+import type {Snapshot} from "../../shared/protocol.ts"
+import {Board, commitAnchor, MaxPerBar, planSlide} from "./board.ts"
 
-// 01_good_base in the lofi scenario: looping bars 1–4, the playhead in bar 3.
-const playback = {playing: true, pos: "3.2.1", bar: 3, loop: {on: true, from: "1.1.1", to: "5.1.1"}, position: 8640, played: 0}
-const barMs = 2000
+// 01_good_base in the lofi scenario: 4/4, looping bars 1–4.
+const bar = 3840
+const now = (played: number, loop = true, pos = "3.2.1"): Snapshot => ({
+    at: {t: 0, pos, seq: 0, revision: 0}, detail: "outline", playing: true,
+    playback: {playing: true, pos, bar: Number(pos.split(".")[0]), loop: {on: loop, from: "1.1.1", to: "5.1.1"}, position: 0, played},
+    timeline: {bpm: 120, signature: [4, 4], length: "5.1.1"}, tracks: [], master: {volume: 0, effects: []}
+})
+const script = {script: "", description: ""}
 
-describe("staging", () => {
-    it("times a plan's bars from its anchor, in their order (bar 3 before bar 6 in a 4-bar loop)", () => {
-        // The run of 2026-11-22: anchored in bar 2, bar 3 landed after bar 6 when bars in the loop waited for the playhead.
-        assert.equal(barsFromAnchor(playback.loop, 2, 3), 1)
-        assert.equal(barsFromAnchor(playback.loop, 2, 6), 4)
-        assert.equal(barsFromAnchor(playback.loop, 3, 2), 3)   // behind the anchor: its next pass
-        assert.equal(barsFromAnchor(playback.loop, 2, 2), 1)   // the anchor's own bar: the next bar line, as "now"
+describe("the board", () => {
+    it("holds a direction's steps until they're taken, then hands them over in bar order, once", () => {
+        const board = new Board(() => {})
+        const lofi = board.direction("make it lofi"), other = board.direction("louder")
+        board.stage(lofi.id, "agent:utility", 9, "tempo", script)
+        board.stage(lofi.id, "agent:utility", 3, "drums", script)
+        board.stage(other.id, "agent:utility", 5, "volume", script)
+        assert.deepEqual(board.take(lofi.id).map(step => step.bar), [3, 9])
+        assert.equal(board.take(lofi.id).length, 0, "sent steps aren't sent again")
+        assert.equal(board.staged(other.id).length, 1, "another direction's steps stay")
+        assert.equal(board.drop(other.id), 1)
     })
-    it("times a bar as the bus does: ahead in the loop, round again, or past its end", () => {
-        assert.equal(barsUntil(playback, 4), 1)
-        assert.equal(barsUntil(playback, 3), 4)     // already reached: next pass
-        assert.equal(barsUntil(playback, 1), 2)     // the top of the loop, as it wraps
-        assert.equal(barsUntil(playback, 7), 4)     // past the end: bars of playing
-        assert.equal(barsUntil(playback, 0), 1)
-        assert.equal(barsUntil({...playback, loop: {...playback.loop, on: false}}, 3), 1)
+    it("refuses a fourth step on one bar of a plan, unless the caller lifts the limit (a knowledge entry)", () => {
+        const board = new Board(() => {})
+        const {id} = board.direction("make it lofi")
+        for (let index = 0; index < MaxPerBar; index++) {assert.equal(board.stage(id, "agent:utility", 9, "fx", script).ok, true)}
+        assert.equal(board.stage(id, "agent:utility", 9, "fx", script).ok, false)
+        assert.equal(board.stage(id, "agent:utility", 9, "fx", script, Infinity).ok, true)
+        assert.equal(board.stage(board.direction("other").id, "agent:utility", 9, "fx", script).ok, true, "per plan")
     })
-    it("notes the scenario's tempo steps landing out of order (bar 5, then 3, then 7)", () => {
-        const at = (atBar: number) => ({atBar, lands: barsUntil(playback, atBar) * barMs, edits: 1})
-        assert.equal(stagingNote([], at(5), barMs), "")
-        assert.match(stagingNote([at(5)], at(3), barMs), /bar 5 land in the opposite order/)
+    it("moves the anchor past the playhead by whole passes of a short loop, else by whole bars", () => {
+        const anchor = {position: 2 * bar, played: 0, bar: 3}
+        assert.equal(commitAnchor(anchor, now(0)).played, 0, "nothing has played: as it was")
+        assert.equal(commitAnchor(anchor, now(1.5 * bar)).played, 4 * bar, "a pass of the 4-bar loop")
+        assert.equal(commitAnchor(anchor, now(5 * bar)).played, 8 * bar)
+        assert.equal(commitAnchor(anchor, now(1.5 * bar, false)).played, 2 * bar, "no loop: whole bars")
     })
-    it("notes a third edit on one bar, counting a knowledge entry's edits", () => {
-        const at = (atBar: number, edits = 1) => ({atBar, lands: barsUntil(playback, atBar) * barMs, edits})
-        assert.equal(stagingNote([at(9)], at(9), barMs), "")
-        assert.match(stagingNote([at(9, 3)], at(9), barMs), /4 edits now land on the same bar/)
-        assert.equal(stagingNote([at(9), at(11)], at(13), barMs), "")
-        assert.equal(together([at(9), at(9), at(9)], at(9), barMs) > MaxPerBar, true, "a fourth single edit on a bar is refused")
-        assert.equal(together([at(9), at(9)], at(9), barMs) > MaxPerBar, false)
+    it("slides a plan whose first bar has gone by, keeping its spacing, only when not looping", () => {
+        assert.equal(planSlide([2, 4, 6], now(0, false, "5.2.1")), 4)
+        assert.equal(planSlide([2, 4, 6], now(0, false, "5.4.1")), 5, "last beat: one bar later")
+        assert.equal(planSlide([9, 11], now(0, false, "5.2.1")), 0)
+        assert.equal(planSlide([2, 4], now(0, true, "3.2.1")), 0)
     })
 })
