@@ -3,12 +3,13 @@ import {createSdkMcpServer, query, type Query, type SDKUserMessage, tool} from "
 import type Anthropic from "@anthropic-ai/sdk"
 import type {CallToolResult} from "@modelcontextprotocol/sdk/types.js"
 import {z} from "zod"
-import type {Actor, Plan, Snapshot, Status, When} from "../../shared/protocol.ts"
+import type {Actor, Note, Plan, Snapshot, Status, When} from "../../shared/protocol.ts"
 import {type Action, type Anchor, commitAnchor, type Direction, MaxPerBar, planSlide, type Step as BoardStep} from "./board.ts"
 import type {Coordinator} from "./coordinator.ts"
 import type {Catalog} from "./catalog.ts"
 import {Kinds as KnowledgeKinds, type Knowledge} from "./knowledge.ts"
 import {analyse} from "./analysis.ts"
+import {hitOf, morphNotes, tile} from "./generate.ts"
 import {Kinds, type Kind} from "./notebook.ts"
 import {Limits, type LlmMember, type Member, performStep, projectFor, type Task} from "./members.ts"
 
@@ -111,6 +112,7 @@ Rules:
 - Land changes ahead of the playhead (\`playback.bar\`) when timing matters; structural changes (lengths, new regions) can land as soon as possible.
 - When the loop is on (\`playback.loop\`), every bar counts from where the playhead was when the producer's message arrived (the summary's playback.bar), however long you take to plan it: a bar inside the loop is its next pass after that, a bar past the loop's end counts bars of playing as if the loop were unrolled (playhead in bar 2 of a 4-bar loop: at_bar 2 lands on the next bar line, at_bar 3 after 1 bar, at_bar 1 after 3, at_bar 10 after 8 bars, at the loop's bar 2), so the steps of a gradual change keep their order and spacing.
 - Staging a gradual change: one or two edits per bar (a fourth on one bar is refused: other pieces of the plan share its bars), the steps a few bars apart. A steady glide (tempo, a level, a filter) is one edit that ramps (a fixed operation's ramp, or a script writing tempo automation), not a step per bar. Every edit you stage lands: never stage a placeholder or a test. Bring an effect in gently (dry, or its mix low) and raise it with add_effect's then, not at full strength. A knowledge chain's effects all land on one bar: give it a bar of its own.
+- Changing a part's notes over several bars (a groove becoming another, a part thinning out or filling in): evolve_notes, not a script per stage. Name where it's going (a knowledge pattern, or the notes written once) and how many stages; code works out each stage and rewrites the region's notes in place, so a looping region changes as it plays.
 - A region's notes play on every pass of its loop: a script that rewrites them changes every repeat from when it lands, which is how a staged change evolves the part over time.
 ${KeySlot}- Do the whole task before you finish: never stop after a first part to offer the next, or ask whether to do a part that was asked for. Make several calls per round when they don't depend on each other.
 - If something fails twice the same way, stop and say what's in the way.`
@@ -361,6 +363,15 @@ export class Utility implements Member {
                 at_bar: z.number().int().describe("The bar its first edit lands on; 0 for as soon as possible. Its later edits keep their spacing from it.")},
                 handler((current, input) => this.#applyKnowledge(current, String(input.key),
                     (input.args ?? {}) as Record<string, unknown>, Number(input.at_bar)))),
+            tool("evolve_notes", "Change a notes region's notes, in place, over several stages toward a target: notes both share glide (timing, length, velocity), new ones come in loudest first, old ones go quietest first; the last stage is the target exactly. One edit per stage, each on its own bar.", {
+                region: z.string().describe("The notes region's ref (r3), from the project's regions"),
+                to_pattern: z.string().describe("A knowledge pattern entry to arrive at (\"pattern/boombap-1\"), repeated to fill the region's loop; \"\" to give to_notes"),
+                to_notes: z.array(z.tuple([z.string(), z.number(), z.number(), z.number()])).describe("The notes to arrive at, as the project shows a region's: [position in the region \"1.1.1:0\", MIDI pitch, length in sixteenths, velocity 0..127]; [] with to_pattern"),
+                key: z.string().describe("For a chord pattern: the key (\"A minor\"); \"\" for the project's"),
+                stages: z.number().int().describe("How many steps to get there, 1 to 16"),
+                at_bar: z.number().int().describe("The bar the first stage lands on; 0 for as soon as possible"),
+                every_bars: z.number().int().describe("Bars between stages, 1 or more")},
+                handler((current, input) => this.#evolve(current, input))),
             tool("learn", "Keep something that worked as a draft knowledge entry, for later sessions and other projects (a person reviews drafts). For a sound, chain or pattern, include apply (and pattern) so it can be applied again; see existing entries for the shape.", {
                 kind: z.enum(KnowledgeKinds),
                 name: z.string().describe("Short, with dashes: \"dusty-rhodes\", \"dub-snare-throw\""),
@@ -381,6 +392,57 @@ export class Utility implements Member {
                     return knowledge.draft({...input, apply, pattern}, `utility (${current.context.gateway.agent("utility").model}, ${new Date().toISOString().slice(0, 10)})`)
                 }))
         ]
+    }
+
+    // A part's notes changed in stages by code (generate.ts): the model names the target and the pacing, not the notes of
+    // every stage. Each stage is a script rewriting the region in place (kb.replaceNotes), staged on its bar like the
+    // worker's own.
+    async #evolve(current: Current, input: Record<string, unknown>): Promise<string> {
+        const {context} = current
+        const knowledge = this.#knowledge!
+        const full = await context.snapshot("full")
+        if (full === null) {return "Not done: no project is open."}
+        const ref = String(input.region)
+        const track = full.tracks.find(candidate => candidate.regions.some(region => region.ref === ref))
+        const region = track?.regions.find(candidate => candidate.ref === ref)
+        if (track === undefined || region === undefined || region.kind !== "notes") {
+            const refs = full.tracks.flatMap(candidate => candidate.regions.filter(r => r.kind === "notes").map(r => `${r.ref} (${candidate.name})`))
+            return `Not done: ${ref} isn't a notes region; these are: ${refs.join(", ")}.`
+        }
+        const beatsPerBar = full.timeline.signature[0]
+        const at = (pos: string): number => hitOf([pos, 0, 0, 0], beatsPerBar)[0]
+        const loopBeats = region.loop !== null ? region.loop * beatsPerBar : at(region.to) - at(region.from)
+        const from = (region.notes ?? []).map(note => hitOf(note, beatsPerBar))
+        const toNotes = (input.to_notes ?? []) as Note[]
+        let to = toNotes.map(note => hitOf(note, beatsPerBar)).filter(([beat]) => beat >= 0 && beat < loopBeats)
+        const says: string[] = []
+        const patternKey = String(input.to_pattern ?? "")
+        if (patternKey !== "") {
+            const facts = context.notebook?.get("facts") ?? null
+            const recorded = facts === null ? null : (JSON.parse(facts.value)?.key?.said as string | undefined) ?? null
+            const key = String(input.key ?? "") || (recorded !== null && !recorded.startsWith("unknown") ? recorded : "")
+            const pattern = knowledge.patternHits(patternKey, track, key === "" ? {} : {key}, beatsPerBar)
+            if (typeof pattern === "string") {return `Not done: ${pattern}.`}
+            to = tile(pattern.hits, pattern.beats, loopBeats)
+            says.push(...pattern.says)
+        }
+        if (to.length === 0) {return "Not done: give the target, as to_pattern or to_notes."}
+        const count = Math.max(1, Math.min(16, Math.round(Number(input.stages) || 1)))
+        const every = Math.max(1, Math.round(Number(input.every_bars) || 1))
+        const atBar = Number(input.at_bar) || 0
+        const start = atBar > 0 ? atBar : full.playback.bar + 1
+        const stages = morphNotes(from, to, count)
+        context.card({agent: this.agent, name: this.name, doing: `evolving ${region.name || ref} in ${count} stages`})
+        const results: string[] = []
+        for (const [index, notes] of stages.entries()) {
+            const code = knowledge.script("replaceNotes", {region: ref, notes})
+            if (code === null) {return "Not done: the knowledge base's page helpers (scripts/kb.js) are missing."}
+            const bar = atBar <= 0 && index === 0 ? 0 : start + index * every
+            const result = await this.#run(current, `${region.name || ref}: stage ${index + 1} of ${count} (${notes.length} notes)`, code, bar)
+            results.push(`${index + 1}. ${bar === 0 ? "now" : `bar ${bar}`}: ${result}`)
+            if (!/^(Staged|Scheduled|Under way|Applied)/.test(result)) {break}
+        }
+        return `${ref}: ${from.length} notes to ${to.length}, ${count} stages, every ${every} bar${every === 1 ? "" : "s"}.${says.length > 0 ? ` ${says.join("; ")}.` : ""}\n${results.join("\n")}`
     }
 
     // An entry's edits, each through the same path as the utility's own (fixed operation or script), timed from one bar.

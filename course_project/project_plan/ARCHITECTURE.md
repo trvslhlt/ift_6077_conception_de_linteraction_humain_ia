@@ -327,6 +327,15 @@ Built (2026-11-22), step 2's second piece: the captain split from the utility (`
   - Seen on the way: openDAW's `AnimationFrame` loop skips clearing its queue when a callback throws, so one throw
     would freeze every later callback (the engine-position read among them) for good. No run threw, so it isn't this
     stall.
+- **A part's notes change in stages written by code (2026-11-23).** A worker's `evolve_notes` names a notes region, a
+  target (a knowledge pattern, tiled to the region's loop, or notes written once) and the pacing (stages, first bar,
+  bars between). `generate.ts` (`morphNotes`) works out each stage: notes both share glide (timing, length, velocity),
+  new ones come in loudest first, old ones go quietest first, the last stage is the target. Each stage is one script,
+  `kb.replaceNotes`, rewriting the region's notes in place (a looping region never reaches a new region at later bars;
+  a mirrored region changes with it). Before it, workers rewrote regions by hand and got openDAW's API wrong (7 of 53
+  edits failed in one lofi run: the region adapter passed as `createNoteEvent`'s owner). First lofi run with it: both
+  parts' grooves went through it (4 and 8 stages, all applied), 1 of 49 edits failed, the slowest worker took 63–66 s
+  and 13–14k tokens out (was 80–89 s, 18–21k). One bar took 4 edits from two plans: the per-bar limit is per plan.
 
 ## Still open
 

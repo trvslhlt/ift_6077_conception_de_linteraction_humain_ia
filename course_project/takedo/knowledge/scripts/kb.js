@@ -98,6 +98,18 @@ const kb = (() => {
             const unit = unitOf(args.track), track = notesTrackOf(unit)
             return writeNotes(track.box, track, args.notes)
         },
+        // A notes region's notes rewritten in place (generate.ts, morphNotes: one stage of a part changing), so a loop
+        // that never reaches a later region still hears it. A region mirrored elsewhere changes there too.
+        replaceNotes(args) {
+            const region = ref(args.region)
+            if (region === null || region === undefined || region.optCollection === undefined) {throw new Error(`no notes region ${args.region}`)}
+            const beat = ppqn("1.2.1") - ppqn("1.1.1")
+            const collection = region.optCollection.unwrap(`${args.region} has no notes`)
+            collection.events.asArray().slice().forEach(event => event.box.delete())
+            args.notes.forEach(([start, pitch, length, velocity]) => api.createNoteEvent({owner: region.box,
+                position: Math.round(start * beat), duration: Math.max(1, Math.round(length * beat)), pitch, velocity}))
+            return {region: args.region, notes: args.notes.length}
+        },
         tempo(args) {
             api.setBpm(args.bpm)
             return {bpm: project.timelineBox.bpm.getValue()}

@@ -268,6 +268,11 @@ export type Knowledge = {
     compact(lines: IndexLine[]): string[]
     get(keys: string[]): Array<Entry & { draft?: true, linked?: IndexLine[] } | { missing: string }>
     expand(key: string, args: Record<string, unknown>, snapshot: Snapshot): Planned[] | string
+    // A pattern entry's notes for a track, in beats ([beat, pitch, beats, velocity 0..1]), and how long it is.
+    patternHits(key: string, track: Track, args: Record<string, unknown>, beatsPerBar: number)
+        : { hits: Array<[number, number, number, number]>, beats: number, says: string[] } | string
+    // A script calling one page helper (scripts/kb.js) with these args; null without the helpers.
+    script(call: string, args: unknown): string | null
     draft(entry: Record<string, unknown>, by: string): string
     voices(): Record<string, string[]>
     readonly size: number
@@ -663,6 +668,13 @@ export const loadKnowledge = (dir: string, catalog: Catalog, warn: (text: string
             return {...entry, ...(linked.length > 0 ? {linked} : {})}
         }),
         expand: (key, args, snapshot) => expand(key, args, snapshot),
+        patternHits: (key, track, args, beatsPerBar) => {
+            const pattern = entries.get(key)?.pattern
+            if (pattern === undefined) {return `${key} isn't a pattern entry`}
+            const written = patternNotes(pattern, track, args, beatsPerBar)
+            return typeof written === "string" ? written : {hits: written.notes, beats: pattern.beats, says: written.says}
+        },
+        script: (call, args) => kbScript === null ? null : `const args = ${JSON.stringify(args)};\n${kbScript}\nreturn kb.${call}(args)`,
         voices: () => Object.fromEntries([...cartridges].map(([name, voices]) => [name, voices.map(entry => entry.name)])),
         // An agent's entry, kept as a draft until a person reviews it. Returns what happened, for the model.
         draft: (input, by) => {
