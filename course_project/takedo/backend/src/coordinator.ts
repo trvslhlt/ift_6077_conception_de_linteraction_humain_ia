@@ -286,7 +286,9 @@ export class Coordinator {
             if (isDrums(track)) {return `${track.name} (${track.ref}): drums`}
             const pitches = track.regions.flatMap(region => region.notes ?? []).map(([, pitch]) => pitch)
             const low = Math.max(...pitches) < 60   // nothing above openDAW's C3 (MIDI 60)
-            return `${track.name} (${track.ref}): ${part.register?.low}–${part.register?.high}${low ? ", the bass register" : ""}`
+            // MIDI numbers beside the names: openDAW names C3 = MIDI 60, a model's habit is C4 = 60, and a worker asked
+            // for "A1 to A2" wrote it an octave low (2026-11-23).
+            return `${track.name} (${track.ref}): ${part.register?.low}–${part.register?.high} (MIDI ${Math.min(...pitches)}–${Math.max(...pitches)})${low ? ", the bass register" : ""}`
         })
         // Each part's role, for code that picks parts (the knowledge route): from the notes, as described above.
         const roles: Record<string, PartRole> = Object.fromEntries(snapshot.tracks.map(track => {

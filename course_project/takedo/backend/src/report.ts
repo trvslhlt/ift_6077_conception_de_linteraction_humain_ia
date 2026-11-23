@@ -182,6 +182,14 @@ if (before === undefined || after === undefined) {
         if (was.length > 0 && is.length === 0) {check(false, `${track.name}: no notes left`); continue}
         if (isDrums(track) || was.length === 0) {check(true, `${track.name}: still playing`); continue}
         const [from, to] = [median(was.map(([, pitch]) => pitch)), median(is.map(([, pitch]) => pitch))]
+        // A bass (every note below openDAW's C3, MIDI 60) may move within the bass range: going deeper isn't a change of
+        // role (a lofi bass an octave lower flagged as one, 2026-11-23). It fails only by leaving that range: up to C3 or
+        // more, or below a bass guitar's lowest string (MIDI 28, E0 in openDAW's naming). Other parts: within an octave.
+        if (Math.max(...was.map(([, pitch]) => pitch)) < 60) {
+            const [low, high] = [Math.min(...is.map(([, pitch]) => pitch)), Math.max(...is.map(([, pitch]) => pitch))]
+            check(high < 60 && low >= 28, `${track.name}: still a bass, ${noteName(low)}–${noteName(high)} (was median ${noteName(from)}, now ${noteName(to)})`)
+            continue
+        }
         check(Math.abs(to - from) <= 12, `${track.name}: register ${noteName(from)} → ${noteName(to)} (median note)`)
     }
     const added = after.tracks.filter(track => !before.tracks.some(candidate => candidate.ref === track.ref))
