@@ -35,7 +35,9 @@ const log: Entry[] = logs.flat()
 const Names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 const scale = (key: Key): Set<number> => {
     const tonic = Names.indexOf(key.tonic)
-    const steps = key.mode === "major" ? [0, 2, 4, 5, 7, 9, 11] : [0, 2, 3, 5, 7, 8, 10]
+    // Minor counts its raised 7th too (harmonic minor's leading tone, in the V chord: D# in B7 for E minor), which
+    // minor-key progressions borrow as a matter of course; it was flagged as a clash in run after run (2026-11-23).
+    const steps = key.mode === "major" ? [0, 2, 4, 5, 7, 9, 11] : [0, 2, 3, 5, 7, 8, 10, 11]
     return new Set(steps.map(step => (tonic + step) % 12))
 }
 const notesOf = (track: Track): Note[] => track.regions.flatMap(region => region.notes ?? [])
