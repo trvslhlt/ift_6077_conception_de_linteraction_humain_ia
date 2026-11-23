@@ -473,7 +473,7 @@ export class Coordinator {
     // others; its timed steps join the direction's plan from the same anchor. Its report goes to the captain.
     assign(direction: Direction, anchor: Anchor | null, piece: string): string {
         const job = this.board.job(direction.id, piece)
-        const worker = new Utility(this.#team, this.#catalog, this.#source, this.#knowledge, "job")
+        const worker = new Utility(this.#team, this.#catalog, this.#source, this.#knowledge)
         void (async () => {
             const snapshot = await this.snapshot()
             if (snapshot === null) {throw new Error("no project is open")}

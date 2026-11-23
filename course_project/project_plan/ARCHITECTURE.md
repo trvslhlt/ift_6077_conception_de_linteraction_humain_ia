@@ -290,8 +290,8 @@ Built (2026-11-22), step 2's second piece: the captain split from the utility (`
 - **The ROSTER=team path is retired (2026-11-23).** Gone: Jev's fast-path routing, the Team Lead's split (`lead`),
   `handOff`, members acting on their own, and the `ROSTER`/`KNOWLEDGE_ROUTE` settings. Every message goes to the
   captain. The members' fixed operations stay as the workers' tools. The smoke test runs on the captain: one message
-  end to end, and the page's guarantees with edits sent straight to it. Left for a cleanup: the utility's
-  session-mode code, now dead.
+  end to end, and the page's guarantees with edits sent straight to it. Then the utility's
+  session mode went too (utility.ts 866 → 630 lines): each instance is a worker for one piece.
 - **Each part goes out when its worker finishes (2026-11-23, the producer's choice).** Waiting for a direction's
   slowest worker held a whole plan back: in a manual session the drum worker took 113 s, so nothing landed until
   122 s, while the reply said "over the next 16 bars". Now each job's steps go out as it finishes, from the

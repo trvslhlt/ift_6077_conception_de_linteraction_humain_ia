@@ -1,5 +1,5 @@
 import {existsSync} from "node:fs"
-import {createSdkMcpServer, getSessionInfo, query, type Query, type SDKUserMessage, tool} from "@anthropic-ai/claude-agent-sdk"
+import {createSdkMcpServer, query, type Query, type SDKUserMessage, tool} from "@anthropic-ai/claude-agent-sdk"
 import type Anthropic from "@anthropic-ai/sdk"
 import type {CallToolResult} from "@modelcontextprotocol/sdk/types.js"
 import {z} from "zod"
@@ -9,7 +9,7 @@ import type {Coordinator} from "./coordinator.ts"
 import type {Catalog} from "./catalog.ts"
 import {Kinds as KnowledgeKinds, type Knowledge} from "./knowledge.ts"
 import {analyse} from "./analysis.ts"
-import {type AgentState, Kinds, type Kind} from "./notebook.ts"
+import {Kinds, type Kind} from "./notebook.ts"
 import {Limits, type LlmMember, type Member, performStep, projectFor, type Task} from "./members.ts"
 
 // The utility (STRATEGY.md, "Keep the open path"): anything openDAW can do that the members' fast operations don't
@@ -17,10 +17,10 @@ import {Limits, type LlmMember, type Member, performStep, projectFor, type Task}
 // JavaScript, edits with scripts (each one edit, one undo step, attributed to it, refused for controls the producer
 // holds), sees the result or the error, and tries again. It also has every member's fixed operations as tools,
 // borrowed from them, for whatever they cover: those land on bars, ramp over time and are checked before they run.
-// Slow-tier work, seconds to tens of seconds; the Team Lead hands it out so its own reply isn't held up.
+// Slow-tier work, seconds to tens of seconds. Each instance is a worker: the captain (captain.ts) hands it one piece,
+// it plans it in a fresh session, and reports back; its timed steps go out when it's done (Coordinator).
 //
-// It runs as a Claude Agent SDK session (decided 2026-11-11, STRATEGY.md): Claude Code's loop as a library, kept open
-// across the producer's messages (streaming input) and summarized by the SDK when it grows long. Our tools are an
+// It runs as a Claude Agent SDK session (decided 2026-11-11, STRATEGY.md): Claude Code's loop as a library. Our tools are an
 // in-process MCP server ("takedo"); openDAW's source is read with Claude Code's own Read, Grep and Glob, from the
 // pinned tree `make types` copies out (the session's working directory).
 
@@ -29,8 +29,6 @@ import {Limits, type LlmMember, type Member, performStep, projectFor, type Task}
 const MaxCalls = 80
 const MaxRecall = 40000
 const SourceTools = ["Read", "Grep", "Glob"]
-// A message TakeDo was restarted in the middle of is picked back up if it's this recent; older, the model is only told.
-const RecoverMs = 10 * 60000
 
 // One task's edits: what landed (for the card and the reply), what's still landing, and failures nobody's heard yet.
 type Work = { done: string[], pending: Promise<string>[], late: string[] }
@@ -39,26 +37,8 @@ type Work = { done: string[], pending: Promise<string>[], late: string[] }
 // (its own steps may share a bar beyond the per-bar limit, which it was checked against as a whole).
 type Current = { context: Coordinator, task: Task, work: Work, calls: number, said?: string, direction: Direction,
     anchor: Anchor | null, applying?: boolean, applied?: string[], appliedBars?: number, job?: string }   // job: a worker's piece   // applied: what a knowledge entry's steps said they'd do (the fast route's reply)
-// Where the playhead was when the producer's message arrived: the plan's bars count from it (When's from).
-const anchorOf = (snapshot: Snapshot): Anchor | null => snapshot.playback.position === undefined ? null
-    : {position: snapshot.playback.position, played: snapshot.playback.played, bar: snapshot.playback.bar}
 const anchored = (when: When, anchor: Anchor | null): When =>
     when.at === "bar" && anchor !== null ? {...when, from: {position: anchor.position, played: anchor.played}} : when
-
-// The fast route's chat line: an entry's steps in the producer's words ("boombap-1 on TR-808, bars 5–6" → "a boombap
-// beat on TR-808"; "add_effect (production/lofi)" → "the lofi treatment"), within a chat line's limits.
-export const routeReply = (name: string, steps: ReadonlyArray<string>, bars: number): string => {
-    const phrases = [...new Set(steps.map(says => {
-        const pattern = /^([\w-]+?)(?:-\d+)? on (.+?), bars/.exec(says)
-        if (pattern !== null) {return `${pattern[1].replace(/-/g, " ")} on ${pattern[2]}`}
-        const treatment = /\((?:production|chain)\/([\w-]+)\)/.exec(says)
-        if (treatment !== null) {return `the ${treatment[1].replace(/-/g, " ")} treatment`}
-        return says.replace(/\s*\([^)]*\)$/, "")
-    }))]
-    const listed = phrases.length < 2 ? phrases.join("") : `${phrases.slice(0, -1).join(", ")} and ${phrases.at(-1)}`
-    const full = `Putting in ${name} over the next ${bars} bars: ${listed}.`
-    return phrases.length > 0 && replyProblem(full) === null ? full : `Putting in ${name} over the next ${bars} bars.`
-}
 
 // What the producer reads must be a chat line (INTERACTION.md, "Who speaks in the chat"): the prompt alone didn't hold
 // (a 9-sentence bulleted reply, 2026-11-21), so the reply tool refuses anything else and says what to fix.
@@ -84,7 +64,7 @@ export const asChatLine = (text: string): string => sentencesIn(text.split("\n")
 type Session = { inbox: Inbox, query: Query }
 
 // The knowledge base's part of the prompt, left out when there's none (an A/B run with KNOWLEDGE_DIR on an empty folder).
-const KnowledgeTools = `- knowledge, apply_knowledge, learn: the team's knowledge base, shared across projects (\`knowledge\` with your first message lists every entry as "key: summary", with a family of similar entries on one line of keys; later messages add new ones). Kinds: genre (what's played: tempo, groove, harmony, parts) and production (how it's treated: sound, effects, mix; lofi is a production style, hip hop a genre); sound (an instrument set up: openDAW's ~1,200 bundled DX7 voices for Tubular among them); chain (effects with settings); pattern (drum grooves by role, chord progressions as numerals); note (openDAW facts: step tables, units, fields). Check it before reading source, researching or writing a sound, chain or pattern from scratch: read several entries in one knowledge call; apply_knowledge runs an entry's edits (fixed operations and scripts, timed from the bar you give, like your own); entries without apply are for reading. Adapt freely: an entry is a starting point, not a rule. Entries marked draft, and anything checked only "written" or "imported", haven't been heard: listen-worthy, not proven. learn keeps something that worked (a sound, a chain, a pattern you wrote) as a draft entry for later sessions and other projects. A message may carry knowledge_candidates: entries a fast judge thought likely for it, best first; look at them before searching, but it is often wrong. When it is sure, the fast route applies an entry without you, and since_your_last_reply says what it did.
+const KnowledgeTools = `- knowledge, apply_knowledge, learn: the team's knowledge base, shared across projects (\`knowledge\` with your first message lists every entry as "key: summary", with a family of similar entries on one line of keys; later messages add new ones). Kinds: genre (what's played: tempo, groove, harmony, parts) and production (how it's treated: sound, effects, mix; lofi is a production style, hip hop a genre); sound (an instrument set up: openDAW's ~1,200 bundled DX7 voices for Tubular among them); chain (effects with settings); pattern (drum grooves by role, chord progressions as numerals); note (openDAW facts: step tables, units, fields). Check it before reading source, researching or writing a sound, chain or pattern from scratch: read several entries in one knowledge call; apply_knowledge runs an entry's edits (fixed operations and scripts, timed from the bar you give, like your own); entries without apply are for reading. Adapt freely: an entry is a starting point, not a rule. Entries marked draft, and anything checked only "written" or "imported", haven't been heard: listen-worthy, not proven. learn keeps something that worked (a sound, a chain, a pattern you wrote) as a draft entry for later sessions and other projects.
 `
 const KnowledgeKey = "- A chord pattern needs the project's key: pass the one in your notebook's facts.\n"
 const KnowledgeSlot = "\u0000knowledge-tools", KeySlot = "\u0000knowledge-key"
@@ -203,7 +183,6 @@ export class Utility implements Member {
     readonly name = "Utility"
     readonly area = "anything openDAW can do"
     readonly can = "read the project and change it directly with short openDAW scripts (extend or duplicate clips, add tracks or regions, write or rework notes, anything openDAW supports); slower and costlier, seconds to tens of seconds"
-    readonly wantsHints = false
 
     readonly #team: ReadonlyArray<LlmMember>
     readonly #devices: Record<string, string[]>
@@ -212,28 +191,14 @@ export class Utility implements Member {
     readonly #owners = new Map<string, LlmMember>()   // who owns each borrowed fixed operation
     readonly #indexed = new Set<string>()              // knowledge keys this session has been shown
     #session: Session | null = null
-    // The open session's id (the SDK's), once it has said; whether it was resumed; and turns it has finished since,
-    // so a resume that fails at once is dropped rather than retried forever.
-    #sessionId: string | null = null
-    #resumed = false
-    #okTurns = 0
     #current: Current | null = null
-    #queue: Promise<void> = Promise.resolve()
-    #unheard: string[] = []   // failures after a reply, for the model with the next message
-    // The board's steps after a restart (Coordinator, "waiting"): still coming, and lost; told with the next turn.
-    #reconciled: { coming: BoardStep[], lost: BoardStep[] } | null = null
     #handSeen = 0             // the producer's changes told so far (Coordinator.handChanges)
 
     // team: the members whose fixed operations it borrows; catalog: which devices it may add; source: the root of
     // openDAW's source tree, the session's working directory; knowledge: the knowledge base (knowledge.ts), if loaded.
-    // mode: "job", a worker for one piece the captain hands out, in a fresh session (job()); "session", one long-lived
-    // session for every message, used only by the retired ROSTER=team path (2026-11-23): the coordinator keeps a
-    // session-mode instance just for may(); its handle/recover/steer code is dead and due for removal.
-    readonly #mode: "session" | "job"
-
-    constructor(team: ReadonlyArray<LlmMember>, catalog: Catalog, source: string, knowledge: Knowledge | null = null,
-                mode: "session" | "job" = "session") {
-        this.#mode = mode
+    // Each instance is one worker: one piece the captain hands out, in a fresh session (job()). The long-lived session
+    // mode (one session for every message) went with the ROSTER=team path (2026-11-23).
+    constructor(team: ReadonlyArray<LlmMember>, catalog: Catalog, source: string, knowledge: Knowledge | null = null) {
         this.#team = team
         this.#source = source
         this.#knowledge = knowledge
@@ -245,22 +210,6 @@ export class Utility implements Member {
     // The generalist: every operation, scripts included.
     may(_plan: Plan): boolean {return true}
 
-    // Something the model should know with the next message (an engine crash and what was undone).
-    notice(text: string): void {this.#unheard.push(text)}
-
-    // The board after (re)connecting: steps still coming and steps lost, told with the next turn (recover, or #work).
-    reconciled(coming: BoardStep[], lost: BoardStep[]): void {
-        this.#reconciled = coming.length === 0 && lost.length === 0 ? null : {coming, lost}
-    }
-
-    // Timed edits not landed yet, by direction, with short ids for cancel (none: {}).
-    #coming(context: Coordinator): Record<string, unknown> {
-        const outstanding = context.board.outstanding()
-        if (outstanding.length === 0) {return {}}
-        return {coming_steps: outstanding.map(({direction, steps}) => ({for: direction?.text ?? "?",
-            steps: steps.map(step => `${step.id.slice(0, 8)}: ${step.says} (bar ${step.bar}, ${step.state === "staged" ? "staged" : "waiting"})`)}))}
-    }
-
     // The producer's changes in openDAW since the model last heard, under key (none: {}).
     #hand(context: Coordinator, key: string): Record<string, unknown> {
         const {lines, next} = context.handChanges(this.#handSeen)
@@ -268,162 +217,21 @@ export class Utility implements Member {
         return lines.length === 0 ? {} : {[key]: lines}
     }
 
-    // The reconciled board in words, for the model: once.
-    #boardNote(): string {
-        const reconciled = this.#reconciled
-        this.#reconciled = null
-        if (reconciled === null) {return ""}
-        const list = (steps: BoardStep[]) => steps.map(step => `${step.says} (bar ${step.bar}${step.detail !== undefined ? `, ${step.detail}` : ""})`).join("; ")
-        return [reconciled.coming.length > 0 ? `Timed edits still coming as planned (they kept waiting; don't plan them again): ${list(reconciled.coming)}.` : "",
-            reconciled.lost.length > 0 ? `Timed edits that won't land: ${list(reconciled.lost)}.` : ""].filter(text => text !== "").join(" ")
-    }
-
-    // Ends the session process (the page went away, the project changed, or a turn failed). The SDK keeps the
-    // conversation on disk and the project's notebook says which it was, so the next message resumes it.
+    // Ends the session process (the piece is done, or the page went away).
     close(): void {
         this.#session?.inbox.close()
         this.#session?.query.close()
         this.#session = null
-        this.#sessionId = null
-    }
-
-    // The project just opened (also after a restart, when the page reconnects): a message the last session was in
-    // the middle of is finished now, told to the model as such.
-    async recover(context: Coordinator): Promise<void> {
-        const notebook = context.notebook
-        const state = notebook?.agentState() ?? null
-        if (notebook === null || state?.pending == null) {return}
-        const {message, t} = state.pending
-        notebook.setAgentState({...state, pending: null})
-        const recent = Date.now() - t < RecoverMs
-        context.event("agent_session", {recover: message, recent})
-        // A round trip to the page first: the page sends which edits are still waiting before it answers (the board).
-        await context.snapshot()
-        const board = this.#boardNote()
-        this.#unheard.push(`TakeDo restarted while you were working on the producer's message ${JSON.stringify(message)}: your last tool call may not have finished; edits for now that had landed are in the project.${board === "" ? "" : ` ${board}`} ${recent
-            ? "Finish that message now: check the project first, and don't redo what's already there."
-            : "That was a while ago: don't pick it up unless the producer asks."}`)
-        if (!recent) {return}
-        context.say(this.agent, "I got restarted partway through that; picking it back up.")
-        const snapshot = await context.snapshot()
-        if (snapshot !== null) {await this.handle(context, {message, piece: null, hints: null}, snapshot)}
-    }
-
-    // One task at a time: they share the session.
-    handle(context: Coordinator, task: Task, snapshot: Snapshot): Promise<void> {
-        const next = this.#queue.then(() => this.#work(context, task, snapshot))
-        this.#queue = next.catch(() => {})
-        return next
-    }
-
-    // A control the producer moved (Coordinator.#control): built when its turn comes, so the latest position is the one
-    // told; null when there's nothing left to tell.
-    steer(context: Coordinator, build: () => Promise<{ task: Task, snapshot: Snapshot } | null>): Promise<void> {
-        const next = this.#queue.then(async () => {
-            const built = await build()
-            if (built !== null) {await this.#work(context, built.task, built.snapshot)}
-        })
-        this.#queue = next.catch(() => {})
-        return next
-    }
-
-    // The knowledge route (router.ts, pickKnowledge): an entry Jev was sure of, applied with no model turn, queued
-    // like a message. The session hears about it with the next message, so the model knows what changed.
-    applyEntry(context: Coordinator, task: Task, key: string, args: Record<string, unknown>, snapshot: Snapshot): Promise<void> {
-        const next = this.#queue.then(async () => {
-            if (this.#owners.size === 0) {
-                this.#team.forEach(owner => owner.tools(withEveryTool(snapshot)).forEach(member => {
-                    if (!this.#owners.has(member.name)) {this.#owners.set(member.name, owner)}
-                }))
-            }
-            const work: Work = {done: [], pending: [], late: []}
-            const current: Current = {context, task, work, calls: 0, direction: context.board.direction(task.message),
-                anchor: anchorOf(snapshot)}
-            this.#current = current
-            try {
-                const result = await this.#applyKnowledge(current, key, args, 0)
-                await this.#commit(current)
-                this.#unheard.push(`The fast route applied ${key} for the producer's message ${JSON.stringify(task.message)}, without you: ${result}`)
-                const failed = result.startsWith("Not applied")
-                await this.#finish(context, failed ? `I couldn't apply ${key}: ${result.replace(/^Not applied: /, "")}`
-                    : routeReply(key.split("/")[1].replace(/-/g, " "), current.applied ?? [], current.appliedBars ?? 8), work)
-            } finally {
-                this.#current = null
-            }
-        })
-        this.#queue = next.catch(() => {})
-        return next
-    }
-
-    async #work(context: Coordinator, task: Task, snapshot: Snapshot): Promise<void> {
-        context.card({agent: this.agent, name: this.name, doing: "looking…"})
-        const opening = this.#session === null
-        const stored = opening ? await this.#stored(context) : null
-        const fresh = opening && stored === null
-        const session = this.#session ?? (this.#session = this.#open(context, snapshot, stored?.session))
-        if (opening) {
-            this.#resumed = stored !== null
-            this.#okTurns = 0
-            this.#sessionId = stored?.session ?? null
-            // It has seen the index already, in the conversation it resumes.
-            if (stored !== null) {this.#knowledge?.index().forEach(line => this.#indexed.add(line.key))}
-            context.event("agent_session", {session: this.#sessionId, resumed: stored !== null})
-        }
-        const pending = {message: task.message, t: Date.now()}
-        if (this.#sessionId !== null) {context.notebook?.setAgentState({session: this.#sessionId, pending})}
-        const boardNote = this.#boardNote()
-        if (boardNote !== "") {this.#unheard.push(boardNote)}
-        const work: Work = {done: [], pending: [], late: []}
-        const direction = context.board.direction(task.message, task.control === true)
-        this.#current = {context, task, work, calls: 0, direction, anchor: anchorOf(snapshot)}
-        session.inbox.push(JSON.stringify({
-            ...(fresh && task.history !== undefined && task.history.length > 0 ? {conversation: task.history} : {}),
-            ...(this.#unheard.length > 0 ? {since_your_last_reply: this.#unheard.splice(0)} : {}),
-            ...(task.control === true ? {control_moved: task.message} : {producer_message: task.message}), ...this.#hand(context, "producer_changed"), ...this.#coming(context), ...(task.piece !== null ? {your_task: task.piece} : {}),
-            ...(task.candidates !== undefined && task.candidates.length > 0 ? {knowledge_candidates: task.candidates} : {}),
-            project: {...projectFor(snapshot, true), regions: snapshot.tracks.map(track => ({track: track.ref,
-                regions: track.regions.map(({ref, name, from, to, loop}) => ({ref, name, from, to, loop}))}))},
-            notebook: context.notebook?.list() ?? [],
-            ...this.#knowledgeLines(fresh),
-            ...(fresh ? {devices: this.#devices, ...Object.assign({}, ...this.#team.map(member => member.context(snapshot)))} : {})
-        }))
-        try {
-            const summary = await this.#reply(context, session, pending)
-            this.#okTurns++
-            if (this.#sessionId !== null) {context.notebook?.setAgentState({session: this.#sessionId, pending: null})}
-            const said = this.#current?.said
-            if (this.#current !== null) {await this.#commit(this.#current)}
-            await this.#finish(context, said ?? asChatLine(summary), work)
-        } catch (error) {
-            // The producer hears of the failure. The next message resumes the conversation, unless resuming it is
-            // what failed: then it starts a new one.
-            context.board.drop(direction.id)
-            const id = this.#sessionId
-            if (id !== null) {context.notebook?.setAgentState(this.#resumed && this.#okTurns === 0 ? null : {session: id, pending: null})}
-            this.close()
-            throw error
-        } finally {
-            this.#current = null
-        }
     }
 
     // Reads the session until this message's turn ends; its last text is what the producer reads. Each turn is
     // logged like a model call (tokens are the main loop's; the cost is the session's running total).
-    async #reply(context: Coordinator, session: Session, pending: AgentState["pending"]): Promise<string> {
+    async #reply(context: Coordinator, session: Session): Promise<string> {
         const {model} = context.gateway.agent("utility")
         while (true) {
             const next = await session.query.next()
             if (next.done === true) {throw new Error("the agent's session ended")}
             const message = next.value
-            // A new session's id comes with its first message: kept with the message it's working on.
-            if (this.#sessionId === null && "session_id" in message && typeof message.session_id === "string") {
-                this.#sessionId = message.session_id
-                // A worker's session is never resumed: the captain's is the project's (captain.ts).
-                if (this.#mode === "session") {
-                    context.notebook?.setAgentState({session: message.session_id, pending})
-                    context.event("agent_session", {session: message.session_id, resumed: false})
-                }
-            }
             if (message.type === "assistant" && message.parent_tool_use_id === null
                 && message.message.content.some(block => block.type === "tool_use" && SourceTools.includes(block.name))) {
                 context.card({agent: this.agent, name: this.name, doing: "reading openDAW's source…"})
@@ -442,21 +250,10 @@ export class Utility implements Member {
         }
     }
 
-    // The project's stored session, if the SDK still has its transcript.
-    async #stored(context: Coordinator): Promise<AgentState | null> {
-        const state = context.notebook?.agentState() ?? null
-        if (state === null) {return null}
-        const found = await getSessionInfo(state.session, {dir: this.#cwd()}).catch(() => undefined)
-        if (found === undefined) {context.notebook?.setAgentState(null)}
-        return found === undefined ? null : state
-    }
-
     #cwd(): string {return existsSync(this.#source) ? this.#source : process.cwd()}
 
-    // A session with our tools: the members' (from the first snapshot, opened to any ref, so the list never changes)
-    // and the utility's own. resume: a stored session's id, to carry on its conversation (the SDK keeps it on disk,
-    // under CLAUDE_CONFIG_DIR; compose.yaml puts that in sessions/).
-    #open(context: Coordinator, snapshot: Snapshot, resume?: string): Session {
+    // A session with our tools: the members' (from the snapshot, opened to any ref) and the utility's own.
+    #open(context: Coordinator, snapshot: Snapshot): Session {
         const {model, effort} = context.gateway.agent("utility")
         const handler = (run: (current: Current, input: Record<string, unknown>) => Promise<string> | string) =>
             async (input: Record<string, unknown>): Promise<CallToolResult> => {
@@ -499,27 +296,6 @@ export class Utility implements Member {
                     current.said = text
                     return reply("Sent. End your turn now.")
                 }),
-            // The captain's in the captain roster (captain.ts): a worker leaves controls and cancelling to it.
-            ...(this.#mode === "job" ? [] : [
-            tool("offer_control", "Put a dial on your card in the team view (or change one you have: same name), for the producer to steer a direction that keeps going. It changes nothing by itself.", {
-                name: z.string().regex(/^[a-z][a-z0-9_]{0,30}$/).describe("A short id, lower case (\"lofi_amount\")"),
-                label: z.string().max(30).describe("What the producer reads on it, a word or two (\"Lofi\", \"Busy\")"),
-                low: z.string().max(30).describe("Its 0 end, in the producer's words (\"clean\")"),
-                high: z.string().max(30).describe("Its 1 end (\"dusty tape\")"),
-                meaning: z.string().describe("What you'll do as it moves, for yourself later: what changes, between which settings"),
-                value: z.number().min(0).max(1).describe("Where it starts: where the project stands or is headed now")},
-                handler((current, input) => current.context.offerControl(this.agent, {ref: `c:${String(input.name)}`,
-                    label: String(input.label), low: String(input.low), high: String(input.high), meaning: String(input.meaning),
-                    value: Number(input.value)}))),
-            tool("cancel", "Take back timed edits that haven't landed yet (coming_steps lists them with each message).", {
-                steps: z.array(z.string()).describe("Step ids from coming_steps, or [\"all\"] for every one")},
-                handler((current, input) => {
-                    const ids = (input.steps as string[]).map(String)
-                    return current.context.cancel(ids.includes("all") ? "all" : ids)
-                })),
-            tool("remove_control", "Take a dial off your card.", {name: z.string()},
-                handler((current, input) => current.context.removeControl(this.agent, `c:${String(input.name).replace(/^c:/, "")}`)))
-            ]),
             tool("look", "Run read-only JavaScript (an async function body, `takedo` in scope) and see what it returns.", {
                 code: z.string()}, handler((current, input) => this.#look(current.context, String(input.code))),
                 {annotations: {readOnlyHint: true}}),
@@ -543,10 +319,9 @@ export class Utility implements Member {
         const inbox = new Inbox()
         return {inbox, query: query({prompt: inbox, options: {
             model, ...(effort !== undefined ? {effort} : {}),
-            systemPrompt: (this.#mode === "job" ? WorkerSystem : System).replace(KnowledgeSlot, this.#knowledge === null ? "" : KnowledgeTools)
+            systemPrompt: WorkerSystem.replace(KnowledgeSlot, this.#knowledge === null ? "" : KnowledgeTools)
                 .replace(KeySlot, this.#knowledge === null ? "" : KnowledgeKey),
             cwd: this.#cwd(),
-            ...(resume !== undefined ? {resume} : {}),
             tools: SourceTools,
             allowedTools: [...SourceTools, "mcp__takedo__*"],
             permissionMode: "dontAsk",
@@ -824,7 +599,7 @@ export class Utility implements Member {
             devices: this.#devices, ...Object.assign({}, ...this.#team.map(member => member.context(snapshot)))
         }))
         try {
-            const summary = await this.#reply(context, session, null)
+            const summary = await this.#reply(context, session)
             const report = current.said ?? asChatLine(summary)
             context.card({agent: this.agent, name: this.name, doing: `${job.id} planned`})
             if (work.late.length > 0) {context.jobLate(job.id, work.late.map(line => line.replace(/\.+$/, "")).join("; "))}
@@ -851,19 +626,5 @@ export class Utility implements Member {
         })
     }
 
-    async #finish(context: Coordinator, summary: string, work: Work): Promise<void> {
-        context.say(this.agent, summary.trim() || (work.done.length > 0 ? `${work.done.join("; ")}.` : "I didn't change anything."))
-        void Promise.all(work.pending).then(() => {
-            context.card({agent: this.agent, name: this.name, doing: work.done.length > 0 ? `${work.done.join("; ")} (done)` : "idle"})
-            if (work.late.length === 0) {return}
-            const late = work.late.map(line => line.replace(/\.+$/, "")).join("; ")
-            // The lines are written for the model ("Leave that control alone"); the producer gets them reworded.
-            const forProducer = work.late.map(line => line
-                .replace(/: undone, it changed a control the producer is holding\. Leave that control alone\.?$/, ": undone, you're holding that control")
-                .replace(/: failed \([^)]*\): (.*?)\.? Nothing was changed\.?$/, (_, detail: string) => `: didn't work${detail.trim() ? ` (${detail.trim()})` : ""}`)
-                .replace(/\.+$/, "")).join("; ")
-            context.say(this.agent, `Not done after all: ${forProducer}.`)
-            this.#unheard.push(`Failed: ${late}`)
-        })
-    }
+
 }
