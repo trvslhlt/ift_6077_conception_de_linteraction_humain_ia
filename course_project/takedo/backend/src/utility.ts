@@ -226,8 +226,9 @@ export class Utility implements Member {
 
     // team: the members whose fixed operations it borrows; catalog: which devices it may add; source: the root of
     // openDAW's source tree, the session's working directory; knowledge: the knowledge base (knowledge.ts), if loaded.
-    // mode: "session", one long-lived session for every message (the ROSTER=team path, until it's retired); "job", a
-    // worker for one piece the captain hands out, in a fresh session (job()).
+    // mode: "job", a worker for one piece the captain hands out, in a fresh session (job()); "session", one long-lived
+    // session for every message, used only by the retired ROSTER=team path (2026-11-23): the coordinator keeps a
+    // session-mode instance just for may(); its handle/recover/steer code is dead and due for removal.
     readonly #mode: "session" | "job"
 
     constructor(team: ReadonlyArray<LlmMember>, catalog: Catalog, source: string, knowledge: Knowledge | null = null,

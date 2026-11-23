@@ -287,6 +287,11 @@ Built (2026-11-22), step 2's second piece: the captain split from the utility (`
     - Up to 5 edits landed in one bar (the limit is per plan; immediate edits and other plans aren't counted).
     - In one controls run, the session log lost lines (4 cut mid-line, nothing after 4.5 min while the backend kept
       replying), so its slow second dial reply (240 s) couldn't be traced.
+- **The ROSTER=team path is retired (2026-11-23).** Gone: Jev's fast-path routing, the Team Lead's split (`lead`),
+  `handOff`, members acting on their own, and the `ROSTER`/`KNOWLEDGE_ROUTE` settings. Every message goes to the
+  captain. The members' fixed operations stay as the workers' tools. The smoke test runs on the captain: one message
+  end to end, and the page's guarantees with edits sent straight to it. Left for a cleanup: the utility's
+  session-mode code, now dead.
 - **Each part goes out when its worker finishes (2026-11-23, the producer's choice).** Waiting for a direction's
   slowest worker held a whole plan back: in a manual session the drum worker took 113 s, so nothing landed until
   122 s, while the reply said "over the next 16 bars". Now each job's steps go out as it finishes, from the
@@ -316,6 +321,9 @@ Built (2026-11-22), step 2's second piece: the captain split from the utility (`
     to something about the host at those times, not a fixed TakeDo action.
   - Next: the next stall's samples say whether animation frames stopped (openDAW reads the engine's position only on
     them), whether the engine's own position froze, and whether it reports loading incomplete.
+  - A real browser (the producer's manual test, 2026-11-23, about 3 minutes with the lofi and cancel messages) didn't
+    freeze, and the README already recorded one headless freeze in the smoke test on 2026-11-07, "not seen in a real
+    browser". Treated as headless-only for now; the smoke test fails cleanly on it instead of hanging.
   - Seen on the way: openDAW's `AnimationFrame` loop skips clearing its queue when a callback throws, so one throw
     would freeze every later callback (the engine-position read among them) for good. No run threw, so it isn't this
     stall.

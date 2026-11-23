@@ -10,11 +10,9 @@ The POCs in `../poc/` are frozen references and benches. Code is copied from the
 ## Usage
 
 ```sh
-make up       # build and start the studio and the backend (page/, shared/, backend/src/ live); the utility alone
-make up ROSTER=team  # the same with the full team
-make up KNOWLEDGE_ROUTE=on   # the utility with Jev's knowledge route in front of it (off by default for now)
+make up       # build and start the studio and the backend (page/, shared/, backend/src/ live): the captain and its workers
 make open     # open http://localhost:8080, then New Project, then the floating robot button
-make test     # smoke test in headless Chromium, against the full team (then puts the backend back on ROSTER)
+make test     # smoke test in headless Chromium, against the captain and its workers
 make scenario # play scenarios/lofi.json (SCENARIO=<name>) headless against the backend as `make up` starts it; report in scenarios/runs/
 make logs     # follow the studio's and the backend's output
 make catalog  # regenerate catalog/generated.json from openDAW (after bumping the openDAW pin)
@@ -87,28 +85,25 @@ API keys go in `.env` (git-ignored, and never in a build context): `TYPESAFE_API
   mounted at `src/takedo_shared/` in the studio
 - `backend/src/`
   - `main.ts`: the socket server and `/health`; one session (coordinator + log) per page connection
-  - `coordinator.ts`: the backend half of the bus: chat and routing (`@member` straight to it, `@team_lead` to the
-    split, otherwise Jev: one clear member or the Team Lead), claims (locks), requests to the adapter (refused outside
-    the member's area), snapshot queries, member cards, the team roster for the page; asks for the overview when the
-    view is open on a project that has none
-  - `router.ts`: the fast path: one Jev request scores the roster and judges the hints (part, change, amount, when);
-    `@member` skips the scores. Also the knowledge route (`pickKnowledge`), in front of the utility: Jev judges what
+  - `coordinator.ts`: the backend half of the bus: every chat message to the captain (`captain.ts`), jobs for its
+    workers (each a fresh utility session; a job's part goes out when it's planned), claims (locks), requests to the
+    adapter (refused outside the agent's area), snapshot queries, cards, controls, the team roster for the page; asks
+    for the overview when the view is open on a project that has none
+  - `router.ts`: Jev's knowledge route (`pickKnowledge`), not wired into the studio since the team path was retired
+    (2026-11-23); the knowledge bench uses it, and it comes back with Jev. Jev judges what
     kind of change a message asks for and picks a shortlisted knowledge entry. When both agree and the pick is sure
     enough, the backend applies the entry with no model turn (`Utility.applyEntry`); otherwise the utility gets
     the candidates. `router.test.ts`: offline checks with Jev stubbed (`make knowledge`)
-  - `members.ts`: the team. Each member turns a task into steps (plan + landing) carried out in parallel under its
-    claims; a plan whose first bar passed while it was planned slides later as a whole. The mix engineer (volume and
-    pan; "quieter"/"louder" with Jev's hints is code alone), the arranger (mutes at bars) and the effect designer
-    (adds, removes, sets and ramps audio effects, chosen from the catalog) plan with one Claude call each, strict
-    tools limited to their area (as in `poc/llm_bench`)
+  - `members.ts`: the fixed operations workers borrow, from three former members: the mix engineer (volume and pan),
+    the arranger (mutes at bars) and the effect designer (adds, removes, sets and ramps audio effects, chosen from the
+    catalog); `performStep` claims, slides a passed plan later and requests. The members no longer act on their own
+    (the ROSTER=team path, retired 2026-11-23); they come back as workers one at a time
   - `utility.ts`: the utility, the open path (STRATEGY.md, "Keep the open path"): whatever no member has an operation
     for, done with JavaScript in the page in a look-and-try loop (read-only looks, scripts as one undoable edit each,
     results or errors fed back, up to 80 tool calls per message). Runs as a Claude Agent SDK session (Claude Code's loop as a library, `@anthropic-ai/claude-agent-sdk`), one per page, open across messages and summarized by the SDK when it grows; our tools are an in-process MCP server, and it reads openDAW's source with Claude Code's Read, Grep and Glob, its working directory being `.opendaw/` (made by `make types`, which `make up` runs if it's missing, mounted read-only). The producer never sees it by name: the page shows its lines and card
     as the Team Lead's (the backend's team roster sends the alias and leaves it out of @mentions). Has every member's fixed operations as tools (for timing, ramps
     and checks), opened to any ref so the list never changes during a session
-  - `teamLead.ts`: the Team Lead's language-model work: the overview (one Claude call on the full snapshot plus the
-    analysis and catalog), and splitting a direction among the members (structured output, with the roster and
-    what nobody on the team can do)
+  - `teamLead.ts`: the overview (one Claude call on the full snapshot plus the analysis and catalog)
   - `notebook.ts`: the agent's notebook, per project in `sessions/notebooks/`: notes, plans, clips, sounds, scripts,
     and the project's starting state; listed with every message, recalled by key, so what matters survives the
     session being summarized or restarted
@@ -142,9 +137,10 @@ API keys go in `.env` (git-ignored, and never in a build context): `TYPESAFE_API
   cartridges, the page-side script helpers, and the imports that wrote the generated entries (`knowledge/README.md`)
 - `test/smoke.mjs`: page loads cross-origin isolated, two parts with notes, the team view opens, the backend
   welcomes the page, the overview (three labelled lines naming both tracks, Keys described from the catalog, the live playback line, refresh after a
-  third track is added), ping round trip, reconnecting after a dropped socket; then, during playback: `@mix_engineer the drums are too loud`, one undo
-  restoring it, an unaddressed message routed to the mix engineer, and a held fader dropping the request. Calls the
-  models for real (3 Jev requests, 3 Claude Haiku overviews: a fraction of a cent), so it needs both keys in `.env`.
+  third track is added), ping round trip, reconnecting after a dropped socket; then, during playback: "the drums are too loud" through the
+  captain and a worker, and the page's guarantees with edits sent straight to it (one undo per ramp, a held fader
+  dropping an edit and undoing a script, recording as automation, add_effect, a scripted track faded in, loop
+  timing). Calls Claude Haiku for real (overviews, one captain turn and a worker: cents), so it needs the key in `.env`.
   Failed requests to other origins (openDAW's own `api.opendaw.studio`) are ignored. Also: out-of-range values in a
   script corrected by the guard, and last, a deliberate engine crash (guard off) undone on restart
 - `Dockerfile` (studio; its build stage is hello_world's, so openDAW comes from the shared cache), `backend/Dockerfile`,
@@ -212,12 +208,11 @@ Known gaps in what's built:
   chords, drum patterns, instruments, MIDI effects, clip lengths) is done by the Team Lead's hands (the utility),
   with scripts, in seconds to tens of seconds. Jev still scores all nine roles; a message for an unfilled one goes
   to the Team Lead. How well Haiku writes musical scripts (reharmonizing, swing) isn't measured yet.
-- **The utility alone, for now** (2026-11-07): the full team got complex before the basics of an agent working in
-  openDAW were solid, so by default (`ROSTER=utility`) every message goes straight to the utility, shown as the Team
-  Lead: no Jev routing, no split, no members. It keeps the members' fixed operations as tools (ramps, bar-timed
-  edits). Roles come back one at a time with `ROSTER=team`, which the smoke test uses. Since 2026-11-12, Jev's
-  knowledge route can sit in front of it (`KNOWLEDGE_ROUTE=on`; off by default until the utility's baseline is run;
-  `router.ts`, `pickKnowledge`): a message it is sure an entry serves is applied in
+- **The captain and its workers** (2026-11-22, ARCHITECTURE.md "The team's structure"): every message goes to the
+  captain, shown as the Team Lead, which hands pieces to workers (fresh utility sessions, in parallel). The full
+  team (`ROSTER=team`: Jev routing, the lead's split, members acting on their own) was retired on 2026-11-23; the
+  members' fixed operations stay as the workers' tools, and roles come back as workers one at a time. Jev's
+  knowledge route (`router.ts`, `pickKnowledge`) isn't wired in for now; on the bench, a message it is sure an entry serves is applied in
   about 150 ms without a model turn (66 of 123 such messages on the bench, none wrong), and it hands the utility its
   candidates otherwise. Not yet run in the studio. It sees the last 12 chat
   lines, so "go on" or "do all of it" refers back. An edit for a later bar answers "scheduled" at once and lands on

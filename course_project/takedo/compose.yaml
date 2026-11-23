@@ -33,9 +33,6 @@ services:
       - path: .env
         required: false
     environment:
-      # Who's in play: "utility" alone, or the full "team" (backend/src/coordinator.ts, Roster).
-      TAKEDO_ROSTER: ${ROSTER:-utility}
-      TAKEDO_KNOWLEDGE_ROUTE: ${KNOWLEDGE_ROUTE:-off}
       # Where the Agent SDK keeps the utility's conversations, so a restarted backend resumes them (utility.ts).
       CLAUDE_CONFIG_DIR: /app/sessions/claude
     volumes:

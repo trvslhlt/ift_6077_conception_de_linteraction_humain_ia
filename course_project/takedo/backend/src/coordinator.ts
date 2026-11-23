@@ -6,9 +6,9 @@ import {
 import type {Catalog} from "./catalog.ts"
 import type {Gateway, ModelLog} from "./gateway.ts"
 import {createTeam, type Member, type Task} from "./members.ts"
-import {isRole, type KnowledgePick, type PartRole, pickKnowledge, type Role, route} from "./router.ts"
 import type {LogType, SessionLog} from "./sessionLog.ts"
-import {lead, writeOverview} from "./teamLead.ts"
+import type {PartRole} from "./router.ts"
+import {writeOverview} from "./teamLead.ts"
 import {Notebook} from "./notebook.ts"
 import {type Anchor, Board, type Direction} from "./board.ts"
 import {Captain} from "./captain.ts"
@@ -26,8 +26,6 @@ const HistoryLines = 12
 // and hands pieces to workers, the utility in a fresh session per piece, running in parallel (ARCHITECTURE.md, "The
 // team's structure", 2026-11-22); "team": the older full team (Jev routing, the one-off Team Lead split, specialists
 // handing leftovers to one long-lived utility session), kept until it's retired (step 3).
-// TAKEDO_ROSTER, from `make up ROSTER=…` (the smoke test runs the team).
-const Roster: "utility" | "team" = process.env.TAKEDO_ROSTER === "team" ? "team" : "utility"
 // Controls a member may have on its card at once (INTERACTION.md: one intent control each; a few while it's tried out).
 export const MaxControls = 3
 // A control's position in words, for its owner: where it sits between its two ends.
@@ -38,10 +36,6 @@ export const placed = (control: Control): string => {
     return `${value.toFixed(2)}, ${where} (0 is "${low}", 1 is "${high}")`
 }
 const Terminal: ReadonlyArray<Status["state"]> = ["applied", "dropped", "failed"]
-// The knowledge route (router.ts, pickKnowledge) in front of the utility: on with TAKEDO_KNOWLEDGE_ROUTE=on. Off by
-// default until the utility alone has its baseline (the roadmap: the utility first, then Jev); the utility has the
-// knowledge base either way.
-const KnowledgeRoute = process.env.TAKEDO_KNOWLEDGE_ROUTE === "on"
 
 export class Coordinator {
     readonly #send: (message: BackendToPage) => void
@@ -57,7 +51,7 @@ export class Coordinator {
     readonly #members: ReadonlyArray<Member>
     readonly #team: ReadonlyArray<LlmMember>
     readonly #source: string
-    readonly #captain: Captain | null
+    readonly #captain: Captain
     // Job reports not yet told to the captain, and whether a turn to tell it is queued (several are told together).
     readonly #reports: Array<{ kind: "job_finished" | "job_failed" | "job_failed_later", text: string, direction?: Direction }> = []
     #reporting = false
@@ -94,10 +88,12 @@ export class Coordinator {
         const team = createTeam(catalog)
         this.#knowledge = knowledge
         const utility = new Utility(team, catalog, source, knowledge)
-        this.#members = Roster === "team" ? [...team, utility] : [utility]
+        // The utility as the agent workers act as: it holds what they may do (may) and borrows the members' fixed
+        // operations; the members themselves aren't agents any more (the ROSTER=team path, retired 2026-11-23).
+        this.#members = [utility]
         this.#team = team
         this.#source = source
-        this.#captain = Roster === "team" ? null : new Captain(source)
+        this.#captain = new Captain(source)
     }
 
     get gateway(): Gateway {return this.#gateway}
@@ -105,7 +101,7 @@ export class Coordinator {
     // The page went away: end the utility's agent session.
     close(): void {
         this.#members.forEach(member => {if (member instanceof Utility) {member.close()}})
-        this.#captain?.close()
+        this.#captain.close()
     }
 
     // The open project's notebook (notebook.ts); null with no project open.
@@ -114,12 +110,8 @@ export class Coordinator {
     // Tells the page who's on the team (the Team Lead first), for mentions and autocomplete. The utility isn't shown:
     // the producer sees its work as the Team Lead's (an alias; it keeps its own claims, attribution and log lines).
     start(): void {
-        // With the captain, the Team Lead is the captain itself, and the workers show as the utility.
-        this.#send({type: "team", aliases: this.#captain === null ? {"agent:utility": "agent:team_lead"} : {}, members: [
-            {role: "team_lead", name: "Team lead", area: Roster === "team"
-                ? "the front door: hands your direction to the team, and does the rest itself" : "does what you ask in openDAW"},
-            ...this.#members.filter(member => member.role !== "utility")
-                .map(({role, name, area, can}) => ({role, name, area: `${area}. Fast at: ${can}`}))]})
+        // The Team Lead is the captain itself; the workers show as the utility, in the activity.
+        this.#send({type: "team", aliases: {}, members: [{role: "team_lead", name: "Team lead", area: "does what you ask in openDAW"}]})
     }
 
     receive(message: PageToBackend): void {
@@ -140,11 +132,8 @@ export class Coordinator {
                 this.#sendControls()
                 this.#maybeOverview()
                 // A message the backend was restarted in the middle of, picked back up.
-                const utility = this.#members.find(member => member instanceof Utility)
-                if (this.#notebook !== null && this.#captain !== null) {
+                if (this.#notebook !== null) {
                     this.#captain.recover(this).catch(error => this.say("agent:team_lead", `Something went wrong: ${String(error)}`))
-                } else if (this.#notebook !== null && utility instanceof Utility) {
-                    utility.recover(this).catch(error => this.say("agent:team_lead", `Something went wrong: ${String(error)}`))
                 }
                 return
             }
@@ -166,12 +155,8 @@ export class Coordinator {
                 return
             case "waiting": {
                 const {coming, lost} = this.board.reconcile(message.requests)
-                if (this.#captain !== null) {
-                    // Workers' sessions don't outlive the backend: a job still running was cut off.
-                    this.#captain.reconciled(coming, lost, this.board.loseRunning())
-                } else {
-                    this.#members.forEach(member => {if (member instanceof Utility) {member.reconciled(coming, lost)}})
-                }
+                // Workers' sessions don't outlive the backend: a job still running was cut off.
+                this.#captain.reconciled(coming, lost, this.board.loseRunning())
                 return
             }
             case "result":
@@ -197,8 +182,7 @@ export class Coordinator {
                     ? "The audio engine crashed and is restarting. No recent change of ours was the latest, so nothing was undone."
                     : `The audio engine crashed and is restarting. I undid my last change ("${message.undone}"), the likely cause.`
                 this.say("agent:team_lead", text)
-                this.#members.forEach(member => {if (member instanceof Utility) {member.notice(text)}})
-                this.#captain?.notice(text)
+                this.#captain.notice(text)
                 return
             }
         }
@@ -449,44 +433,21 @@ export class Coordinator {
             return text
         }
         const captain = this.#captain
-        if (captain !== null) {
-            if (control.owner !== captain.agent) {return}
-            this.card({agent: captain.agent, name: captain.name, doing: `heard: ${control.label} ${placed(control).replace(/ \(0 is.*$/, "")}`})
-            if (this.#steering) {return}
-            this.#steering = true
-            captain.later(this, async () => {
-                this.#steering = false
-                const text = describe()
-                const snapshot = text === "" ? null : await this.snapshot()
-                return snapshot === null ? null : {turn: {kind: "control_moved", text}, snapshot}
-            }).catch(error => this.say("agent:team_lead", `Something went wrong: ${String(error)}`))
-            return
-        }
-        const utility = this.#members.find(member => member instanceof Utility)
-        if (!(utility instanceof Utility) || control.owner !== utility.agent) {return}
-        this.card({agent: utility.agent, name: utility.name, doing: `heard: ${control.label} ${placed(control).replace(/ \(0 is.*$/, "")}`})
+        if (control.owner !== captain.agent) {return}
+        this.card({agent: captain.agent, name: captain.name, doing: `heard: ${control.label} ${placed(control).replace(/ \(0 is.*$/, "")}`})
         if (this.#steering) {return}
         this.#steering = true
-        utility.steer(this, async () => {
+        captain.later(this, async () => {
             this.#steering = false
-            const now = this.controls()
-            const text = [...this.#moved].flatMap(([ref, was]) => {
-                const control = now.find(candidate => candidate.ref === ref)
-                return control === undefined || control.value === was ? []
-                    : [`The producer moved your control "${control.label}" from ${was.toFixed(2)} to ${placed(control)}. It means: ${control.meaning}`]
-            }).join("\n")
-            this.#moved.clear()
+            const text = describe()
             const snapshot = text === "" ? null : await this.snapshot()
-            if (snapshot === null) {return null}
-            const task: Task = {message: text, piece: null, hints: null, control: true}
-            return {task, snapshot}
+            return snapshot === null ? null : {turn: {kind: "control_moved", text}, snapshot}
         }).catch(error => this.say("agent:team_lead", `Something went wrong: ${String(error)}`))
     }
 
     // ---------- chat and routing ----------
 
-    // @member: straight to it (with Jev's hints if it wants them). @team_lead: the Team Lead splits it. Otherwise Jev
-    // routes: one member clearly needed gets it with the hints, anything else goes to the Team Lead.
+    // Every message goes to the captain (the Team Lead), with or without "@team_lead" in front.
     async #chat(text: string): Promise<void> {
         const line = {id: randomUUID(), t: Date.now(), from: "user" as Actor, text}
         const history = this.#history.slice(-HistoryLines)
@@ -495,7 +456,7 @@ export class Coordinator {
         this.#send({type: "chat", line})
         const mention = /^@(\w+)\s*/.exec(text)
         const named = mention === null ? null : mention[1]
-        if (named !== null && named !== "team_lead" && !isRole(named)) {
+        if (named !== null && named !== "team_lead") {
             return this.say("agent:team_lead", `There's no @${named} on the team.`)
         }
         const message = mention === null ? text : text.slice(mention[0].length)
@@ -503,46 +464,7 @@ export class Coordinator {
         const snapshot = await this.snapshot()
         if (snapshot === null) {return this.say("agent:team_lead", "Open a project first.")}
         await this.#keepFacts()
-        if (this.#captain !== null) {
-            return this.#captain.handle(this, {kind: "producer_message", text: message, history}, snapshot)
-        }
-        const utility = this.#members.find(member => member.role === "utility")
-        if (Roster === "utility" && utility instanceof Utility) {
-            const task: Task = {message, piece: null, hints: null, history}
-            const picked = await this.#pickKnowledge(snapshot, message, named)
-            if (picked?.path === "apply") {return utility.applyEntry(this, task, picked.key, picked.args, snapshot)}
-            return utility.handle(this, picked?.path === "hint" ? {...task, candidates: picked.candidates} : task, snapshot)
-        }
-        // A role nobody fills yet is still work the team does: the Team Lead takes it.
-        const addressed = named === null ? null : this.#members.find(member => member.role === named)
-        if (named === "team_lead" || addressed === undefined) {return this.#lead(message, snapshot)}
-        if (addressed !== null && !addressed.wantsHints) {
-            return addressed.handle(this, {message, piece: null, hints: null, direct: true}, snapshot)
-        }
-        const missing = this.#gateway.missing("fast_path")
-        if (missing !== null) {return this.say("agent:team_lead", `I can't reach Jev: ${missing}.`)}
-        const routed = await route(this.#gateway, this.modelLog(), snapshot, message, addressed === null ? null : named as Role)
-        this.#log.write("route", routed)
-        if (routed.path === "slow") {return this.#lead(message, snapshot)}
-        const member = this.#members.find(member => member.role === routed.member)
-        if (member === undefined) {return this.#lead(message, snapshot)}
-        await member.handle(this, {message, piece: null, hints: routed.hints, direct: addressed !== null}, snapshot)
-    }
-
-    // Jev's look at the knowledge base before the utility's turn: null when there's no knowledge base or no Jev, the
-    // message is addressed to someone, or the call fails (the utility then works as before).
-    async #pickKnowledge(snapshot: Snapshot, message: string, named: string | null): Promise<KnowledgePick | null> {
-        if (!KnowledgeRoute || this.#knowledge === null || named !== null || !this.#gateway.available("fast_path")) {return null}
-        try {
-            const facts = this.#notebook?.get("facts") ?? null
-            const roles = facts === null ? {} : (JSON.parse(facts.value).roles ?? {}) as Record<string, PartRole>
-            const picked = await pickKnowledge(this.#gateway, this.modelLog(), this.#knowledge, snapshot, message, roles)
-            this.#log.write("route", {...picked, path: `knowledge_${picked.path}`})
-            return picked
-        } catch (error) {
-            this.#log.write("route", {path: "knowledge_error", error: String(error)})
-            return null
-        }
+        return this.#captain.handle(this, {kind: "producer_message", text: message, history}, snapshot)
     }
 
     // ---------- jobs (the captain's workers) ----------
@@ -586,7 +508,6 @@ export class Coordinator {
     // Job reports reach the captain together, in one turn built when its time comes.
     #report(report: { kind: "job_finished" | "job_failed" | "job_failed_later", text: string, direction?: Direction }): void {
         const captain = this.#captain
-        if (captain === null) {return}
         this.#reports.push(report)
         if (this.#reporting) {return}
         this.#reporting = true
@@ -598,36 +519,6 @@ export class Coordinator {
             const kind = reports.some(report => report.kind !== "job_finished") ? reports.find(report => report.kind !== "job_finished")!.kind : "job_finished"
             return {turn: {kind, text: reports.map(report => report.text).join("\n"), direction: reports[0].direction}, snapshot}
         }).catch(error => this.say("agent:team_lead", `Something went wrong: ${String(error)}`))
-    }
-
-    // What a member's fast operations don't cover, done by the Team Lead's hands (the utility) on a fresh snapshot.
-    async handOff(from: Member, task: Task, rest: string): Promise<void> {
-        const utility = this.#members.find(member => member.role === "utility")
-        const snapshot = await this.snapshot()
-        if (utility === undefined || snapshot === null) {return}
-        this.#log.write("by_hand", {from: from.agent, piece: rest})
-        await utility.handle(this, {message: task.message, piece: rest, hints: null}, snapshot)
-            .catch(error => this.say(utility.agent, `Something went wrong: ${String(error)}`))
-    }
-
-    // The slow path: the Team Lead replies and hands out pieces; the members work on them in parallel.
-    async #lead(message: string, snapshot: Snapshot): Promise<void> {
-        const missing = this.#gateway.missing("team_lead")
-        if (missing !== null) {return this.say("agent:team_lead", `I can't plan that: ${missing}.`)}
-        this.card({agent: "agent:team_lead", name: "Team lead", doing: "splitting it up…"})
-        const plan = await lead(this.#gateway, this.modelLog(), snapshot, message, this.#members)
-        this.#log.write("route", {path: "lead", plan})
-        plan.members.filter(entry => entry.role === "utility")
-            .forEach(({piece}) => this.#log.write("by_hand", {from: "agent:team_lead", piece}))
-        this.card({agent: "agent:team_lead", name: "Team lead",
-            doing: plan.members.length === 0 ? "idle" : `asked ${plan.members.map(entry => entry.role.replace(/_/g, " ")).join(", ")}`})
-        this.say("agent:team_lead", plan.reply)
-        await Promise.all(plan.members.map(({role, piece}) => {
-            const member = this.#members.find(member => member.role === role)
-            const task: Task = {message, piece, hints: null}
-            return member?.handle(this, task, snapshot).catch(error =>
-                this.report(member.agent, task, `Something went wrong with the ${member.name.toLowerCase()}'s part: ${String(error)}`, true))
-        }))
     }
 
     // ---------- the overview ----------

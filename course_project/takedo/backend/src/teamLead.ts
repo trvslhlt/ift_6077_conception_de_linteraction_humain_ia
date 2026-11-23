@@ -2,12 +2,10 @@ import type {Overview, Snapshot} from "../../shared/protocol.ts"
 import {analyse} from "./analysis.ts"
 import {type Catalog, summariesForProject} from "./catalog.ts"
 import type {Gateway, ModelLog} from "./gateway.ts"
-import {Limits, type Member, projectFor} from "./members.ts"
 
-// The Team Lead's language-model work (the slow tier, STRATEGY.md, "Responsiveness"): the project overview shown when
-// the team view opens (FEATURES.md, "Project overview"; the playback line is the page's, live), and splitting a
-// direction among the members (poc/llm_bench, round two), with the utility doing whatever no member's fast operations
-// cover (STRATEGY.md, "Keep the open path").
+// The project overview shown when the team view opens (FEATURES.md, "Project overview"; the playback line is the
+// page's, live). Splitting a direction among the members lived here too, until the ROSTER=team path was retired
+// (2026-11-23): the captain (captain.ts) does that now.
 
 const OverviewSystem = `You describe a music project in openDAW to the producer working on it, as the opening overview of their AI team's view. They know music production; write as a fellow producer would.
 
@@ -49,44 +47,4 @@ export const writeOverview = async (gateway: Gateway, catalog: Catalog, log: Mod
     const lines = parseOverview(text)
     if (lines.length === 0) {throw new Error(`no labelled lines in the model's reply: ${text.slice(0, 200)}`)}
     return {revision: snapshot.at.revision, t: Date.now(), lines}
-}
-
-// ---------- splitting a direction ----------
-
-export type LeadPlan = { reply: string, members: Array<{ role: string, piece: string }> }
-
-const LeadSystem = `You are the Team Lead of an AI music production team working live with a producer in openDAW, usually while the track plays.
-
-You are the front door. You take the producer's direction, split it among the team, and tell the producer who is doing what. You don't plan the edits; whoever gets a piece turns it into edits.
-
-The team can do anything openDAW can do. \`team\` lists who does what:
-- The members each have fast operations for their area (\`fast_at\`): quick, cheap and timed to the bar. Give a member the parts its fast operations cover.
-- The utility is your own hands: it works on the project directly with code and can do anything openDAW supports (new tracks, notes, chords, drum patterns, clip lengths, devices, anything), only slower (seconds to tens of seconds) and costlier. Give it every part no member's fast operations cover. The producer doesn't know it exists: say you'll do that part yourself ("I'll rework the chords"), never mention the utility.
-
-Rules:
-- Never leave part of a direction undone, or tell the producer something can't be done, because no member covers it. The only limits are these, decided for now: ${Limits} Outside openDAW (hearing the result, outside services) is out of reach too; say so plainly.
-- Give each one piece: a short instruction, specific to this project (name tracks and bars).
-- Bars past the loop's end mean bars of playing, as if the loop were unrolled; they land correctly on the loop's own bars.
-- Bring in only who the direction needs. A narrow request goes to one.
-- If the direction is ambiguous in a way that would send the team in different directions, bring in no one and ask one short question instead.
-- If it's a question or a remark rather than a direction, answer it in the reply and bring in no one.
-- The producer reads your reply at a glance while playing, as in a chat with a bandmate: one or two short, plain sentences, no lists or markdown. Don't mention bar numbers or the playhead unless the producer did.`
-
-export const lead = async (gateway: Gateway, log: ModelLog, snapshot: Snapshot, message: string,
-                           team: ReadonlyArray<Member>): Promise<LeadPlan> => {
-    const schema = {
-        type: "object", additionalProperties: false, required: ["reply", "members"],
-        properties: {
-            reply: {type: "string", description: "What the producer reads: one or two short sentences"},
-            members: {type: "array", items: {type: "object", additionalProperties: false, required: ["role", "piece"],
-                properties: {role: {type: "string", enum: team.map(member => member.role)},
-                    piece: {type: "string", description: "This one's part of the direction, one sentence"}}}}
-        }
-    }
-    const user = JSON.stringify({
-        project: projectFor(snapshot, false),
-        team: Object.fromEntries(team.map(member => [member.role, {area: member.area, fast_at: member.can}])),
-        direction: message
-    })
-    return gateway.structured<LeadPlan>("team_lead", LeadSystem, user, schema, log, "agent:team_lead")
 }

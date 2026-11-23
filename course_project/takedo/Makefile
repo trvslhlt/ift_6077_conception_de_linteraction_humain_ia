@@ -7,13 +7,7 @@ REPO_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))../..)
 PORT ?= 8080
 URL := http://localhost:$(PORT)
 TYPES_DIR := .opendaw
-# Who's in play: the utility alone (for now), or the full team (`make up ROSTER=team`).
-ROSTER ?= utility
-# The knowledge route in front of the utility (Jev applies an entry it's sure of). Off until the utility's own baseline
-# is run (the roadmap brings Jev back after the utility alone works); `make up KNOWLEDGE_ROUTE=on` to try it.
-KNOWLEDGE_ROUTE ?= off
-
-export PORT ROSTER KNOWLEDGE_ROUTE
+export PORT
 COMPOSE := docker compose --profile test
 
 .PHONY: help builder build up down restart logs status open shell test scenario catalog check knowledge knowledge-bench knowledge-import types usage clean
@@ -60,11 +54,10 @@ shell: ## Shell into the running backend container
 test: build $(TYPES_DIR)/packages ## Run the smoke test in headless Chromium against the captain and its workers
 	mkdir -p sessions
 	rm -f sessions/notebooks/Untitled.json sessions/notebooks/Untitled.agent.json sessions/notebooks/Untitled.board.json
-	ROSTER=utility $(COMPOSE) up -d --wait studio backend
-	ROSTER=utility $(COMPOSE) run --rm smoke
+	$(COMPOSE) up -d --wait studio backend
+	$(COMPOSE) run --rm smoke
 
-# A scenario runs against the backend as `make up` would start it (ROSTER, KNOWLEDGE_ROUTE), recreated so a test or an
-# earlier `make up ROSTER=team` can't leak into it. Costs a model session per run (keys from .env). A message with
+# A scenario runs against a backend recreated for it, so a test or an earlier session can't leak into it. Costs a model session per run (keys from .env). A message with
 # restart_after_ms kills the backend that long after it's sent: the runner drops scenarios/.restart, and the loop here
 # kills the container (SIGKILL, as a crash would) and starts it again.
 SCENARIO ?= lofi
@@ -72,7 +65,6 @@ scenario: build $(TYPES_DIR)/packages ## Play scenarios/$(SCENARIO).json to Take
 	mkdir -p sessions scenarios/runs
 	rm -f sessions/notebooks/scenario-$(SCENARIO).json sessions/notebooks/scenario-$(SCENARIO).agent.json sessions/notebooks/scenario-$(SCENARIO).board.json scenarios/.restart
 	$(COMPOSE) up -d --wait --force-recreate backend studio
-	@echo "backend: ROSTER=$(ROSTER) KNOWLEDGE_ROUTE=$(KNOWLEDGE_ROUTE)"
 	( while :; do if [ -f scenarios/.restart ]; then rm -f scenarios/.restart; $(COMPOSE) kill backend; \
 		$(COMPOSE) up -d --wait backend; fi; sleep 0.5; done ) & watcher=$$!; \
 		$(COMPOSE) run --rm -e COUNT_FRAMES=$(COUNT_FRAMES) -v $(CURDIR)/scenarios:/scenarios smoke node scenario.mjs /scenarios/$(SCENARIO).json; \

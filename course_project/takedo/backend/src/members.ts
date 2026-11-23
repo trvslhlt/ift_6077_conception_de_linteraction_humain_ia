@@ -30,9 +30,7 @@ export type Member = {
     readonly agent: Actor, readonly role: string, readonly name: string
     readonly area: string                           // what the role covers
     readonly can: string                            // its fast operations: what it does quickly and cheaply
-    readonly wantsHints: boolean                    // whether a message addressed to it is worth a Jev call first
     may(plan: Plan): boolean
-    handle(context: Coordinator, task: Task, snapshot: Snapshot): Promise<void>
 }
 
 // says: what it did, for the reply ("Keys muted"). then: steps on the effect an add_effect made, once it's on (its
@@ -58,37 +56,6 @@ const slide = (steps: Step[], now: Snapshot): number => {
     if (by <= 0) {return 0}
     steps.forEach(step => {if (step.when.at === "bar") {step.when = {at: "bar", bar: step.when.bar + by}}})
     return by
-}
-
-// Claims every target, sends every step at once, waits for all, releases, and replies with what happened.
-const carryOut = async (context: Coordinator, member: Member, task: Task, steps: Step[], snapshot: Snapshot,
-                        reason: string): Promise<void> => {
-    const now = await context.snapshot()
-    const slid = now === null ? 0 : slide(steps, now)
-    const targets = [...new Set(steps.map(step => target(step.plan)))]
-    const claimed = context.claim(member.agent, targets, reason)
-    if (!claimed.ok) {
-        context.card({agent: member.agent, name: member.name, doing: "waiting"})
-        return context.report(member.agent, task, `${claimed.holder.replace("agent:", "").replace(/_/g, " ")} is working on that right now.`, true)
-    }
-    context.card({agent: member.agent, name: member.name, doing: steps.map(step => step.says).join("; ")})
-    try {
-        const results = await Promise.all(steps.map(async step => {
-            let landsAt = ""
-            const status = await context.request(member.agent, step.plan, step.when, snapshot.at.seq, reason,
-                update => {landsAt = update.landsAt ?? landsAt})
-            const full = [describe(step, status, landsAt), ...await followUp(context, member.agent, step, status, reason)].join("; ")
-            return {full, chat: describe(step, status, ""), failed: status.state !== "applied"}
-        }))
-        context.card({agent: member.agent, name: member.name, doing: `${results.map(({full}) => full).join("; ")} (done)`})
-        // The chat gets what changed, in a line; where and when each edit landed (and any slide) is in the activity.
-        const failed = results.filter(result => result.failed)
-        // Addressed directly: everything. Otherwise only what didn't happen is worth the producer's attention.
-        context.report(member.agent, task, `${(task.direct === true || failed.length === 0 ? results : failed).map(({chat}) => chat).join("; ")}.` +
-            `${slid > 0 && task.direct === true ? " A bit later than planned." : ""}`, failed.length > 0)
-    } finally {
-        context.release(member.agent, targets)
-    }
 }
 
 // One step on its own, for a member that reports back to its model rather than the chat (the utility): claim, slide if
@@ -140,19 +107,6 @@ const tool = (name: string, description: string, properties: Record<string, unkn
 const AtBar = {type: "integer", description: "The bar the edit lands on (its downbeat); 0 for the next bar"}
 const OverBeats = {type: "integer", enum: [0, 1, 2, 4, 8, 16, 32], description: "How long the change takes; 0 is instant"}
 const whenFor = (bar: number): When => bar > 0 ? {at: "bar", bar} : {at: "next", unit: "bar"}
-const HandOff = tool("hand_off", "Hand the part of the request your tools don't cover to the Team Lead, who does it in openDAW directly.", {
-    rest: {type: "string", description: "What's left to do, as an instruction specific to this project"}})
-
-const memberSystem = (name: string, area: string, can: string): string => `You are the ${name} on an AI music production team working live in openDAW with a producer, usually while the track plays. Your area: ${area}. Your fast operations (the tools): ${can}.
-
-You get the producer's message, and your piece of it when the Team Lead split it among the team. Plan your edits as tool calls.
-- Each call is one edit that lands on the downbeat of the bar you choose (at_bar), or the next bar (0). The playhead is at \`playback.bar\`: land at playback.bar + 1 or later. When the loop is on, a bar inside it lands the next time the playhead reaches it, and a bar past the loop's end counts bars of playing from the playhead, as if the loop were unrolled (playhead in bar 2, at_bar 10: after 8 bars of playing), so later steps of a plan keep their spacing.
-- Make 1 to 6 calls, only in your own area, and only what was asked.
-- Values are in each parameter's own units, within its range.
-- Your job is your piece when you have one (the rest of the producer's message is other members' work: leave it to them), else the whole message.
-- If you have a hand_off tool, hand off anything in your job that your tools don't cover with one hand_off call (the rest, said as an instruction specific to this project), rather than leaving it out or saying it can't be done: the Team Lead does it directly in openDAW.
-- Don't explain your plan; the calls are the plan.`
-
 const loopBars = (snapshot: Snapshot) => {
     const {loop} = snapshot.playback
     return {on: loop.on, from_bar: barOf(loop.from), to_bar: barOf(loop.to) - 1}
@@ -179,7 +133,6 @@ export abstract class LlmMember implements Member {
     abstract readonly name: string
     abstract readonly area: string
     abstract readonly can: string
-    readonly wantsHints: boolean = false
 
     abstract may(plan: Plan): boolean
     abstract tools(snapshot: Snapshot): Anthropic.Tool[]
@@ -189,39 +142,6 @@ export abstract class LlmMember implements Member {
     // Answers a lookup tool (information, not an edit); null for the plan's own tools.
     lookup(_name: string, _input: Record<string, unknown>): string | null {return null}
     protected withParams = false
-
-    async handle(context: Coordinator, task: Task, snapshot: Snapshot): Promise<void> {
-        context.card({agent: this.agent, name: this.name, doing: "planning…"})
-        const input = JSON.stringify({
-            producer_message: task.message, ...(task.piece !== null ? {your_piece: task.piece} : {}),
-            project: projectFor(snapshot, this.withParams), ...this.context(snapshot)
-        })
-        // Only a member asked directly hands off: given a piece, it would hand off other members' pieces too (tried
-        // 2026-11-07: a second Delay on the keys), and the Team Lead gives the utility what no member's tools cover.
-        const tools = [...this.tools(snapshot), ...(task.piece === null ? [HandOff] : [])]
-        const {calls, text} = await context.gateway.calls("member", memberSystem(this.name, this.area, this.can), input, tools,
-            context.modelLog(), this.agent, (name, input) => this.lookup(name, input as Record<string, unknown>))
-        const steps: Step[] = []
-        const problems: string[] = []
-        const rest: string[] = []
-        for (const call of calls) {
-            const input = call.input as Record<string, unknown>
-            if (call.name === HandOff.name) {rest.push(String(input.rest)); continue}
-            const step = this.step(call.name, input, snapshot)
-            if (typeof step === "string") {problems.push(step)} else {steps.push(step)}
-        }
-        // A hand-off runs alongside this member's own steps.
-        const handedOff = rest.length > 0 ? context.handOff(this, task, rest.join("; ")) : Promise.resolve()
-        if (steps.length === 0) {
-            context.card({agent: this.agent, name: this.name, doing: "idle"})
-            if (rest.length > 0) {return handedOff}
-            return context.report(this.agent, task, [text.trim(), ...problems].filter(line => line !== "").join(" ")
-                || "I couldn't find anything to do there.", true)
-        }
-        await carryOut(context, this, task, steps, snapshot, task.piece ?? task.message)
-        if (problems.length > 0) {context.report(this.agent, task, `Left out: ${problems.join("; ")}.`, true)}
-        await handedOff
-    }
 }
 
 const trackName = (snapshot: Snapshot, ref: string): string =>
@@ -229,36 +149,14 @@ const trackName = (snapshot: Snapshot, ref: string): string =>
 
 // ---------- the mix engineer ----------
 
-// Amount (0..3 on the router's scale) to a step in dB: subtle 1.5, moderate 3, big 6, extreme 12.
-const stepDb = (amount: number): number => Math.min(18, Math.max(1, 1.5 * 2 ** amount))
-
 export class MixEngineer extends LlmMember {
     readonly agent: Actor = "agent:mix_engineer"
     readonly role = "mix_engineer"
     readonly name = "Mix engineer"
     readonly area = "balance between parts: levels, panning, EQ, compression, sidechain"
     readonly can = "set or ramp each track's and the master's volume, and each track's pan"
-    readonly wantsHints = true
 
     may(plan: Plan): boolean {return (plan.op === "ramp" || plan.op === "set") && /\.mix\.(volume|pan)$/.test(plan.ref)}
-
-    // "Quieter" or "louder" with Jev's hints and no piece from the Team Lead: code alone, no language model.
-    async handle(context: Coordinator, task: Task, snapshot: Snapshot): Promise<void> {
-        const {hints} = task
-        if (task.piece !== null || hints === null || (hints.change !== "quieter" && hints.change !== "louder")) {
-            return super.handle(context, task, snapshot)
-        }
-        const track = snapshot.tracks.find(track => track.ref === hints.part)
-        const ref = track === undefined ? "master" : track.ref
-        const from = track?.mix.volume ?? snapshot.master.volume
-        const to = Math.min(MaxDb, Math.max(MinDb, from + (hints.change === "quieter" ? -1 : 1) * stepDb(hints.amount)))
-        const beatsPerBar = snapshot.timeline.signature[0]
-        const [when, beats]: [When, number] = hints.when === "gradual" ? [{at: "next", unit: "bar"}, 2 * beatsPerBar]
-            : hints.when === "later" ? [{at: "next", unit: "bar"}, 1] : [{at: "next", unit: "beat"}, 1]
-        const label = track?.name ?? "The mix"
-        await carryOut(context, this, task, [{plan: {op: "ramp", ref: `${ref}.mix.volume`, to, beats}, when,
-            says: `${label} ${hints.change}: ${db(from)} → ${db(to)}`}], snapshot, `${hints.change} ${label}`)
-    }
 
     tools(snapshot: Snapshot): Anthropic.Tool[] {
         const tracks = ["master", ...snapshot.tracks.map(track => track.ref)]
