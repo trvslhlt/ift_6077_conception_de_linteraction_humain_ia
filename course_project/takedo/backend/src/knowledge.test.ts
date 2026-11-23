@@ -5,7 +5,7 @@ import {join} from "node:path"
 import {after, describe, it} from "node:test"
 import type {Snapshot, Track} from "../../shared/protocol.ts"
 import {loadCatalog} from "./catalog.ts"
-import {chordPitches, drumMap, loadKnowledge, parseKey, readCartridge, shortlist} from "./knowledge.ts"
+import {chordPitches, drumMap, loadKnowledge, parseKey, progressionKey, progressionMode, readCartridge, shortlist} from "./knowledge.ts"
 
 // Offline checks of the knowledge base (KNOWLEDGE.md): every entry loads and validates against the catalog, the music
 // helpers give the right pitches, and entries expand to edits whose scripts at least compile. Run from backend/:
@@ -98,6 +98,19 @@ describe("music", () => {
         assert.deepEqual(chordPitches("VII", a), [55, 59, 62])            // G
         assert.deepEqual(chordPitches("IV7", a), [50, 54, 57, 60])        // D7 (Dorian)
         assert.equal(chordPitches("q7", a), null)
+    })
+    it("plays a progression written in the other mode in the key's relative, so it stays in key", () => {
+        // 2026-11-22: the lofi vamp (vi7 → IVmaj7) came out Cm7 → Amaj7 in E minor.
+        const e = parseKey("E minor")!
+        assert.equal(progressionMode(["vi7", "IVmaj7"], "minor"), "major")
+        assert.equal(progressionMode(["i7", "VImaj7"], "major"), "minor")
+        assert.equal(progressionMode(["bVII"], "minor"), "minor", "nothing to go on: the key's own")
+        const played = progressionKey(["vi7", "IVmaj7"], e)
+        assert.deepEqual(chordPitches("vi7", played), [52, 55, 59, 62])     // Em7
+        assert.deepEqual(chordPitches("IVmaj7", played), [48, 52, 55, 59])  // Cmaj7
+        assert.equal(progressionKey(["i7", "VImaj7"], e), e)
+        const g = parseKey("G major")!
+        assert.deepEqual(chordPitches("i", progressionKey(["i", "VI", "III", "VII"], g)), [52, 55, 59])   // Em
     })
     it("maps drum roles to a kit's pads, with fallbacks", () => {
         const mapped = drumMap(["kick", "snare", "closed_hat", "open_hat", "rim", "ride"], drumsTrack)

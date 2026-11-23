@@ -104,6 +104,30 @@ export const chordPitches = (numeral: string, key: Key, octave = 3): number[] | 
     return (upper ? shape[1] : shape[2]).map(interval => root + interval)
 }
 
+// The mode a progression is written in, from its numerals' case against each mode's diatonic chords (major: I ii iii
+// IV V vi vii°; minor: i ii° III iv v VI VII, V allowed as in harmonic minor); altered numerals (bVII) don't count.
+// A tie keeps the key's own mode.
+const Diatonic = {major: ["I", "ii", "iii", "IV", "V", "vi", "vii"], minor: ["i", "ii", "III", "iv", "v", "V", "VI", "VII"]}
+export const progressionMode = (numerals: ReadonlyArray<string>, fallback: Key["mode"]): Key["mode"] => {
+    const romans = numerals.flatMap(numeral => {
+        const match = /^(VII|VI|V|IV|III|II|I|vii|vi|v|iv|iii|ii|i)/.exec(numeral.trim())
+        return match === null ? [] : [match[1]]
+    })
+    const fits = (mode: Key["mode"]) => romans.filter(roman => Diatonic[mode].includes(roman)).length
+    const [major, minor] = [fits("major"), fits("minor")]
+    return major === minor ? fallback : major > minor ? "major" : "minor"
+}
+
+// The key to play a progression in: the project's, or its relative when the progression is written in the other mode
+// (2026-11-22: a major-key lofi vamp, vi7 → IVmaj7, came out Cm7 → Amaj7 in E minor; in G major, its relative, it's
+// Em7 → Cmaj7, the same notes as E minor).
+export const progressionKey = (numerals: ReadonlyArray<string>, key: Key): Key => {
+    const mode = progressionMode(numerals, key.mode)
+    if (mode === key.mode) {return key}
+    const tonic = (key.tonic + (mode === "major" ? 3 : 9)) % 12
+    return {tonic, mode, name: `${key.name} (as its relative ${mode})`}
+}
+
 // Drum roles, matched against a kit's pad names (Playfield's samples) in order; then the role to fall back on.
 export const DrumRoles: Record<string, { names: RegExp, fallback?: string, gm: number }> = {
     kick: {names: /kick|\bbd\b|bass ?drum|bassdrum/i, gm: 36},
@@ -464,8 +488,9 @@ export const loadKnowledge = (dir: string, catalog: Catalog, warn: (text: string
             if (typeof mapped === "string") {return mapped}
             return {notes: pattern.hits.map(([beat, role, velocity]) => [beat, mapped.notes[role], 0.25, velocity]), says: mapped.says}
         }
-        const key = parseKey(String(input.key ?? ""))
-        if (key === null) {return `a chord pattern needs the project's key ("G major", "A minor"), got ${JSON.stringify(input.key)}`}
+        const given = parseKey(String(input.key ?? ""))
+        if (given === null) {return `a chord pattern needs the project's key ("G major", "A minor"), got ${JSON.stringify(input.key)}`}
+        const key = progressionKey(pattern.chords.map(([, numeral]) => numeral), given)
         const octave = typeof input.octave === "number" ? input.octave : 3
         const velocity = pattern.velocity ?? 0.7
         void beatsPerBar

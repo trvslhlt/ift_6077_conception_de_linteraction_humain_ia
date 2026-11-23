@@ -371,7 +371,10 @@ the master or on parts, plus mix moves.
 **pattern**: notes with no sound attached: a drum groove, a chord progression or a bass figure. Drum hits are
 named by role (kick, snare, closed hat), and chords are written as Roman numerals with durations, so one pattern
 fits any kit and any key. `apply` writes it onto a track with a script that maps roles to the track's pads and
-numerals to the project's key. Patterns are what the datasets below supply most of. Example (illustrative):
+numerals to the project's key. Numerals count degrees of the key's own scale; a progression written in the other mode
+(most are written in major: I, vi, IV) is played in the key's relative (G major for E minor), so its chords keep their
+qualities and stay in key (fixed 2026-11-22: vi7 → IVmaj7 had come out Cm7 → Amaj7 in E minor). Patterns are what the
+datasets below supply most of. Example (illustrative):
 
 ```json
 {
