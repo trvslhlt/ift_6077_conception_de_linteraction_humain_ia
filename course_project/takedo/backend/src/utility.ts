@@ -4,10 +4,10 @@ import type Anthropic from "@anthropic-ai/sdk"
 import type {CallToolResult} from "@modelcontextprotocol/sdk/types.js"
 import {z} from "zod"
 import type {Actor, Note, Plan, Snapshot, Status, When} from "../../shared/protocol.ts"
-import {type Action, type Anchor, commitAnchor, type Direction, type Piece, planSlide, type Step as BoardStep} from "./board.ts"
+import {type Action, type Anchor, commitAnchor, type Direction, type Piece, type PieceKind, PieceKinds, planSlide, type Step as BoardStep} from "./board.ts"
 import type {Coordinator} from "./coordinator.ts"
 import type {Catalog} from "./catalog.ts"
-import {Kinds as KnowledgeKinds, type Knowledge} from "./knowledge.ts"
+import {type Knowledge, shortlist} from "./knowledge.ts"
 import {analyse} from "./analysis.ts"
 import {hitOf, morphNotes, tile} from "./generate.ts"
 import {Kinds, type Kind} from "./notebook.ts"
@@ -28,6 +28,17 @@ import {Limits, type LlmMember, type Member, performStep, projectFor, type Task}
 // Tool calls per message: a whole transformation takes looks, scripts and fixed operations (the hand-written loop
 // allowed 30 rounds of several calls; running out made it stop halfway and offer the rest).
 const MaxCalls = 80
+// What a worker starts with follows its piece's kind (2026-11-23: a third of its context was the whole knowledge index,
+// and every tool came with every piece). Not a gate: run and look reach anything openDAW supports, knowledge searches.
+const EffectKinds: PieceKind[] = ["effects", "sound"]
+const ToolKinds: Record<string, PieceKind[]> = {
+    evolve_notes: ["drums", "notes", "arrange"],
+    add_effect: EffectKinds, remove_effect: EffectKinds
+}
+// The project with effect settings only on the piece's own tracks; the rest by name.
+const focus = (project: ReturnType<typeof projectFor>, tracks: string[]) => ({...project,
+    tracks: project.tracks.map(track => tracks.includes(track.ref) ? track
+        : {...track, effects: track.effects.map(({ref, device, name}) => ({ref, device, name}))})})
 const MaxRecall = 40000
 const SourceTools = ["Read", "Grep", "Glob"]
 
@@ -64,7 +75,7 @@ export const asChatLine = (text: string): string => sentencesIn(text.split("\n")
 type Session = { inbox: Inbox, query: Query }
 
 // The knowledge base's part of the prompt, left out when there's none (an A/B run with KNOWLEDGE_DIR on an empty folder).
-const KnowledgeTools = `- knowledge, apply_knowledge, learn: the team's knowledge base, shared across projects (\`knowledge\` with your first message lists every entry as "key: summary", with a family of similar entries on one line of keys; later messages add new ones). Kinds: genre (what's played: tempo, groove, harmony, parts) and production (how it's treated: sound, effects, mix; lofi is a production style, hip hop a genre); sound (an instrument set up: openDAW's ~1,200 bundled DX7 voices for Tubular among them); chain (effects with settings); pattern (drum grooves by role, chord progressions as numerals); note (openDAW facts: step tables, units, fields). Check it before reading source, researching or writing a sound, chain or pattern from scratch: read several entries in one knowledge call; apply_knowledge runs an entry's edits (fixed operations and scripts, timed from the bar you give, like your own); entries without apply are for reading. Adapt freely: an entry is a starting point, not a rule. Entries marked draft, and anything checked only "written" or "imported", haven't been heard: listen-worthy, not proven. learn keeps something that worked (a sound, a chain, a pattern you wrote) as a draft entry for later sessions and other projects.
+const KnowledgeTools = `- knowledge, apply_knowledge: the team's knowledge base, shared across projects. \`knowledge\` in your first message lists the entries that best match your piece ("key: summary"); knowledge with search finds others. Kinds: genre (what's played: tempo, groove, harmony, parts), production (how it's treated: sound, effects, mix), sound (an instrument set up, openDAW's ~1,200 DX7 voices for Tubular among them), chain (effects with settings), pattern (drum grooves by role, chord progressions as numerals), note (openDAW facts: step tables, units, fields). Check it before reading source or writing a sound, chain or pattern from scratch: read several entries in one call; apply_knowledge runs an entry's edits, timed from the bar you give. An entry is a starting point, not a rule; drafts and entries checked only "written" or "imported" haven't been heard.
 `
 const KnowledgeKey = "- A chord pattern needs the project's key: pass the one in your notebook's facts.\n"
 const KnowledgeSlot = "\u0000knowledge-tools", KeySlot = "\u0000knowledge-key"
@@ -82,7 +93,7 @@ Tools:
 - cancel: take back timed edits that haven't landed (coming_steps, with each message, lists them by the message they're for). Use it when the producer says stop, less, or changes their mind about something still coming, or when a step would undo what they just did by hand. What has landed stays; to undo it, change it back.
 - producer_changed (with a message) and "Meanwhile the producer changed by hand" (in a tool result): what the producer did in openDAW themselves since you last heard (levels, pans, effect settings). That's their call: keep it and build on it, and don't move those settings back or plan over them unless they ask; mention it in your reply only when it changes what you do.
 - Read, Grep, Glob: openDAW's own source, the version that's running; your working directory is its root (packages/…). Read it for what the notes below don't say: a device's fields and their ranges (box schemas in packages/studio/forge-boxes/src/schema/devices/), step tables (adapters in packages/studio/adapters/src/devices/), how an API call works, the user manual (packages/app/manual/public/). Look before writing fields you haven't used.
-${KnowledgeSlot}- remember, recall, forget: your notebook, kept on disk per project and listed with every message (\`notebook\`: key, kind, summary). Your conversation may be summarized between messages; the notebook isn't. Keep in it what you'll want later: the producer's wishes and taste (note), a staged plan and where it stands (plan), parts you wrote as notes (clip), sounds you designed with their settings (sound), scripts worth reusing (script). "start" (state) is the whole project before the agents' first edit this session, kept for you. "facts" (state) is what's established about this project: its key, tempo, meter, each part's register, and the overview; its summary comes with every message. Write anything pitched (chords, melodies, bass lines) in that key, and keep each part in its role (a part in the bass register stays the bass). Note names here follow openDAW, where C3 is MIDI 60 (not C4): a register in facts comes with its MIDI numbers; write pitches by those numbers. If the producer says otherwise, remember the correction under "facts".
+${KnowledgeSlot}- remember, recall: your notebook, kept on disk per project and listed with every message (\`notebook\`: key, kind, summary). Your conversation may be summarized between messages; the notebook isn't. Keep in it what you'll want later: the producer's wishes and taste (note), a staged plan and where it stands (plan), parts you wrote as notes (clip), sounds you designed with their settings (sound), scripts worth reusing (script). "start" (state) is the whole project before the agents' first edit this session, kept for you. "facts" (state) is what's established about this project: its key, tempo, meter, each part's register, and the overview; its summary comes with every message. Write anything pitched (chords, melodies, bass lines) in that key, and keep each part in its role (a part in the bass register stays the bass). Note names here follow openDAW, where C3 is MIDI 60 (not C4): a register in facts comes with its MIDI numbers; write pitches by those numbers. If the producer says otherwise, remember the correction under "facts".
 
 Both run a function body with \`takedo\` in scope (its parts are also plain names: project, api, lib, ref, bar, ppqn, pos, snapshot); \`return\` a value to see it (JSON; openDAW objects show as their class name, so return plain data). look's body may await; run's is synchronous.
 
@@ -190,7 +201,6 @@ export class Utility implements Member {
     readonly #source: string
     readonly #knowledge: Knowledge | null
     readonly #owners = new Map<string, LlmMember>()   // who owns each borrowed fixed operation
-    readonly #indexed = new Set<string>()              // knowledge keys this session has been shown
     #session: Session | null = null
     #current: Current | null = null
     #handSeen = 0             // the producer's changes told so far (Coordinator.handChanges)
@@ -254,7 +264,7 @@ export class Utility implements Member {
     #cwd(): string {return existsSync(this.#source) ? this.#source : process.cwd()}
 
     // A session with our tools: the members' (from the snapshot, opened to any ref) and the utility's own.
-    #open(context: Coordinator, snapshot: Snapshot): Session {
+    #open(context: Coordinator, snapshot: Snapshot, kind: PieceKind): Session {
         const {model, effort} = context.gateway.agent("utility")
         const handler = (run: (current: Current, input: Record<string, unknown>) => Promise<string> | string) =>
             async (input: Record<string, unknown>): Promise<CallToolResult> => {
@@ -276,7 +286,6 @@ export class Utility implements Member {
         const borrowed = new Map<string, Anthropic.Tool>()
         const owners = this.#owners
         owners.clear()
-        this.#indexed.clear()
         this.#team.forEach(owner => owner.tools(withEveryTool(snapshot)).forEach(member => {
             if (borrowed.has(member.name)) {return}
             borrowed.set(member.name, anyRef(member))
@@ -313,10 +322,8 @@ export class Utility implements Member {
                 handler((current, input) => this.#notebook(current.context, "remember", input))),
             tool("recall", "Read a notebook entry's content.", {key: z.string()},
                 handler((current, input) => this.#notebook(current.context, "recall", input)), {annotations: {readOnlyHint: true}}),
-            tool("forget", "Delete a notebook entry.", {key: z.string()},
-                handler((current, input) => this.#notebook(current.context, "forget", input))),
             ...(this.#knowledge === null ? [] : this.#knowledgeTools(handler))
-        ]
+        ].filter(candidate => (ToolKinds[candidate.name] ?? [kind]).includes(kind))
         const inbox = new Inbox()
         return {inbox, query: query({prompt: inbox, options: {
             model, ...(effort !== undefined ? {effort} : {}),
@@ -333,14 +340,12 @@ export class Utility implements Member {
         }})}
     }
 
-    // The knowledge index for a message: all of it when the session is new, else only entries it hasn't seen (drafts).
-    #knowledgeLines(fresh: boolean): Record<string, unknown> {
+    // The knowledge entries that best match a piece (its kind, goal and the producer's words), not the whole index
+    // (~20k characters, a third of a worker's context, read once by seven workers in one run).
+    #knowledgeFor(piece: Piece, message: string): Record<string, unknown> {
         if (this.#knowledge === null) {return {}}
-        const lines = this.#knowledge.index().filter(line => fresh || !this.#indexed.has(line.key))
-        lines.forEach(line => this.#indexed.add(line.key))
-        if (lines.length === 0) {return {}}
-        const compact = this.#knowledge.compact(lines)
-        return fresh ? {knowledge: compact} : {knowledge_new: compact}
+        const found = shortlist(this.#knowledge.index(), `${piece.kind} ${PieceKinds[piece.kind]} ${piece.goal} ${message}`, 12)
+        return found.length === 0 ? {} : {knowledge: this.#knowledge.compact(found.map(({line}) => line))}
     }
 
     #knowledgeTools(handler: (run: (current: Current, input: Record<string, unknown>) => Promise<string> | string)
@@ -348,9 +353,15 @@ export class Utility implements Member {
         const knowledge = this.#knowledge!
         const Value = z.union([z.string(), z.number(), z.null()])
         return [
-            tool("knowledge", "Read knowledge base entries in full (several at once), with the summaries of the entries each links to.", {
-                keys: z.array(z.string()).describe("Entry keys from the index, e.g. [\"production/lofi\", \"pattern/boombap-1\"]")},
+            tool("knowledge", "Read knowledge base entries in full (several at once), with the summaries of the entries each links to; or search the index for others.", {
+                keys: z.array(z.string()).describe("Entry keys, e.g. [\"production/lofi\", \"pattern/boombap-1\"]; [] to search"),
+                search: z.string().describe("Words to find entries by (\"jazz brush groove\", \"tape saturation\"); \"\" to read keys")},
                 handler((current, input) => {
+                    const search = String(input.search ?? "").trim()
+                    if (search !== "" && ((input.keys ?? []) as string[]).length === 0) {
+                        const found = shortlist(knowledge.index(), search, 20).map(({line}) => line)
+                        return found.length === 0 ? "Nothing matches; try other words." : knowledge.compact(found).join("\n")
+                    }
                     current.context.card({agent: this.agent, name: this.name, doing: "reading the knowledge base…"})
                     const entries = knowledge.get((input.keys as string[]).slice(0, 12))
                     const text = JSON.stringify(entries, null, 1)
@@ -370,26 +381,7 @@ export class Utility implements Member {
                 stages: z.number().int().describe("How many steps to get there, 1 to 16"),
                 at_bar: z.number().int().describe("The bar the first stage lands on; 0 for as soon as possible"),
                 every_bars: z.number().int().describe("Bars between stages, 1 or more")},
-                handler((current, input) => this.#evolve(current, input))),
-            tool("learn", "Keep something that worked as a draft knowledge entry, for later sessions and other projects (a person reviews drafts). For a sound, chain or pattern, include apply (and pattern) so it can be applied again; see existing entries for the shape.", {
-                kind: z.enum(KnowledgeKinds),
-                name: z.string().describe("Short, with dashes: \"dusty-rhodes\", \"dub-snare-throw\""),
-                summary: z.string().describe("One line, shown in the index"),
-                tags: z.array(z.string()).describe("Genres and the words a producer would use"),
-                devices: z.array(z.string()).describe("Catalog device keys it uses"),
-                links: z.array(z.string()).describe("Related entries' keys; [] for none"),
-                body: z.array(z.string()).describe("What it is, when to use it, what to watch for"),
-                apply: z.string().describe("JSON: {\"params\": {...}, \"steps\": [...]} as in existing entries; \"\" for none"),
-                pattern: z.string().describe("JSON pattern for a pattern entry ({\"type\": \"drums\"|\"chords\", ...}); \"\" for none")},
-                handler((current, input) => {
-                    const parse = (text: unknown): unknown => {
-                        if (typeof text !== "string" || text.trim() === "") {return undefined}
-                        try {return JSON.parse(text)} catch {return null}
-                    }
-                    const apply = parse(input.apply), pattern = parse(input.pattern)
-                    if (apply === null || pattern === null) {return "Not kept: apply and pattern must be JSON (or \"\")."}
-                    return knowledge.draft({...input, apply, pattern}, `utility (${current.context.gateway.agent("utility").model}, ${new Date().toISOString().slice(0, 10)})`)
-                }))
+                handler((current, input) => this.#evolve(current, input)))
         ]
     }
 
@@ -629,7 +621,7 @@ export class Utility implements Member {
     async job(context: Coordinator, job: { id: string, piece: string, task: Piece, message: string, direction: Direction, anchor: Anchor | null },
               snapshot: Snapshot): Promise<string> {
         context.card({agent: this.agent, name: this.name, doing: `${job.id}: ${job.piece}`})
-        const session = this.#session = this.#open(context, snapshot)
+        const session = this.#session = this.#open(context, snapshot, job.task.kind)
         const work: Work = {done: [], pending: [], late: []}
         const current: Current = {context, task: {message: job.message, piece: job.piece, hints: null}, work, calls: 0,
             direction: job.direction, anchor: job.anchor, job: job.id}
@@ -639,11 +631,12 @@ export class Utility implements Member {
             your_task: job.task, producer_message: job.message,
             ...(job.anchor !== null ? {playback_at_message: {bar: job.anchor.bar}} : {}),
             ...this.#hand(context, "producer_changed"),
-            project: {...projectFor(snapshot, true), regions: snapshot.tracks.map(track => ({track: track.ref,
+            project: {...focus(projectFor(snapshot, true), job.task.tracks), regions: snapshot.tracks.map(track => ({track: track.ref,
                 regions: track.regions.map(({ref, name, from, to, loop}) => ({ref, name, from, to, loop}))}))},
             notebook: context.notebook?.list() ?? [],
-            ...this.#knowledgeLines(true),
-            devices: this.#devices, ...Object.assign({}, ...this.#team.map(member => member.context(snapshot)))
+            ...this.#knowledgeFor(job.task, job.message),
+            devices: this.#devices,
+            ...(EffectKinds.includes(job.task.kind) ? Object.assign({}, ...this.#team.map(member => member.context(snapshot))) : {})
         }))
         try {
             const summary = await this.#reply(context, session)

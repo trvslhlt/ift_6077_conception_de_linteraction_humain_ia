@@ -349,8 +349,12 @@ Built (2026-11-22), step 2's second piece: the captain split from the utility (`
   (median 41 s to 31 s), then pieces framed as fields: kind (drums, notes, sound, effects, mix, tempo, arrange; one
   kind per piece), tracks, goal (the end state, as a listener would check it), from_bar/to_bar, steps, keep. Lofi with
   framing: per worker median 31 s to 19 s, slowest 46 s to 36 s, output tokens median 6.3k to 3.5k; 81 of 81 edits
-  applied, all checks green. The kinds are what Jev will classify, to pick each worker's prompt and context. Next:
-  trim each worker's context to its piece, then tune its prompt.
+  applied, all checks green. The kinds are what Jev will classify, to pick each worker's prompt and context.
+  Then trimmed to the piece: the dozen knowledge entries that match it (the knowledge tool searches for the rest),
+  effect settings only on its tracks, the effects that can be added and add/remove_effect only for effects and sound
+  pieces, evolve_notes only for drums, notes and arrange; learn and forget gone. Not a gate: run and look reach
+  anything. Lofi: first-turn context 27k to 12-15k tokens, per worker median 19 s to 15 s, workers' cost $0.08 to
+  $0.04, all checks green. Busiest bar: 7 edits (workers made 135 edits, up from 81); watch it in prompt tuning.
 
 ## Still open
 
