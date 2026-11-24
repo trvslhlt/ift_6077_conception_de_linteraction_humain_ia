@@ -7,6 +7,7 @@ import type {Catalog} from "./catalog.ts"
 import type {Gateway, ModelLog} from "./gateway.ts"
 import {createTeam, type Member, performStep, type Task} from "./members.ts"
 import {RecallBars, recallOf, Takes} from "./takes.ts"
+import {type Activity, Ledger, touchedBy} from "./ledger.ts"
 import type {LogType, SessionLog} from "./sessionLog.ts"
 import type {PartRole} from "./router.ts"
 import {writeOverview} from "./teamLead.ts"
@@ -63,6 +64,7 @@ export class Coordinator {
     #opening: string | undefined = undefined   // the page's id for this opening of the project (protocol.ts)
     readonly #notebooks: string
     #takes: Takes = new Takes(null)        // the open project's takes (takes.ts)
+    #ledger: Ledger = new Ledger(null)      // the open project's activity ledger (ledger.ts)
     #notebook: Notebook | null = null       // the open project's
     #startKept = false                      // whether this session has kept the project's starting state
     #viewOpen = false
@@ -129,6 +131,7 @@ export class Coordinator {
                 this.#notebook = this.#project === null ? null : new Notebook(this.#notebooks, this.#project, message.opening)
                 this.board.open(this.#notebook?.boardFile ?? null)
                 this.#takes = new Takes(this.#notebook?.takesFile ?? null)
+                this.#ledger = new Ledger(this.#notebook?.ledgerFile ?? null, data => this.#log.write("activity", data))
                 this.#handChanges.length = 0
                 this.#startKept = false
                 this.#overview = "none"
@@ -247,11 +250,15 @@ export class Coordinator {
 
     // Sends a plan to the adapter; resolves with its terminal status. Requires the plan to be in the agent's area
     // (TAKEDO_API.md, "Team") and the agent's claim on its target.
-    // step: the board's step it carries out, if any (board.ts), linked to the request.
+    // step: the board's step it carries out, if any (board.ts), linked to the request. activity: the direction (and
+    // piece) it belongs to, for the ledger (a board step says its own); what it changes is recorded once it lands.
     request(agent: Actor, plan: Plan, when: When, seq: number, reason: string,
-            onStatus: (status: Status) => void = () => {}, step?: string): Promise<Status> {
+            onStatus: (status: Status) => void = () => {}, step?: string, activity?: Activity): Promise<Status> {
         const id = randomUUID()
         if (step !== undefined) {this.board.link(step, id)}
+        const staged = step === undefined ? undefined : this.board.step(step)
+        const belongs: Activity | undefined = activity ?? (staged === undefined ? undefined
+            : {direction: staged.direction, ...(staged.job !== undefined ? {job: staged.job} : {}), step: staged.id})
         const allowed = agent === this.#captain.agent ? this.#captain.may(plan) : this.#members.find(member => member.agent === agent)?.may(plan) === true
         if (!allowed) {
             const status: Status = {request: id, t: Date.now(), pos: "", state: "failed", reason: "not_allowed",
@@ -271,6 +278,7 @@ export class Coordinator {
             this.#log.write("request", request)
             this.#requests.set(id, status => {
                 onStatus(status)
+                if (status.state === "applied") {this.#recordActivity(request, status, belongs)}
                 if (Terminal.includes(status.state)) {resolve(status)}
             })
             this.#send({type: "apply", request})
@@ -449,11 +457,24 @@ export class Coordinator {
         captain.later(this, async () => {
             this.#steering = false
             const was = this.#moved.get(ref)
+            const controls = [...this.#moved.keys()]
             const text = describe()
             if (text !== "" && was !== undefined) {await this.#keepLanded(ref, was)}
             const snapshot = text === "" ? null : await this.snapshot()
-            return snapshot === null ? null : {turn: {kind: "control_moved", text}, snapshot}
+            return snapshot === null ? null : {turn: {kind: "control_moved", text, controls}, snapshot}
         }).catch(error => this.say("agent:team_lead", `Something went wrong: ${String(error)}`))
+    }
+
+    // ---------- the activity ledger (ledger.ts) ----------
+
+    get ledger(): Ledger {return this.#ledger}
+
+    #recordActivity(request: Apply, status: Status, activity: Activity | undefined): void {
+        const touched = touchedBy(request.plan, status)
+        const entry = {request: request.id, t: status.t, agent: request.from, direction: activity?.direction ?? "unknown",
+            ...(activity?.job !== undefined ? {job: activity.job} : {}), ...(activity?.step !== undefined ? {step: activity.step} : {}),
+            says: request.plan.op === "script" ? request.plan.description : status.result?.label ?? request.plan.op, op: request.plan.op, touched}
+        if (this.#ledger.record(entry)) {this.#log.write("activity", entry)}
     }
 
     // ---------- takes (takes.ts) ----------
@@ -478,7 +499,8 @@ export class Coordinator {
 
     // Writes a take back, gliding over RecallBars bars from the next bar line (takes.ts): what differs from now. The
     // agent's own edits, so they're undoable. Answers once they're sent; a failure later is logged and said.
-    async recallTake(agent: Actor, id: string, reason: string): Promise<string> {
+    async recallTake(agent: Actor, id: string, reason: string, direction?: string): Promise<string> {
+        const activity: Activity | undefined = direction === undefined ? undefined : {direction}
         const take = this.#takes.get(id)
         if (take === null) {return `Not done: no take ${id} (takes: ${this.#takes.lines().join("; ") || "none"}).`}
         const now = await this.snapshot("full")
@@ -487,19 +509,20 @@ export class Coordinator {
         if (recall.scripts.length === 0 && recall.values.length === 0) {return `Nothing to do: the project is already as take ${id} has it.`}
         const from = {position: now.playback.position, played: now.playback.played}
         const at = (bar: number): When => ({at: "bar", bar, from})
-        await Promise.all(recall.first.map(({ref, to}) => performStep(this, agent, {plan: {op: "set", ref, to}, when: {at: "asap"}, says: ""}, reason)))
+        await Promise.all(recall.first.map(({ref, to}) => performStep(this, agent, {plan: {op: "set", ref, to}, when: {at: "asap"}, says: "", activity}, reason)))
         const scripts = recall.scripts.map(async ({bar, code, says}) => {
             const claimed = this.claim(agent, ["project.script"], reason)
             if (!claimed.ok) {return `${says || "a stage"}: not done, ${claimed.holder.replace("agent:", "")} is running a script`}
             try {
-                const status = await this.request(agent, {op: "script", code, description: `recall take ${id}, bar ${bar} of ${RecallBars}`}, at(bar), now.at.seq, reason)
+                const status = await this.request(agent, {op: "script", code, description: `recall take ${id}, bar ${bar} of ${RecallBars}`}, at(bar), now.at.seq, reason,
+                    () => {}, undefined, activity)
                 return status.state === "applied" ? says : `${says || `bar ${bar}`}: not done (${status.reason}: ${status.detail ?? ""})`
             } finally {
                 this.release(agent, ["project.script"])
             }
         })
         const values = recall.values.map(({ref, to, beats, bar, says}) =>
-            performStep(this, agent, {plan: beats > 0 ? {op: "ramp", ref, to, beats} : {op: "set", ref, to}, when: at(bar), says}, reason))
+            performStep(this, agent, {plan: beats > 0 ? {op: "ramp", ref, to, beats} : {op: "set", ref, to}, when: at(bar), says, activity}, reason))
         const all = Promise.all([...scripts, ...values]).then(results => {
             const failed = results.filter(result => /not done/.test(result))
             this.#log.write("take", {recalled: id, scripts: recall.scripts.length, values: recall.values.length, failed})

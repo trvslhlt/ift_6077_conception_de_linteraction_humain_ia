@@ -493,3 +493,17 @@ These are for the detailed design, whatever the shape:
   recall parks a leaving part as: faded out, then muted with instrument and effects disabled, notes kept; one coming
   back is re-enabled and unmuted at silence on the first bar line, then faded in. scenarios/takes.json checks both.
   Later: deleting parked parts nothing can bring back, once ownership says what can.
+
+- 2026-11-24, ownership, cycle 1: recorded, nothing acts on it yet. The page says what an agent's script changed by
+  comparing the project just before and after it (shared/touched.ts: values with what they replaced, notes per region,
+  regions, tracks, effects, switches, tempo, loop); fixed operations already said. The backend's ledger (ledger.ts)
+  keeps every landed agent edit with its direction, piece and step; a dial maps to its directions (the one that
+  offered it, each move of it). One file per opening, archived with the notebook. The report's Ownership section lists
+  each direction's changes, each dial's directions, and what more than one direction changed. scenarios/dials.json
+  (lofi = dial A, busier drums = dial B, A to 0): drums' notes shared by all three, tempo by two. Next: a dial's move
+  takes back only what its own directions own (shared numbers by difference, shared notes by a worker).
+  While testing, four runs froze the engine's playhead a few seconds after the loop was widened (frames and the audio
+  clock carried on). Not the new code (froze with the page's comparison off; clean with it on, five runs since), not
+  widening alone (test/loop-probe.mjs, `make loop-probe`: no models, clean); the machine had been asleep mid-run. Left
+  as the known headless stall. Also: the report's playhead check uses the start and end tempos only, so a run that
+  spends most of its time slower than both reads low (74% at 80 BPM with no stall).

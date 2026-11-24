@@ -56,7 +56,9 @@ Rules:
 
 type Session = { inbox: Inbox, query: Query }
 // What a turn is about: the producer's message (or a control move: the producer's too), or the team's own news.
-export type Turn = { kind: "producer_message" | "control_moved", text: string, history?: ReadonlyArray<{ from: string, text: string }> }
+// controls: the dials a control_moved turn is about (their moves are directions of theirs, in the ledger).
+export type Turn = { kind: "producer_message" | "control_moved", text: string, history?: ReadonlyArray<{ from: string, text: string }>,
+    controls?: string[] }
     | { kind: "job_finished" | "job_failed" | "job_failed_later" | "restarted", text: string, direction?: Direction }
 // The turn being worked on: its direction (the producer's message's, or the job's it reports on) and anchor.
 // revising: a job this turn cancelled while it was planning; the pieces assigned after it join its plan.
@@ -176,6 +178,7 @@ export class Captain {
         const direction = "direction" in turn && turn.direction !== undefined ? turn.direction
             : context.board.direction(turn.text, turn.kind === "control_moved")
         if (!this.#anchors.has(direction.id)) {this.#anchors.set(direction.id, anchorOf(snapshot))}
+        if (turn.kind === "control_moved") {(turn.controls ?? []).forEach(ref => context.ledger.dial(ref, direction.id))}
         const current: Current = {context, turn, direction, anchor: this.#anchors.get(direction.id) ?? null, calls: 0,
             ...(turn.kind === "producer_message" ? {before: context.snapshot("full")} : {})}
         this.#current = current
@@ -262,7 +265,8 @@ export class Captain {
         if (!claimed.ok) {return `Not done: ${claimed.holder.replace("agent:", "")} is running a script; try again in a moment.`}
         try {
             context.card({agent: this.agent, name: this.name, doing: description})
-            const status = await context.request(this.agent, {op: "script", code, description}, {at: "asap"}, snapshot.at.seq, current.turn.text)
+            const status = await context.request(this.agent, {op: "script", code, description}, {at: "asap"}, snapshot.at.seq, current.turn.text,
+                () => {}, undefined, {direction: current.direction.id})
             return status.state === "applied" ? `Done: ${description}. Pieces you assign now see it.` : `Not done (${status.reason}): ${status.detail ?? ""}`
         } finally {
             context.release(this.agent, ["project.script"])
@@ -291,7 +295,7 @@ export class Captain {
         // A ramp's request ends when the ramp does: answer once it's under way, so the turn isn't held for its length.
         let started: (text: string) => void = () => {}
         const early = new Promise<string>(resolve => {started = resolve})
-        const done = performStep(context, this.agent, {plan, when: {at: "asap"}, says}, current.turn.text, status => {
+        const done = performStep(context, this.agent, {plan, when: {at: "asap"}, says, activity: {direction: current.direction.id}}, current.turn.text, status => {
             if (status.state === "running") {started(`${says}: under way.`)}
         })
         return Promise.race([early, done])
@@ -368,6 +372,7 @@ export class Captain {
                     const fresh = !current.context.controls().some(control => control.ref === ref)
                     const said = current.context.offerControl(this.agent, {ref, label: String(input.label), low: String(input.low),
                         high: String(input.high), meaning: String(input.meaning), value: Number(input.value)})
+                    if (fresh) {current.context.ledger.dial(ref, current.direction.id)}
                     // The project before this direction, kept as the dial's other end.
                     const placed = current.context.controls().find(control => control.ref === ref)
                     if (!fresh || placed === undefined || current.before === undefined) {return said}
@@ -376,7 +381,7 @@ export class Captain {
                     return id === null ? said : `${said} Kept the project before this direction as take ${id}.`
                 })),
             tool("recall_take", "Bring the project back to a take (takes: versions kept under a dial's positions), gliding over the next 4 bars: notes, mix, effects and tempo as they were then; parts added since fade out.", {
-                take: z.string().describe("A take's id (\"k2\")")}, handler((current, input) => current.context.recallTake(this.agent, String(input.take), current.turn.text))),
+                take: z.string().describe("A take's id (\"k2\")")}, handler((current, input) => current.context.recallTake(this.agent, String(input.take), current.turn.text, current.direction.id))),
             tool("remove_control", "Take a dial off your card.", {name: z.string()},
                 handler((current, input) => current.context.removeControl(this.agent, `c:${String(input.name).replace(/^c:/, "")}`))),
             tool("look", "Run read-only JavaScript (an async function body, `takedo` in scope) and see what it returns.", {

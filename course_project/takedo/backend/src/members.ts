@@ -1,3 +1,4 @@
+import type {Activity} from "./ledger.ts"
 import type Anthropic from "@anthropic-ai/sdk"
 import {type Actor, type Device, type Plan, type Snapshot, type Status, target, type When} from "../../shared/protocol.ts"
 import type {Catalog} from "./catalog.ts"
@@ -36,7 +37,9 @@ export type Member = {
 // says: what it did, for the reply ("Keys muted"). then: steps on the effect an add_effect made, once it's on (its
 // parameters have no refs before), from the effect and a fresh snapshot.
 // board: the board's step it carries out (board.ts), linked to its request.
-export type Step = { plan: Plan, when: When, says: string, then?: (added: Device, now: Snapshot, anchored: boolean) => Step[], board?: string }
+// activity: the direction (and piece) it belongs to, for the ledger (ledger.ts).
+export type Step = { plan: Plan, when: When, says: string, then?: (added: Device, now: Snapshot, anchored: boolean) => Step[], board?: string,
+    activity?: Activity }
 
 const MinDb = -60, MaxDb = 6
 const db = (value: number): string => value <= MinDb ? "-inf dB" : `${value > 0 ? "+" : ""}${value.toFixed(1)} dB`
@@ -73,7 +76,7 @@ export const performStep = async (context: Coordinator, agent: Actor, step: Step
             update => {
                 landsAt = update.landsAt ?? landsAt
                 onStatus(update)
-            }, step.board)
+            }, step.board, step.activity)
         return [`${describe(step, status, landsAt)}${slid > 0 ? ` (${slid} bar${slid > 1 ? "s" : ""} later than planned)` : ""}`,
             ...await followUp(context, agent, step, status, reason)].join("; ")
     } finally {
@@ -90,7 +93,7 @@ const followUp = async (context: Coordinator, agent: Actor, step: Step, status: 
     // A ramp's bar counts like the step that added the effect: from its anchor (bars of playing), else the timeline.
     const from = step.when.at === "bar" ? step.when.from : undefined
     return Promise.all(step.then(added, now, from !== undefined).map(next => performStep(context, agent,
-        from !== undefined && next.when.at === "bar" ? {...next, when: {...next.when, from}} : next, reason)))
+        {...(from !== undefined && next.when.at === "bar" ? {...next, when: {...next.when, from}} : next), activity: step.activity}, reason)))
 }
 
 const describe = (step: Step, status: Status, landsAt: string): string => {

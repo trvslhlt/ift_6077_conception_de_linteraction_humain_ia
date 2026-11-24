@@ -12,6 +12,7 @@ import type {
     RemoveEffectPlan, ScriptPlan, Snapshot, Status, Track
 } from "@/takedo_shared/protocol"
 import {numeric, primitives} from "./Catalog"
+import {touchedBetween} from "@/takedo_shared/touched"
 import {Clock} from "./Clock"
 import {type Correction, guardField} from "./Guard"
 import {runLook, runScript, type ScriptEnv, scriptEnv, serialize} from "./Scripting"
@@ -404,6 +405,8 @@ export class Adapter implements Terminable {
     // One edit: rolled back by openDAW if it throws; undone if it changed anything the producer holds.
     async #script(request: Apply, plan: ScriptPlan): Promise<void> {
         if (!(await this.#land(request))) {return}
+        // The project just before, to say what the script changed (shared/touched.ts: what the activity owns).
+        const before = this.snapshot("full")
         this.#touched = new Map()
         this.#updates = 0
         let value: unknown
@@ -435,6 +438,7 @@ export class Adapter implements Terminable {
         this.#lastAgentEdit = {label: plan.description, steps: this.#historySteps}
         this.#status(request, {state: "applied",
             result: {ref: "project", label: plan.description, value: serialize(value), updates,
+                touched: touchedBetween(before, this.snapshot("full")),
                 ...(corrections.length > 0 ? {corrected: corrections.map(({field, from, to}) =>
                     `${field}: ${from} → ${to} (outside its range)`)} : {})}})
     }

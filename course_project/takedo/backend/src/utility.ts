@@ -543,6 +543,7 @@ export class Utility implements Member {
         if (typeof step === "string") {return `Not done: ${step}.`}
         if (sending === undefined && step.when.at === "bar") {return this.#stage(current, step.when.bar, step.says, {op: name, input})}
         step.board = sending?.id
+        step.activity = {direction: current.direction.id, ...(current.job !== undefined ? {job: current.job} : {})}
         context.card({agent: this.agent, name: this.name, doing: step.says})
         step.when = anchored(step.when, current.anchor)
         return this.#start(work, onStatus => performStep(context, this.agent, step, task.piece ?? task.message, onStatus)
@@ -622,7 +623,7 @@ export class Utility implements Member {
                     fresh?.at.seq ?? 0, description, update => {
                         landsAt = update.landsAt ?? landsAt
                         onStatus(update)
-                    }, sending?.id)
+                    }, sending?.id, {direction: current.direction.id, ...(current.job !== undefined ? {job: current.job} : {})})
                 if (status.state === "applied") {
                     work.done.push(`${description}${landsAt ? ` (from ${landsAt})` : ""}`)
                     const corrected = status.result?.corrected ?? []

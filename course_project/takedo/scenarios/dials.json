@@ -1,0 +1,9 @@
+{
+  "//": "Two dials (2026-11-24, ownership): a lofi direction (dial A), then busier drums (dial B), then A all the way back. A's move should take back only A's work and keep B's; until moves are per owner, the report's Ownership section shows what each direction changed and what they share.",
+  "project": "01_good_base.odb",
+  "messages": [
+    {"text": "Slowly evolve this into a lush lofi girl beat"},
+    {"text": "now slowly make the drums busier and more energetic"},
+    {"control": "", "value": 0}
+  ]
+}

@@ -4,6 +4,7 @@
 //
 // Shared by the page (Vite, mounted at src/takedo_shared) and the backend (Node, run with type stripping), so this
 // directory holds erasable TypeScript only: types and plain functions, no enums, no parameter properties.
+import type {Touched} from "./touched.ts"
 
 export const ProtocolVersion = 6
 export const SocketPath = "/takedo"
@@ -91,7 +92,7 @@ export type Status = {
     // device: one just added. value: what a script returned; updates: how many changes it made; corrected: values it
     // wrote outside openDAW's declared ranges, brought back in (page/Guard.ts).
     result?: { ref: string, label: string, from?: number, to?: number, device?: Device, value?: string, updates?: number,
-        corrected?: string[] }
+        corrected?: string[], touched?: Touched }
     reason?: FailReason
     detail?: string
 }

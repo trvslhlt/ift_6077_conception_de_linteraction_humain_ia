@@ -32,7 +32,7 @@ export class Notebook {
         const openingFile = this.#file.replace(/\.json$/, ".opening")
         const previous = existsSync(openingFile) ? readFileSync(openingFile, "utf8").trim() : null
         if (opening !== undefined && previous !== opening) {
-            const kept = [this.#file, this.#agentFile, this.boardFile, this.takesFile].filter(file => existsSync(file))
+            const kept = [this.#file, this.#agentFile, this.boardFile, this.takesFile, this.ledgerFile].filter(file => existsSync(file))
             if (kept.length > 0) {
                 const archive = join(dir, "archive", `${fileName(project).replace(/\.json$/, "")}-${new Date().toISOString().replace(/[:.]/g, "-")}`)
                 mkdirSync(archive, {recursive: true})
@@ -51,6 +51,9 @@ export class Notebook {
 
     // The takes' file (takes.ts), beside the notebook.
     get takesFile(): string {return this.#file.replace(/\.json$/, ".takes.json")}
+
+    // The activity ledger's file (ledger.ts), beside the notebook.
+    get ledgerFile(): string {return this.#file.replace(/\.json$/, ".ledger.json")}
 
     has(key: string): boolean {return this.#entries.has(key)}
 

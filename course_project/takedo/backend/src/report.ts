@@ -6,6 +6,7 @@ import {join} from "node:path"
 import type {Note, Snapshot, Track} from "../../shared/protocol.ts"
 import {analyse, isDrums, type Key} from "./analysis.ts"
 import {MaxReplySentences} from "./utility.ts"
+import {type Entry as Activity, ownedBy} from "./ledger.ts"
 
 type Line = { from: string, shown?: string, text: string }
 type Run = {
@@ -320,6 +321,27 @@ if (before === undefined || after === undefined) {
     }
     const long = run.messages.flatMap(message => message.replies).filter(line => sentences(line.text) > MaxReplySentences)
     check(long.length === 0, `${long.length} replies longer than ${MaxReplySentences} sentences`)
+}
+
+// Ownership (ledger.ts): what each direction's landed edits changed, each dial's directions, and what more than one
+// direction changed (the overlaps a dial's move back can't simply restore).
+const activities = log.filter(entry => entry.type === "activity" && entry.touched !== undefined) as unknown as Activity[]
+if (activities.length > 0) {
+    const texts = new Map(log.filter(entry => entry.type === "board" && entry.event === "direction").map(entry => [entry.id as string, entry.text as string]))
+    const directions = [...new Set(activities.map(entry => entry.direction))]
+    const owners = new Map<string, string[]>()
+    out.push("", "## Ownership", "")
+    directions.forEach(direction => {
+        const owned = [...ownedBy(activities.filter(entry => entry.direction === direction))].sort()
+        owned.forEach(key => owners.set(key, [...owners.get(key) ?? [], direction]))
+        out.push(`- "${(texts.get(direction) ?? direction).slice(0, 70)}": ${owned.join(", ")}`)
+    })
+    const dials = new Map<string, string[]>()
+    log.filter(entry => entry.type === "activity" && typeof entry.dial === "string")
+        .forEach(entry => dials.set(entry.dial as string, [...dials.get(entry.dial as string) ?? [], entry.direction as string]))
+    dials.forEach((owned, dial) => out.push(`- dial ${dial}: ${owned.map(direction => `"${(texts.get(direction) ?? direction).slice(0, 40)}"`).join(", ")}`))
+    const shared = [...owners].filter(([, by]) => by.length > 1)
+    out.push(`- changed by more than one direction: ${shared.length === 0 ? "nothing" : shared.map(([key, by]) => `${key} (${by.length})`).join(", ")}`)
 }
 
 const report = out.join("\n") + "\n"
