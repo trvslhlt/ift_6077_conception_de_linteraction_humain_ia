@@ -336,6 +336,11 @@ Built (2026-11-22), step 2's second piece: the captain split from the utility (`
   edits failed in one lofi run: the region adapter passed as `createNoteEvent`'s owner). First lofi run with it: both
   parts' grooves went through it (4 and 8 stages, all applied), 1 of 49 edits failed, the slowest worker took 63–66 s
   and 13–14k tokens out (was 80–89 s, 18–21k). One bar took 4 edits from two plans: the per-bar limit is per plan.
+- **The per-bar limit is gone (2026-11-23).** It began as a fix for one run (a tempo step and three effects on bar 12)
+  and grew into a gate the producer never decided: it refused edits openDAW applies fine, workers spent turns finding
+  bars with room, and being per plan it never guaranteed spacing. A ramp, `evolve_notes`'s stages and the prompt's
+  "a few bars apart" now carry the spacing, and the report counts the busiest bar instead of failing on it. Lofi
+  without it: 91 of 91 edits applied, no refusals, at most 5 in one bar, all other checks green.
 
 ## Still open
 

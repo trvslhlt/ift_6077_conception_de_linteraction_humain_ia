@@ -1,9 +1,9 @@
-// The board's staged steps (board.ts): held per direction, a bar's limit, sent in bar order from one anchor moved past
+// The board's staged steps (board.ts): held per direction, sent in bar order from one anchor moved past
 // the playhead. Run from backend/: node --test src/staging.test.ts
 import {describe, it} from "node:test"
 import assert from "node:assert/strict"
 import type {Snapshot} from "../../shared/protocol.ts"
-import {Board, commitAnchor, MaxPerBar, planSlide} from "./board.ts"
+import {Board, commitAnchor, planSlide} from "./board.ts"
 
 // 01_good_base in the lofi scenario: 4/4, looping bars 1–4.
 const bar = 3840
@@ -30,27 +30,11 @@ describe("the board", () => {
         const board = new Board(() => {})
         const {id} = board.direction("make it lofi")
         const drums = board.job(id, "drums"), bass = board.job(id, "bass")
-        board.stage(id, "agent:utility", 6, "bass 6", script, MaxPerBar, bass.id)
-        board.stage(id, "agent:utility", 4, "drums 4", script, MaxPerBar, drums.id)
-        board.stage(id, "agent:utility", 2, "bass 2", script, MaxPerBar, bass.id)
+        board.stage(id, "agent:utility", 6, "bass 6", script, bass.id)
+        board.stage(id, "agent:utility", 4, "drums 4", script, drums.id)
+        board.stage(id, "agent:utility", 2, "bass 2", script, bass.id)
         assert.deepEqual(board.take(id, bass.id).map(step => step.says), ["bass 2", "bass 6"])
         assert.deepEqual(board.staged(id).map(step => step.says), ["drums 4"])
-    })
-    it("refuses a fourth step on one bar of a plan, unless the caller lifts the limit (a knowledge entry)", () => {
-        const board = new Board(() => {})
-        const {id} = board.direction("make it lofi")
-        for (let index = 0; index < MaxPerBar; index++) {assert.equal(board.stage(id, "agent:utility", 9, "fx", script).ok, true)}
-        assert.equal(board.stage(id, "agent:utility", 9, "fx", script).ok, false)
-        assert.equal(board.stage(id, "agent:utility", 9, "fx", script, Infinity).ok, true)
-        assert.equal(board.stage(board.direction("other").id, "agent:utility", 9, "fx", script).ok, true, "per plan")
-    })
-    it("names the nearest bars with room when it refuses one", () => {
-        const board = new Board(() => {})
-        const {id} = board.direction("make it lofi")
-        for (const bar of [8, 9, 10]) {for (let index = 0; index < MaxPerBar; index++) {board.stage(id, "agent:utility", bar, "fx", script)}}
-        const refused = board.stage(id, "agent:utility", 9, "fx", script)
-        assert.equal(refused.ok, false)
-        assert.match(refused.ok ? "" : refused.reason, /Bars near it with room: 7, 11, 6, 12\./)
     })
     it("moves the anchor past the playhead by whole passes of a short loop, else by whole bars", () => {
         const anchor = {position: 2 * bar, played: 0, bar: 3}
@@ -121,13 +105,13 @@ describe("cancelling a piece still being planned", () => {
         const board = new Board(() => {})
         const {id} = board.direction("make it lofi")
         const tempo = board.job(id, "tempo"), drums = board.job(id, "drums")
-        board.stage(id, "agent:utility", 3, "tempo 3", script, MaxPerBar, tempo.id)
-        board.stage(id, "agent:utility", 3, "drums 3", script, MaxPerBar, drums.id)
+        board.stage(id, "agent:utility", 3, "tempo 3", script, tempo.id)
+        board.stage(id, "agent:utility", 3, "drums 3", script, drums.id)
         const result = board.cancel([tempo.id])
         assert.deepEqual(result.cancelled.map(step => step.says), ["tempo 3"])
         assert.deepEqual(result.jobs.map(job => job.id), [tempo.id])
-        assert.equal(board.stage(id, "agent:utility", 5, "tempo 5", script, MaxPerBar, tempo.id).ok, false)
-        assert.equal(board.stage(id, "agent:utility", 5, "drums 5", script, MaxPerBar, drums.id).ok, true)
+        assert.equal(board.stage(id, "agent:utility", 5, "tempo 5", script, tempo.id).ok, false)
+        assert.equal(board.stage(id, "agent:utility", 5, "drums 5", script, drums.id).ok, true)
         assert.deepEqual(board.running().map(job => job.id), [drums.id])
     })
 })

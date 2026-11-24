@@ -4,7 +4,7 @@ import type Anthropic from "@anthropic-ai/sdk"
 import type {CallToolResult} from "@modelcontextprotocol/sdk/types.js"
 import {z} from "zod"
 import type {Actor, Note, Plan, Snapshot, Status, When} from "../../shared/protocol.ts"
-import {type Action, type Anchor, commitAnchor, type Direction, MaxPerBar, planSlide, type Step as BoardStep} from "./board.ts"
+import {type Action, type Anchor, commitAnchor, type Direction, planSlide, type Step as BoardStep} from "./board.ts"
 import type {Coordinator} from "./coordinator.ts"
 import type {Catalog} from "./catalog.ts"
 import {Kinds as KnowledgeKinds, type Knowledge} from "./knowledge.ts"
@@ -34,10 +34,9 @@ const SourceTools = ["Read", "Grep", "Glob"]
 // One task's edits: what landed (for the card and the reply), what's still landing, and failures nobody's heard yet.
 type Work = { done: string[], pending: Promise<string>[], late: string[] }
 // The message being worked on, for the tools' handlers (one at a time: they share the session). direction: its entry
-// on the board, which holds its timed edits until the turn ends; applying: a knowledge entry's edits are being staged
-// (its own steps may share a bar beyond the per-bar limit, which it was checked against as a whole).
+// on the board, which holds its timed edits until the turn ends.
 type Current = { context: Coordinator, task: Task, work: Work, calls: number, said?: string, direction: Direction,
-    anchor: Anchor | null, applying?: boolean, applied?: string[], appliedBars?: number, job?: string }   // job: a worker's piece   // applied: what a knowledge entry's steps said they'd do (the fast route's reply)
+    anchor: Anchor | null, applied?: string[], appliedBars?: number, job?: string }   // job: a worker's piece   // applied: what a knowledge entry's steps said they'd do (the fast route's reply)
 const anchored = (when: When, anchor: Anchor | null): When =>
     when.at === "bar" && anchor !== null ? {...when, from: {position: anchor.position, played: anchor.played}} : when
 
@@ -111,7 +110,7 @@ Rules:
 - Anything else openDAW can do, you can: never answer that it can't be done or wasn't built; look up how and do it.
 - Land changes ahead of the playhead (\`playback.bar\`) when timing matters; structural changes (lengths, new regions) can land as soon as possible.
 - When the loop is on (\`playback.loop\`), every bar counts from where the playhead was when the producer's message arrived (the summary's playback.bar), however long you take to plan it: a bar inside the loop is its next pass after that, a bar past the loop's end counts bars of playing as if the loop were unrolled (playhead in bar 2 of a 4-bar loop: at_bar 2 lands on the next bar line, at_bar 3 after 1 bar, at_bar 1 after 3, at_bar 10 after 8 bars, at the loop's bar 2), so the steps of a gradual change keep their order and spacing.
-- Staging a gradual change: one or two edits per bar (a fourth on one bar is refused: other pieces of the plan share its bars), the steps a few bars apart. A steady glide (tempo, a level, a filter) is one edit that ramps (a fixed operation's ramp, or a script writing tempo automation), not a step per bar. Every edit you stage lands: never stage a placeholder or a test. Bring an effect in gently (dry, or its mix low) and raise it with add_effect's then, not at full strength. A knowledge chain's effects all land on one bar: give it a bar of its own.
+- Staging a gradual change: one or two edits per bar, the steps a few bars apart (other pieces of the plan share its bars). A steady glide (tempo, a level, a filter) is one edit that ramps (a fixed operation's ramp, or a script writing tempo automation), not a step per bar. Every edit you stage lands: never stage a placeholder or a test. Bring an effect in gently (dry, or its mix low) and raise it with add_effect's then, not at full strength.
 - Changing a part's notes over several bars (a groove becoming another, a part thinning out or filling in): evolve_notes, not a script per stage. Name where it's going (a knowledge pattern, or the notes written once) and how many stages; code works out each stage and rewrites the region's notes in place, so a looping region changes as it plays.
 - A region's notes play on every pass of its loop: a script that rewrites them changes every repeat from when it lands, which is how a staged change evolves the part over time.
 ${KeySlot}- Do the whole task before you finish: never stop after a first part to offer the next, or ask whether to do a part that was asked for. Make several calls per round when they don't depend on each other.
@@ -476,30 +475,16 @@ export class Utility implements Member {
         context.card({agent: this.agent, name: this.name, doing: `applying ${key}`})
         const start = atBar > 0 ? atBar : snapshot.playback.bar + 1
         const bars = planned.map(step => atBar <= 0 && step.at === 0 ? 0 : start + step.at)
-        // Checked as a whole: a bar it shares with the plan's other steps mustn't go over the limit (a chain's effects
-        // all land on one bar); on a bar of its own it may.
-        const crowded = [...new Set(bars.filter(bar => bar > 0))].find(bar => {
-            const already = context.board.count(current.direction.id, bar)
-            return already > 0 && already + bars.filter(other => other === bar).length > MaxPerBar
-        })
-        if (crowded !== undefined) {
-            return `Not applied: bar ${crowded} already has ${context.board.count(current.direction.id, crowded)} edits in this plan, and this entry adds ${bars.filter(bar => bar === crowded).length} there (at most ${MaxPerBar} a bar). Give it a bar of its own.`
-        }
         const results: string[] = []
-        current.applying = true
-        try {
-            for (const [index, step] of planned.entries()) {
-                const bar = bars[index]
-                if (step.kind === "op") {
-                    const owner = this.#owners.get(step.name)
-                    results.push(owner === undefined ? `${step.says}: no member offers ${step.name}`
-                        : await this.#operate(current, owner, step.name, {...step.input, at_bar: bar}))
-                } else {
-                    results.push(await this.#run(current, step.says, step.code, bar))
-                }
+        for (const [index, step] of planned.entries()) {
+            const bar = bars[index]
+            if (step.kind === "op") {
+                const owner = this.#owners.get(step.name)
+                results.push(owner === undefined ? `${step.says}: no member offers ${step.name}`
+                    : await this.#operate(current, owner, step.name, {...step.input, at_bar: bar}))
+            } else {
+                results.push(await this.#run(current, step.says, step.code, bar))
             }
-        } finally {
-            current.applying = false
         }
         return `${key}: ${planned.length} edit${planned.length === 1 ? "" : "s"}.${estimated}\n${results.map((result, index) => `${index + 1}. ${planned[index].says}: ${result}`).join("\n")}`
     }
@@ -552,7 +537,7 @@ export class Utility implements Member {
     // A timed edit, kept on the board until the turn ends (ARCHITECTURE.md, "The team's structure").
     #stage(current: Current, bar: number, says: string, action: Action): string {
         const {board} = current.context
-        const staged = board.stage(current.direction.id, this.agent, bar, says, action, current.applying === true ? Infinity : MaxPerBar, current.job)
+        const staged = board.stage(current.direction.id, this.agent, bar, says, action, current.job)
         if (!staged.ok) {return `Not staged: ${staged.reason}.`}
         return `Staged for bar ${bar} (${board.count(current.direction.id, bar)} on that bar in this plan); it goes out with the rest when you reply.`
     }

@@ -195,7 +195,7 @@ if (before === undefined || after === undefined) {
     const added = after.tracks.filter(track => !before.tracks.some(candidate => candidate.ref === track.ref))
     if (added.length > 0) {out.push(`- New tracks: ${added.map(track => `${track.name} (${track.device?.name ?? track.instrument ?? "?"})`).join(", ")}`)}
     check(failed.length === 0, `${failed.length} edits not done${failed.length > 0 ? `: ${failed.map(entry => entry.detail ?? entry.reason ?? entry.state).join("; ")}` : ""}`)
-    check(bunched <= 3, `at most ${bunched} edits landed in one bar`)
+    out.push(`- At most ${bunched} edits landed in one bar`)
     const label = (entry: Entry): string => entry.plan.description ?? `${entry.plan.op} ${entry.plan.ref ?? entry.plan.device ?? ""}`.trim()
     check(outOfOrder.length === 0, `${outOfOrder.length} pairs of a part's steps landed in the opposite order to their bars` +
         `${outOfOrder.length > 0 ? `: ${outOfOrder.slice(0, 3).map(([first, second]) => `${label(first)} (bar ${first.when.bar}) / ${label(second)} (bar ${second.when.bar})`).join("; ")}` : ""}`)

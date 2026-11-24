@@ -30,10 +30,6 @@ const Open: ReadonlyArray<StepState> = ["sent", "waiting"]
 export type Job = { id: string, direction: string, piece: string, state: "running" | "done" | "failed" | "lost" | "cancelled", t: number,
     summary?: string }
 
-// Edits one bar takes in a gradual change; a step past it is refused (2026-11-22: a note alone didn't hold, four edits
-// on bar 12, a tempo step and three effects).
-export const MaxPerBar = 3
-
 export class Board {
     readonly #log: (data: object) => void
     readonly #directions = new Map<string, Direction>()
@@ -70,26 +66,14 @@ export class Board {
     }
 
     // Steps of a direction on a bar, staged or sent.
-    // The bars nearest the given one (within 4, earlier ones first on a tie) that have room for another step.
-    room(direction: string, bar: number, limit = MaxPerBar): number[] {
-        return [1, 2, 3, 4].flatMap(distance => [bar - distance, bar + distance])
-            .filter(other => other >= 1 && this.count(direction, other) < limit).slice(0, 4)
-    }
-
     count(direction: string, bar: number): number {
         return this.#steps.filter(step => step.direction === direction && step.bar === bar).length
     }
 
-    // A step for later, or the reason it's refused.
-    // limit: steps the bar may hold (a knowledge entry's, checked as a whole, may go over).
-    stage(direction: string, agent: Actor, bar: number, says: string, action: Action,
-          limit = MaxPerBar, job?: string): { ok: true, step: Step } | { ok: false, reason: string } {
+    // A step for later, or the reason it's refused (its piece was cancelled).
+    stage(direction: string, agent: Actor, bar: number, says: string, action: Action, job?: string): { ok: true, step: Step } | { ok: false, reason: string } {
         if (job !== undefined && this.jobOf(job)?.state === "cancelled") {
             return {ok: false, reason: "the Team Lead cancelled this piece. Stop here: call reply saying so"}
-        }
-        if (this.count(direction, bar) >= limit) {
-            const room = this.room(direction, bar, limit)
-            return {ok: false, reason: `bar ${bar} already has ${MaxPerBar} edits in this plan (other pieces share its bars), the most one bar takes in a gradual change. ${room.length > 0 ? `Bars near it with room: ${room.join(", ")}.` : "No bar near it has room."} Put this on one of those, or do it with fewer edits (one ramp in place of a step per bar). Never stage a placeholder to find room`}
         }
         const step: Step = {id: randomUUID(), direction, agent, bar, says, action, state: "staged", t: Date.now(), ...(job !== undefined ? {job} : {})}
         this.#steps.push(step)
