@@ -149,7 +149,7 @@ try {
     await page.waitForFunction(before => window.takedo.adapter.snapshot().tracks.find(track => track.name === "Drums").mix.volume < before - 0.5,
         drumsBefore, {timeout: 120000}).catch(() => {})
     const drumsAfter = await volume("Drums")
-    check("a message through the captain and a worker: drums turned down during playback", drumsAfter < drumsBefore - 0.5,
+    check("a message through the Team Lead: drums turned down during playback", drumsAfter < drumsBefore - 0.5,
         `${drumsBefore} → ${drumsAfter.toFixed(1)} dB in ${Date.now() - start} ms: "${reply}"`)
     check("engine kept playing", await page.evaluate(() => window.opendaw.engine.isPlaying()))
     const speakers = await page.evaluate(() => [...new Set([...document.querySelectorAll("[data-testid=takedo-chat] li")]

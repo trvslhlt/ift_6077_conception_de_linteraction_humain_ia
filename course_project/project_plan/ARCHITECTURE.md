@@ -443,3 +443,9 @@ These are for the detailed design, whatever the shape:
   (`withoutTransport` in page/Scripting.ts; looks too, since the transport isn't a project edit openDAW would refuse).
   A script whose new loop leaves out the playhead, while playing, is rolled back (`#loopProblem` in page/Adapter.ts),
   since the playhead would jump at the next wrap. Smoke checks all three; the loop itself stays the agents' to change.
+
+- 2026-11-24, a fast path for one mix control. The Team Lead's `adjust` tool sets or ramps a track's volume, pan or
+  mute (or the master's volume) itself, with no worker, through the same performStep as fixed operations (claims, held
+  faders, activity). Only those refs (Captain.may). scenarios/small.json: first edit 0.9 to 3.5 s after the message
+  (was 8 to 23 s through a worker), no worker sessions. Anything more is still a piece. A classifier ahead of the Team
+  Lead (Jev) would save its ~1 to 3 s decision on these too; not needed yet.

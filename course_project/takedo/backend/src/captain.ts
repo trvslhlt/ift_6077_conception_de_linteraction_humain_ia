@@ -2,10 +2,10 @@ import {existsSync} from "node:fs"
 import {createSdkMcpServer, getSessionInfo, query, type Query, tool} from "@anthropic-ai/claude-agent-sdk"
 import type {CallToolResult} from "@modelcontextprotocol/sdk/types.js"
 import {z} from "zod"
-import type {Actor, Snapshot} from "../../shared/protocol.ts"
+import type {Actor, Plan, Snapshot} from "../../shared/protocol.ts"
 import {type Anchor, type Direction, type Job, type Piece, type PieceKind, PieceKinds, type Step} from "./board.ts"
 import type {Coordinator} from "./coordinator.ts"
-import {projectFor} from "./members.ts"
+import {performStep, projectFor} from "./members.ts"
 import {type AgentState, Kinds, type Kind} from "./notebook.ts"
 import {asChatLine, Inbox, replyProblem} from "./utility.ts"
 
@@ -31,6 +31,7 @@ With it: project (tracks with refs, tempo, playback.bar: where the playhead is n
 
 Tools:
 - assign: hand one piece to a fresh worker. A worker can do anything openDAW supports and has the team's knowledge base of genres, sounds, effect chains and patterns. It starts with no memory of the conversation, so a piece stands alone, and it is one kind of change (kind): a drum pattern and the drums' crusher are two pieces (drums, effects). tracks: the refs it changes (none for tempo). goal: one sentence on where it ends up, as a listener would check it ("a lazy, swung boom-bap at soft velocities"), not how to get there. from_bar and to_bar: bars counted from where the playhead was when the producer's message arrived (project.playback.bar), 0 and 0 for now; a gradual change takes 8 to 16 bars, or what the producer said. steps: 1 for one change, more for a gradual one. keep: what must stay (the producer's own settings, the key, a part's register with its MIDI numbers), "" for nothing. Give independent parts to separate workers, which run at the same time: for a style change, typically drums, harmony and keys, bass, tempo, and master effects. Never give two workers the same setting. A simple request is one piece. Hand out every part the message needs in this turn.
+- adjust: change one mix control yourself, with no worker: a track's volume, pan or mute (or the master's volume), at once or ramped over beats. It lands within a second, where a worker takes several: use it whenever the request is just that ("drums down a bit", "mute the bass", "fade the pad out over 8 bars"), then reply. Only for a control the producer asked to change; never to restate or guard a value. Anything more (notes, sounds, effects, several steps at chosen bars) is a piece to assign.
 - cancel: take back what hasn't landed: steps (coming_steps), or a piece still being planned (its job id from jobs_running: the job stops and its steps go with it). Use it when the producer says stop, less, or changes their mind about something still coming; cancel the job when the piece is still running. To change one part of a plan still being made, cancel that part's job, then assign what replaces it: a piece assigned after cancelling a running job joins that job's plan and lands with the rest of it. What has landed stays; to undo it, assign a piece that changes it back.
 - offer_control, remove_control: dials on your card, for the producer to steer a direction that keeps going (how far toward a style, how busy, how wet) without typing. Whenever a producer_message starts a gradual change or a style direction, offer one dial for it in that same turn, before you reply, and mention it in a few words: its ends in the producer's words, meaning what moving it should change, and its value where your direction takes the project (a dial toward the style the producer asked for starts near its high end, not at 0). At most 3; remove one that no longer applies. When one moves (control_moved), act on it like a direction: assign a piece that moves what's still to come toward the new position, in proportion to how far it moved.
 - look: read-only JavaScript to inspect the project (an async function body, \`takedo\` in scope: project, snapshot()). Only when the summary doesn't answer what you need.
@@ -234,6 +235,38 @@ export class Captain {
         }
     }
 
+    // The fast path for one mix control (decided 2026-11-24): the Team Lead's own edit, sent at once, so a small request
+    // lands about a second after its decision instead of a worker's session later. Only what may() allows.
+    may(plan: Plan): boolean {return (plan.op === "set" || plan.op === "ramp") && /^(t\d+|master)\.mix\.(volume|pan|mute)$/.test(plan.ref)}
+
+    async #adjust(current: Current, input: Record<string, unknown>): Promise<string> {
+        const {context} = current
+        const snapshot = await context.snapshot()
+        if (snapshot === null) {return "Not done: no project is open."}
+        const track = String(input.track), control = String(input.control)
+        const found = snapshot.tracks.find(candidate => candidate.ref === track)
+        if (track !== "master" && found === undefined) {return `Not done: no track ${track} (tracks: ${snapshot.tracks.map(t => `${t.ref} ${t.name}`).join(", ")}).`}
+        if (track === "master" && control !== "volume") {return "Not done: only the master's volume is adjustable here; assign a piece for the rest."}
+        const name = found?.name ?? "Master"
+        const clamp = (value: number, low: number, high: number) => Math.min(high, Math.max(low, Number.isFinite(value) ? value : 0))
+        const ref = `${track}.mix.${control}`
+        const beats = control === "mute" ? 0 : clamp(Number(input.over_beats), 0, 256)
+        const over = beats > 0 ? ` over ${beats} beats` : ""
+        const {plan, says}: { plan: Plan, says: string } = control === "mute"
+            ? Number(input.to) >= 0.5 ? {plan: {op: "set", ref, to: 1}, says: `${name} muted`} : {plan: {op: "set", ref, to: 0}, says: `${name} back in`}
+            : control === "pan"
+                ? {plan: {op: "ramp", ref, to: clamp(Number(input.to), -1, 1), beats}, says: `${name} panned to ${clamp(Number(input.to), -1, 1)}${over}`}
+                : {plan: {op: "ramp", ref, to: clamp(Number(input.to), -60, 6), beats}, says: `${name} to ${clamp(Number(input.to), -60, 6).toFixed(1)} dB${over}`}
+        context.card({agent: this.agent, name: this.name, doing: says})
+        // A ramp's request ends when the ramp does: answer once it's under way, so the turn isn't held for its length.
+        let started: (text: string) => void = () => {}
+        const early = new Promise<string>(resolve => {started = resolve})
+        const done = performStep(context, this.agent, {plan, when: {at: "asap"}, says}, current.turn.text, status => {
+            if (status.state === "running") {started(`${says}: under way.`)}
+        })
+        return Promise.race([early, done])
+    }
+
     async #stored(context: Coordinator): Promise<AgentState | null> {
         const state = context.notebook?.agentState() ?? null
         if (state === null) {return null}
@@ -274,6 +307,12 @@ export class Captain {
                     return direction === undefined ? current.context.assign(current.direction, current.anchor, piece)
                         : current.context.assign(direction, this.#anchors.get(direction.id) ?? current.anchor, piece)
                 })),
+            tool("adjust", "Change one mix control yourself, no worker: a track's volume, pan or mute, or the master's volume; at once or ramped over beats. Answers once it's under way.", {
+                track: z.string().describe("A track's ref (\"t2\"), or \"master\" (volume only)"),
+                control: z.enum(["volume", "pan", "mute"]),
+                to: z.number().describe("volume: dB, -60 to +6 (the project's tracks show theirs); pan: -1 left to +1 right; mute: 1 muted, 0 playing"),
+                over_beats: z.number().min(0).describe("0 for at once; else a ramp's length in beats (4 per bar in 4/4). Mute is always at once.")
+            }, handler((current, input) => this.#adjust(current, input))),
             tool("cancel", "Take back what hasn't landed yet: steps (coming_steps), or whole pieces still being planned (jobs_running: their steps with them).", {
                 steps: z.array(z.string()).describe("Step ids from coming_steps, job ids from jobs_running (\"j3\"), or [\"all\"] for everything")},
                 handler((current, input) => {

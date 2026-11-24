@@ -1,0 +1,10 @@
+{
+  "//": "Small, clear requests (2026-11-24): each is one mix control, so the Team Lead does it itself (adjust) and it lands about a second after its decision, with no worker.",
+  "project": "01_good_base.odb",
+  "messages": [
+    {"text": "the bass is a bit too loud"},
+    {"text": "mute the drums"},
+    {"text": "bring the drums back and fade them in over 2 bars"},
+    {"text": "pan the bass a little to the left"}
+  ]
+}

@@ -249,7 +249,8 @@ export class Coordinator {
             onStatus: (status: Status) => void = () => {}, step?: string): Promise<Status> {
         const id = randomUUID()
         if (step !== undefined) {this.board.link(step, id)}
-        if (this.#members.find(member => member.agent === agent)?.may(plan) !== true) {
+        const allowed = agent === this.#captain.agent ? this.#captain.may(plan) : this.#members.find(member => member.agent === agent)?.may(plan) === true
+        if (!allowed) {
             const status: Status = {request: id, t: Date.now(), pos: "", state: "failed", reason: "not_allowed",
                 detail: `${plan.op} on ${target(plan)} is outside ${agent}'s area`}
             this.#log.write("status", status)
