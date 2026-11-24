@@ -111,16 +111,25 @@ export const recallOf = (take: Snapshot, now: Snapshot): Recall => {
         was.filter(effect => effect.ref !== undefined && !is.some(candidate => candidate.ref === effect.ref))
             .forEach(effect => missing.push(`${name}'s ${effect.name} (removed since)`))
     }
-    const mix = (track: Track, kept: Track | undefined) => {
+    // Parking a part (decided 2026-11-24, make park-bench): muted, with its instrument and effects disabled, which takes
+    // them out of the engine's chain. Muting alone saved nothing (the chain still runs: 0.55 vs 0.58 ms a block for 16
+    // synth+reverb tracks); disabled, 0.21 ms. Notes and settings stay, so the part can come back as it was.
+    const instrument = (track: Track, on: boolean) => `ref(${JSON.stringify(track.ref)}).inputAdapter.ifSome(input => input.box.enabled.setValue(${on}))`
+    // Returns whether the part leaves (parked at the span's end).
+    const mix = (track: Track, kept: Track | undefined): boolean => {
         const free = (control: string) => !track.lanes.includes(`${track.ref}.mix.${control}`)
         const muted = kept === undefined ? true : kept.mix.mute
         if (muted && !track.mix.mute && free("mute")) {
-            // Leaving: faded out over the span, then muted.
+            // Leaving: faded out over the span, then muted and its devices disabled.
             if (free("volume")) {ramp(`${track.ref}.mix.volume`, Silence, "")}
             values.push({ref: `${track.ref}.mix.mute`, to: 1, beats: 0, bar: end, says: `${track.name} faded out`})
-            return
+            line(end, [instrument(track, false), ...track.effects.filter(effect => effect.enabled && effect.ref !== undefined)
+                .map(effect => `ref(${JSON.stringify(effect.ref)}).enabledField.setValue(false)`)].join("; "), "")
+            return true
         }
-        if (kept === undefined) {return}
+        if (kept === undefined) {return false}
+        const playing = kept.device?.enabled ?? true
+        if (track.device !== null && track.device.enabled !== playing) {line(playing ? 1 : end, instrument(track, playing), "")}
         if (!muted && track.mix.mute && free("mute")) {
             // Coming back: silent while still muted, unmuted on the first bar line, then faded in.
             if (free("volume")) {first.push({ref: `${track.ref}.mix.volume`, to: Silence})}
@@ -132,13 +141,14 @@ export const recallOf = (take: Snapshot, now: Snapshot): Recall => {
         if (differs(kept.mix.pan, track.mix.pan, 0.01) && free("pan")) {
             ramp(`${track.ref}.mix.pan`, kept.mix.pan, `${track.name} panned to ${kept.mix.pan.toFixed(2)}`)
         }
+        return false
     }
     let notes = false
     now.tracks.forEach(track => {
         const kept = take.tracks.find(candidate => candidate.ref === track.ref)
-        mix(track, kept)
+        const leaving = mix(track, kept)
         if (kept === undefined) {return}
-        effects(track.name, kept.effects, track.effects, track.lanes)
+        if (!leaving) {effects(track.name, kept.effects, track.effects, track.lanes)}
         track.regions.forEach(region => {
             const was = kept.regions.find(candidate => candidate.ref === region.ref)
             const muted = was?.muted ?? true

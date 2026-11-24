@@ -108,3 +108,8 @@ clean: ## Remove all containers, images and network of TakeDo (not the shared bu
 	$(COMPOSE) down --remove-orphans --rmi local
 	rm -rf $(TYPES_DIR) node_modules
 	-docker image prune -f --filter label=com.docker.compose.project=$(PROJECT)
+
+park-bench: build $(TYPES_DIR)/packages ## What a parked part costs the audio engine: playing vs muted vs disabled (TRACKS=8)
+	$(COMPOSE) up -d --wait studio backend
+	$(COMPOSE) build smoke
+	$(COMPOSE) run --rm -e TRACKS=$(or $(TRACKS),8) smoke node park-bench.mjs

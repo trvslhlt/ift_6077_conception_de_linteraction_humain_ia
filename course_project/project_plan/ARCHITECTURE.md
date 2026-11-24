@@ -483,3 +483,13 @@ These are for the detailed design, whatever the shape:
   muted a bar after it, parts coming back unmuted at silence then faded in, effects on at the start and off at the end.
   The report's order check groups the Team Lead's own edits (no job) by their anchor. Known: takes are whole-project,
   so recalling one undoes later unrelated work; per-activity ownership is the next step (dials and rollback both).
+
+- 2026-11-24, parking a part disables it. openDAW's mute is a gain at the end of the channel strip: the instrument and
+  effects keep running. `make park-bench` (test/park-bench.mjs) reads the engine's per-block times (debug
+  dspLoadMeasurement, engine.perfBuffer) for synth+reverb tracks: 16 playing 0.58 ms a block, muted 0.55, regions muted
+  0.26, muted with instrument and effects disabled 0.21 (the strips; an empty project 0.02). Same shape at 8 tracks.
+  Disabling takes the devices out of the chain but keeps their state; only deleting frees memory (openDAW keeps
+  samples and buffers loaded while a device exists; freeze keeps them too, and any tempo change unfreezes). So a
+  recall parks a leaving part as: faded out, then muted with instrument and effects disabled, notes kept; one coming
+  back is re-enabled and unmuted at silence on the first bar line, then faded in. scenarios/takes.json checks both.
+  Later: deleting parked parts nothing can bring back, once ownership says what can.
