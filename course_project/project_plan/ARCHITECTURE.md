@@ -468,3 +468,11 @@ These are for the detailed design, whatever the shape:
   planSlide went. Also: a step back of the playhead counts as the loop's wrap only from its last bar to its first; a
   headless run's engine jittered as the loop was widened, counted ~13 bars, and a whole tempo plan fired at once.
   Smoke: a plan's steps land in order a bar apart while the loop is widened under them.
+
+- 2026-11-24, the loop is the Team Lead's to set, first. In the producer's session an arrange piece widened the loop
+  4 → 16 bars while the other workers planned for 4: the keys came out a 4-bar part, then stretched without repeating,
+  silent in bars 5–16 of each pass. The Team Lead now calls set_loop (a script as its own edit) before assigning
+  pieces, so every worker sees the loop it will play in; workers leave the loop alone. The report adds "new parts
+  silent for part of each pass" (where a new track's notes sound, repeats and lengths counted), and its order check no
+  longer unrolls anchored bars (they count bars of playing now). scenarios/dnb.json: set_loop 1–16 before the pieces,
+  58/58 applied, the new chords heard through the loop, every part's steps in order.

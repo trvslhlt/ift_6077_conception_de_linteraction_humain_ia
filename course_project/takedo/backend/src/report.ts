@@ -85,17 +85,9 @@ const bunched = times.reduce((most, t, index) => Math.max(most, times.slice(inde
 const messageTimes = log.filter(entry => entry.type === "chat" && entry.from === "user").map(entry => entry.t)
 const windowOf = (t: number): number => messageTimes.filter(start => start <= t).length
 const landedAt = new Map(applied.map(entry => [entry.request, startedAt.get(entry.request) ?? entry.t]))
-// A plan's bars in the order it means them: anchored in a loop (When's from), a bar inside the loop behind the anchor's
-// bar is the next pass, so it counts a loop later.
-const loopBars = run.before?.playback.loop.on === true
-    ? [Number(run.before.playback.loop.from.split(".")[0]), Number(run.before.playback.loop.to.split(".")[0])] : null
-const barPulses = run.before === undefined ? 3840 : 960 * 4 * run.before.timeline.signature[0] / run.before.timeline.signature[1]
-const unrolled = (when: Entry): number => {
-    if (loopBars === null || when.from === undefined) {return when.bar}
-    const [from, to] = loopBars
-    const anchorBar = Math.floor(when.from.position / barPulses) + 1
-    return when.bar >= from && when.bar < to && when.bar < anchorBar ? when.bar + (to - from) : when.bar
-}
+// A plan's bars in the order it means them: anchored (When's from), bars of playing after its message (2026-11-24), so
+// as they are; else the timeline's.
+const unrolled = (when: Entry): number => when.bar
 // A ramp on an effect added in the same plan (add_effect's then) can't start before the effect is on: its bar counts as
 // no earlier than the effect's.
 const addedAt = new Map<string, number>()
@@ -214,6 +206,32 @@ if (before === undefined || after === undefined) {
             })
             .map(region => `${track.name} ${region.from}–${region.to}`))
         check(unheard.length === 0, `${unheard.length} new regions barely inside the loop (bars ${from}–${to - 1}), so mostly unheard${unheard.length > 0 ? `: ${unheard.join(", ")}` : ""}`)
+        // A new part should sound through the loop, not stop partway (2026-11-24: a keys part written for a 4-bar loop,
+        // then stretched to the new 16-bar loop without repeating, was silent in bars 5-16 of each pass). A bar counts
+        // as heard when a note sounds in it: the region's notes, repeated every loop length if it loops, with lengths.
+        const beatsPerBar = after.timeline.signature[0]
+        const gaps = added.filter(track => !track.mix.mute).flatMap(track => {
+            const heard = new Set<number>()
+            track.regions.filter(region => !region.muted).forEach(region => {
+                const [start, end] = [barOf(region.from), barOf(region.to)]
+                const notes = (region.notes ?? []).map(([pos, , sixteenths]) => {
+                    const [bars, beat, sixteenth] = pos.split(/[.:]/).map(Number)
+                    const at = bars - 1 + ((beat - 1) + (sixteenth - 1) / 4) / beatsPerBar
+                    return [at, at + sixteenths / 4 / beatsPerBar] as const
+                })
+                const every = region.loop ?? end - start
+                for (let offset = 0; offset < end - start; offset += Math.max(1, every)) {
+                    notes.forEach(([on, off]) => {
+                        for (let bar = Math.floor(on); bar < Math.min(Math.ceil(off), every); bar++) {
+                            if (offset + bar < end - start) {heard.add(start + offset + bar)}
+                        }
+                    })
+                }
+            })
+            const silent = Array.from({length: to - from}, (_, index) => from + index).filter(bar => !heard.has(bar))
+            return silent.length > 0 && silent.length < to - from ? [`${track.name} (silent in ${silent.length} of the loop's ${to - from} bars, from bar ${silent[0]})`] : []
+        })
+        check(gaps.length === 0, `${gaps.length} new parts silent for part of each pass of the loop${gaps.length > 0 ? `: ${gaps.join(", ")}` : ""}`)
     }
     if (added.length > 0) {out.push(`- New tracks: ${added.map(track => `${track.name} (${track.device?.name ?? track.instrument ?? "?"})`).join(", ")}`)}
     check(failed.length === 0, `${failed.length} edits not done${failed.length > 0 ? `: ${failed.map(entry => entry.detail ?? entry.reason ?? entry.state).join("; ")}` : ""}`)

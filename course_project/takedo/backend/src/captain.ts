@@ -32,6 +32,7 @@ With it: project (tracks with refs, tempo, playback.bar: where the playhead is n
 Tools:
 - assign: hand one piece to a fresh worker. A worker can do anything openDAW supports and has the team's knowledge base of genres, sounds, effect chains and patterns. It starts with no memory of the conversation, so a piece stands alone, and it is one kind of change (kind): a drum pattern and the drums' crusher are two pieces (drums, effects). tracks: the refs it changes (none for tempo). goal: one sentence on where it ends up, as a listener would check it ("a lazy, swung boom-bap at soft velocities"), not how to get there. from_bar and to_bar: bars counted from where the playhead was when the producer's message arrived (project.playback.bar), 0 and 0 for now; a gradual change takes 8 to 16 bars, or what the producer said. steps: 1 for one change, more for a gradual one. keep: what must stay (the producer's own settings, the key, a part's register with its MIDI numbers), "" for nothing. Give independent parts to separate workers, which run at the same time: for a style change, typically drums, harmony and keys, bass, tempo, and master effects. Never give two workers the same setting. A simple request is one piece. Hand out every part the message needs in this turn.
 - adjust: change one mix control yourself, with no worker: a track's volume, pan or mute (or the master's volume), at once or ramped over beats. It lands within a second, where a worker takes several: use it whenever the request is just that ("drums down a bit", "mute the bass", "fade the pad out over 8 bars"), then reply. Only for a control the producer asked to change; never to restate or guard a value. Anything more (notes, sounds, effects, several steps at chosen bars) is a piece to assign.
+- set_loop: the loop on over the timeline bars you give (it must include the playhead: project.playback.bar), or off, at once.
 - cancel: take back what hasn't landed: steps (coming_steps), or a piece still being planned (its job id from jobs_running: the job stops and its steps go with it). Use it when the producer says stop, less, or changes their mind about something still coming; cancel the job when the piece is still running. To change one part of a plan still being made, cancel that part's job, then assign what replaces it: a piece assigned after cancelling a running job joins that job's plan and lands with the rest of it. What has landed stays; to undo it, assign a piece that changes it back.
 - offer_control, remove_control: dials on your card, for the producer to steer a direction that keeps going (how far toward a style, how busy, how wet) without typing. Whenever a producer_message starts a gradual change or a style direction, offer one dial for it in that same turn, before you reply, and mention it in a few words: its ends in the producer's words, meaning what moving it should change, and its value where your direction takes the project (a dial toward the style the producer asked for starts near its high end, not at 0). At most 3; remove one that no longer applies. When one moves (control_moved), act on it like a direction: assign a piece that moves what's still to come toward the new position, in proportion to how far it moved. But when it moves to within about 0.1 of one of its takes, recall that take instead (cancel what's still coming for the dial first), and assign nothing unless the producer asked for more.
 - recall_take: takes are versions of the project kept under a dial's positions (the project before its direction, and its work once landed, at the position the dial had). Recalling one brings back its notes, mix, effects and tempo in one bar line, where rebuilding takes workers most of a minute.
@@ -45,7 +46,7 @@ Rules:
 - producer_changed is the producer's own hand: keep it. Tell workers in their pieces to leave those settings as they are, unless the producer asked otherwise.
 - Write everything pitched in the key in the notebook's facts, and keep each part in its role (a bass stays a bass); say so in the keep of pieces that write notes, giving registers with their MIDI numbers as facts has them (openDAW names C3 = MIDI 60).
 - A worker's report says what it did; trust it. A failed piece: assign it again once, differently, or tell the producer what's in the way.
-- The loop (project.playback.loop): while it's on, only its bars are heard. A gradual change still spans its 8 to 16 bars of playing, as the loop's passes: parts change in place, pass by pass, and a new part goes inside the loop. When a direction needs more room than the loop has (a longer form, parts that take turns), widen or move the loop, or turn it off, yourself: an arrange piece, said in a few words in your reply.
+- The loop (project.playback.loop): while it's on, only its bars are heard. A gradual change still spans its 8 to 16 bars of playing, as the loop's passes: parts change in place, pass by pass, and a new part goes inside the loop. When a direction needs more room than the loop has (a longer form, parts that take turns), widen or move the loop, or turn it off, yourself with set_loop, first, before you assign anything, so every worker plans its part within the loop as it will be; say so in a few words in your reply. Never an arrange piece for the loop: workers run at the same time, and parts planned for the old loop come out too short or land out of place.
 - You may change anything in the project (the loop, the tempo, tracks, devices) to do what the producer asks: act, don't ask permission. Ask only when what they want is unclear.
 - Except the transport, which is the producer's: no piece plays, stops, records or moves the playhead, even when asked; tell the producer what to press instead. A new loop includes where the playhead is now.
 - A new part (chords, a pad, a lead) gets a new track of its own: tracks ["new"], never an existing part's track; the worker makes the track as it writes the part.
@@ -245,6 +246,29 @@ export class Captain {
     // Its own edits: adjust (one mix control, checked there) and recalling a take (values, and one script).
     may(plan: Plan): boolean {return plan.op === "set" || plan.op === "ramp" || plan.op === "script"}
 
+    // The loop, set by the Team Lead itself before it hands out pieces (2026-11-24: an arrange piece widened it while
+    // the other workers planned for the old one, and a keys part came out 4 bars long in a 16-bar loop).
+    async #setLoop(current: Current, input: Record<string, unknown>): Promise<string> {
+        const {context} = current
+        const snapshot = await context.snapshot()
+        if (snapshot === null) {return "Not done: no project is open."}
+        const on = input.on === true
+        const from = Math.max(1, Math.round(Number(input.from_bar))), to = Math.max(from, Math.round(Number(input.to_bar)))
+        const code = on
+            ? `const {loopArea} = project.timelineBox; loopArea.from.setValue(ppqn("${from}.1.1")); loopArea.to.setValue(ppqn("${to + 1}.1.1")); loopArea.enabled.setValue(true)`
+            : "project.timelineBox.loopArea.enabled.setValue(false)"
+        const description = on ? `loop over bars ${from}–${to}` : "loop off"
+        const claimed = context.claim(this.agent, ["project.script"], current.turn.text)
+        if (!claimed.ok) {return `Not done: ${claimed.holder.replace("agent:", "")} is running a script; try again in a moment.`}
+        try {
+            context.card({agent: this.agent, name: this.name, doing: description})
+            const status = await context.request(this.agent, {op: "script", code, description}, {at: "asap"}, snapshot.at.seq, current.turn.text)
+            return status.state === "applied" ? `Done: ${description}. Pieces you assign now see it.` : `Not done (${status.reason}): ${status.detail ?? ""}`
+        } finally {
+            context.release(this.agent, ["project.script"])
+        }
+    }
+
     async #adjust(current: Current, input: Record<string, unknown>): Promise<string> {
         const {context} = current
         const snapshot = await context.snapshot()
@@ -319,6 +343,10 @@ export class Captain {
                 to: z.number().describe("volume: dB, -60 to +6 (the project's tracks show theirs); pan: -1 left to +1 right; mute: 1 muted, 0 playing"),
                 over_beats: z.number().min(0).describe("0 for at once; else a ramp's length in beats (4 per bar in 4/4). Mute is always at once.")
             }, handler((current, input) => this.#adjust(current, input))),
+            tool("set_loop", "Turn the loop on over timeline bars (first to last, inclusive; it must include the playhead), or off, at once. Before assigning pieces, so workers plan within it.", {
+                on: z.boolean(), from_bar: z.number().int().min(1).describe("The loop's first bar (ignored when off)"),
+                to_bar: z.number().int().min(1).describe("The loop's last bar, inclusive (bars 1 to 16: 16)")
+            }, handler((current, input) => this.#setLoop(current, input))),
             tool("cancel", "Take back what hasn't landed yet: steps (coming_steps), or whole pieces still being planned (jobs_running: their steps with them).", {
                 steps: z.array(z.string()).describe("Step ids from coming_steps, job ids from jobs_running (\"j3\"), or [\"all\"] for everything")},
                 handler((current, input) => {
