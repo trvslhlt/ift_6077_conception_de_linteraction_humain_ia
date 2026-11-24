@@ -341,6 +341,16 @@ Built (2026-11-22), step 2's second piece: the captain split from the utility (`
   bars with room, and being per plan it never guaranteed spacing. A ramp, `evolve_notes`'s stages and the prompt's
   "a few bars apart" now carry the spacing, and the report counts the busiest bar instead of failing on it. Lofi
   without it: 91 of 91 edits applied, no refusals, at most 5 in one bar, all other checks green.
+- **Where workers' time went, and framed pieces (2026-11-23).** From the workers' transcripts (one lofi run): about
+  85% of their output tokens were thinking; tool calls, the code they wrote and the time tools took were a small share,
+  and the knowledge base was read once by seven workers. Each started with ~27k tokens of context: ~16k of tool
+  definitions, ~5k the whole knowledge index, ~3k a system prompt written for the old do-everything utility, and the
+  task as one free-text paragraph mixing a pattern, a sound and an effect. Two changes so far: workers at low effort
+  (median 41 s to 31 s), then pieces framed as fields: kind (drums, notes, sound, effects, mix, tempo, arrange; one
+  kind per piece), tracks, goal (the end state, as a listener would check it), from_bar/to_bar, steps, keep. Lofi with
+  framing: per worker median 31 s to 19 s, slowest 46 s to 36 s, output tokens median 6.3k to 3.5k; 81 of 81 edits
+  applied, all checks green. The kinds are what Jev will classify, to pick each worker's prompt and context. Next:
+  trim each worker's context to its piece, then tune its prompt.
 
 ## Still open
 

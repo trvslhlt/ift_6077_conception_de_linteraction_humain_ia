@@ -25,6 +25,25 @@ export type StepState = "staged" | "sent" | "waiting" | "landed" | "failed" | "l
 export type Step = { id: string, direction: string, agent: Actor, bar: number, says: string, action: Action,
     state: StepState, t: number, request?: string, detail?: string, job?: string }   // job: the worker's piece that staged it
 const Open: ReadonlyArray<StepState> = ["sent", "waiting"]
+// What the captain hands a worker, framed (2026-11-23: free-text pieces mixed a pattern, a sound and an effect in one
+// paragraph, and workers spent ~85% of their output reasoning). One kind of change; tracks by ref; the goal as the end
+// state; bars counted from where the playhead was at the producer's message (0: now), in so many steps.
+export const PieceKinds = {
+    drums: "a drum part's pattern: which hits, where, how hard, the groove",
+    notes: "a pitched part's notes: a bass line, chords, a melody",
+    sound: "an instrument's sound: its device's settings or preset",
+    effects: "effects on a track or the master: adding, removing, their settings",
+    mix: "levels and panning",
+    tempo: "the project's tempo",
+    arrange: "the song's shape: new tracks, regions extended, moved, muted or removed"
+} as const
+export type PieceKind = keyof typeof PieceKinds
+export type Piece = { kind: PieceKind, tracks: string[], goal: string, from_bar: number, to_bar: number, steps: number, keep: string }
+// The piece in one line, for the board, the cards and the captain's jobs_running.
+export const pieceLine = ({kind, tracks, goal, from_bar, to_bar, steps}: Piece): string =>
+    `${kind}${tracks.length > 0 ? ` on ${tracks.join(", ")}` : ""}: ${goal} (${from_bar <= 0 && to_bar <= 0 ? "now"
+        : `bars ${Math.max(from_bar, 1)}–${Math.max(to_bar, from_bar, 1)}`}${steps > 1 ? `, ${steps} steps` : ""})`
+
 // A piece of a direction the captain handed to a worker (a fresh agent session); lost: cut off by a restart.
 // cancelled: taken back while its worker was still planning (its steps with it; anything it stages after is refused).
 export type Job = { id: string, direction: string, piece: string, state: "running" | "done" | "failed" | "lost" | "cancelled", t: number,

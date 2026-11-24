@@ -3,7 +3,7 @@
 import {describe, it} from "node:test"
 import assert from "node:assert/strict"
 import type {Snapshot} from "../../shared/protocol.ts"
-import {Board, commitAnchor, planSlide} from "./board.ts"
+import {Board, commitAnchor, pieceLine, planSlide} from "./board.ts"
 
 // 01_good_base in the lofi scenario: 4/4, looping bars 1–4.
 const bar = 3840
@@ -113,5 +113,13 @@ describe("cancelling a piece still being planned", () => {
         assert.equal(board.stage(id, "agent:utility", 5, "tempo 5", script, tempo.id).ok, false)
         assert.equal(board.stage(id, "agent:utility", 5, "drums 5", script, drums.id).ok, true)
         assert.deepEqual(board.running().map(job => job.id), [drums.id])
+    })
+})
+
+describe("a framed piece", () => {
+    it("reads as one line on the board", () => {
+        const piece = {kind: "drums" as const, tracks: ["t1"], goal: "a lazy, swung boom-bap", from_bar: 1, to_bar: 16, steps: 4, keep: ""}
+        assert.equal(pieceLine(piece), "drums on t1: a lazy, swung boom-bap (bars 1–16, 4 steps)")
+        assert.equal(pieceLine({...piece, kind: "tempo", tracks: [], goal: "80 BPM", from_bar: 0, to_bar: 0, steps: 1}), "tempo: 80 BPM (now)")
     })
 })

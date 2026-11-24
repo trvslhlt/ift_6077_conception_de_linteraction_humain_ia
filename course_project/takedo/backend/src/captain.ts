@@ -3,7 +3,7 @@ import {createSdkMcpServer, getSessionInfo, query, type Query, tool} from "@anth
 import type {CallToolResult} from "@modelcontextprotocol/sdk/types.js"
 import {z} from "zod"
 import type {Actor, Snapshot} from "../../shared/protocol.ts"
-import type {Anchor, Direction, Job, Step} from "./board.ts"
+import {type Anchor, type Direction, type Job, type Piece, type PieceKind, PieceKinds, type Step} from "./board.ts"
 import type {Coordinator} from "./coordinator.ts"
 import {projectFor} from "./members.ts"
 import {type AgentState, Kinds, type Kind} from "./notebook.ts"
@@ -30,7 +30,7 @@ Each turn brings one of:
 With it: project (tracks with refs, tempo, playback.bar: where the playhead is now), notebook (its entries; "facts" holds the key, tempo, meter and each part's register), producer_changed (what the producer did in openDAW by hand since you last heard), coming_steps (timed edits not landed yet, with short ids, by the message they're for), jobs_running.
 
 Tools:
-- assign: hand one piece to a fresh worker. A worker can do anything openDAW supports (sounds, notes and parts, drum patterns, effects, levels, tempo, new tracks) and has the team's knowledge base of genres, sounds, effect chains and patterns. It starts with no memory of the conversation, so a piece must stand alone: what to change, on which tracks (by name and ref), toward what, and over which bars. Bars count from where the playhead was when the producer's message arrived (project.playback.bar): a gradual change takes 8 to 16 bars, or what the producer said. Give independent parts to separate workers, which run at the same time: for a style change, typically drums, harmony and keys, bass, tempo, and master effects. Never give two workers the same track or the same setting, and keep any one bar to at most three edits across pieces (give pieces their own bars where they'd crowd). A simple request is one piece. Hand out every part the message needs in this turn.
+- assign: hand one piece to a fresh worker. A worker can do anything openDAW supports and has the team's knowledge base of genres, sounds, effect chains and patterns. It starts with no memory of the conversation, so a piece stands alone, and it is one kind of change (kind): a drum pattern and the drums' crusher are two pieces (drums, effects). tracks: the refs it changes (none for tempo). goal: one sentence on where it ends up, as a listener would check it ("a lazy, swung boom-bap at soft velocities"), not how to get there. from_bar and to_bar: bars counted from where the playhead was when the producer's message arrived (project.playback.bar), 0 and 0 for now; a gradual change takes 8 to 16 bars, or what the producer said. steps: 1 for one change, more for a gradual one. keep: what must stay (the producer's own settings, the key, a part's register with its MIDI numbers), "" for nothing. Give independent parts to separate workers, which run at the same time: for a style change, typically drums, harmony and keys, bass, tempo, and master effects. Never give two workers the same setting. A simple request is one piece. Hand out every part the message needs in this turn.
 - cancel: take back what hasn't landed: steps (coming_steps), or a piece still being planned (its job id from jobs_running: the job stops and its steps go with it). Use it when the producer says stop, less, or changes their mind about something still coming; cancel the job when the piece is still running. To change one part of a plan still being made, cancel that part's job, then assign what replaces it: a piece assigned after cancelling a running job joins that job's plan and lands with the rest of it. What has landed stays; to undo it, assign a piece that changes it back.
 - offer_control, remove_control: dials on your card, for the producer to steer a direction that keeps going (how far toward a style, how busy, how wet) without typing. Whenever a producer_message starts a gradual change or a style direction, offer one dial for it in that same turn, before you reply, and mention it in a few words: its ends in the producer's words, meaning what moving it should change. At most 3; remove one that no longer applies. When one moves (control_moved), act on it like a direction: assign a piece that moves what's still to come toward the new position, in proportion to how far it moved.
 - look: read-only JavaScript to inspect the project (an async function body, \`takedo\` in scope: project, snapshot()). Only when the summary doesn't answer what you need.
@@ -41,7 +41,7 @@ Rules:
 - project is the project as it is now: what has landed. A gradual change that has finished shows its end values (a tempo eased from 119 to 82 reads 82); that's the plan having worked, not a jump.
 - "Keep going", "more", "go on" continue the latest direction: hand out its next stage (further along, over the next bars), building on what has landed. Don't ask whether to.
 - producer_changed is the producer's own hand: keep it. Tell workers in their pieces to leave those settings as they are, unless the producer asked otherwise.
-- Write everything pitched in the key in the notebook's facts, and keep each part in its role (a bass stays a bass); say so in pieces that write notes, giving registers with their MIDI numbers as facts has them (openDAW names C3 = MIDI 60).
+- Write everything pitched in the key in the notebook's facts, and keep each part in its role (a bass stays a bass); say so in the keep of pieces that write notes, giving registers with their MIDI numbers as facts has them (openDAW names C3 = MIDI 60).
 - A worker's report says what it did; trust it. A failed piece: assign it again once, differently, or tell the producer what's in the way.
 - Keep turns short: decide, assign, reply. Your own bookkeeping (a cancel with nothing to cancel, a correction to what you said) isn't news for the producer.`
 
@@ -249,15 +249,24 @@ export class Captain {
             }
         const tools = [
             tool("assign", "Hand one piece of the work to a fresh worker, which runs at the same time as the others. Answers at once; its report comes back as job_finished.", {
-                piece: z.string().describe("The piece, standing alone: what to change, on which tracks (names and refs), toward what, over which bars"),
+                kind: z.enum(Object.keys(PieceKinds) as [PieceKind, ...PieceKind[]]).describe(Object.entries(PieceKinds).map(([kind, about]) => `${kind}: ${about}`).join("; ")),
+                tracks: z.array(z.string()).describe("Track refs it changes (t1, master); [] for tempo"),
+                goal: z.string().describe("One sentence: where it ends up, as a listener would check it"),
+                from_bar: z.number().int().describe("First bar, counted from the playhead at the producer's message; 0 for now"),
+                to_bar: z.number().int().describe("Last bar; 0 for now, the same as from_bar for one change"),
+                steps: z.number().int().describe("1 for one change, more for a gradual one"),
+                keep: z.string().describe("What must stay: the producer's settings, the key, a part's register with MIDI numbers; \"\" for nothing"),
                 with: z.string().optional().describe("A job id (jobs_running): this piece joins that job's plan, counting bars from the same place and landing together with it. Left out: a new direction, or, after you cancel a running job this turn, that job's plan")},
                 handler((current, input) => {
                     const joins = typeof input.with === "string" ? input.with : current.revising
                     const job = joins === undefined ? undefined : current.context.board.jobOf(joins)
                     const direction = job === undefined ? undefined : current.context.board.directionOf(job.direction)
                     if (input.with !== undefined && direction === undefined) {return `Not started: no job ${String(input.with)}. Leave out with for a new direction.`}
-                    return direction === undefined ? current.context.assign(current.direction, current.anchor, String(input.piece))
-                        : current.context.assign(direction, this.#anchors.get(direction.id) ?? current.anchor, String(input.piece))
+                    const piece: Piece = {kind: input.kind as PieceKind, tracks: (input.tracks ?? []) as string[], goal: String(input.goal),
+                        from_bar: Number(input.from_bar) || 0, to_bar: Number(input.to_bar) || 0, steps: Math.max(1, Number(input.steps) || 1),
+                        keep: String(input.keep ?? "")}
+                    return direction === undefined ? current.context.assign(current.direction, current.anchor, piece)
+                        : current.context.assign(direction, this.#anchors.get(direction.id) ?? current.anchor, piece)
                 })),
             tool("cancel", "Take back what hasn't landed yet: steps (coming_steps), or whole pieces still being planned (jobs_running: their steps with them).", {
                 steps: z.array(z.string()).describe("Step ids from coming_steps, job ids from jobs_running (\"j3\"), or [\"all\"] for everything")},

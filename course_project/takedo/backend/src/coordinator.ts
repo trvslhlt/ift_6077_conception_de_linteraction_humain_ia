@@ -10,7 +10,7 @@ import type {LogType, SessionLog} from "./sessionLog.ts"
 import type {PartRole} from "./router.ts"
 import {writeOverview} from "./teamLead.ts"
 import {Notebook} from "./notebook.ts"
-import {type Anchor, Board, type Direction} from "./board.ts"
+import {type Anchor, Board, type Direction, type Piece, pieceLine} from "./board.ts"
 import {Captain} from "./captain.ts"
 import type {LlmMember} from "./members.ts"
 import {analyse, isDrums} from "./analysis.ts"
@@ -473,13 +473,14 @@ export class Coordinator {
 
     // Hands a piece of a direction to a fresh worker (the utility in job mode), which runs at once, alongside any
     // others; its timed steps join the direction's plan from the same anchor. Its report goes to the captain.
-    assign(direction: Direction, anchor: Anchor | null, piece: string): string {
+    assign(direction: Direction, anchor: Anchor | null, task: Piece): string {
+        const piece = pieceLine(task)
         const job = this.board.job(direction.id, piece)
         const worker = new Utility(this.#team, this.#catalog, this.#source, this.#knowledge)
         void (async () => {
             const snapshot = await this.snapshot()
             if (snapshot === null) {throw new Error("no project is open")}
-            return worker.job(this, {id: job.id, piece, message: direction.text, direction, anchor}, snapshot)
+            return worker.job(this, {id: job.id, piece, task, message: direction.text, direction, anchor}, snapshot)
         })().then(async report => {
             this.board.jobDone(job.id, "done", report)
             await this.#sendJob(worker, direction, anchor, job.id)
