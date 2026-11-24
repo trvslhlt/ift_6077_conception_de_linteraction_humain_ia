@@ -13,6 +13,12 @@ export const hitOf = ([pos, pitch, sixteenths, velocity]: Note, beatsPerBar: num
     return [(bars - 1) * beatsPerBar + (beat - 1) + (sixteenth - 1) / 4 + (ticks || 0) / 960, pitch, sixteenths / 4, Number((velocity / 127).toFixed(3))]
 }
 
+// A target note the model wrote, in the snapshot's shape. Its velocity is meant as 0..127, but a model sometimes writes
+// 0..1 (2026-11-24: a drum target written as 0.5s came out at 0.004 and the drums faded out); at or under 1 it can only
+// mean that, since 1 of 127 is silent.
+export const targetHitOf = ([pos, pitch, sixteenths, velocity]: Note, beatsPerBar: number): Hit =>
+    hitOf([pos, pitch, sixteenths, velocity <= 1 ? velocity * 127 : velocity], beatsPerBar)
+
 // A pattern shorter than the region's loop repeats to fill it; a longer one is cut at the loop's end.
 export const tile = (hits: ReadonlyArray<Hit>, patternBeats: number, loopBeats: number): Hit[] => {
     const out: Hit[] = []

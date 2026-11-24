@@ -9,7 +9,7 @@ import type {Coordinator} from "./coordinator.ts"
 import type {Catalog} from "./catalog.ts"
 import {type Knowledge, shortlist} from "./knowledge.ts"
 import {analyse} from "./analysis.ts"
-import {hitOf, morphNotes, tile} from "./generate.ts"
+import {hitOf, morphNotes, targetHitOf, tile} from "./generate.ts"
 import {Kinds, type Kind} from "./notebook.ts"
 import {Limits, type LlmMember, type Member, performStep, projectFor, type Task} from "./members.ts"
 
@@ -431,7 +431,7 @@ export class Utility implements Member {
         const loopBeats = region.loop !== null ? region.loop * beatsPerBar : at(region.to) - at(region.from)
         const from = (region.notes ?? []).map(note => hitOf(note, beatsPerBar))
         const toNotes = (input.to_notes ?? []) as Note[]
-        let to = toNotes.map(note => hitOf(note, beatsPerBar)).filter(([beat]) => beat >= 0 && beat < loopBeats)
+        let to = toNotes.map(note => targetHitOf(note, beatsPerBar)).filter(([beat]) => beat >= 0 && beat < loopBeats)
         const says: string[] = []
         const patternKey = String(input.to_pattern ?? "")
         if (patternKey !== "") {

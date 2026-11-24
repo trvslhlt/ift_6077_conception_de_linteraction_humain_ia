@@ -405,6 +405,13 @@ Built (2026-11-22), step 2's second piece: the captain split from the utility (`
   fade-in had failed for want of a ref, leaving it at -60 dB). Controls and lofi, twice each: new chord tracks heard
   from bar 1 (-9 to -14 dB), drums 24-26 notes, dial at 0.9, all checks green.
 
+- **Drums that faded out (2026-11-24).** The producer's next session went "much better" (lofi then drum and bass, every
+  edit landed), but in drum and bass a worker wrote evolve_notes' target velocities as 0..1 where the tool takes the
+  snapshot's 0..127: all 44 drum hits came out at 0.002-0.007 and the drums faded out stage by stage. A target
+  velocity at most 1 is now read as 0..1 (1 of 127 is silent anyway); the report fails a part whose notes end up
+  near-silent; scenarios/dnb.json replays that session (lush lofi, then drum and bass): drums 43 notes at median
+  velocity 70, tempo 174, all checks green.
+
 ## Still open
 
 These are for the detailed design, whatever the shape:

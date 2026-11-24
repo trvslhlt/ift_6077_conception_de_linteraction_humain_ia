@@ -1,7 +1,7 @@
 // Notes written by code (generate.ts). Run from backend/: node --test src/generate.test.ts
 import {describe, it} from "node:test"
 import assert from "node:assert/strict"
-import {type Hit, hitOf, morphNotes, tile} from "./generate.ts"
+import {type Hit, hitOf, morphNotes, targetHitOf, tile} from "./generate.ts"
 
 const Kick = 36, Snare = 38, Hat = 42
 // Four on the floor with straight 8th hats, to a boom-bap: kick moves, snare on 2 and 4, swung softer hats.
@@ -38,6 +38,10 @@ describe("morphing a part", () => {
 describe("notes for a region", () => {
     it("reads a snapshot note's position and length in beats", () => {
         assert.deepEqual(hitOf(["2.1.3:120", 36, 2, 127], 4), [4.625, 36, 0.5, 1])
+    })
+    it("reads a target's velocity as 0..127, or as 0..1 when it's at most 1", () => {
+        assert.equal(targetHitOf(["1.1.1:0", 36, 1, 100], 4)[3], Number((100 / 127).toFixed(3)))
+        assert.equal(targetHitOf(["1.1.1:0", 36, 1, 0.5], 4)[3], 0.5)
     })
     it("repeats a short pattern to fill the region's loop, and cuts a long one", () => {
         assert.deepEqual(tile([[0, Kick, 0.25, 1], [3.5, Hat, 0.25, 0.5]], 4, 8).map(([beat]) => beat), [0, 3.5, 4, 7.5])

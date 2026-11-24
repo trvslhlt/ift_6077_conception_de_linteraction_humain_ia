@@ -193,6 +193,12 @@ if (before === undefined || after === undefined) {
         check(Math.abs(to - from) <= 12, `${track.name}: register ${noteName(from)} → ${noteName(to)} (median note)`)
     }
     const added = after.tracks.filter(track => !before.tracks.some(candidate => candidate.ref === track.ref))
+    // A part whose notes end up near-silent (2026-11-24: drums rewritten at velocities 0.002-0.007 faded out).
+    const silent = after.tracks.filter(track => !track.mix.mute).flatMap(track => {
+        const velocities = track.regions.flatMap(region => (region.notes ?? []).map(note => note[3])).sort((a, b) => a - b)
+        return velocities.length > 0 && velocities[Math.floor(velocities.length / 2)] < 8 ? [`${track.name} (median velocity ${velocities[Math.floor(velocities.length / 2)]} of 127)`] : []
+    })
+    check(silent.length === 0, `${silent.length} parts with near-silent notes${silent.length > 0 ? `: ${silent.join(", ")}` : ""}`)
     // While the loop is on, a new region outside it is never heard (2026-11-24: a keys part written at bars 4-17 of a
     // bars 1-4 loop sounded as one chord per pass).
     const barOf = (pos: string): number => Number(pos.split(".")[0])
