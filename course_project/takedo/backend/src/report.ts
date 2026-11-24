@@ -193,6 +193,22 @@ if (before === undefined || after === undefined) {
         check(Math.abs(to - from) <= 12, `${track.name}: register ${noteName(from)} → ${noteName(to)} (median note)`)
     }
     const added = after.tracks.filter(track => !before.tracks.some(candidate => candidate.ref === track.ref))
+    // While the loop is on, a new region outside it is never heard (2026-11-24: a keys part written at bars 4-17 of a
+    // bars 1-4 loop sounded as one chord per pass).
+    const barOf = (pos: string): number => Number(pos.split(".")[0])
+    const loop = after.playback.loop
+    if (loop?.on === true) {
+        const [from, to] = [barOf(loop.from), barOf(loop.to)]
+        const existed = new Set(before.tracks.flatMap(track => track.regions.map(region => `${track.name}@${region.from}`)))
+        const unheard = after.tracks.flatMap(track => track.regions
+            .filter(region => {
+                if (existed.has(`${track.name}@${region.from}`) || region.muted) {return false}
+                const [start, end] = [barOf(region.from), barOf(region.to)]
+                return Math.max(0, Math.min(end, to) - Math.max(start, from)) < (end - start) / 2
+            })
+            .map(region => `${track.name} ${region.from}–${region.to}`))
+        check(unheard.length === 0, `${unheard.length} new regions mostly outside the loop (bars ${from}–${to - 1}), so mostly unheard${unheard.length > 0 ? `: ${unheard.join(", ")}` : ""}`)
+    }
     if (added.length > 0) {out.push(`- New tracks: ${added.map(track => `${track.name} (${track.device?.name ?? track.instrument ?? "?"})`).join(", ")}`)}
     check(failed.length === 0, `${failed.length} edits not done${failed.length > 0 ? `: ${failed.map(entry => entry.detail ?? entry.reason ?? entry.state).join("; ")}` : ""}`)
     out.push(`- At most ${bunched} edits landed in one bar`)

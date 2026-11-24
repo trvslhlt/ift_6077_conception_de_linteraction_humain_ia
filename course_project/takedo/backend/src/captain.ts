@@ -43,6 +43,8 @@ Rules:
 - producer_changed is the producer's own hand: keep it. Tell workers in their pieces to leave those settings as they are, unless the producer asked otherwise.
 - Write everything pitched in the key in the notebook's facts, and keep each part in its role (a bass stays a bass); say so in the keep of pieces that write notes, giving registers with their MIDI numbers as facts has them (openDAW names C3 = MIDI 60).
 - A worker's report says what it did; trust it. A failed piece: assign it again once, differently, or tell the producer what's in the way.
+- The loop (project.playback.loop): while it's on, only its bars are heard. A gradual change still spans its 8 to 16 bars of playing, as the loop's passes: parts change in place, pass by pass, and a new part goes inside the loop. When a direction needs more room than the loop has (a longer form, parts that take turns), widen or move the loop, or turn it off, yourself: an arrange piece, said in a few words in your reply.
+- You may change anything in the project (the loop, the tempo, tracks, devices) to do what the producer asks: act, don't ask permission. Ask only when what they want is unclear.
 - Keep turns short: decide, assign, reply. Your own bookkeeping (a cancel with nothing to cancel, a correction to what you said) isn't news for the producer.`
 
 type Session = { inbox: Inbox, query: Query }

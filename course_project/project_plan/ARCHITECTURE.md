@@ -384,6 +384,16 @@ Built (2026-11-22), step 2's second piece: the captain split from the utility (`
   reconnect or a backend restart carries on (restart scenario: one conversation across the restart). Carrying
   something over becomes an explicit feature later (project preferences the producer chooses to keep).
 
+- **Work that can be heard inside the loop (2026-11-24).** In the same session the project looped bars 1-4 and a new
+  keys part went to bars 4-17 (one chord a pass), and tempo automation for bars 2-18 replayed each pass. Now the Team
+  Lead knows only the loop's bars are heard (parts change in place, pass by pass; new parts inside the loop) and may
+  change anything, the loop included, without asking (the producer's call); workers write inside the loop, stage
+  changes on later passes, and may change the loop (loopArea) and say so; under a loop, tempo steps per pass
+  (api.setBpm, automation off), since automation would jump back at each loop start. The report flags new regions
+  mostly outside the loop. Lofi: drums, bass, tempo (119 to 72 in steps) and master all reached, all checks green;
+  cancel: "keep the tempo" cancels the waiting steps again (tempo stays 119). Busiest bar 9 edits in lofi (tempo
+  steps share bars with drum stages); watch it.
+
 ## Still open
 
 These are for the detailed design, whatever the shape:
