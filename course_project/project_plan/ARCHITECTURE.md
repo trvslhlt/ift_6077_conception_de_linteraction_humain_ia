@@ -394,6 +394,17 @@ Built (2026-11-22), step 2's second piece: the captain split from the utility (`
   cancel: "keep the tempo" cancels the waiting steps again (tempo stays 119). Busiest bar 9 edits in lofi (tempo
   steps share bars with drum stages); watch it.
 
+- **A fuller loop, and the Team Lead's own mistakes (2026-11-24).** The producer's next session sounded "mostly empty":
+  the Team Lead put a chord bed on the bass track, and when that worker refused, cancelled the steps waiting on that
+  track, which were the bass's own (it got 1 of 8 stages); every other piece thinned and softened (drums 17 to 12
+  notes); the chords started at bar 8 of the loop, fading in from -36 dB; and the dial started at 0 ("clean") while
+  everything headed to lofi. Fixes: coming_steps say whose each step is, and a piece is cancelled by its own; a new
+  part gets a new track (tracks ["new"], the worker makes it as it writes the part); a style direction adds what
+  the style needs across the whole loop, not only thinning; a dial starts where the direction takes the project. And
+  on the page, a ref naming a track by name ("Chord Bed.mix.volume") resolves when the edit lands (a new part's
+  fade-in had failed for want of a ref, leaving it at -60 dB). Controls and lofi, twice each: new chord tracks heard
+  from bar 1 (-9 to -14 dB), drums 24-26 notes, dial at 0.9, all checks green.
+
 ## Still open
 
 These are for the detailed design, whatever the shape:

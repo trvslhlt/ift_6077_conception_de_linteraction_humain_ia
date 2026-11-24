@@ -354,7 +354,7 @@ export class Adapter implements Terminable {
     }
 
     async #addEffect(request: Apply, plan: AddEffectPlan): Promise<void> {
-        const unit = this.#units().find(unit => this.#trackRef(unit) === plan.track)
+        const unit = this.#units().find(unit => this.#trackRef(unit) === this.#named(plan.track))
         if (unit === undefined) {return this.#status(request, {state: "failed", reason: "unknown_ref", detail: plan.track})}
         const factory = effectFactory(plan.factory)
         if (factory === null) {
@@ -385,7 +385,7 @@ export class Adapter implements Terminable {
     }
 
     async #removeEffect(request: Apply, plan: RemoveEffectPlan): Promise<void> {
-        const effect = this.#units().flatMap(unit => this.#effects(unit)).find(effect => effect.ref === plan.ref)
+        const effect = this.#units().flatMap(unit => this.#effects(unit)).find(effect => effect.ref === this.#named(plan.ref))
         if (effect === undefined) {return this.#status(request, {state: "failed", reason: "unknown_ref", detail: plan.ref})}
         if (!(await this.#land(request))) {return}
         this.#tagged(request, () => this.#project.editing.modify(() => Devices.deleteEffectDevices([effect.adapter])))
@@ -476,7 +476,7 @@ export class Adapter implements Terminable {
         if (/\.fx\d+$/.test(ref)) {
             return this.#units().flatMap(unit => this.#effects(unit)).find(effect => effect.ref === ref)?.adapter ?? null
         }
-        return this.#units().find(unit => this.#trackRef(unit) === ref) ?? null
+        return this.#units().find(unit => this.#trackRef(unit) === this.#named(ref)) ?? null
     }
 
     // Runs an edit tagged as the requesting agent's (origin tagging).
@@ -749,7 +749,19 @@ export class Adapter implements Terminable {
         return this.#params
     }
 
-    #param(ref: string): Param | null {return this.#allParams().find(param => param.ref === ref) ?? null}
+    #param(ref: string): Param | null {
+        const named = this.#named(ref)
+        return this.#allParams().find(param => param.ref === named) ?? null
+    }
+
+    // A ref that starts with a track's name ("Chord Bed.mix.volume") as one with its ref (t3.mix.volume): a step staged
+    // for a track the same plan creates has no ref yet when it's planned (2026-11-24: a new part's fade-in failed and
+    // it stayed at -60 dB). The longest matching name wins; a ref that's already a ref is left alone.
+    #named(ref: string): string {
+        const unit = this.#units().filter(unit => ref === unit.label || ref.startsWith(`${unit.label}.`))
+            .sort((a, b) => b.label.length - a.label.length)[0]
+        return unit === undefined || /^(t\d+|master)(\.|$)/.test(ref) ? ref : `${this.#trackRef(unit)}${ref.slice(unit.label.length)}`
+    }
 
     #bar(): ppqn {
         const [nominator, denominator] = this.#signature()

@@ -32,7 +32,7 @@ With it: project (tracks with refs, tempo, playback.bar: where the playhead is n
 Tools:
 - assign: hand one piece to a fresh worker. A worker can do anything openDAW supports and has the team's knowledge base of genres, sounds, effect chains and patterns. It starts with no memory of the conversation, so a piece stands alone, and it is one kind of change (kind): a drum pattern and the drums' crusher are two pieces (drums, effects). tracks: the refs it changes (none for tempo). goal: one sentence on where it ends up, as a listener would check it ("a lazy, swung boom-bap at soft velocities"), not how to get there. from_bar and to_bar: bars counted from where the playhead was when the producer's message arrived (project.playback.bar), 0 and 0 for now; a gradual change takes 8 to 16 bars, or what the producer said. steps: 1 for one change, more for a gradual one. keep: what must stay (the producer's own settings, the key, a part's register with its MIDI numbers), "" for nothing. Give independent parts to separate workers, which run at the same time: for a style change, typically drums, harmony and keys, bass, tempo, and master effects. Never give two workers the same setting. A simple request is one piece. Hand out every part the message needs in this turn.
 - cancel: take back what hasn't landed: steps (coming_steps), or a piece still being planned (its job id from jobs_running: the job stops and its steps go with it). Use it when the producer says stop, less, or changes their mind about something still coming; cancel the job when the piece is still running. To change one part of a plan still being made, cancel that part's job, then assign what replaces it: a piece assigned after cancelling a running job joins that job's plan and lands with the rest of it. What has landed stays; to undo it, assign a piece that changes it back.
-- offer_control, remove_control: dials on your card, for the producer to steer a direction that keeps going (how far toward a style, how busy, how wet) without typing. Whenever a producer_message starts a gradual change or a style direction, offer one dial for it in that same turn, before you reply, and mention it in a few words: its ends in the producer's words, meaning what moving it should change. At most 3; remove one that no longer applies. When one moves (control_moved), act on it like a direction: assign a piece that moves what's still to come toward the new position, in proportion to how far it moved.
+- offer_control, remove_control: dials on your card, for the producer to steer a direction that keeps going (how far toward a style, how busy, how wet) without typing. Whenever a producer_message starts a gradual change or a style direction, offer one dial for it in that same turn, before you reply, and mention it in a few words: its ends in the producer's words, meaning what moving it should change, and its value where your direction takes the project (a dial toward the style the producer asked for starts near its high end, not at 0). At most 3; remove one that no longer applies. When one moves (control_moved), act on it like a direction: assign a piece that moves what's still to come toward the new position, in proportion to how far it moved.
 - look: read-only JavaScript to inspect the project (an async function body, \`takedo\` in scope: project, snapshot()). Only when the summary doesn't answer what you need.
 - remember, recall, forget: your notebook, kept on disk per project. Keep the producer's wishes and taste (note) and each direction and how it's split (plan).
 - reply: what the producer reads in the chat, as in a chat with a bandmate mid-session: one or two short, plain sentences. For producer_message and control_moved, call it once after assigning, on what's happening and how it will sound (or why it can't). For job reports and restarts, reply only when the producer needs to know (a problem, or something they asked about that's now done); otherwise end the turn without it. No lists or markdown; no bar numbers, refs, dB values or device settings unless they asked; no caveats about not having heard it. Ask at most one short question, only when you need the answer. Nothing else you write is shown.
@@ -45,6 +45,9 @@ Rules:
 - A worker's report says what it did; trust it. A failed piece: assign it again once, differently, or tell the producer what's in the way.
 - The loop (project.playback.loop): while it's on, only its bars are heard. A gradual change still spans its 8 to 16 bars of playing, as the loop's passes: parts change in place, pass by pass, and a new part goes inside the loop. When a direction needs more room than the loop has (a longer form, parts that take turns), widen or move the loop, or turn it off, yourself: an arrange piece, said in a few words in your reply.
 - You may change anything in the project (the loop, the tempo, tracks, devices) to do what the producer asks: act, don't ask permission. Ask only when what they want is unclear.
+- A new part (chords, a pad, a lead) gets a new track of its own: tracks ["new"], never an existing part's track; the worker makes the track as it writes the part.
+- A style direction adds what the style needs as well as changing what's there: "lush" or "fuller" means parts and space added across the whole loop (a chord bed or pad heard from its first bar, reverb); thinning and softening every part at once empties the track.
+- To take back one piece's steps, cancel that piece's (coming_steps says whose each step is); a piece that reported changing nothing has nothing to cancel.
 - Keep turns short: decide, assign, reply. Your own bookkeeping (a cancel with nothing to cancel, a correction to what you said) isn't news for the producer.`
 
 type Session = { inbox: Inbox, query: Query }
@@ -181,7 +184,7 @@ export class Captain {
             [turn.kind]: turn.text,
             ...(hand.length > 0 ? {producer_changed: hand} : {}),
             ...(outstanding.length > 0 ? {coming_steps: outstanding.map(({direction, steps}) => ({for: direction?.text ?? "?",
-                steps: steps.map(step => `${step.id.slice(0, 8)}: ${step.says} (bar ${step.bar}, ${step.state === "staged" ? "being planned" : "waiting"})`)}))} : {}),
+                steps: steps.map(step => `${step.id.slice(0, 8)}: ${step.says} (${step.job !== undefined ? `${step.job}'s, ` : ""}bar ${step.bar}, ${step.state === "staged" ? "being planned" : "waiting"})`)}))} : {}),
             ...(running.length > 0 ? {jobs_running: running.map(job => `${job.id}: ${job.piece}`)} : {}),
             project: projectFor(snapshot, false),
             notebook: context.notebook?.list() ?? []
@@ -252,7 +255,7 @@ export class Captain {
         const tools = [
             tool("assign", "Hand one piece of the work to a fresh worker, which runs at the same time as the others. Answers at once; its report comes back as job_finished.", {
                 kind: z.enum(Object.keys(PieceKinds) as [PieceKind, ...PieceKind[]]).describe(Object.entries(PieceKinds).map(([kind, about]) => `${kind}: ${about}`).join("; ")),
-                tracks: z.array(z.string()).describe("Track refs it changes (t1, master); [] for tempo"),
+                tracks: z.array(z.string()).describe("Track refs it changes (t1, master); [\"new\"] for a new part on its own track; [] for tempo"),
                 goal: z.string().describe("One sentence: where it ends up, as a listener would check it"),
                 from_bar: z.number().int().describe("First bar, counted from the playhead at the producer's message; 0 for now"),
                 to_bar: z.number().int().describe("Last bar; 0 for now, the same as from_bar for one change"),
@@ -284,7 +287,7 @@ export class Captain {
                 low: z.string().max(30).describe("Its 0 end, in the producer's words (\"clean\")"),
                 high: z.string().max(30).describe("Its 1 end (\"dusty tape\")"),
                 meaning: z.string().describe("What moving it should change, for yourself later: what changes, between which settings"),
-                value: z.number().min(0).max(1).describe("Where it starts: where the project stands or is headed now")},
+                value: z.number().min(0).max(1).describe("Where it starts: where the direction you just assigned takes the project (asked for a lush lofi beat on a lofi dial: near 1), so moving it means more or less than that")},
                 handler((current, input) => current.context.offerControl(this.agent, {ref: `c:${String(input.name)}`,
                     label: String(input.label), low: String(input.low), high: String(input.high), meaning: String(input.meaning),
                     value: Number(input.value)}))),

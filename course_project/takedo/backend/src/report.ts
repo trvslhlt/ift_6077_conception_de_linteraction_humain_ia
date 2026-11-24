@@ -204,10 +204,10 @@ if (before === undefined || after === undefined) {
             .filter(region => {
                 if (existed.has(`${track.name}@${region.from}`) || region.muted) {return false}
                 const [start, end] = [barOf(region.from), barOf(region.to)]
-                return Math.max(0, Math.min(end, to) - Math.max(start, from)) < (end - start) / 2
+                return Math.max(0, Math.min(end, to) - Math.max(start, from)) < Math.min(end - start, to - from) / 2
             })
             .map(region => `${track.name} ${region.from}–${region.to}`))
-        check(unheard.length === 0, `${unheard.length} new regions mostly outside the loop (bars ${from}–${to - 1}), so mostly unheard${unheard.length > 0 ? `: ${unheard.join(", ")}` : ""}`)
+        check(unheard.length === 0, `${unheard.length} new regions barely inside the loop (bars ${from}–${to - 1}), so mostly unheard${unheard.length > 0 ? `: ${unheard.join(", ")}` : ""}`)
     }
     if (added.length > 0) {out.push(`- New tracks: ${added.map(track => `${track.name} (${track.device?.name ?? track.instrument ?? "?"})`).join(", ")}`)}
     check(failed.length === 0, `${failed.length} edits not done${failed.length > 0 ? `: ${failed.map(entry => entry.detail ?? entry.reason ?? entry.state).join("; ")}` : ""}`)
