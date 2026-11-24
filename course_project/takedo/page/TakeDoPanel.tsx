@@ -303,9 +303,10 @@ export const TakeDoPanel = ({lifecycle, service, visible}: Construct): HTMLEleme
 
     // The adapter follows the open project, and the backend hears when one opens or closes (also after reconnecting).
     const projectRuntime = lifecycle.own(new Terminator())
+    let opening = crypto.randomUUID()
     const announce = (): void => {
         const name = service.projectProfileService.getValue().mapOr(({meta}) => meta.name, null)
-        connection.send(name === null ? {type: "project", open: false} : {type: "project", open: true, name})
+        connection.send(name === null ? {type: "project", open: false} : {type: "project", open: true, name, opening})
         // What happened while the backend was away, then the edits still coming: in that order, so one that landed
         // meanwhile isn't taken for lost.
         connection.flush()
@@ -317,6 +318,7 @@ export const TakeDoPanel = ({lifecycle, service, visible}: Construct): HTMLEleme
         projectRuntime.terminate()
         handle.adapter = null
         overview.clear()
+        opening = crypto.randomUUID()
         optProfile.ifSome(({project}) => {
             const adapter = projectRuntime.own(new Adapter(project, connection))
             projectRuntime.own(adapter.subscribeActivity(showActivity))

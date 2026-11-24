@@ -59,6 +59,7 @@ export class Coordinator {
     readonly #history: Array<{ from: string, text: string }> = []   // the chat so far, for messages that refer back
     #nextQuery = 0
     #project: string | null = null
+    #opening: string | undefined = undefined   // the page's id for this opening of the project (protocol.ts)
     readonly #notebooks: string
     #notebook: Notebook | null = null       // the open project's
     #startKept = false                      // whether this session has kept the project's starting state
@@ -118,10 +119,12 @@ export class Coordinator {
         switch (message.type) {
             case "project": {
                 const name = message.open ? (message.name ?? "untitled") : null
-                // The utility's session belongs to a project (its notebook says which); another project, another.
-                if (name !== this.#project) {this.close()}
+                // The team's sessions belong to one opening of a project: another project, or the same one opened anew,
+                // starts them fresh (notebook.ts); a reconnect or a backend restart carries on.
+                if (name !== this.#project || (message.opening !== undefined && message.opening !== this.#opening)) {this.close()}
                 this.#project = name
-                this.#notebook = this.#project === null ? null : new Notebook(this.#notebooks, this.#project)
+                this.#opening = message.opening
+                this.#notebook = this.#project === null ? null : new Notebook(this.#notebooks, this.#project, message.opening)
                 this.board.open(this.#notebook?.boardFile ?? null)
                 this.#handChanges.length = 0
                 this.#startKept = false

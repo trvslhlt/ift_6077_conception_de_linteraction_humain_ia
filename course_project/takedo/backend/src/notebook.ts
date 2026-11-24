@@ -1,4 +1,4 @@
-import {mkdirSync, readFileSync, rmSync, writeFileSync} from "node:fs"
+import {existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync} from "node:fs"
 import {join} from "node:path"
 
 // The agent's own state, outside its model context (decided 2026-11-07): notes on the conversation and the producer,
@@ -22,10 +22,24 @@ export class Notebook {
     readonly #agentFile: string
     readonly #entries = new Map<string, Entry>()
 
-    constructor(dir: string, project: string) {
+    // opening: the page's id for this opening of the project. Another opening is a new working session, which starts
+    // empty (2026-11-24: a project reopened from its file got the last session's notebook, board and Team Lead, which
+    // planned around edits the file didn't have); the old files go to archive/. Undefined: carry on.
+    constructor(dir: string, project: string, opening?: string) {
         mkdirSync(dir, {recursive: true})
         this.#file = join(dir, fileName(project))
         this.#agentFile = this.#file.replace(/\.json$/, ".agent.json")
+        const openingFile = this.#file.replace(/\.json$/, ".opening")
+        const previous = existsSync(openingFile) ? readFileSync(openingFile, "utf8").trim() : null
+        if (opening !== undefined && previous !== opening) {
+            const kept = [this.#file, this.#agentFile, this.boardFile].filter(file => existsSync(file))
+            if (kept.length > 0) {
+                const archive = join(dir, "archive", `${fileName(project).replace(/\.json$/, "")}-${new Date().toISOString().replace(/[:.]/g, "-")}`)
+                mkdirSync(archive, {recursive: true})
+                kept.forEach(file => renameSync(file, join(archive, file.slice(dir.length + 1))))
+            }
+            writeFileSync(openingFile, opening)
+        }
         try {
             const stored = JSON.parse(readFileSync(this.#file, "utf8")) as Entry[]
             stored.forEach(entry => this.#entries.set(entry.key, entry))

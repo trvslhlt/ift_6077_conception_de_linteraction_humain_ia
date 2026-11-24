@@ -376,6 +376,14 @@ Built (2026-11-22), step 2's second piece: the captain split from the utility (`
   2.5k), times 9 s and 20 s (time varies run to run; tokens are the steadier measure). The first lofi run stalled
   (below).
 
+- **Each opening of a project starts fresh (2026-11-24).** A producer's session reopened 01_good_base from its file
+  and the Team Lead resumed the last session's conversation, notebook and board (kept per project name): its plans
+  said the drums and bass were done and the tempo was to stay, so it handed out only keys and master pieces, on a
+  project that had none of that work. Now the page sends an id for each opening of a project (again on reconnect); a
+  new one moves the old notebook, board and agent state to sessions/notebooks/archive/ and starts empty, while a
+  reconnect or a backend restart carries on (restart scenario: one conversation across the restart). Carrying
+  something over becomes an explicit feature later (project preferences the producer chooses to keep).
+
 ## Still open
 
 These are for the detailed design, whatever the shape:

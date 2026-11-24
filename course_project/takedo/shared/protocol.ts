@@ -120,7 +120,9 @@ export type Overview = { revision: number, t: number, lines: Array<{ label: stri
 export type PageToBackend =
     | { type: "hello", client: "page", protocol: number }
     | { type: "ping", id: number, sent: number }          // sent: the page's performance.now()
-    | { type: "project", open: boolean, name?: string }   // a project opened or closed in the studio
+    // A project opened or closed in the studio. opening: the page's id for this opening of it, sent again when the
+    // page reconnects (a backend restart resumes the work); a new one when a project is opened anew.
+    | { type: "project", open: boolean, name?: string, opening?: string }
     | { type: "view", open: boolean }                     // the team view was shown or hidden
     | { type: "overview" }                                // the producer asked for a fresh overview
     | { type: "chat", text: string }                      // the producer typed in the team view
