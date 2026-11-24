@@ -5,7 +5,9 @@ import {mkdtempSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 import type {Snapshot, Track} from "../../shared/protocol.ts"
-import {recallOf, Takes} from "./takes.ts"
+import {recallOf, scopeOf, Takes} from "./takes.ts"
+import type {Entry} from "./ledger.ts"
+import type {Touched} from "../../shared/touched.ts"
 
 const track = (ref: string, name: string, extra: Partial<Track> = {}): Track => ({ref, name, kind: "notes", instrument: "Vaporisateur",
     device: {key: "Vaporisateur", name: "Vaporisateur", enabled: true}, midiEffects: [], effects: [], mix: {volume: -6, pan: 0, mute: false, solo: false}, bars: {from: 1, to: 5}, lanes: [],
@@ -57,6 +59,42 @@ describe("recalling a take", () => {
         assert.deepEqual(recall.scripts.map(script => script.bar), [6])
         assert.match(recall.scripts[0].code, /ref\("t1\.fx2"\)\.enabledField\.setValue\(false\)/)
         assert.deepEqual(recall.values.map(({ref, to, beats}) => [ref, to, beats]), [["t1.fx1.wet", 0.2, 16]])
+    })
+})
+
+describe("a dial takes back only its own work (max A, max B, min A)", () => {
+    const touched = (extra: Partial<Touched>): Touched => ({values: [], notes: [], regions: [], tracks: [], effects: [], switches: [], ...extra})
+    const entry = (t: number, direction: string, change: Partial<Touched>): Entry =>
+        ({request: `r${t}`, t, agent: "agent:utility", says: "", op: "script", touched: touched(change), direction})
+    const take = {id: "k1", control: "c:a", value: 0, t: 10, label: "before A", snapshot: snapshot([track("t1", "Drums")], 120)}
+    // A (direction a1) slowed the tempo, lowered the drums 4 dB and rewrote their notes, and added Keys (t2);
+    // B (b1) then raised the drums 2 dB, rewrote their notes too and added Pad (t3).
+    const entries = [
+        entry(20, "a1", {tempo: {from: 120, to: 84}, values: [{ref: "t1.mix.volume", from: -6, to: -10}], notes: [{region: "rt1", track: "t1"}],
+            tracks: [{ref: "t2", change: "added"}]}),
+        entry(30, "b1", {values: [{ref: "t1.mix.volume", from: -10, to: -8}], notes: [{region: "rt1", track: "t1"}], tracks: [{ref: "t3", change: "added"}]}),
+    ]
+    const now = snapshot([track("t1", "Drums", {mix: {volume: -8, pan: 0, mute: false, solo: false},
+        regions: [{ref: "rt1", name: "Drums", from: "1.1.1", to: "5.1.1", muted: false, loop: 1, kind: "notes", notes: [["1.1.1", 36, 1, 120]]}]}),
+        track("t2", "Keys"), track("t3", "Pad")], 84)
+    const recall = recallOf(take.snapshot, now, scopeOf(take, entries, ["a1"]))
+    it("brings back what only A changed: the tempo, and parks the part A added", () => {
+        assert.match(recall.scripts.find(script => script.bar === 4)?.code ?? "", /api\.setBpm\(120\)/)
+        assert.ok(recall.values.some(({ref, to, bar}) => ref === "t2.mix.mute" && to === 1 && bar === 6), "Keys parked")
+    })
+    it("leaves what only B did: its Pad keeps playing", () => {
+        assert.ok(!recall.values.some(({ref}) => ref.startsWith("t3.")))
+    })
+    it("takes A's share out of a level both changed: the take's -6 plus B's +2", () => {
+        assert.deepEqual(recall.values.filter(({ref}) => ref === "t1.mix.volume").map(({to}) => to), [-4])
+    })
+    it("leaves notes both changed, as a conflict for a worker", () => {
+        assert.deepEqual(recall.conflicts, ["Drums (t1)"])
+        assert.ok(!recall.scripts.some(script => /notes\("rt1"/.test(script.code)))
+    })
+    it("does nothing for a dial whose directions changed nothing since its take", () => {
+        const idle = recallOf(take.snapshot, now, scopeOf(take, entries, ["c1"]))
+        assert.deepEqual([idle.scripts, idle.values, idle.conflicts], [[], [], []])
     })
 })
 

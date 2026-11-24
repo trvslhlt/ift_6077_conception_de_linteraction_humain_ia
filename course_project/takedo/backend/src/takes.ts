@@ -8,6 +8,7 @@
 import {existsSync, readFileSync, writeFileSync} from "node:fs"
 import type {Device, Snapshot, Track} from "../../shared/protocol.ts"
 import {hitOf, morphNotes} from "./generate.ts"
+import {type Entry, ownedBy} from "./ledger.ts"
 
 export type Take = { id: string, control: string, value: number, t: number, label: string, snapshot: Snapshot }
 
@@ -66,11 +67,37 @@ export type Recall = {
     values: Array<{ ref: string, to: number, beats: number, bar: number, says: string }>
     first: Array<{ ref: string, to: number }>
     missing: string[]
+    conflicts: string[]     // notes another direction changed too since the take: left as they are, for a worker
+}
+
+// What a recall may bring back (decided 2026-11-24, ARCHITECTURE.md "Ownership"): only what the dial's own directions
+// changed since the take (keys as ledger.ts ownedBy names them: "value t1.mix.volume", "notes t1", "track t3", "tempo").
+// A number another direction changed too comes back as the take's value plus their changes since (max A, max B, min A:
+// B's +2 dB stays); notes another direction changed too are left, a conflict for the Team Lead to hand a worker; what
+// only others changed (another dial, a later message, the producer's hand) is left alone.
+export type Scope = {
+    owns(key: string): boolean
+    value(key: string, take: number): number
+    shared(key: string): boolean
+}
+export const everything: Scope = {owns: () => true, value: (_key, take) => take, shared: () => false}
+
+export const scopeOf = (take: Take, entries: ReadonlyArray<Entry>, mine: ReadonlyArray<string>): Scope => {
+    const since = entries.filter(entry => entry.t > take.t)
+    const own = since.filter(entry => mine.includes(entry.direction)), others = since.filter(entry => !mine.includes(entry.direction))
+    const byMe = ownedBy(own), byOthers = ownedBy(others)
+    const delta = new Map<string, number>()
+    const add = (key: string, by: number) => delta.set(key, (delta.get(key) ?? 0) + by)
+    others.forEach(({touched}) => {
+        touched.values.forEach(({ref, from, to}) => add(`value ${ref}`, to - from))
+        if (touched.tempo !== undefined) {add("tempo", touched.tempo.to - touched.tempo.from)}
+    })
+    return {owns: key => byMe.has(key), value: (key, value) => value + (delta.get(key) ?? 0), shared: key => byOthers.has(key)}
 }
 
 const differs = (a: number, b: number, by: number): boolean => Number.isFinite(a) && Number.isFinite(b) ? Math.abs(a - b) > by : a !== b
 
-export const recallOf = (take: Snapshot, now: Snapshot): Recall => {
+export const recallOf = (take: Snapshot, now: Snapshot, scope: Scope = everything): Recall => {
     const beatsPerBar = now.timeline.signature[0]
     // Mutes and switches-off a bar after the span: a ramp can start a little after its bar line, so its fade ends late.
     const span = RecallBars * beatsPerBar, end = RecallBars + 2
@@ -81,13 +108,16 @@ export const recallOf = (take: Snapshot, now: Snapshot): Recall => {
         if (says !== "") {at.says.push(says)}
         lines.set(bar, at)
     }
-    const values: Recall["values"] = [], first: Recall["first"] = [], missing: string[] = []
+    const values: Recall["values"] = [], first: Recall["first"] = [], missing: string[] = [], conflicts: string[] = []
+    // A mute is a switch, not a number: brought back only when no other direction changed it too.
+    const mutes = (ref: string) => scope.owns(`value ${ref}.mix.mute`) && !scope.shared(`value ${ref}.mix.mute`)
     const ramp = (ref: string, to: number, says: string, beats = span, bar = 1) => values.push({ref, to, beats, bar, says})
-    if (differs(take.timeline.bpm, now.timeline.bpm, 0.5)) {
+    const tempo = scope.value("tempo", take.timeline.bpm)
+    if (scope.owns("tempo") && differs(tempo, now.timeline.bpm, 0.5)) {
         for (let stage = 1; stage <= RecallBars; stage++) {
-            const bpm = Math.round((now.timeline.bpm + (take.timeline.bpm - now.timeline.bpm) * stage / RecallBars) * 10) / 10
+            const bpm = Math.round((now.timeline.bpm + (tempo - now.timeline.bpm) * stage / RecallBars) * 10) / 10
             line(stage, `project.timelineBox.tempoTrack.enabled.setValue(false); api.setBpm(${bpm})`,
-                stage === RecallBars ? `tempo back to ${Math.round(take.timeline.bpm)} BPM` : "")
+                stage === RecallBars ? `tempo back to ${Math.round(tempo)} BPM` : "")
         }
     }
     const effects = (name: string, was: ReadonlyArray<Device>, is: ReadonlyArray<Device>, lanes: ReadonlyArray<string>) => {
@@ -95,16 +125,17 @@ export const recallOf = (take: Snapshot, now: Snapshot): Recall => {
             if (effect.ref === undefined) {return}
             const kept = was.find(candidate => candidate.ref === effect.ref && candidate.key === effect.key)
             const enabled = kept?.enabled ?? false
-            if (enabled !== effect.enabled) {
+            if (enabled !== effect.enabled && scope.owns(kept === undefined ? `effect ${effect.ref}` : `switch ${effect.ref}`)) {
                 line(enabled ? 1 : end, `ref(${JSON.stringify(effect.ref)}).enabledField.setValue(${enabled})`,
                     `${name}'s ${effect.name} ${enabled ? "back on" : "off"}`)
             }
             if (kept === undefined || !enabled) {return}
             ;(kept.params ?? []).forEach(param => {
                 const current = effect.params?.find(candidate => candidate.ref === param.ref)
-                if (current === undefined || lanes.includes(param.ref)) {return}
-                if (differs(param.value, current.value, Math.max(1e-6, (param.max - param.min) * 0.001))) {
-                    ramp(param.ref, param.value, `${name}'s ${effect.name} ${param.name} to ${param.display}`, param.stepped ? 0 : span)
+                if (current === undefined || lanes.includes(param.ref) || !scope.owns(`value ${param.ref}`)) {return}
+                const to = Math.min(param.max, Math.max(param.min, scope.value(`value ${param.ref}`, param.value)))
+                if (differs(to, current.value, Math.max(1e-6, (param.max - param.min) * 0.001))) {
+                    ramp(param.ref, to, `${name}'s ${effect.name} ${param.name} back`, param.stepped ? 0 : span)
                 }
             })
         })
@@ -119,7 +150,8 @@ export const recallOf = (take: Snapshot, now: Snapshot): Recall => {
     const mix = (track: Track, kept: Track | undefined): boolean => {
         const free = (control: string) => !track.lanes.includes(`${track.ref}.mix.${control}`)
         const muted = kept === undefined ? true : kept.mix.mute
-        if (muted && !track.mix.mute && free("mute")) {
+        const leaves = kept === undefined ? scope.owns(`track ${track.ref}`) : mutes(track.ref)
+        if (muted && !track.mix.mute && free("mute") && leaves) {
             // Leaving: faded out over the span, then muted and its devices disabled.
             if (free("volume")) {ramp(`${track.ref}.mix.volume`, Silence, "")}
             values.push({ref: `${track.ref}.mix.mute`, to: 1, beats: 0, bar: end, says: `${track.name} faded out`})
@@ -129,17 +161,21 @@ export const recallOf = (take: Snapshot, now: Snapshot): Recall => {
         }
         if (kept === undefined) {return false}
         const playing = kept.device?.enabled ?? true
-        if (track.device !== null && track.device.enabled !== playing) {line(playing ? 1 : end, instrument(track, playing), "")}
-        if (!muted && track.mix.mute && free("mute")) {
+        if (track.device !== null && track.device.enabled !== playing && scope.owns(`switch ${track.ref}`)) {line(playing ? 1 : end, instrument(track, playing), "")}
+        const volume = scope.owns(`value ${track.ref}.mix.volume`) ? Math.min(6, Math.max(Silence, scope.value(`value ${track.ref}.mix.volume`, kept.mix.volume))) : null
+        if (!muted && track.mix.mute && free("mute") && mutes(track.ref)) {
             // Coming back: silent while still muted, unmuted on the first bar line, then faded in.
-            if (free("volume")) {first.push({ref: `${track.ref}.mix.volume`, to: Silence})}
-            values.push({ref: `${track.ref}.mix.mute`, to: 0, beats: 0, bar: 1, says: ""})
-            if (free("volume")) {ramp(`${track.ref}.mix.volume`, kept.mix.volume, `${track.name} faded back in`)}
-        } else if (differs(kept.mix.volume, track.mix.volume, 0.1) && free("volume")) {
-            ramp(`${track.ref}.mix.volume`, kept.mix.volume, `${track.name} to ${kept.mix.volume.toFixed(1)} dB`)
+            // (Faded in only when its level is the dial's to bring back; otherwise just unmuted, at the level it has.)
+            const fades = free("volume") && volume !== null
+            if (fades) {first.push({ref: `${track.ref}.mix.volume`, to: Silence})}
+            values.push({ref: `${track.ref}.mix.mute`, to: 0, beats: 0, bar: 1, says: fades ? "" : `${track.name} back in`})
+            if (fades) {ramp(`${track.ref}.mix.volume`, volume, `${track.name} faded back in`)}
+        } else if (volume !== null && differs(volume, track.mix.volume, 0.1) && free("volume")) {
+            ramp(`${track.ref}.mix.volume`, volume, `${track.name} to ${volume.toFixed(1)} dB`)
         }
-        if (differs(kept.mix.pan, track.mix.pan, 0.01) && free("pan")) {
-            ramp(`${track.ref}.mix.pan`, kept.mix.pan, `${track.name} panned to ${kept.mix.pan.toFixed(2)}`)
+        const pan = scope.owns(`value ${track.ref}.mix.pan`) ? Math.min(1, Math.max(-1, scope.value(`value ${track.ref}.mix.pan`, kept.mix.pan))) : null
+        if (pan !== null && differs(pan, track.mix.pan, 0.01) && free("pan")) {
+            ramp(`${track.ref}.mix.pan`, pan, `${track.name} panned to ${pan.toFixed(2)}`)
         }
         return false
     }
@@ -152,11 +188,16 @@ export const recallOf = (take: Snapshot, now: Snapshot): Recall => {
         track.regions.forEach(region => {
             const was = kept.regions.find(candidate => candidate.ref === region.ref)
             const muted = was?.muted ?? true
-            if (muted !== region.muted) {
+            if (muted !== region.muted && scope.owns(`regions ${track.ref}`)) {
                 line(muted ? end : 1, `ref(${JSON.stringify(region.ref)}).box.mute.setValue(${muted})`,
                     `${track.name}'s ${region.name} ${muted ? "muted" : "back in"}`)
             }
             if (was?.notes === undefined || region.notes === undefined || JSON.stringify(was.notes) === JSON.stringify(region.notes)) {return}
+            if (!scope.owns(`notes ${track.ref}`)) {return}
+            if (scope.shared(`notes ${track.ref}`)) {
+                if (!conflicts.includes(`${track.name} (${track.ref})`)) {conflicts.push(`${track.name} (${track.ref})`)}
+                return
+            }
             notes = true
             morphNotes(region.notes.map(note => hitOf(note, beatsPerBar)), was.notes.map(note => hitOf(note, beatsPerBar)), RecallBars)
                 .forEach((stage, index) => line(index + 1, `notes(${JSON.stringify(region.ref)}, ${JSON.stringify(stage)})`,
@@ -167,7 +208,8 @@ export const recallOf = (take: Snapshot, now: Snapshot): Recall => {
     })
     take.tracks.filter(track => !now.tracks.some(candidate => candidate.ref === track.ref))
         .forEach(track => missing.push(`${track.name} (deleted since)`))
-    if (differs(take.master.volume, now.master.volume, 0.1)) {ramp("master.mix.volume", take.master.volume, `master to ${take.master.volume.toFixed(1)} dB`)}
+    const master = scope.value("value master.mix.volume", take.master.volume)
+    if (scope.owns("value master.mix.volume") && differs(master, now.master.volume, 0.1)) {ramp("master.mix.volume", master, `master to ${master.toFixed(1)} dB`)}
     effects("the master", take.master.effects, now.master.effects, [])
     // A region's notes rewritten in place, as kb.replaceNotes does: [beat, pitch, beats long, velocity 0..1].
     const helper = `const beat = ppqn("1.2.1") - ppqn("1.1.1")
@@ -181,5 +223,5 @@ const notes = (at, hits) => {
 `
     const scripts = [...lines].sort(([a], [b]) => a - b).map(([bar, {code, says}]) =>
         ({bar, code: `${notes ? helper : ""}${code.join("\n")}`, says: says.join(", ")}))
-    return {scripts, values, first, missing}
+    return {scripts, values, first, missing, conflicts}
 }

@@ -6,7 +6,7 @@ import {
 import type {Catalog} from "./catalog.ts"
 import type {Gateway, ModelLog} from "./gateway.ts"
 import {createTeam, type Member, performStep, type Task} from "./members.ts"
-import {RecallBars, recallOf, Takes} from "./takes.ts"
+import {RecallBars, recallOf, scopeOf, Takes} from "./takes.ts"
 import {type Activity, Ledger, touchedBy} from "./ledger.ts"
 import type {LogType, SessionLog} from "./sessionLog.ts"
 import type {PartRole} from "./router.ts"
@@ -497,16 +497,20 @@ export class Coordinator {
         await this.keepTake(ref, value, "its direction's work, landed")
     }
 
-    // Writes a take back, gliding over RecallBars bars from the next bar line (takes.ts): what differs from now. The
-    // agent's own edits, so they're undoable. Answers once they're sent; a failure later is logged and said.
+    // Writes a take back, gliding over RecallBars bars from the next bar line (takes.ts): what the take's dial's own
+    // directions changed since it (the ledger's scope), not other dials' or messages' work. The agent's own edits, so
+    // they're undoable. Answers once they're sent; a failure later is logged and said.
     async recallTake(agent: Actor, id: string, reason: string, direction?: string): Promise<string> {
         const activity: Activity | undefined = direction === undefined ? undefined : {direction}
         const take = this.#takes.get(id)
         if (take === null) {return `Not done: no take ${id} (takes: ${this.#takes.lines().join("; ") || "none"}).`}
         const now = await this.snapshot("full")
         if (now === null) {return "Not done: no project is open."}
-        const recall = recallOf(take.snapshot, now)
-        if (recall.scripts.length === 0 && recall.values.length === 0) {return `Nothing to do: the project is already as take ${id} has it.`}
+        const recall = recallOf(take.snapshot, now, scopeOf(take, this.#ledger.entries(), this.#ledger.directionsOf(take.control)))
+        const conflicts = recall.conflicts.length === 0 ? "" : ` Not brought back, because another direction changed them too since: ` +
+            `${recall.conflicts.join(", ")}'s notes. To take this dial's part out of them, assign a piece for each (notes): its notes ` +
+            `as they are now, without what this dial's direction did to them, at the dial's new position.`
+        if (recall.scripts.length === 0 && recall.values.length === 0) {return `Nothing to bring back for this dial: what it changed since take ${id} is as the take has it, or someone else's now.${conflicts}`}
         const from = {position: now.playback.position, played: now.playback.played}
         const at = (bar: number): When => ({at: "bar", bar, from})
         await Promise.all(recall.first.map(({ref, to}) => performStep(this, agent, {plan: {op: "set", ref, to}, when: {at: "asap"}, says: "", activity}, reason)))
@@ -530,8 +534,8 @@ export class Coordinator {
         })
         void all
         const says = [...recall.scripts.map(script => script.says), ...recall.values.map(value => value.says)].filter(text => text !== "")
-        return `Recalling take ${id} over the next ${RecallBars} bars: ${says.join(", ")}.` +
-            (recall.missing.length > 0 ? ` Can't bring back: ${recall.missing.join(", ")}.` : "")
+        return `Recalling take ${id} over the next ${RecallBars} bars, only what this dial's directions changed: ${says.join(", ")}.` +
+            (recall.missing.length > 0 ? ` Can't bring back: ${recall.missing.join(", ")}.` : "") + conflicts
     }
 
     // ---------- chat and routing ----------

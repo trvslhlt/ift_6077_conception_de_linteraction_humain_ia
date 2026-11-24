@@ -507,3 +507,12 @@ These are for the detailed design, whatever the shape:
   widening alone (test/loop-probe.mjs, `make loop-probe`: no models, clean); the machine had been asleep mid-run. Left
   as the known headless stall. Also: the report's playhead check uses the start and end tempos only, so a run that
   spends most of its time slower than both reads low (74% at 80 BPM with no stall).
+
+- 2026-11-24, ownership, cycle 2: a dial takes back only its own work. Recalling a take restores only what the dial's
+  directions changed since it (scopeOf in takes.ts, from the ledger): what only others changed is left (another dial,
+  a later message, the producer's hand), a number both changed comes back as the take's value plus the others'
+  changes since, and notes both changed are left and reported to the Team Lead, which assigns a worker to take the
+  dial's part out of them. Only parts and effects the dial added are parked. scenarios/dials.json: Lofi to 0 brought
+  the tempo back, parked the chords and switched the reverb off, kept the busier drums from the later message, and the
+  Team Lead's piece for the drums' notes read "back to a tight, clean, straight 808 groove ... keeping the busier
+  hi-hat and ghost-snare activity the producer asked for".
