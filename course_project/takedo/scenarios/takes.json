@@ -1,0 +1,9 @@
+{
+  "//": "Takes (2026-11-24): the lofi direction, then its dial all the way back (the project before it: a take to recall), then back up to where it was (the direction's landed work: another take). Both moves should recall, not rebuild.",
+  "project": "01_good_base.odb",
+  "messages": [
+    {"text": "Slowly, and without sudden large changes, evolve this into a lofi girl beat"},
+    {"control": "", "value": 0},
+    {"control": "", "value": 0.9}
+  ]
+}

@@ -5,7 +5,8 @@ import {
 } from "../../shared/protocol.ts"
 import type {Catalog} from "./catalog.ts"
 import type {Gateway, ModelLog} from "./gateway.ts"
-import {createTeam, type Member, type Task} from "./members.ts"
+import {createTeam, type Member, performStep, type Task} from "./members.ts"
+import {recallOf, Takes} from "./takes.ts"
 import type {LogType, SessionLog} from "./sessionLog.ts"
 import type {PartRole} from "./router.ts"
 import {writeOverview} from "./teamLead.ts"
@@ -61,6 +62,7 @@ export class Coordinator {
     #project: string | null = null
     #opening: string | undefined = undefined   // the page's id for this opening of the project (protocol.ts)
     readonly #notebooks: string
+    #takes: Takes = new Takes(null)        // the open project's takes (takes.ts)
     #notebook: Notebook | null = null       // the open project's
     #startKept = false                      // whether this session has kept the project's starting state
     #viewOpen = false
@@ -126,6 +128,7 @@ export class Coordinator {
                 this.#opening = message.opening
                 this.#notebook = this.#project === null ? null : new Notebook(this.#notebooks, this.#project, message.opening)
                 this.board.open(this.#notebook?.boardFile ?? null)
+                this.#takes = new Takes(this.#notebook?.takesFile ?? null)
                 this.#handChanges.length = 0
                 this.#startKept = false
                 this.#overview = "none"
@@ -445,10 +448,59 @@ export class Coordinator {
         this.#steering = true
         captain.later(this, async () => {
             this.#steering = false
+            const was = this.#moved.get(ref)
             const text = describe()
+            if (text !== "" && was !== undefined) {await this.#keepLanded(ref, was)}
             const snapshot = text === "" ? null : await this.snapshot()
             return snapshot === null ? null : {turn: {kind: "control_moved", text}, snapshot}
         }).catch(error => this.say("agent:team_lead", `Something went wrong: ${String(error)}`))
+    }
+
+    // ---------- takes (takes.ts) ----------
+
+    takeLines(): string[] {return this.#takes.lines()}
+
+    // The project as it is now, kept under a dial's position. before: a snapshot taken earlier (a direction's start).
+    async keepTake(control: string, value: number, label: string, before?: Promise<Snapshot | null>): Promise<string | null> {
+        const snapshot = await (before ?? this.snapshot("full"))
+        if (snapshot === null || snapshot.detail !== "full") {return null}
+        const take = this.#takes.keep(control, value, label, snapshot)
+        this.#log.write("take", {id: take.id, control, value, label})
+        return take.id
+    }
+
+    // A dial moved: if its direction's work has all landed (nothing coming, no job running), the project is that
+    // direction at the dial's old position, kept as a take before the Team Lead acts on the move.
+    async #keepLanded(ref: string, value: number): Promise<void> {
+        if (this.board.outstanding().some(({steps}) => steps.length > 0) || this.board.running().length > 0) {return}
+        await this.keepTake(ref, value, "its direction's work, landed")
+    }
+
+    // Writes a take back, on the next bar line: what differs from now. The agent's own edits, so they're undoable.
+    async recallTake(agent: Actor, id: string, reason: string): Promise<string> {
+        const take = this.#takes.get(id)
+        if (take === null) {return `Not done: no take ${id} (takes: ${this.#takes.lines().join("; ") || "none"}).`}
+        const now = await this.snapshot("full")
+        if (now === null) {return "Not done: no project is open."}
+        const recall = recallOf(take.snapshot, now)
+        if (recall.script === null && recall.sets.length === 0) {return `Nothing to do: the project is already as take ${id} has it.`}
+        const when: When = {at: "next", unit: "bar"}
+        const scripted = recall.script === null ? Promise.resolve("") : (async () => {
+            const claimed = this.claim(agent, ["project.script"], reason)
+            if (!claimed.ok) {return `notes, tempo and switches not done: ${claimed.holder.replace("agent:", "")} is running a script`}
+            try {
+                const status = await this.request(agent, {op: "script", code: recall.script!, description: `recall take ${id}`}, when, now.at.seq, reason)
+                return status.state === "applied" ? recall.says.join(", ") : `notes, tempo and switches not done (${status.reason}: ${status.detail ?? ""})`
+            } finally {
+                this.release(agent, ["project.script"])
+            }
+        })()
+        const set = Promise.all(recall.sets.map(({ref, to, says}) =>
+            performStep(this, agent, {plan: {op: "set", ref, to}, when, says}, reason)))
+        const [script, values] = await Promise.all([scripted, set])
+        this.#log.write("take", {recalled: id, sets: recall.sets.length, script: recall.script !== null})
+        return `Recalled take ${id}: ${[script, ...values].filter(line => line !== "").join("; ")}.` +
+            (recall.missing.length > 0 ? ` Couldn't bring back: ${recall.missing.join(", ")}.` : "")
     }
 
     // ---------- chat and routing ----------

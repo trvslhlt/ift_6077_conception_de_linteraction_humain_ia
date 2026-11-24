@@ -449,3 +449,13 @@ These are for the detailed design, whatever the shape:
   faders, activity). Only those refs (Captain.may). scenarios/small.json: first edit 0.9 to 3.5 s after the message
   (was 8 to 23 s through a worker), no worker sessions. Anything more is still a piece. A classifier ahead of the Team
   Lead (Jev) would save its ~1 to 3 s decision on these too; not needed yet.
+
+- 2026-11-24, takes: dial moves recall instead of rebuilding (backend/src/takes.ts). A take is a full snapshot kept
+  under a dial's position: the project before its direction when the dial is first offered (at `before`, which the
+  Team Lead gives), and the direction's landed work when the dial next moves with nothing coming or running (at the
+  position it had). The Team Lead sees them (takes) and, for a move to within ~0.1 of one, calls recall_take: one
+  script (notes, tempo, region mutes, effects switched on or off) and the page's set for values, on the next bar line.
+  Parts and effects added since are muted or switched off, never deleted, so a later take can bring them back; the
+  loop is left alone (a recalled loop could leave out the playhead, and the guard would roll the whole recall back).
+  scenarios/takes.json: both moves recalled, 2 edits each, sent 1.2 and 2.5 s after the move (the session's move back
+  was ~32 edits over 47 s of workers). Takes live per opening, archived with the notebook.

@@ -33,7 +33,8 @@ Tools:
 - assign: hand one piece to a fresh worker. A worker can do anything openDAW supports and has the team's knowledge base of genres, sounds, effect chains and patterns. It starts with no memory of the conversation, so a piece stands alone, and it is one kind of change (kind): a drum pattern and the drums' crusher are two pieces (drums, effects). tracks: the refs it changes (none for tempo). goal: one sentence on where it ends up, as a listener would check it ("a lazy, swung boom-bap at soft velocities"), not how to get there. from_bar and to_bar: bars counted from where the playhead was when the producer's message arrived (project.playback.bar), 0 and 0 for now; a gradual change takes 8 to 16 bars, or what the producer said. steps: 1 for one change, more for a gradual one. keep: what must stay (the producer's own settings, the key, a part's register with its MIDI numbers), "" for nothing. Give independent parts to separate workers, which run at the same time: for a style change, typically drums, harmony and keys, bass, tempo, and master effects. Never give two workers the same setting. A simple request is one piece. Hand out every part the message needs in this turn.
 - adjust: change one mix control yourself, with no worker: a track's volume, pan or mute (or the master's volume), at once or ramped over beats. It lands within a second, where a worker takes several: use it whenever the request is just that ("drums down a bit", "mute the bass", "fade the pad out over 8 bars"), then reply. Only for a control the producer asked to change; never to restate or guard a value. Anything more (notes, sounds, effects, several steps at chosen bars) is a piece to assign.
 - cancel: take back what hasn't landed: steps (coming_steps), or a piece still being planned (its job id from jobs_running: the job stops and its steps go with it). Use it when the producer says stop, less, or changes their mind about something still coming; cancel the job when the piece is still running. To change one part of a plan still being made, cancel that part's job, then assign what replaces it: a piece assigned after cancelling a running job joins that job's plan and lands with the rest of it. What has landed stays; to undo it, assign a piece that changes it back.
-- offer_control, remove_control: dials on your card, for the producer to steer a direction that keeps going (how far toward a style, how busy, how wet) without typing. Whenever a producer_message starts a gradual change or a style direction, offer one dial for it in that same turn, before you reply, and mention it in a few words: its ends in the producer's words, meaning what moving it should change, and its value where your direction takes the project (a dial toward the style the producer asked for starts near its high end, not at 0). At most 3; remove one that no longer applies. When one moves (control_moved), act on it like a direction: assign a piece that moves what's still to come toward the new position, in proportion to how far it moved.
+- offer_control, remove_control: dials on your card, for the producer to steer a direction that keeps going (how far toward a style, how busy, how wet) without typing. Whenever a producer_message starts a gradual change or a style direction, offer one dial for it in that same turn, before you reply, and mention it in a few words: its ends in the producer's words, meaning what moving it should change, and its value where your direction takes the project (a dial toward the style the producer asked for starts near its high end, not at 0). At most 3; remove one that no longer applies. When one moves (control_moved), act on it like a direction: assign a piece that moves what's still to come toward the new position, in proportion to how far it moved. But when it moves to within about 0.1 of one of its takes, recall that take instead (cancel what's still coming for the dial first), and assign nothing unless the producer asked for more.
+- recall_take: takes are versions of the project kept under a dial's positions (the project before its direction, and its work once landed, at the position the dial had). Recalling one brings back its notes, mix, effects and tempo in one bar line, where rebuilding takes workers most of a minute.
 - look: read-only JavaScript to inspect the project (an async function body, \`takedo\` in scope: project, snapshot()). Only when the summary doesn't answer what you need.
 - remember, recall, forget: your notebook, kept on disk per project. Keep the producer's wishes and taste (note) and each direction and how it's split (plan).
 - reply: what the producer reads in the chat, as in a chat with a bandmate mid-session: one or two short, plain sentences. For producer_message and control_moved, call it once after assigning, on what's happening and how it will sound (or why it can't). For job reports and restarts, reply only when the producer needs to know (a problem, or something they asked about that's now done); otherwise end the turn without it. No lists or markdown; no bar numbers, refs, dB values or device settings unless they asked; no caveats about not having heard it. Ask at most one short question, only when you need the answer. Nothing else you write is shown.
@@ -58,7 +59,9 @@ export type Turn = { kind: "producer_message" | "control_moved", text: string, h
     | { kind: "job_finished" | "job_failed" | "job_failed_later" | "restarted", text: string, direction?: Direction }
 // The turn being worked on: its direction (the producer's message's, or the job's it reports on) and anchor.
 // revising: a job this turn cancelled while it was planning; the pieces assigned after it join its plan.
-type Current = { context: Coordinator, turn: Turn, direction: Direction, anchor: Anchor | null, calls: number, said?: string, revising?: string }
+// before: the project, fully, as the producer's turn began (a take of it is kept if the turn offers a new dial).
+type Current = { context: Coordinator, turn: Turn, direction: Direction, anchor: Anchor | null, calls: number, said?: string, revising?: string,
+    before?: Promise<Snapshot | null> }
 
 const text = (value: string): CallToolResult => ({content: [{type: "text", text: value}]})
 const anchorOf = (snapshot: Snapshot): Anchor | null => snapshot.playback.position === undefined ? null
@@ -172,7 +175,8 @@ export class Captain {
         const direction = "direction" in turn && turn.direction !== undefined ? turn.direction
             : context.board.direction(turn.text, turn.kind === "control_moved")
         if (!this.#anchors.has(direction.id)) {this.#anchors.set(direction.id, anchorOf(snapshot))}
-        const current: Current = {context, turn, direction, anchor: this.#anchors.get(direction.id) ?? null, calls: 0}
+        const current: Current = {context, turn, direction, anchor: this.#anchors.get(direction.id) ?? null, calls: 0,
+            ...(turn.kind === "producer_message" ? {before: context.snapshot("full")} : {})}
         this.#current = current
         const board = this.#boardNote()
         if (board !== "") {this.#unheard.push(board)}
@@ -188,6 +192,7 @@ export class Captain {
             ...(outstanding.length > 0 ? {coming_steps: outstanding.map(({direction, steps}) => ({for: direction?.text ?? "?",
                 steps: steps.map(step => `${step.id.slice(0, 8)}: ${step.says} (${step.job !== undefined ? `${step.job}'s, ` : ""}bar ${step.bar}, ${step.state === "staged" ? "being planned" : "waiting"})`)}))} : {}),
             ...(running.length > 0 ? {jobs_running: running.map(job => `${job.id}: ${job.piece}`)} : {}),
+            ...(context.takeLines().length > 0 ? {takes: context.takeLines()} : {}),
             project: projectFor(snapshot, false),
             notebook: context.notebook?.list() ?? []
         }))
@@ -237,7 +242,8 @@ export class Captain {
 
     // The fast path for one mix control (decided 2026-11-24): the Team Lead's own edit, sent at once, so a small request
     // lands about a second after its decision instead of a worker's session later. Only what may() allows.
-    may(plan: Plan): boolean {return (plan.op === "set" || plan.op === "ramp") && /^(t\d+|master)\.mix\.(volume|pan|mute)$/.test(plan.ref)}
+    // Its own edits: adjust (one mix control, checked there) and recalling a take (values, and one script).
+    may(plan: Plan): boolean {return plan.op === "set" || plan.op === "ramp" || plan.op === "script"}
 
     async #adjust(current: Current, input: Record<string, unknown>): Promise<string> {
         const {context} = current
@@ -327,10 +333,22 @@ export class Captain {
                 low: z.string().max(30).describe("Its 0 end, in the producer's words (\"clean\")"),
                 high: z.string().max(30).describe("Its 1 end (\"dusty tape\")"),
                 meaning: z.string().describe("What moving it should change, for yourself later: what changes, between which settings"),
-                value: z.number().min(0).max(1).describe("Where it starts: where the direction you just assigned takes the project (asked for a lush lofi beat on a lofi dial: near 1), so moving it means more or less than that")},
-                handler((current, input) => current.context.offerControl(this.agent, {ref: `c:${String(input.name)}`,
-                    label: String(input.label), low: String(input.low), high: String(input.high), meaning: String(input.meaning),
-                    value: Number(input.value)}))),
+                value: z.number().min(0).max(1).describe("Where it starts: where the direction you just assigned takes the project once it has landed, not how far it has got yet (asked for a lush lofi beat on a lofi dial: near 1), so moving it means more or less than that"),
+                before: z.number().min(0).max(1).describe("Where the project was before this direction, on this dial (a lofi dial for a beat that wasn't lofi: 0). Its take is kept there.")},
+                handler(async (current, input) => {
+                    const ref = `c:${String(input.name)}`
+                    const fresh = !current.context.controls().some(control => control.ref === ref)
+                    const said = current.context.offerControl(this.agent, {ref, label: String(input.label), low: String(input.low),
+                        high: String(input.high), meaning: String(input.meaning), value: Number(input.value)})
+                    // The project before this direction, kept as the dial's other end.
+                    const placed = current.context.controls().find(control => control.ref === ref)
+                    if (!fresh || placed === undefined || current.before === undefined) {return said}
+                    const before = Number.isFinite(Number(input.before)) ? Math.min(1, Math.max(0, Number(input.before))) : placed.value >= 0.5 ? 0 : 1
+                    const id = await current.context.keepTake(ref, before, "the project before this direction", current.before)
+                    return id === null ? said : `${said} Kept the project before this direction as take ${id}.`
+                })),
+            tool("recall_take", "Bring the project back to a take (takes: versions kept under a dial's positions), on the next bar line: notes, mix, effects and tempo as they were then; parts added since are muted.", {
+                take: z.string().describe("A take's id (\"k2\")")}, handler((current, input) => current.context.recallTake(this.agent, String(input.take), current.turn.text))),
             tool("remove_control", "Take a dial off your card.", {name: z.string()},
                 handler((current, input) => current.context.removeControl(this.agent, `c:${String(input.name).replace(/^c:/, "")}`))),
             tool("look", "Run read-only JavaScript (an async function body, `takedo` in scope) and see what it returns.", {
