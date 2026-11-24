@@ -6,7 +6,7 @@ import {
 import type {Catalog} from "./catalog.ts"
 import type {Gateway, ModelLog} from "./gateway.ts"
 import {createTeam, type Member, performStep, type Task} from "./members.ts"
-import {recallOf, Takes} from "./takes.ts"
+import {RecallBars, recallOf, Takes} from "./takes.ts"
 import type {LogType, SessionLog} from "./sessionLog.ts"
 import type {PartRole} from "./router.ts"
 import {writeOverview} from "./teamLead.ts"
@@ -476,31 +476,39 @@ export class Coordinator {
         await this.keepTake(ref, value, "its direction's work, landed")
     }
 
-    // Writes a take back, on the next bar line: what differs from now. The agent's own edits, so they're undoable.
+    // Writes a take back, gliding over RecallBars bars from the next bar line (takes.ts): what differs from now. The
+    // agent's own edits, so they're undoable. Answers once they're sent; a failure later is logged and said.
     async recallTake(agent: Actor, id: string, reason: string): Promise<string> {
         const take = this.#takes.get(id)
         if (take === null) {return `Not done: no take ${id} (takes: ${this.#takes.lines().join("; ") || "none"}).`}
         const now = await this.snapshot("full")
         if (now === null) {return "Not done: no project is open."}
         const recall = recallOf(take.snapshot, now)
-        if (recall.script === null && recall.sets.length === 0) {return `Nothing to do: the project is already as take ${id} has it.`}
-        const when: When = {at: "next", unit: "bar"}
-        const scripted = recall.script === null ? Promise.resolve("") : (async () => {
+        if (recall.scripts.length === 0 && recall.values.length === 0) {return `Nothing to do: the project is already as take ${id} has it.`}
+        const from = {position: now.playback.position, played: now.playback.played}
+        const at = (bar: number): When => ({at: "bar", bar, from})
+        await Promise.all(recall.first.map(({ref, to}) => performStep(this, agent, {plan: {op: "set", ref, to}, when: {at: "asap"}, says: ""}, reason)))
+        const scripts = recall.scripts.map(async ({bar, code, says}) => {
             const claimed = this.claim(agent, ["project.script"], reason)
-            if (!claimed.ok) {return `notes, tempo and switches not done: ${claimed.holder.replace("agent:", "")} is running a script`}
+            if (!claimed.ok) {return `${says || "a stage"}: not done, ${claimed.holder.replace("agent:", "")} is running a script`}
             try {
-                const status = await this.request(agent, {op: "script", code: recall.script!, description: `recall take ${id}`}, when, now.at.seq, reason)
-                return status.state === "applied" ? recall.says.join(", ") : `notes, tempo and switches not done (${status.reason}: ${status.detail ?? ""})`
+                const status = await this.request(agent, {op: "script", code, description: `recall take ${id}, bar ${bar} of ${RecallBars}`}, at(bar), now.at.seq, reason)
+                return status.state === "applied" ? says : `${says || `bar ${bar}`}: not done (${status.reason}: ${status.detail ?? ""})`
             } finally {
                 this.release(agent, ["project.script"])
             }
-        })()
-        const set = Promise.all(recall.sets.map(({ref, to, says}) =>
-            performStep(this, agent, {plan: {op: "set", ref, to}, when, says}, reason)))
-        const [script, values] = await Promise.all([scripted, set])
-        this.#log.write("take", {recalled: id, sets: recall.sets.length, script: recall.script !== null})
-        return `Recalled take ${id}: ${[script, ...values].filter(line => line !== "").join("; ")}.` +
-            (recall.missing.length > 0 ? ` Couldn't bring back: ${recall.missing.join(", ")}.` : "")
+        })
+        const values = recall.values.map(({ref, to, beats, bar, says}) =>
+            performStep(this, agent, {plan: beats > 0 ? {op: "ramp", ref, to, beats} : {op: "set", ref, to}, when: at(bar), says}, reason))
+        const all = Promise.all([...scripts, ...values]).then(results => {
+            const failed = results.filter(result => /not done/.test(result))
+            this.#log.write("take", {recalled: id, scripts: recall.scripts.length, values: recall.values.length, failed})
+            if (failed.length > 0) {this.say(agent, `Part of bringing that version back didn't land: ${failed.join("; ")}.`)}
+        })
+        void all
+        const says = [...recall.scripts.map(script => script.says), ...recall.values.map(value => value.says)].filter(text => text !== "")
+        return `Recalling take ${id} over the next ${RecallBars} bars: ${says.join(", ")}.` +
+            (recall.missing.length > 0 ? ` Can't bring back: ${recall.missing.join(", ")}.` : "")
     }
 
     // ---------- chat and routing ----------

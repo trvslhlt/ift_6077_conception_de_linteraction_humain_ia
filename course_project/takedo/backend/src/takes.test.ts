@@ -19,28 +19,38 @@ describe("recalling a take", () => {
     it("does nothing when the project is as the take has it", () => {
         const same = snapshot([track("t1", "Bass")])
         const recall = recallOf(same, same)
-        assert.equal(recall.script, null)
-        assert.deepEqual(recall.sets, [])
+        assert.deepEqual(recall.scripts, [])
+        assert.deepEqual(recall.values, [])
     })
-    it("brings back tempo, notes and levels, and mutes a part added since", () => {
+    it("glides back over 4 bars: tempo a step a bar, notes in stages, levels ramped, a part added since faded out", () => {
         const take = snapshot([track("t1", "Bass")], 120)
         const now = snapshot([track("t1", "Bass", {mix: {volume: -12, pan: 0, mute: false, solo: false},
             regions: [{ref: "rt1", name: "Bass", from: "1.1.1", to: "5.1.1", muted: false, loop: 1, kind: "notes", notes: [["1.1.1", 43, 2, 80]]}]}),
             track("t2", "Keys")], 84)
         const recall = recallOf(take, now)
-        assert.match(recall.script ?? "", /api\.setBpm\(120\)/)
-        assert.match(recall.script ?? "", /notes\("rt1", \[\[0,40,1,0\.787\]\]\)/)
-        assert.deepEqual(recall.sets.map(({ref, to}) => [ref, to]), [["t1.mix.volume", -6], ["t2.mix.mute", 1]])
+        assert.deepEqual(recall.scripts.map(script => script.bar), [1, 2, 3, 4])
+        assert.deepEqual(recall.scripts.map(script => /api\.setBpm\(([\d.]+)\)/.exec(script.code)?.[1]), ["93", "102", "111", "120"])
+        assert.match(recall.scripts[3].code, /notes\("rt1", \[\[0,40,1,0\.787\]\]\)/, "the last stage is the take's notes")
+        assert.deepEqual(recall.values.map(({ref, to, beats, bar}) => [ref, to, beats, bar]),
+            [["t1.mix.volume", -6, 16, 1], ["t2.mix.volume", -60, 16, 1], ["t2.mix.mute", 1, 0, 6]])
     })
-    it("switches off an effect added since, and restores a kept one's values", () => {
+    it("brings a muted part back at silence, then fades it in", () => {
+        const take = snapshot([track("t1", "Bass")])
+        const now = snapshot([track("t1", "Bass", {mix: {volume: -60, pan: 0, mute: true, solo: false}})])
+        const recall = recallOf(take, now)
+        assert.deepEqual(recall.first, [{ref: "t1.mix.volume", to: -60}])
+        assert.deepEqual(recall.values.map(({ref, to, beats, bar}) => [ref, to, beats, bar]), [["t1.mix.mute", 0, 0, 1], ["t1.mix.volume", -6, 16, 1]])
+    })
+    it("switches off an effect added since at the end, and ramps a kept one's values", () => {
         const reverb = {key: "DattorroReverb", name: "Reverb", enabled: true, ref: "t1.fx1",
             params: [{ref: "t1.fx1.wet", name: "Wet", value: 0.2, display: "20%", min: 0, max: 1, stepped: false}]}
         const take = snapshot([track("t1", "Bass", {effects: [reverb]})])
         const crusher = {key: "Crusher", name: "Crusher", enabled: true, ref: "t1.fx2", params: []}
         const now = snapshot([track("t1", "Bass", {effects: [{...reverb, params: [{...reverb.params[0], value: 0.7, display: "70%"}]}, crusher]})])
         const recall = recallOf(take, now)
-        assert.match(recall.script ?? "", /ref\("t1\.fx2"\)\.enabledField\.setValue\(false\)/)
-        assert.deepEqual(recall.sets.map(({ref, to}) => [ref, to]), [["t1.fx1.wet", 0.2]])
+        assert.deepEqual(recall.scripts.map(script => script.bar), [6])
+        assert.match(recall.scripts[0].code, /ref\("t1\.fx2"\)\.enabledField\.setValue\(false\)/)
+        assert.deepEqual(recall.values.map(({ref, to, beats}) => [ref, to, beats]), [["t1.fx1.wet", 0.2, 16]])
     })
 })
 

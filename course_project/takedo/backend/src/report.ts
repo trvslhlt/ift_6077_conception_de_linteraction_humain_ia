@@ -107,7 +107,12 @@ const jobOfStep = new Map(log.filter(entry => entry.type === "board" && entry.ev
     .map(entry => [entry.id, entry.job]))
 const jobOfRequest = new Map(log.filter(entry => entry.type === "board" && entry.event === "linked")
     .map(entry => [entry.request, jobOfStep.get(entry.step)]))
-const samePart = (a: Entry, b: Entry): boolean => jobOfRequest.get(a.id) === jobOfRequest.get(b.id)
+// Without a job (the Team Lead's own edits: a recall), steps of one plan share its anchor.
+const samePart = (a: Entry, b: Entry): boolean => {
+    const [jobA, jobB] = [jobOfRequest.get(a.id), jobOfRequest.get(b.id)]
+    if (jobA !== undefined || jobB !== undefined) {return jobA === jobB}
+    return a.when.from !== undefined && b.when.from !== undefined && a.when.from.position === b.when.from.position && a.when.from.played === b.when.from.played
+}
 const outOfOrder = timed.flatMap((first, index) => timed.slice(index + 1).filter(second =>
     windowOf(first.t) === windowOf(second.t) && samePart(first, second) && first.when.bar !== second.when.bar &&
     Math.sign(second.when.bar - first.when.bar) !== Math.sign(landedAt.get(second.id)! - landedAt.get(first.id)!) &&

@@ -476,3 +476,10 @@ These are for the detailed design, whatever the shape:
   silent for part of each pass" (where a new track's notes sound, repeats and lengths counted), and its order check no
   longer unrolls anchored bars (they count bars of playing now). scenarios/dnb.json: set_loop 1–16 before the pieces,
   58/58 applied, the new chords heard through the loop, every part's steps in order.
+
+- 2026-11-24, recall glides. The producer heard a dial moved to an end change the track at once (a take recalled on one
+  bar line) where a move between was smooth (a rebuild). Recall now glides over RecallBars (4): notes in morphNotes
+  stages and the tempo a step a bar (one script a bar), values ramped across the span, parts leaving faded out and
+  muted a bar after it, parts coming back unmuted at silence then faded in, effects on at the start and off at the end.
+  The report's order check groups the Team Lead's own edits (no job) by their anchor. Known: takes are whole-project,
+  so recalling one undoes later unrelated work; per-activity ownership is the next step (dials and rollback both).
