@@ -355,6 +355,11 @@ Built (2026-11-22), step 2's second piece: the captain split from the utility (`
   pieces, evolve_notes only for drums, notes and arrange; learn and forget gone. Not a gate: run and look reach
   anything. Lofi: first-turn context 27k to 12-15k tokens, per worker median 19 s to 15 s, workers' cost $0.08 to
   $0.04, all checks green. Busiest bar: 7 edits (workers made 135 edits, up from 81); watch it in prompt tuning.
+  Then a prompt written for a worker (9.6k characters, from the old utility's 12.6k patched by string replacement):
+  the piece's fields and what each means, an order of work (read, check knowledge, stage, report), steps as the most
+  stages a piece takes and a glide as one ramp, and a tempo-automation recipe (workers had searched openDAW's source
+  for it every run, and one wrote a class that isn't in scope). Lofi, first run without the recipe: 69 edits (was
+  135), median 13 s; with it: 36 of 36 applied, per worker median 10 s, slowest 26 s, workers $0.03, all checks green.
 
 ## Still open
 
