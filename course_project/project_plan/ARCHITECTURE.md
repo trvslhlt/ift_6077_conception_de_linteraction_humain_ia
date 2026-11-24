@@ -437,3 +437,9 @@ These are for the detailed design, whatever the shape:
   move turns the member's automation lane off until stop, and the hand-off isn't defined.
 - How a member's inbox is filtered, so a busy change stream doesn't wake everyone.
 - The governor's thresholds: which signals and limits, and how they're set.
+
+- 2026-11-24, the transport is the producer's. Agents never play, stop, record or move the playhead, even when asked in
+  chat: the Team Lead says what to press instead. Scripts and looks get the project with those calls refused
+  (`withoutTransport` in page/Scripting.ts; looks too, since the transport isn't a project edit openDAW would refuse).
+  A script whose new loop leaves out the playhead, while playing, is rolled back (`#loopProblem` in page/Adapter.ts),
+  since the playhead would jump at the next wrap. Smoke checks all three; the loop itself stays the agents' to change.

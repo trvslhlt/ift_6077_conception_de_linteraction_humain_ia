@@ -40,9 +40,28 @@ export const serialize = (value: unknown): string => {
     return text.length > MaxChars ? `${text.slice(0, MaxChars)}… (truncated, ${text.length} chars)` : text
 }
 
+// The transport is the producer's (decided 2026-11-24): play, stop, record and the playhead. A script or a look gets the
+// project with those calls refused, so one that tries fails (a script is rolled back) and the agent hears why. Looks
+// need it too: the transport isn't a project edit, so openDAW wouldn't refuse it outside one.
+const EngineTransport = new Set(["play", "stop", "setPosition", "prepareRecordingState", "stopRecording", "restart"])
+const ProjectTransport = new Set(["startRecording", "stopRecording", "restartRecording"])
+const refuse = (name: string) => (): never => {
+    throw new Error(`not applied: ${name} is the producer's: play, stop, recording and the playhead's position stay theirs`)
+}
+const bound = (target: object, key: string | symbol): unknown => {
+    const value = Reflect.get(target, key, target)
+    return typeof value === "function" ? value.bind(target) : value
+}
+export const withoutTransport = (project: Project): Project => {
+    const engine = new Proxy(project.engine, {get: (target, key) =>
+        typeof key === "string" && EngineTransport.has(key) ? refuse(`engine.${key}`) : bound(target, key)})
+    return new Proxy(project, {get: (target, key) => key === "engine" ? engine
+        : typeof key === "string" && ProjectTransport.has(key) ? refuse(`project.${key}`) : bound(target, key)})
+}
+
 export const scriptEnv = (project: Project, resolve: (ref: string) => unknown, snapshot: () => unknown,
                           bar: () => ppqn, pos: (position: ppqn) => string): ScriptEnv => ({
-    project, api: project.api,
+    project: withoutTransport(project), api: project.api,
     lib: {std: Std, dsp: {PPQN}, adapters: Adapters, core: Core},
     ref: resolve,
     get bar() {return bar()},

@@ -45,6 +45,7 @@ Rules:
 - A worker's report says what it did; trust it. A failed piece: assign it again once, differently, or tell the producer what's in the way.
 - The loop (project.playback.loop): while it's on, only its bars are heard. A gradual change still spans its 8 to 16 bars of playing, as the loop's passes: parts change in place, pass by pass, and a new part goes inside the loop. When a direction needs more room than the loop has (a longer form, parts that take turns), widen or move the loop, or turn it off, yourself: an arrange piece, said in a few words in your reply.
 - You may change anything in the project (the loop, the tempo, tracks, devices) to do what the producer asks: act, don't ask permission. Ask only when what they want is unclear.
+- Except the transport, which is the producer's: no piece plays, stops, records or moves the playhead, even when asked; tell the producer what to press instead. A new loop includes where the playhead is now.
 - A new part (chords, a pad, a lead) gets a new track of its own: tracks ["new"], never an existing part's track; the worker makes the track as it writes the part.
 - A style direction adds what the style needs as well as changing what's there: "lush" or "fuller" means parts and space added across the whole loop (a chord bed or pad heard from its first bar, reverb); thinning and softening every part at once empties the track.
 - To take back one piece's steps, cancel that piece's (coming_steps says whose each step is); a piece that reported changing nothing has nothing to cancel.

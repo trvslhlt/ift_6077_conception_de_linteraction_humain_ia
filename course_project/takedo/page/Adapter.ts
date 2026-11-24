@@ -402,11 +402,14 @@ export class Adapter implements Terminable {
         let corrections: Correction[] = []
         try {
             this.#tagged(request, () => this.#project.editing.modify(() => {
+                const loop = this.#loopNow()
                 value = runScript(plan.code, this.#env)
                 if (this.guarding) {
                     corrections = this.#guard()
                     const tempo = this.#tempoProblem()
                     if (tempo !== null) {throw new Error(tempo)}
+                    const moved = this.#loopProblem(loop)
+                    if (moved !== null) {throw new Error(moved)}
                 }
             }))
         } catch (error) {
@@ -449,6 +452,22 @@ export class Adapter implements Terminable {
     // value-event field with no declared range, so the field guard can't catch it: a script that wrote normalized values
     // ((bpm - 60) / 180) set the tempo to 0.33 BPM and the playhead all but stopped for 6 minutes (2026-11-23). Thrown
     // inside the edit, so openDAW rolls the whole script back.
+    #loopNow(): { enabled: boolean, from: ppqn, to: ppqn } {
+        const {loopArea} = this.#project.timelineBox
+        return {enabled: loopArea.enabled.getValue(), from: loopArea.from.getValue(), to: loopArea.to.getValue()}
+    }
+
+    // A loop change that leaves the playhead outside the loop would move it (to the loop's start at the next wrap, or on
+    // past it): the playhead is the producer's, so the new loop must hold where it is now (decided 2026-11-24).
+    #loopProblem(before: { enabled: boolean, from: ppqn, to: ppqn }): string | null {
+        const after = this.#loopNow()
+        if (!after.enabled || (before.enabled && before.from === after.from && before.to === after.to)) {return null}
+        const position = this.#project.engine.position.getValue()
+        if (!this.#project.engine.isPlaying.getValue() || (position >= after.from && position < after.to)) {return null}
+        return `not applied: the new loop (${this.#pos(after.from)} to ${this.#pos(after.to)}) leaves out the playhead at ${this.#pos(position)}, ` +
+            "which would move it; the playhead is the producer's: make the loop include where it is now"
+    }
+
     #tempoProblem(): string | null {
         const {timelineBox} = this.#project
         const bad = (bpm: number): boolean => !Number.isFinite(bpm) || bpm < TempoRange.min || bpm > TempoRange.max

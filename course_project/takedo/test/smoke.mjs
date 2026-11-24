@@ -277,6 +277,19 @@ try {
         ducked.state === "applied" && /"keyedFromDrums":true/.test(wiring) && /"automakeup":false/.test(wiring),
         `${ducked.state}${ducked.detail ? ` (${ducked.detail})` : ""}: ${wiring}`)
 
+    // The transport is the producer's (decided 2026-11-24): a script that stops playback or moves the playhead is refused
+    // and rolled back, and so is a loop that would leave the playhead outside it.
+    const stopped = await apply({op: "script", description: "stop playback", code: `project.engine.stop(true)`})
+    const jumped = await apply({op: "script", description: "move the playhead", code: `project.engine.setPosition(0)`})
+    const away = await apply({op: "script", description: "loop far from the playhead", code: `
+        const {loopArea} = project.timelineBox
+        loopArea.enabled.setValue(true); loopArea.from.setValue(ppqn("90.1.1")); loopArea.to.setValue(ppqn("94.1.1"))`})
+    const loopNow = await page.evaluate(() => window.takedo.adapter.snapshot().playback.loop)
+    const playingNow = await page.evaluate(() => window.opendaw.engine.isPlaying())
+    check("agents can't stop playback, move the playhead or loop away from it",
+        stopped.state === "failed" && jumped.state === "failed" && away.state === "failed" && playingNow && loopNow.from !== "90.1.1",
+        JSON.stringify({stopped: stopped.detail, jumped: jumped.detail, away: away.detail, playingNow, loopNow}))
+
     // Landing in a loop, sent straight to the page (no model): on the loop's start, which the playhead only reaches by
     // wrapping, and past the loop's end, which counts bars of playing.
     const landed = await page.evaluate(async () => {
