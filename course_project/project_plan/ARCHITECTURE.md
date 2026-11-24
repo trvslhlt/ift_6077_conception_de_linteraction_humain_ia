@@ -360,6 +360,11 @@ Built (2026-11-22), step 2's second piece: the captain split from the utility (`
   stages a piece takes and a glide as one ramp, and a tempo-automation recipe (workers had searched openDAW's source
   for it every run, and one wrote a class that isn't in scope). Lofi, first run without the recipe: 69 edits (was
   135), median 13 s; with it: 36 of 36 applied, per worker median 10 s, slowest 26 s, workers $0.03, all checks green.
+  Regression after it: hand, cancel, controls and restart scenarios and the smoke test all green. One change in
+  behaviour: a tempo glide is now automation written at once, so "keep the tempo where it is" is a revision, not a
+  cancel (the cancel run: the Team Lead had a worker remove the glide's end point; tempo stayed at 119). Caveat: mid-
+  glide, removing the end point would jump back to the start tempo; holding "where it is now" needs a point at the
+  current tempo. Not seen yet; watch for it.
 
 ## Still open
 
