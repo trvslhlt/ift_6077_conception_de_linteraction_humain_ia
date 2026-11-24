@@ -1,0 +1,75 @@
+{
+  "key": "chain/sidechain-duck",
+  "kind": "chain",
+  "summary": "Sidechain ducking: a part (bass, pads) dips each time another track hits (the kick, the drums), making room in the low end",
+  "tags": [
+    "sidechain",
+    "side chain",
+    "duck",
+    "ducking",
+    "sidechain compression",
+    "kick and bass",
+    "make room for the kick",
+    "pump",
+    "pumping",
+    "house",
+    "edm"
+  ],
+  "devices": [
+    "Compressor"
+  ],
+  "links": [
+    "chain/sidechain-pump",
+    "genre/house"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (smoke test checks the wiring; the duck itself not yet heard)",
+    "date": "2026-11-23",
+    "opendaw": "652e6ca"
+  },
+  "body": [
+    "A real sidechain: a Compressor on the ducked track, its side-chain input set to the source track's output. Fast attack, a release that recovers within a beat (120 ms at about 120 BPM; longer for slower tempos), auto makeup off.",
+    "The source is a whole track: if the kick is inside a drum kit, the snare and hats duck the part too. For a duck on the kick alone, the kick needs its own track; say so rather than guess.",
+    "amount sets the depth (a higher threshold and ratio duck harder). Put it on the part that should make room (bass, pads, keys), never on the source. With no source track to key from, use chain/sidechain-pump."
+  ],
+  "apply": {
+    "params": {
+      "track": {
+        "type": "track",
+        "about": "the part that ducks (bass, pads)"
+      },
+      "source": {
+        "type": "track",
+        "about": "the track it ducks under (the drums, a kick track)"
+      },
+      "amount": {
+        "type": "amount"
+      }
+    },
+    "steps": [
+      {
+        "op": "script",
+        "script": "sidechain",
+        "args": {
+          "track": "$track",
+          "source": "$source",
+          "threshold": {
+            "dial": [
+              -18,
+              -36
+            ]
+          },
+          "ratio": {
+            "dial": [
+              3,
+              8
+            ]
+          },
+          "attack": 1,
+          "release": 120
+        }
+      }
+    ]
+  }
+}

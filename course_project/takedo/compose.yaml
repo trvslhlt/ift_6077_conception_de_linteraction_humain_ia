@@ -56,6 +56,9 @@ services:
   smoke:
     build: test
     profiles: [test]
+    # The knowledge base's page helpers, so the smoke test runs them as the backend sends them.
+    volumes:
+      - ./knowledge/scripts:/knowledge-scripts:ro
     # Shares the studio's network namespace, so the page is served from localhost (a secure context).
     network_mode: service:studio
     depends_on:

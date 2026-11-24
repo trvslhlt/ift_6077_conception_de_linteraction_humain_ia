@@ -110,6 +110,21 @@ const kb = (() => {
                 position: Math.round(start * beat), duration: Math.max(1, Math.round(length * beat)), pitch, velocity}))
             return {region: args.region, notes: args.notes.length}
         },
+        // A compressor on a track keyed from another track's output, so the track ducks when the source plays
+        // (openDAW 652e6ca: CompressorDeviceBox's side-chain pointer, as in its AudioUnitFreeze test). Auto makeup
+        // off, or it lifts the part back up and undoes the duck.
+        sidechain(args) {
+            const unit = unitOf(args.track), source = unitOf(args.source)
+            if (unit === source) {throw new Error("a track can't duck under itself: give another source")}
+            const compressor = api.insertEffect(unit.box.audioEffects, lib.core.EffectFactories.AudioNamed.Compressor)
+            compressor.sideChain.refer(source.box)
+            compressor.automakeup.setValue(false)
+            compressor.threshold.setValue(args.threshold)
+            compressor.ratio.setValue(args.ratio)
+            compressor.attack.setValue(args.attack)
+            compressor.release.setValue(args.release)
+            return {track: args.track, keyed_from: args.source, threshold: args.threshold, ratio: args.ratio}
+        },
         tempo(args) {
             api.setBpm(args.bpm)
             return {bpm: project.timelineBox.bpm.getValue()}

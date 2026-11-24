@@ -21,11 +21,15 @@ it makes troubleshooting harder).
 | Device settings | an instrument's or effect's parameters | set_param, effect_params, ranges and units, presets (DX7 voices) |
 | Device chain | which instruments and effects there are, in what order | add/remove effect, new instrument tracks, the catalog's limits |
 | Mix | level, pan, mute over time | volume, pan, mute ramps; held controls; automation lanes |
+| Routing | how tracks feed each other: sidechain inputs, sends, buses | the sidechain recipe (kb.sidechain), no loops between tracks |
 | Tempo | the tempo map | tempo automation (the recipe), the BPM range guard |
 | Arrangement | where composed material plays: regions placed, copied, moved, lengthened, muted, by section | region and timeline recipes |
 
 Arrangement here is the producer's sense: sequencing parts that already exist into a fuller piece (a few ideas in
 the project, put in order), not writing notes. Whether it also needs a member is open (below).
+
+Routing was added after asking how "sidechain the drums and bass" would be handled: wiring one track into another's
+device crossed every other role, and its tools and guards (pointers between tracks, no loops) are its own.
 
 Today's kinds map onto these: drums and notes → Notes; sound → Device settings (+ chain); effects → Device chain
 (+ settings); mix → Mix; tempo → Tempo; arrange → Arrangement.
@@ -74,7 +78,7 @@ border others (the cases a router must learn).
 ### Mix engineer (`@mix_engineer`)
 - **Hears:** the whole: balance, space and depth, the low end shared by parts, stereo width, loudness, the master.
 - **Takes:** louder, quieter, further back, more room, wider, glue, the low end cleaner, the master warmer.
-- **Reaches through:** Mix; Device settings and Device chain on the master and for space.
+- **Reaches through:** Mix; Routing (sidechains, sends); Device settings and Device chain on the master and for space.
 - **Protects:** the producer's held and hand-set controls; headroom.
 - **Borders:** see the performer and the sound designer.
 
@@ -85,6 +89,18 @@ border others (the cases a router must learn).
 - **Protects:** the downbeat and the loop; changes landing on phrase boundaries.
 - **Borders:** "make it lift here" is the conductor (more parts), the mix engineer (level, width) or the composer
   (busier parts): usually a direction the Team Lead splits.
+
+## A worked example: "sidechain the drums and bass"
+
+- **Read as:** the bass ducks each time the drums hit, to make room in the low end (the drums are the trigger and stay
+  as they are).
+- **Member:** the mix engineer. "Sidechain" names a technique, so it routes by what it does (balance), not by the
+  tracks it names. The sound designer only if the pumping is wanted as a sound (a pumping pad).
+- **Roles:** Device chain (a compressor on the bass), Routing (its side-chain input from the drums), Device settings
+  (threshold, ratio, fast attack, a release that recovers within a beat, auto makeup off), Mix (the bass's level after).
+- **In code:** knowledge entry chain/sidechain-duck runs kb.sidechain; the smoke test checks the wiring in openDAW.
+- **Caveat the member should say:** the source is the whole drum track, so snare and hats duck the bass too; a duck
+  on the kick alone needs the kick on its own track.
 
 ## Open
 

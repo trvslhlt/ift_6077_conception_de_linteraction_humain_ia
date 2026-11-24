@@ -2,6 +2,7 @@
 // page reaches the backend (welcome, ping, reconnecting), the Team Lead's overview, one message through the captain
 // and a worker, and the page's own guarantees for edits (sent straight to it, no model).
 // Run via `make test`; it shares the studio container's network, so the page is at localhost.
+import {readFileSync} from "node:fs"
 import {chromium} from "playwright"
 
 const URL = process.env.URL ?? "http://localhost:8080/"
@@ -260,6 +261,21 @@ try {
     const lead = await track("Lead")
     check("a scripted track, faded in by a fixed operation", lead !== undefined && faded.state === "applied" && lead.mix.volume > -1,
         `${lead === undefined ? `no Lead track (${made.state}: ${made.detail ?? ""})` : `Lead at ${lead.mix.volume.toFixed(1)} dB`}`)
+
+    // A sidechain by the knowledge base's page helper, sent as the backend sends chain/sidechain-duck: the keys keyed from
+    // the drums. Checked by where the compressor's side-chain input points, read back from the project.
+    const kbScript = readFileSync("/knowledge-scripts/kb.js", "utf8")
+    const ducked = await apply({op: "script", description: "keys duck under the drums",
+        code: `const args = ${JSON.stringify({track: keys, source: drums, threshold: -30, ratio: 6, attack: 1, release: 120})};\n${kbScript}\nreturn kb.sidechain(args)`})
+    const wired = await apply({op: "script", description: "read the keys' sidechain", code: `
+        const compressor = ref("${keys}").box.audioEffects.pointerHub.incoming().map(pointer => pointer.box).find(box => box.sideChain !== undefined)
+        if (compressor === undefined) {return "no compressor"}
+        return {keyedFromDrums: compressor.sideChain.targetVertex.mapOr(vertex => vertex.box === ref("${drums}").box, false),
+            automakeup: compressor.automakeup.getValue(), threshold: compressor.threshold.getValue()}`})
+    const wiring = typeof wired.result?.value === "string" ? wired.result.value : JSON.stringify(wired.result?.value ?? wired.detail ?? "")
+    check("a sidechain from the knowledge base: the keys' compressor keyed from the drums",
+        ducked.state === "applied" && /"keyedFromDrums":true/.test(wiring) && /"automakeup":false/.test(wiring),
+        `${ducked.state}${ducked.detail ? ` (${ducked.detail})` : ""}: ${wiring}`)
 
     // Landing in a loop, sent straight to the page (no model): on the loop's start, which the playhead only reaches by
     // wrapping, and past the loop's end, which counts bars of playing.

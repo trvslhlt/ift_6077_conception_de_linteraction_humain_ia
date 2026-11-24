@@ -1,7 +1,7 @@
 {
   "key": "chain/sidechain-pump",
   "kind": "chain",
-  "summary": "Sidechain-style pumping: the part ducks on every beat and swells back (house, EDM pads and bass)",
+  "summary": "Pumping without a source track: a volume shape ducks the part on every beat and swells back (house, EDM pads); with a kick or drum track to key from, chain/sidechain-duck",
   "tags": [
     "sidechain",
     "pump",
@@ -16,6 +16,7 @@
     "Tidal"
   ],
   "links": [
+    "chain/sidechain-duck",
     "genre/house"
   ],
   "checked": {
@@ -25,7 +26,7 @@
     "opendaw": "652e6ca"
   },
   "body": [
-    "openDAW's compressor has no sidechain input in the catalog, so this fakes the duck with Tidal: a quarter-note volume shape (rate index 3), sharp slope.",
+    "A fake duck with Tidal, for when there's no track to key from (or a steady pump on every beat is the sound wanted): a quarter-note volume shape (rate index 3), sharp slope. openDAW's compressor does have a real side-chain input: with a kick or drum track, use chain/sidechain-duck.",
     "The duck must fall on the kick: if it swells on the beat instead, set offset to 180. amount sets the depth. Not on the drums themselves: on pads, bass, keys."
   ],
   "apply": {
