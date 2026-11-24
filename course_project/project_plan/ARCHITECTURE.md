@@ -324,6 +324,11 @@ Built (2026-11-22), step 2's second piece: the captain split from the utility (`
   - A real browser (the producer's manual test, 2026-11-23, about 3 minutes with the lofi and cancel messages) didn't
     freeze, and the README already recorded one headless freeze in the smoke test on 2026-11-07, "not seen in a real
     browser". Treated as headless-only for now; the smoke test fails cleanly on it instead of hanging.
+  - Again on 2026-11-24 03:08 UTC (lofi, per-kind prompts): the engine's own position froze at 4.2.3 of a 4-bar loop
+    about 85 s in, audio clock running, frames at 120 per 2 s, no lag, no page errors; no edit had landed in the 10 s
+    before (a tempo script landed 2 s after, on the frozen position). Tempo automation was on (a glide over bars
+    1-16 inside the 4-bar loop). The rerun was clean. If it recurs, check whether a tempo glide inside a loop is the
+    common factor.
   - Seen on the way: openDAW's `AnimationFrame` loop skips clearing its queue when a callback throws, so one throw
     would freeze every later callback (the engine-position read among them) for good. No run threw, so it isn't this
     stall.
@@ -365,6 +370,11 @@ Built (2026-11-22), step 2's second piece: the captain split from the utility (`
   cancel (the cancel run: the Team Lead had a worker remove the glide's end point; tempo stayed at 119). Caveat: mid-
   glide, removing the end point would jump back to the start tempo; holding "where it is now" needs a point at the
   current tempo. Not seen yet; watch for it.
+  Then per-kind prompt sections: lines only one kind needs (the tempo recipe, pitch rules, evolve_notes, track and
+  instrument recipes, the parameter-object rule) moved from the shared prompt to its kind's; shared part 10.2k to 6.8k
+  characters plus 0.4-1.5k for the kind. Hand green; lofi twice: median 1.9k and 2.1k output tokens per worker (was
+  2.5k), times 9 s and 20 s (time varies run to run; tokens are the steadier measure). The first lofi run stalled
+  (below).
 
 ## Still open
 
