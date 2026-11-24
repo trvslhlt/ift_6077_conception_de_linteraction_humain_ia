@@ -3,7 +3,7 @@
 import {describe, it} from "node:test"
 import assert from "node:assert/strict"
 import type {Snapshot} from "../../shared/protocol.ts"
-import {Board, commitAnchor, pieceLine, planSlide} from "./board.ts"
+import {Board, commitAnchor, pieceLine} from "./board.ts"
 
 // 01_good_base in the lofi scenario: 4/4, looping bars 1–4.
 const bar = 3840
@@ -36,18 +36,12 @@ describe("the board", () => {
         assert.deepEqual(board.take(id, bass.id).map(step => step.says), ["bass 2", "bass 6"])
         assert.deepEqual(board.staged(id).map(step => step.says), ["drums 4"])
     })
-    it("moves the anchor past the playhead by whole passes of a short loop, else by whole bars", () => {
+    it("moves the anchor past the playhead by whole bars of playing, loop or not", () => {
         const anchor = {position: 2 * bar, played: 0, bar: 3}
         assert.equal(commitAnchor(anchor, now(0)).played, 0, "nothing has played: as it was")
-        assert.equal(commitAnchor(anchor, now(1.5 * bar)).played, 4 * bar, "a pass of the 4-bar loop")
-        assert.equal(commitAnchor(anchor, now(5 * bar)).played, 8 * bar)
-        assert.equal(commitAnchor(anchor, now(1.5 * bar, false)).played, 2 * bar, "no loop: whole bars")
-    })
-    it("slides a plan whose first bar has gone by, keeping its spacing, only when not looping", () => {
-        assert.equal(planSlide([2, 4, 6], now(0, false, "5.2.1")), 4)
-        assert.equal(planSlide([2, 4, 6], now(0, false, "5.4.1")), 5, "last beat: one bar later")
-        assert.equal(planSlide([9, 11], now(0, false, "5.2.1")), 0)
-        assert.equal(planSlide([2, 4], now(0, true, "3.2.1")), 0)
+        assert.equal(commitAnchor(anchor, now(1.5 * bar)).played, 2 * bar)
+        assert.equal(commitAnchor(anchor, now(5 * bar)).played, 5 * bar)
+        assert.equal(commitAnchor(anchor, now(1.5 * bar, false)).played, 2 * bar, "no loop: the same")
     })
 })
 

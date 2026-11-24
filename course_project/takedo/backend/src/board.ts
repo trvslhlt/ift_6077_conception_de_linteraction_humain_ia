@@ -247,24 +247,11 @@ export class Board {
 // Where the playhead was when the message arrived (the bars in the project summary count from there).
 export type Anchor = { position: number, played: number, bar: number }
 
-// The anchor a plan is sent with: the message's, moved later past the playhead now, by whole passes of a short loop (up
-// to 8 bars, so each step keeps its place in the loop) or else by whole bars. Every step's time is then still ahead.
+// The anchor a plan is sent with: the message's, moved later past the playhead now by whole bars of playing (steps count
+// bars of playing from it, 2026-11-24), so every step's time is still ahead and they keep their spacing.
 export const commitAnchor = (anchor: Anchor, now: Snapshot): Anchor => {
     const [beats, unit] = now.timeline.signature
-    const barPulses = 960 * 4 * beats / unit
-    const {loop} = now.playback
-    const loopBars = Number(loop.to.split(".")[0]) - Number(loop.from.split(".")[0])
-    const step = loop.on && loopBars > 0 && loopBars <= 8 ? barPulses * loopBars : barPulses
+    const step = 960 * 4 * beats / unit
     const delay = Math.max(0, Math.ceil((now.playback.played - anchor.played) / step)) * step
     return {...anchor, played: anchor.played + delay}
-}
-
-// Not looping, bars are the timeline's own: a plan whose first bar has gone by moves later as a whole, keeping its
-// spacing. Returns the bars to add to each step (0 when looping, stopped, or still ahead).
-export const planSlide = (bars: ReadonlyArray<number>, now: Snapshot): number => {
-    if (now.playback.loop.on || !now.playback.playing || bars.length === 0) {return 0}
-    // In the bar's last beat the next downbeat is too close to land on (the page keeps a lead), so aim one later.
-    const beat = Number(now.playback.pos.split(".")[1] ?? 1)
-    const first = now.playback.bar + (beat >= now.timeline.signature[0] ? 2 : 1)
-    return Math.max(0, first - Math.min(...bars))
 }

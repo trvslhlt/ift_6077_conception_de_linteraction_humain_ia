@@ -172,8 +172,15 @@ try {
     const ref = name => page.evaluate(name => window.takedo.adapter.snapshot().tracks.find(track => track.name === name).ref, name)
     const [drums, keys] = [await ref("Drums"), await ref("Keys")]
 
-    // One undo step for a whole ramp. openDAW's shortcut needs focus outside the chat input.
-    const rampBefore = await volume("Drums")
+    // One undo step for a whole ramp. openDAW's shortcut needs focus outside the chat input. The Team Lead's own ramp
+    // (adjust, above) may still be moving the drums: start once their level holds still.
+    let rampBefore = await volume("Drums")
+    for (let tries = 0; tries < 20; tries++) {
+        await page.waitForTimeout(500)
+        const now = await volume("Drums")
+        if (Math.abs(now - rampBefore) < 0.01) {break}
+        rampBefore = now
+    }
     const ramped = await apply({op: "ramp", ref: `${drums}.mix.volume`, to: rampBefore - 6, beats: 2})
     await page.waitForTimeout(1500)
     const rampAfter = await volume("Drums")
@@ -326,6 +333,41 @@ try {
     check("in a loop, an edit on the loop's start lands as it wraps", landed[0].state === "applied", JSON.stringify(landed[0]))
     check("in a loop, an edit past its end lands after that many bars of playing",
         landed[1].state === "applied" && landed[1].ms > landed[0].ms, JSON.stringify(landed[1]))
+
+    // A plan's steps count bars of playing from its message (2026-11-24): the loop widened from 2 bars to 8 while they
+    // wait (as a Team Lead's arrange piece did mid-plan) and they still land in order, a bar apart. Counted in loop
+    // bars, the first steps had landed last and the tempo went back up.
+    const ordered = await page.evaluate(async () => {
+        const {adapter, service} = window.takedo
+        const {project} = service.projectProfileService.getValue().unwrap()
+        const {loopArea} = project.timelineBox
+        const bar = 3840
+        const saved = [loopArea.enabled.getValue(), loopArea.from.getValue(), loopArea.to.getValue()]
+        project.editing.modify(() => {loopArea.enabled.setValue(true); loopArea.from.setValue(0); loopArea.to.setValue(2 * bar)})
+        await new Promise(resolve => setTimeout(resolve, 300))
+        const {position, played} = adapter.playback()
+        const pad = adapter.snapshot().tracks.find(track => track.name === "Pad").ref
+        const send = (bars, to) => new Promise(resolve => {
+            const id = crypto.randomUUID()
+            const subscription = adapter.subscribeActivity(({request, status}) => {
+                if (request.id !== id || !["applied", "dropped", "failed"].includes(status.state)) {return}
+                subscription.terminate()
+                resolve({bars, state: status.state, t: performance.now()})
+            })
+            adapter.apply({id, from: "agent:utility", plan: {op: "set", ref: `${pad}.mix.pan`, to},
+                when: {at: "bar", bar: bars, from: {position, played}}, seq: Number.MAX_SAFE_INTEGER})
+            setTimeout(() => {subscription.terminate(); resolve({bars, state: "timeout"})}, 30000)
+        })
+        const waiting = [send(1, -0.3), send(2, -0.2), send(3, -0.1)]
+        project.editing.modify(() => loopArea.to.setValue(8 * bar))
+        const results = await Promise.all(waiting)
+        project.editing.modify(() => {loopArea.enabled.setValue(saved[0]); loopArea.from.setValue(saved[1]); loopArea.to.setValue(saved[2])})
+        return results
+    })
+    const gaps = ordered.slice(1).map((result, index) => Math.round(result.t - ordered[index].t))
+    check("a plan's steps land in order, a bar apart, though the loop was widened while they waited",
+        ordered.every(result => result.state === "applied") && gaps.every(gap => gap > 1000 && gap < 3500),
+        JSON.stringify({states: ordered.map(result => result.state), gaps}))
     const activityRows = await page.locator("[data-testid='takedo-activity'] li[data-agent='agent:utility']").count()
     check("the activity lists the agents' edits and where they are", activityRows > 0, `${activityRows} rows`)
 

@@ -4,7 +4,7 @@ import type Anthropic from "@anthropic-ai/sdk"
 import type {CallToolResult} from "@modelcontextprotocol/sdk/types.js"
 import {z} from "zod"
 import type {Actor, Note, Plan, Snapshot, Status, When} from "../../shared/protocol.ts"
-import {type Action, type Anchor, commitAnchor, type Direction, type Piece, type PieceKind, PieceKinds, planSlide, type Step as BoardStep} from "./board.ts"
+import {type Action, type Anchor, commitAnchor, type Direction, type Piece, type PieceKind, PieceKinds, type Step as BoardStep} from "./board.ts"
 import type {Coordinator} from "./coordinator.ts"
 import type {Catalog} from "./catalog.ts"
 import {type Knowledge, shortlist} from "./knowledge.ts"
@@ -110,11 +110,10 @@ ${KnowledgeSlot}- recall: read a notebook entry. remember: keep what a later pie
 - reply: your report to the Team Lead: one or two plain sentences on what you changed or staged and anything you couldn't do (and why). No lists or markdown.
 
 Timing:
-- An edit for a later bar (at_bar above 0) is staged: it answers at once and goes out when you reply, timed from where the playhead was at the producer's message, so its steps land in their bars' order however long you take. at_bar 0 lands at once. Failures of staged edits reach you later. A look sees only what has landed.
+- at_bar counts bars of playing after the producer's message, like from_bar and to_bar: 1 is the next bar line, 2 the one after, through every pass of the loop, whatever the loop is or becomes. An edit for a later bar (at_bar above 0) is staged: it answers at once and goes out when you reply, so its steps land in their bars' order however long you take. at_bar 0 lands at once. Failures of staged edits reach you later. A look sees only what has landed.
 - Land changes ahead of the playhead when timing matters; structural changes (lengths, new regions) can land as soon as possible.
 - When the loop is on (playback.loop), only its bars are heard: put what you write inside them. A new part's region covers the loop (its pattern looping); a change over time is edits staged on later bars, each landing on a later pass, never content placed at later timeline bars, which the loop never reaches. If your piece needs more room, change the loop (project.timelineBox.loopArea: enabled, from and to in pulses, e.g. ppqn("9.1.1")) and say so in your report. A new loop must include the playhead (playback_at_message), or it's refused.
 - The transport is the producer's: never play, stop, record or move the playhead (engine.play/stop/setPosition, recording); those calls are refused.
-- When the loop is on, every bar counts from playback_at_message.bar, however long you take to plan it: a bar inside the loop is its next pass after that, a bar past the loop's end counts bars of playing as if the loop were unrolled (playhead in bar 2 of a 4-bar loop: at_bar 2 lands on the next bar line, at_bar 3 after 1 bar, at_bar 1 after 3, at_bar 10 after 8 bars, at the loop's bar 2).
 
 Both run a function body with \`takedo\` in scope (its parts are also plain names: project, api, lib, ref, bar, ppqn, pos, snapshot); \`return\` a value to see it (JSON; openDAW objects show as their class name, so return plain data). look's body may await; run's is synchronous.
 
@@ -339,7 +338,7 @@ export class Utility implements Member {
             tool("run", "Change the project with a script (a function body, `takedo` in scope), as one undoable edit.", {
                 description: z.string().describe("What it does, for the producer, a few words"),
                 code: z.string(),
-                at_bar: z.number().int().describe("The bar it lands on; 0 for as soon as possible")},
+                at_bar: z.number().int().describe("Bars of playing after the producer's message (1: the next bar line); 0 for as soon as possible")},
                 handler((current, input) => this.#run(current, String(input.description), String(input.code), Number(input.at_bar)))),
             tool("remember", "Keep something in your notebook, outside your conversation (which may be summarized): replaces the entry with that key.", {
                 key: z.string().describe("A short name you'll recognize (\"lofi-plan\", \"rhodes-patch\", \"bridge-chords\")"),
@@ -397,7 +396,7 @@ export class Utility implements Member {
             tool("apply_knowledge", "Apply an entry's edits (its apply): fixed operations and scripts, scheduled from the bar you give like your own. Its params are listed in the entry (read it first unless they're obvious: track, amount 0..3, key, from_bar, bars).", {
                 key: z.string(),
                 args: z.record(z.string(), Value).describe("The entry's params by name: {\"track\": \"t2\", \"amount\": 2}, {\"track\": \"t3\", \"key\": \"G major\"}; {} when it has none"),
-                at_bar: z.number().int().describe("The bar its first edit lands on; 0 for as soon as possible. Its later edits keep their spacing from it.")},
+                at_bar: z.number().int().describe("Bars of playing after the producer's message its first edit lands on (1: the next bar line); 0 for as soon as possible. Its later edits keep their spacing from it.")},
                 handler((current, input) => this.#applyKnowledge(current, String(input.key),
                     (input.args ?? {}) as Record<string, unknown>, Number(input.at_bar)))),
             tool("evolve_notes", "Change a notes region's notes, in place, over several stages toward a target: notes both share glide (timing, length, velocity), new ones come in loudest first, old ones go quietest first; the last stage is the target exactly. One edit per stage, each on its own bar.", {
@@ -406,7 +405,7 @@ export class Utility implements Member {
                 to_notes: z.array(z.tuple([z.string(), z.number(), z.number(), z.number()])).describe("The notes to arrive at, as the project shows a region's: [position in the region \"1.1.1:0\", MIDI pitch, length in sixteenths, velocity 0..127]; [] with to_pattern"),
                 key: z.string().describe("For a chord pattern: the key (\"A minor\"); \"\" for the project's"),
                 stages: z.number().int().describe("How many steps to get there, 1 to 16"),
-                at_bar: z.number().int().describe("The bar the first stage lands on; 0 for as soon as possible"),
+                at_bar: z.number().int().describe("Bars of playing after the producer's message the first stage lands on (1: the next bar line); 0 for as soon as possible"),
                 every_bars: z.number().int().describe("Bars between stages, 1 or more")},
                 handler((current, input) => this.#evolve(current, input)))
         ]
@@ -448,7 +447,7 @@ export class Utility implements Member {
         const count = Math.max(1, Math.min(16, Math.round(Number(input.stages) || 1)))
         const every = Math.max(1, Math.round(Number(input.every_bars) || 1))
         const atBar = Number(input.at_bar) || 0
-        const start = atBar > 0 ? atBar : full.playback.bar + 1
+        const start = atBar > 0 ? atBar : 1
         const stages = morphNotes(from, to, count)
         context.card({agent: this.agent, name: this.name, doing: `evolving ${region.name || ref} in ${count} stages`})
         const results: string[] = []
@@ -574,10 +573,9 @@ export class Utility implements Member {
             return
         }
         if (current.anchor !== null) {current.anchor = commitAnchor(current.anchor, now)}
-        const slide = planSlide(steps.map(step => step.bar), now)
         for (const step of steps) {
             if (context.board.step(step.id)?.state !== "sent") {continue}   // cancelled meanwhile
-            const bar = step.bar + slide
+            const bar = step.bar
             const {action} = step
             const owner = "op" in action ? this.#owners.get(action.op) : undefined
             const result = "op" in action

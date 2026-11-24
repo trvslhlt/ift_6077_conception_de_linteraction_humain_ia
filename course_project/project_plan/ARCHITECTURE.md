@@ -459,3 +459,12 @@ These are for the detailed design, whatever the shape:
   loop is left alone (a recalled loop could leave out the playhead, and the guard would roll the whole recall back).
   scenarios/takes.json: both moves recalled, 2 edits each, sent 1.2 and 2.5 s after the move (the session's move back
   was ~32 edits over 47 s of workers). Takes live per opening, archived with the notebook.
+
+- 2026-11-24, a plan's bars are bars of playing after its message. The producer's session (lush lofi) had a tempo plan
+  land 108 → 80 then 119, 113, and the bass's stages 3–8 before 1–2: the workers timed steps in the 4-bar loop's own
+  bars (bar 1: its next wrap), then an arrange piece widened the loop to 16 and "the next wrap" came after the rest.
+  Now at_bar counts like the Team Lead's from_bar/to_bar (1: the next bar line after the message), the page waits that
+  many bars of playing (anchored `when` in Adapter #landing), and commitAnchor moves a late plan by whole bars;
+  planSlide went. Also: a step back of the playhead counts as the loop's wrap only from its last bar to its first; a
+  headless run's engine jittered as the loop was widened, counted ~13 bars, and a whole tempo plan fired at once.
+  Smoke: a plan's steps land in order a bar apart while the loop is widened under them.

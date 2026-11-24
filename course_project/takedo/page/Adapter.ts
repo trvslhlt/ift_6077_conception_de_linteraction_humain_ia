@@ -139,14 +139,22 @@ export class Adapter implements Terminable {
 
     // Counts played pulses: forward motion while playing, and the loop's wrap as the rest of the pass plus the new start.
     #follow(position: ppqn): void {
-        const {engine, timelineBox: {loopArea}} = this.#project
         const last = this.#lastPosition
         this.#lastPosition = position
-        if (!engine.isPlaying.getValue()) {return}
-        if (position >= last) {this.#played += position - last; return}
-        if (loopArea.enabled.getValue()) {
-            this.#played += Math.max(0, loopArea.to.getValue() - last) + Math.max(0, position - loopArea.from.getValue())
-        }
+        if (!this.#project.engine.isPlaying.getValue()) {return}
+        this.#played += this.#advance(last, position)
+    }
+
+    // Pulses played from one reading of the playhead to the next. Going back counts as the loop's wrap only when it
+    // looks like one (from its last bar to its first): any other step back (the producer moving the playhead, or the
+    // engine's position jittering as a loop was widened, 2026-11-24) counts nothing, where it had counted most of a
+    // pass, and a whole plan's waits ran out at once.
+    #advance(last: ppqn, position: ppqn): number {
+        if (position >= last) {return position - last}
+        const {loopArea} = this.#project.timelineBox
+        if (!loopArea.enabled.getValue()) {return 0}
+        const [from, to, bar] = [loopArea.from.getValue(), loopArea.to.getValue(), this.#bar()]
+        return last >= to - bar && position < from + bar ? Math.max(0, to - last) + Math.max(0, position - from) : 0
     }
 
     terminate(): void {
@@ -577,7 +585,6 @@ export class Adapter implements Terminable {
         const bars = landing.after === undefined ? 0 : Math.round(landing.after / this.#bar())
         this.#status(request, {state: "scheduled",
             landsAt: `${this.#pos(landing.at)}${bars > 0 ? ` (after ${bars} bars of playing)` : ""}`})
-        const {loopArea} = this.#project.timelineBox
         let last = engine.position.getValue()
         if (landing.after !== undefined) {
             // Played time, counting each pass of the loop.
@@ -586,8 +593,7 @@ export class Adapter implements Terminable {
                 await this.#clock.tick()
                 if (cancelled()) {return false}
                 const position = engine.position.getValue()
-                played += position >= last ? position - last
-                    : (loopArea.to.getValue() - last) + (position - loopArea.from.getValue())
+                played += this.#advance(last, position)
                 last = position
             }
             return true
@@ -607,10 +613,12 @@ export class Adapter implements Terminable {
     }
 
     // The next beat or bar at least LeadMs ahead of the playhead, or a given bar; asap is now (nothing waits for it).
-    // In a loop, a next beat or bar past the loop's end wraps to its start; a bar inside the loop lands the next time
-    // the playhead reaches it; a bar past its end counts played bars from the playhead, as if the loop were unrolled
-    // (playhead in bar 2, bar 10: after 8 bars of playing), so a plan's later steps keep their spacing; a bar before
-    // the loop is refused (the playhead would never reach it).
+    // A bar with an anchor (from: a plan's steps, decided 2026-11-24) counts bars of playing after the anchor: 1 is the
+    // first bar line after it, 2 the next, through every pass of the loop. So a plan's steps land in their order however
+    // the loop changes meanwhile (a 4-bar loop widened to 16 mid-plan landed a tempo plan's first steps last, and the
+    // tempo went back up). One whose time has gone by lands on the next bar line. Without an anchor, a bar is the
+    // timeline's: in a loop, a bar inside it lands the next time the playhead reaches it, a bar past its end counts
+    // played bars from the playhead, as if the loop were unrolled; a bar before the loop is refused.
     #landing(request: Apply): Landing {
         const {engine, timelineBox: {loopArea}} = this.#project
         const position = engine.position.getValue()
@@ -618,25 +626,21 @@ export class Adapter implements Terminable {
         const looping = loopArea.enabled.getValue()
         const [loopFrom, loopTo] = [loopArea.from.getValue(), loopArea.to.getValue()]
         const {when} = request
+        if (when.at === "bar" && when.from !== undefined) {
+            const bar = this.#bar()
+            const offset = (Math.floor(when.from.position / bar) + Math.max(1, when.bar)) * bar - when.from.position
+            const due = offset - (this.#played - when.from.played)
+            const after = due >= 0 ? due : ((due % bar) + bar) % bar
+            const target = position + after
+            return {at: looping && loopTo > loopFrom && target >= loopTo ? loopFrom + (target - loopFrom) % (loopTo - loopFrom) : target, after}
+        }
         if (when.at === "bar") {
             const at = (when.bar - 1) * this.#bar()
             if (looping && at < loopFrom) {
                 return {error: "not_allowed", detail: `bar ${when.bar} is before the loop (${this.#pos(loopFrom)} to ${this.#pos(loopTo)})`}
             }
-            if (looping && loopTo > loopFrom && (at >= loopTo || when.from !== undefined)) {
-                // From where the playhead is in the loop (or the loop's start, if it's outside and about to jump in).
-                // With an anchor (a plan's steps), every bar counts from where the playhead was then, less what has
-                // played since: a bar inside the loop is its next pass after the anchor (the anchor's own bar: the next
-                // bar line, as "now"), a bar past the end is unrolled, so the steps land in their bars' order. One
-                // whose time has gone by lands on the next bar line.
-                const origin = (from: ppqn) => from >= loopFrom && from < loopTo ? from : loopFrom
-                let after: number
-                if (when.from === undefined) {
-                    after = at - origin(position)
-                } else {
-                    const offset = at - origin(when.from.position)
-                    after = (at < loopTo && offset <= -this.#bar() ? offset + (loopTo - loopFrom) : offset) - (this.#played - when.from.played)
-                }
+            if (looping && loopTo > loopFrom && at >= loopTo) {
+                const after = at - (position >= loopFrom && position < loopTo ? position : loopFrom)
                 const bar = this.#bar()
                 return {at: loopFrom + (at - loopFrom) % (loopTo - loopFrom), after: after >= 0 ? after : ((after % bar) + bar) % bar}
             }

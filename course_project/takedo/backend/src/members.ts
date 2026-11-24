@@ -36,7 +36,7 @@ export type Member = {
 // says: what it did, for the reply ("Keys muted"). then: steps on the effect an add_effect made, once it's on (its
 // parameters have no refs before), from the effect and a fresh snapshot.
 // board: the board's step it carries out (board.ts), linked to its request.
-export type Step = { plan: Plan, when: When, says: string, then?: (added: Device, now: Snapshot) => Step[], board?: string }
+export type Step = { plan: Plan, when: When, says: string, then?: (added: Device, now: Snapshot, anchored: boolean) => Step[], board?: string }
 
 const MinDb = -60, MaxDb = 6
 const db = (value: number): string => value <= MinDb ? "-inf dB" : `${value > 0 ? "+" : ""}${value.toFixed(1)} dB`
@@ -47,14 +47,15 @@ const barOf = (pos: string): number => Number(pos.split(".")[0])
 // comes round again. Returns the bars it slid by.
 const slide = (steps: Step[], now: Snapshot): number => {
     if (now.playback.loop.on || !now.playback.playing) {return 0}
-    const bars = steps.flatMap(step => step.when.at === "bar" ? [step.when.bar] : [])
+    // Anchored bars count bars of playing from the message (the page lands a late one on the next bar line).
+    const bars = steps.flatMap(step => step.when.at === "bar" && step.when.from === undefined ? [step.when.bar] : [])
     if (bars.length === 0) {return 0}
     // In the bar's last beat the next downbeat is too close to land on (the adapter keeps a lead), so aim one later.
     const beat = Number(now.playback.pos.split(".")[1] ?? 1)
     const first = now.playback.bar + (beat >= now.timeline.signature[0] ? 2 : 1)
     const by = first - Math.min(...bars)
     if (by <= 0) {return 0}
-    steps.forEach(step => {if (step.when.at === "bar") {step.when = {at: "bar", bar: step.when.bar + by}}})
+    steps.forEach(step => {if (step.when.at === "bar" && step.when.from === undefined) {step.when = {at: "bar", bar: step.when.bar + by}}})
     return by
 }
 
@@ -86,9 +87,9 @@ const followUp = async (context: Coordinator, agent: Actor, step: Step, status: 
     if (status.state !== "applied" || step.then === undefined || added === undefined) {return []}
     const now = await context.snapshot()
     if (now === null) {return []}
-    // A ramp's bar is on the same timeline as the step that added the effect: it keeps that step's anchor.
+    // A ramp's bar counts like the step that added the effect: from its anchor (bars of playing), else the timeline.
     const from = step.when.at === "bar" ? step.when.from : undefined
-    return Promise.all(step.then(added, now).map(next => performStep(context, agent,
+    return Promise.all(step.then(added, now, from !== undefined).map(next => performStep(context, agent,
         from !== undefined && next.when.at === "bar" ? {...next, when: {...next.when, from}} : next, reason)))
 }
 
@@ -104,7 +105,7 @@ const tool = (name: string, description: string, properties: Record<string, unkn
     name, description, strict: true,
     input_schema: {type: "object", properties, required: Object.keys(properties), additionalProperties: false}
 })
-const AtBar = {type: "integer", description: "The bar the edit lands on (its downbeat); 0 for the next bar"}
+const AtBar = {type: "integer", description: "Bars of playing after the producer's message it lands on (1: the next bar line, 2: the one after), whatever the loop; 0 for the next bar"}
 const OverBeats = {type: "integer", enum: [0, 1, 2, 4, 8, 16, 32], description: "How long the change takes; 0 is instant"}
 const whenFor = (bar: number): When => bar > 0 ? {at: "bar", bar} : {at: "next", unit: "bar"}
 const loopBars = (snapshot: Snapshot) => {
@@ -294,12 +295,12 @@ export class EffectDesigner extends LlmMember {
                 .filter(ramp => device.parameters.some(param => param.path === ramp.param))
             // Ramps keep their spacing from the effect's bar, counted from where it actually landed.
             const lands = bar > 0 ? bar : snapshot.playback.bar + 1
-            const then = (added: Device, now: Snapshot): Step[] => ramps.flatMap(ramp => {
+            const then = (added: Device, now: Snapshot, anchored: boolean): Step[] => ramps.flatMap(ramp => {
                 const param = added.params?.find(param => param.ref === `${added.ref}.${ramp.param}`)
                 if (param === undefined) {return []}
                 const to = Math.min(param.max, Math.max(param.min, ramp.to)), after = ramp.at_bar - lands
                 return [{plan: {op: "ramp", ref: param.ref, to, beats: ramp.over_beats},
-                    when: after > 0 ? {at: "bar", bar: now.playback.bar + after} : {at: "next", unit: "beat"},
+                    when: after > 0 ? {at: "bar", bar: anchored ? ramp.at_bar : now.playback.bar + after} : {at: "next", unit: "beat"},
                     says: `${added.name} ${param.name} → ${to}${ramp.over_beats > 0 ? ` over ${ramp.over_beats} beats` : ""}`}]
             })
             return {plan: {op: "add_effect", track: String(input.track), device: device.key, factory: device.factory,
