@@ -103,7 +103,6 @@ Your first message also has: notebook (its "facts" entry: the key, tempo, meter,
 
 Tools:
 - Fixed operations (volume, pan, mute, set_param, effect_params, and for some pieces add_effect, remove_effect, evolve_notes): use them for anything they cover. They land on the bar you choose, ramp over time (a script can't: it changes things at one instant), and are checked against the controls the producer is holding. Targets are refs from the project; a track or effect your script just made has one once that edit has landed. To ramp an effect you're adding, use add_effect's then.
-- evolve_notes: a part's notes changing over several bars (a groove becoming another, a part thinning out or filling in), not a script per stage. Name where it's going (a knowledge pattern, or the notes written once) and how many stages; code works out each stage and rewrites the region's notes in place, so a looping region changes as it plays.
 - look: run read-only JavaScript to inspect the project. Writes fail here.
 - run: change the project with a short script, for what no fixed operation does. It runs inside one edit: one undo step for the producer, rolled back entirely if it throws. It lands on the bar you choose (0: as soon as possible).
 ${KnowledgeSlot}- recall: read a notebook entry. remember: keep what a later piece will need (a part you wrote as notes, a sound's settings).
@@ -114,7 +113,6 @@ Timing:
 - An edit for a later bar (at_bar above 0) is staged: it answers at once and goes out when you reply, timed from where the playhead was at the producer's message, so its steps land in their bars' order however long you take. at_bar 0 lands at once. Failures of staged edits reach you later. A look sees only what has landed.
 - Land changes ahead of the playhead when timing matters; structural changes (lengths, new regions) can land as soon as possible.
 - When the loop is on (playback.loop), every bar counts from playback_at_message.bar, however long you take to plan it: a bar inside the loop is its next pass after that, a bar past the loop's end counts bars of playing as if the loop were unrolled (playhead in bar 2 of a 4-bar loop: at_bar 2 lands on the next bar line, at_bar 3 after 1 bar, at_bar 1 after 3, at_bar 10 after 8 bars, at the loop's bar 2).
-- A region's notes play on every pass of its loop: rewriting them changes every repeat from when it lands.
 
 Both run a function body with \`takedo\` in scope (its parts are also plain names: project, api, lib, ref, bar, ppqn, pos, snapshot); \`return\` a value to see it (JSON; openDAW objects show as their class name, so return plain data). look's body may await; run's is synchronous.
 
@@ -128,21 +126,38 @@ Both run a function body with \`takedo\` in scope (its parts are also plain name
 - snapshot(): the project, fresh, in the adapter's shape (not quite the summary's): playback (playhead, loop), timeline, tracks[] with ref, name, mix.{volume (dB), pan, mute}, effects[] (key, name, ref, params[] with ref, name, value, display), regions; master.{volume, effects}. Nothing else is in scope (no \`playback\`, \`tracks\` or \`project_summary\` variables).
 
 Recipes that work (inside run):
-- A new named track with a bar of notes: const {audioUnitBox, trackBox, instrumentBox} = api.createInstrument(lib.adapters.InstrumentFactories.Vaporisateur); instrumentBox.label.setValue("Lead"); const region = api.createNoteRegion({trackBox, position: 0, duration: bar, name: "Lead"}); api.createNoteEvent({owner: region, position: 0, duration: lib.dsp.PPQN.Quarter, pitch: 60, velocity: 0.8});
-- A track's name is its instrument's label: ref("t1").inputAdapter.unwrap().labelField.setValue("Bass").
-- An instrument's settings: ref("t2").inputAdapter.unwrap().namedParameter (e.g. Cubed: cutoff, resonance, envMod, decay, accent; Vaporisateur: cutoff, resonance, attack, decay, sustain, release, …); set them with .setValue(v). A drum machine (Playfield) has none: its sounds are samples by pad.
-- A track made in this script has no adapter yet (ref and audioUnits.adapters() don't find it until the edit ends): set its level with audioUnitBox.volume.setValue(dB) and its instrument's settings on instrumentBox's fields (instrumentBox.cutoff.setValue(2200)), with the names namedParameter shows on a track of that instrument. Every field has a range (the box schema's constraints; a parameter's valueMapping); a value outside it can crash the audio engine, so TakeDo brings it back in and the result lists what it corrected.
-- A level at once: ref("t1").namedParameter.volume.setValue(-12) (dB); for a fade over time, use the volume tool instead. Always set parameter values through openDAW's parameter objects like this (namedParameter, or an effect's parameter adapters), never a box's field directly: when the producer records, only those writes become automation. Structural edits (regions, notes, devices) are unaffected.
-- Lengthen a region and loop its content: r.box.loopDuration.setValue(r.loopDuration); r.box.duration.setValue(16 * bar).
-- Tempo over time (a glide is one run, at_bar 0: its points are on the timeline): const tt = project.timelineBox.tempoTrack; tt.enabled.setValue(true); const events = tt.events.targetVertex.unwrap().box.events; delete the points already in that span (events.pointerHub.incoming().map(pointer => pointer.box): each has .position.getValue() and .delete()); then each point: project.boxGraph.createBox("ValueEventBox", lib.std.UUID.generate(), box => {box.events.refer(events); box.position.setValue(ppqn("9.1.1")); box.value.setValue(80); box.index.setValue(0); box.slope.setValue(NaN); box.interpolation.setValue(1)}). Values are BPM (30 to 1000, never normalized); interpolation 1 glides to the next point, so a glide is two points.
 
 Rules:
 - Set up anything you create in the same script that creates it (its name, level, mute, notes), so it's never heard half-made; use the fixed operations for changes over time, after.
 - Keep scripts small, one job each; check the result with a look when it matters.
-- Pitches: write them in the key in facts, and keep each part in its role (a part in the bass register stays the bass). Note names here follow openDAW, where C3 is MIDI 60 (not C4): write pitches by the MIDI numbers facts gives.
-${KeySlot}- Decided limits, for now: ${Limits} \`devices\` lists the devices you may add, by kind, as named in openDAW's factories. Anything else openDAW can do, you can: never answer that it can't be done; look up how and do it.
-- Every edit you stage lands: never stage a placeholder or a test. Bring an effect in gently (dry, or its mix low) and raise it with add_effect's then, not at full strength.
+- Decided limits, for now: ${Limits} \`devices\` lists the devices you may add, by kind, as named in openDAW's factories. Anything else openDAW can do, you can: never answer that it can't be done; look up how and do it.
+- Every edit you stage lands: never stage a placeholder or a test.
 - If something fails twice the same way, stop and say what's in the way.`
+
+// What only one kind of piece needs (2026-11-23): moved out of the shared prompt, so a worker reads its kind's recipes
+// and rules, not every kind's. The kinds are what Jev will classify (board.ts, PieceKinds).
+const KindNotes: Record<PieceKind, string> = {
+    drums: `- evolve_notes: a part's notes changing over several bars (a groove becoming another, a part thinning out or filling in), not a script per stage. Name where it's going (a knowledge pattern, or the notes written once) and how many stages; code works out each stage and rewrites the region's notes in place, so a looping region changes as it plays.
+- A region's notes play on every pass of its loop: rewriting them changes every repeat from when it lands.`,
+    notes: `- evolve_notes: a part's notes changing over several bars (a groove becoming another, a part thinning out or filling in), not a script per stage. Name where it's going (a knowledge pattern, or the notes written once) and how many stages; code works out each stage and rewrites the region's notes in place, so a looping region changes as it plays.
+- A region's notes play on every pass of its loop: rewriting them changes every repeat from when it lands.
+- Pitches: write them in the key in facts, and keep each part in its role (a part in the bass register stays the bass). Note names here follow openDAW, where C3 is MIDI 60 (not C4): write pitches by the MIDI numbers facts gives.
+${KeySlot}`,
+    sound: `- An instrument's settings: ref("t2").inputAdapter.unwrap().namedParameter (e.g. Cubed: cutoff, resonance, envMod, decay, accent; Vaporisateur: cutoff, resonance, attack, decay, sustain, release, …); set them with .setValue(v). A drum machine (Playfield) has none: its sounds are samples by pad.
+- A new named track with a bar of notes: const {audioUnitBox, trackBox, instrumentBox} = api.createInstrument(lib.adapters.InstrumentFactories.Vaporisateur); instrumentBox.label.setValue("Lead"); const region = api.createNoteRegion({trackBox, position: 0, duration: bar, name: "Lead"}); api.createNoteEvent({owner: region, position: 0, duration: lib.dsp.PPQN.Quarter, pitch: 60, velocity: 0.8});
+- A track made in this script has no adapter yet (ref and audioUnits.adapters() don't find it until the edit ends): set its level with audioUnitBox.volume.setValue(dB) and its instrument's settings on instrumentBox's fields (instrumentBox.cutoff.setValue(2200)), with the names namedParameter shows on a track of that instrument. Every field has a range (the box schema's constraints; a parameter's valueMapping); a value outside it can crash the audio engine, so TakeDo brings it back in and the result lists what it corrected.
+- Always set parameter values through openDAW's parameter objects like this (namedParameter, or an effect's parameter adapters), never a box's field directly: when the producer records, only those writes become automation. Structural edits (regions, notes, devices) are unaffected.`,
+    effects: `- Bring an effect in gently (dry, or its mix low) and raise it with add_effect's then, not at full strength.
+- Always set parameter values through openDAW's parameter objects like this (namedParameter, or an effect's parameter adapters), never a box's field directly: when the producer records, only those writes become automation. Structural edits (regions, notes, devices) are unaffected.`,
+    mix: `- A level at once: ref("t1").namedParameter.volume.setValue(-12) (dB); for a fade over time, use the volume tool instead.
+- Always set parameter values through openDAW's parameter objects like this (namedParameter, or an effect's parameter adapters), never a box's field directly: when the producer records, only those writes become automation. Structural edits (regions, notes, devices) are unaffected.`,
+    tempo: `- Tempo over time (a glide is one run, at_bar 0: its points are on the timeline): const tt = project.timelineBox.tempoTrack; tt.enabled.setValue(true); const events = tt.events.targetVertex.unwrap().box.events; delete the points already in that span (events.pointerHub.incoming().map(pointer => pointer.box): each has .position.getValue() and .delete()); then each point: project.boxGraph.createBox("ValueEventBox", lib.std.UUID.generate(), box => {box.events.refer(events); box.position.setValue(ppqn("9.1.1")); box.value.setValue(80); box.index.setValue(0); box.slope.setValue(NaN); box.interpolation.setValue(1)}). Values are BPM (30 to 1000, never normalized); interpolation 1 glides to the next point, so a glide is two points.`,
+    arrange: `- evolve_notes: a part's notes changing over several bars (a groove becoming another, a part thinning out or filling in), not a script per stage. Name where it's going (a knowledge pattern, or the notes written once) and how many stages; code works out each stage and rewrites the region's notes in place, so a looping region changes as it plays.
+- A new named track with a bar of notes: const {audioUnitBox, trackBox, instrumentBox} = api.createInstrument(lib.adapters.InstrumentFactories.Vaporisateur); instrumentBox.label.setValue("Lead"); const region = api.createNoteRegion({trackBox, position: 0, duration: bar, name: "Lead"}); api.createNoteEvent({owner: region, position: 0, duration: lib.dsp.PPQN.Quarter, pitch: 60, velocity: 0.8});
+- A track's name is its instrument's label: ref("t1").inputAdapter.unwrap().labelField.setValue("Bass").
+- A track made in this script has no adapter yet (ref and audioUnits.adapters() don't find it until the edit ends): set its level with audioUnitBox.volume.setValue(dB) and its instrument's settings on instrumentBox's fields (instrumentBox.cutoff.setValue(2200)), with the names namedParameter shows on a track of that instrument. Every field has a range (the box schema's constraints; a parameter's valueMapping); a value outside it can crash the audio engine, so TakeDo brings it back in and the result lists what it corrected.
+- Lengthen a region and loop its content: r.box.loopDuration.setValue(r.loopDuration); r.box.duration.setValue(16 * bar).`,
+}
 
 // The producer's messages, fed to the session as they come (streaming input), so it stays open between them.
 export class Inbox implements AsyncIterable<SDKUserMessage> {
@@ -334,7 +349,7 @@ export class Utility implements Member {
         const inbox = new Inbox()
         return {inbox, query: query({prompt: inbox, options: {
             model, ...(effort !== undefined ? {effort} : {}),
-            systemPrompt: WorkerSystem.replace(KnowledgeSlot, this.#knowledge === null ? "" : KnowledgeTools)
+            systemPrompt: `${WorkerSystem}\n\nFor a ${kind} piece:\n${KindNotes[kind]}`.replace(KnowledgeSlot, this.#knowledge === null ? "" : KnowledgeTools)
                 .replace(KeySlot, this.#knowledge === null ? "" : KnowledgeKey),
             cwd: this.#cwd(),
             tools: SourceTools,
