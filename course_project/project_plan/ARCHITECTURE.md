@@ -530,3 +530,13 @@ These are for the detailed design, whatever the shape:
   the field past the recorder: the take keeps each value as it ends up. The producer's own moves are still recorded
   (smoke test). Next, cycle 2, no overwriting: a ramp written as two linear automation points at its bars, a stage as
   a new region from its bar, so the take holds what was performed.
+
+- 2026-11-25, a recorded jam with the loop off: new parts go where the song is. A live jam (session 4c6cac88) put its
+  new chords and pad at bars 1-17 while the playhead was at bars 15 and 70 (a worker's "bars 1-16" read as timeline
+  bars), so they were never heard, and the Team Lead's fix lengthened them back over bars already played. Now: workers
+  are told that with the loop off a new part starts at the next bar line, its bars counting from the message; the page
+  refuses a script that starts, moves or lengthens a region into bars already played (Adapter #playedProblem, the
+  refusal names the next bar line); and the page keeps every track's last region going (not only those at the song's
+  end), so a part stops only when parked or muted. scenarios/jam.json: the new Chords part from bar 10 (where it was
+  added) to bar 90, still playing where the take stopped (bar 78); the report checks that, using the bar recording
+  stopped at (stopping sends openDAW's playhead to the start). Stages still rewrite notes in place: cycle 2.

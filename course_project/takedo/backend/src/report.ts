@@ -10,7 +10,7 @@ import {type Entry as Activity, ownedBy} from "./ledger.ts"
 
 type Line = { from: string, shown?: string, text: string }
 type Run = {
-    scenario: string, project: string, session?: string, sessions?: string[], started: string, clock?: { start: Tick, end?: Tick }, playing?: boolean, problems: string[]
+    scenario: string, project: string, session?: string, sessions?: string[], started: string, clock?: { start: Tick, end?: Tick }, playing?: boolean, stoppedAtBar?: number, problems: string[]
     before?: Snapshot, after?: Snapshot
     controls?: Array<{ ref: string, label: string, value: number }>
     messages: Array<{ text: string, set?: { ref: string, value: number, ok: boolean }, control?: boolean, restartAfterMs?: number, restartReplies?: number, replyMs: number, settledMs: number, settled: boolean, replies: Line[] }>
@@ -239,6 +239,14 @@ if (before === undefined || after === undefined) {
             return silent.length > 0 && silent.length < to - from ? [`${track.name} (silent in ${silent.length} of the loop's ${to - from} bars, from bar ${silent[0]})`] : []
         })
         check(gaps.length === 0, `${gaps.length} new parts silent for part of each pass of the loop${gaps.length > 0 ? `: ${gaps.join(", ")}` : ""}`)
+    } else if (loop !== undefined && after.playback.playing) {
+        // With the loop off, a new part should still be playing where the song is (2026-11-25: a live jam's chords and
+        // pad were placed at bars 1-17 while the playhead was at bars 15 and 70, and never heard).
+        const now = run.stoppedAtBar ?? after.playback.bar
+        const gone = added.filter(track => !track.mix.mute && !track.regions.some(region =>
+            !region.muted && barOf(region.from) <= now && now < barOf(region.to)))
+            .map(track => `${track.name} (${track.regions.map(region => `${region.from}–${region.to}`).join(", ") || "no regions"})`)
+        check(gone.length === 0, `${gone.length} new parts not playing at the end (bar ${now}, loop off)${gone.length > 0 ? `: ${gone.join(", ")}` : ""}`)
     }
     if (added.length > 0) {out.push(`- New tracks: ${added.map(track => `${track.name} (${track.device?.name ?? track.instrument ?? "?"})`).join(", ")}`)}
     check(failed.length === 0, `${failed.length} edits not done${failed.length > 0 ? `: ${failed.map(entry => entry.detail ?? entry.reason ?? entry.state).join("; ")}` : ""}`)

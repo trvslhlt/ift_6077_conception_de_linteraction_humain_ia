@@ -152,25 +152,33 @@ export class Adapter implements Terminable {
     }
 
     // A jam keeps going (2026-11-24): recording with the loop off, the song mustn't end under the producer (a 16-bar
-    // project stopped at bar 17 and the take with it). A few bars before the end, the parts that run to the end play on
-    // for KeepGoingBars more, their content continuing as it was, and the timeline grows with them: added ahead of the
+    // project stopped at bar 17 and the take with it). A few bars before a part ends (a track's last region, not muted),
+    // it plays on for KeepGoingBars more, its content repeating, and the timeline grows with it: added ahead of the
     // playhead, nothing that has played changes. Not while just playing: a finished song with the loop off ends as it is.
     #extending = false
     #keepGoing(position: ppqn): void {
         const {engine, timelineBox} = this.#project
         if (this.#extending || timelineBox.loopArea.enabled.getValue() || !engine.isRecording.getValue()) {return}
         const bar = this.#bar()
-        const regions = this.#units().flatMap(unit => unit.tracks.values().flatMap(track => track.regions.collection.asArray()))
+        const tracks = this.#units().flatMap(unit => unit.tracks.values())
+        const regions = tracks.flatMap(track => track.regions.collection.asArray())
         const end = regions.reduce((most, region) => Math.max(most, region.complete), 0)
-        if (end === 0 || position < end - KeepAheadBars * bar) {return}
+        // Every part plays on: each track's last region, unless it's muted (parked) (2026-11-25: a part added mid-song
+        // was given an end bar by its worker, the song's old end, and fell silent while the song went on).
+        const ending = tracks.flatMap(track => {
+            const last = track.regions.collection.asArray().reduce<typeof regions[number] | null>((latest, region) =>
+                latest === null || region.complete > latest.complete ? region : latest, null)
+            return last !== null && !last.mute && last.complete > position && last.complete - position <= KeepAheadBars * bar ? [last] : []
+        })
+        if (ending.length === 0) {return}
         this.#extending = true
         setTimeout(() => {
             try {
                 const grow = KeepGoingBars * bar
                 this.#project.editing.modify(() => {
-                    regions.filter(region => region.complete >= end - bar / 2 && !region.mute)
-                        .forEach(region => region.box.duration.setValue(region.duration + grow))
-                    timelineBox.durationInPulses.setValue(Math.max(timelineBox.durationInPulses.getValue(), end + grow))
+                    ending.forEach(region => region.box.duration.setValue(region.duration + grow))
+                    const longest = Math.max(end, ...ending.map(region => region.complete))
+                    timelineBox.durationInPulses.setValue(Math.max(timelineBox.durationInPulses.getValue(), longest))
                 })
             } finally {
                 this.#extending = false
@@ -446,6 +454,7 @@ export class Adapter implements Terminable {
         try {
             this.#tagged(request, () => this.#project.editing.modify(() => {
                 const loop = this.#loopNow()
+                const spans = this.#spans()
                 value = runScript(plan.code, this.#env)
                 if (this.guarding) {
                     corrections = this.#guard()
@@ -453,6 +462,8 @@ export class Adapter implements Terminable {
                     if (tempo !== null) {throw new Error(tempo)}
                     const moved = this.#loopProblem(loop)
                     if (moved !== null) {throw new Error(moved)}
+                    const played = this.#playedProblem(spans)
+                    if (played !== null) {throw new Error(played)}
                 }
             }))
         } catch (error) {
@@ -510,6 +521,38 @@ export class Adapter implements Terminable {
         if (!this.#project.engine.isPlaying.getValue() || (position >= after.from && position < after.to)) {return null}
         return `not applied: the new loop (${this.#pos(after.from)} to ${this.#pos(after.to)}) leaves out the playhead at ${this.#pos(position)}, ` +
             "which would move it; the playhead is the producer's: make the loop include where it is now"
+    }
+
+    // Where each region starts and ends, by address: what a script did to the timeline's past (#playedProblem).
+    #spans(): Map<string, { position: ppqn, complete: ppqn }> {
+        return new Map(this.#units().flatMap(unit => unit.tracks.values().flatMap(track => track.regions.collection.asArray()))
+            .map(region => [region.address.toString(), {position: region.position, complete: region.complete}]))
+    }
+
+    // With the loop off, the bars already played are the producer's take (2026-11-25: a live jam's new chords and pad
+    // were placed from bar 1 while the playhead was at bars 15 and 70, so they were never heard, and a fix lengthened
+    // them back over bars already played). A script may not start a region, move one or lengthen one into them; it
+    // starts a new region from the next bar line instead. Notes rewritten in place aren't caught here (stages, for now).
+    #playedProblem(before: Map<string, { position: ppqn, complete: ppqn }>): string | null {
+        const {engine, timelineBox} = this.#project
+        if (!engine.isPlaying.getValue() || timelineBox.loopArea.enabled.getValue()) {return null}
+        const bar = this.#bar()
+        const played = Math.floor(engine.position.getValue() / bar) * bar
+        const problems = [...this.#spans()].flatMap(([address, {position, complete}]) => {
+            const was = before.get(address)
+            if (was === undefined) {
+                return position < played ? [`a new region from ${this.#pos(position)} to ${this.#pos(complete)}`] : []
+            }
+            if (position < was.position && position < played) {return [`a region moved back to ${this.#pos(position)}`]}
+            if (complete > was.complete && was.complete < played) {
+                return [`a region that ended at ${this.#pos(was.complete)} lengthened to ${this.#pos(complete)}`]
+            }
+            return []
+        })
+        if (problems.length === 0) {return null}
+        return `not applied: the loop is off and bars before ${this.#pos(played)} are already played (the producer's take); ` +
+            `${problems.join("; ")} would reach into them. Start a new region at the next bar line, ` +
+            `${this.#pos(played + bar)} (Math.ceil(project.engine.position.getValue() / bar) * bar), running to the song's end`
     }
 
     #tempoProblem(): string | null {

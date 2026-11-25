@@ -138,6 +138,8 @@ try {
         }
         if (step.record !== undefined) {
             const started = Date.now()
+            // Where the take ended: stopping a recording sends openDAW's playhead back to the start.
+            if (step.record === "stop") {run.stoppedAtBar = await page.evaluate(() => window.takedo.adapter.playback().bar)}
             await page.evaluate(async start => {
                 const {project} = window.takedo.service.projectProfileService.getValue().unwrap()
                 if (start) {project.startRecording(false)} else {project.stopRecording()}
