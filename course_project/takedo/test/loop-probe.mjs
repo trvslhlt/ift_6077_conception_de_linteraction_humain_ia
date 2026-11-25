@@ -48,7 +48,8 @@ try {
     let frozen = null
     result.forEach((sample, index) => {
         const previous = result[index - 1]
-        const moved = previous === undefined ? "" : sample.position === previous.position ? "  FROZEN" : ""
+        // The sample right after widening is taken in the same instant as the one before: no time for the playhead to move.
+        const moved = previous === undefined || index === 1 ? "" : sample.position === previous.position ? "  FROZEN" : ""
         if (moved !== "" && frozen === null) {frozen = sample.label}
         console.log(`${sample.label.padEnd(20)} position ${String(sample.position).padStart(7)}  audio clock ${sample.ctx}${moved}`)
     })
