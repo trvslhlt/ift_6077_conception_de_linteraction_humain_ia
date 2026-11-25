@@ -1,6 +1,6 @@
 import {strict as assert} from "node:assert"
 import {describe, it} from "node:test"
-import {chordHits, numeralChord, parseKey} from "./compose.ts"
+import {chordHits, drumHits, melodyHits, numeralChord, parseKey} from "./compose.ts"
 
 // Chords written by code (compose.ts). Run from backend/: node --test src/compose.test.ts
 
@@ -43,5 +43,41 @@ describe("chords written by code", () => {
         assert.match(String(chordHits({progression: "Xyz:4", voicing: "close", register: "mid", rhythm: "hold"})), /not a chord name/)
         assert.match(String(chordHits({progression: "i:4", voicing: "close", register: "mid", rhythm: "hold"})), /needs the key/)
         assert.match(String(chordHits({progression: "Am:4", voicing: "close", register: "mid", rhythm: "x-x-"})), /sixteenths/)
+    })
+})
+
+describe("mini-notation", () => {
+    it("reads a groove's parts at once, with velocities, one bar per cycle", () => {
+        const groove = drumHits({pattern: "[bd ~ ~ bd ~ ~ bd ~, ~ sd ~ sd:0.4, hh*4]", bars: 1})
+        assert.ok(typeof groove !== "string")
+        assert.equal(groove.beats, 4)
+        assert.deepEqual(groove.hits.filter(([, role]) => role === "kick").map(([beat]) => beat), [0, 1.5, 3])
+        assert.deepEqual(groove.hits.filter(([, role]) => role === "snare"), [[1, "snare", 0.8], [3, "snare", 0.4]])
+        assert.equal(groove.hits.filter(([, role]) => role === "closed_hat").length, 4)
+    })
+    it("alternates across bars and spreads Euclid hits", () => {
+        const turns = drumHits({pattern: "bd <sd cp>", bars: 2})
+        assert.ok(typeof turns !== "string")
+        assert.deepEqual(turns.hits.map(([beat, role]) => [beat, role]), [[0, "kick"], [2, "snare"], [4, "kick"], [6, "clap"]])
+        const euclid = drumHits({pattern: "bd(3,8)", bars: 1})
+        assert.ok(typeof euclid !== "string" && euclid.hits.map(([beat]) => beat).join() === "0,1.5,3")
+    })
+    it("refuses what isn't a drum or isn't mini-notation", () => {
+        assert.match(String(drumHits({pattern: "bd tuba", bars: 1})), /isn't a drum/)
+        assert.match(String(drumHits({pattern: "bd [", bars: 1})), /isn't mini-notation/)
+    })
+    it("writes a line's degrees in the key, in its register, with holds", () => {
+        const line = melodyHits({pattern: "0 2 4 _", bars: 1, register: "low", key: "E minor"})
+        assert.ok(typeof line !== "string")
+        assert.deepEqual(line.hits.map(([beat, pitch]) => [beat, pitch]), [[0, 40], [1, 43], [2, 47]])   // E1 G1 B1, openDAW's
+        assert.equal(line.hits[2][2], 1.9)                                                                  // the fifth held two beats
+        const below = melodyHits({pattern: "-1 7", bars: 1, register: "mid", key: "C major"})
+        assert.ok(typeof below !== "string" && below.hits.map(([, pitch]) => pitch).join() === "47,60")
+    })
+    it("reads note names as openDAW's (C3 = 60), and needs the key for degrees", () => {
+        const named = melodyHits({pattern: "c3 e2", bars: 1, register: "mid"})
+        assert.ok(typeof named !== "string" && named.hits.map(([, pitch]) => pitch).join() === "60,52")
+        assert.match(String(melodyHits({pattern: "0 2", bars: 1, register: "mid"})), /need the key/)
+        assert.match(String(melodyHits({pattern: "0 zz", bars: 1, register: "mid", key: "A minor"})), /isn't a degree/)
     })
 })

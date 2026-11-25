@@ -1,5 +1,14 @@
 import {Chord, Note} from "tonal"
 import type {Hit} from "./generate.ts"
+import {DrumRoles} from "./knowledge.ts"
+
+// Strudel's mini-notation (pinned 1.2.5: 1.2.6's core imports an audio package that doesn't load in Node), quieted: it
+// greets the console on import.
+const {mini} = await (async () => {
+    const {log, warn} = console
+    console.log = console.warn = () => {}
+    try {return await import("@strudel/mini")} finally {Object.assign(console, {log, warn})}
+})()
 
 // Notes from what a producer would say (2026-11-25, STRATEGY.md "Ordinary code libraries do the domain work; models
 // choose"): a worker names the harmony, code writes exact notes. A worker spent most of a job's ~3,000 output tokens
@@ -159,4 +168,83 @@ export const chordHits = (spec: ChordSpec, beatsPerBar = 4): { hits: Hit[], beat
     }
     return {hits: hits.map(([beat, pitch, beats, vel]) => [Number(beat.toFixed(4)), pitch, Number(beats.toFixed(4)), Number(vel.toFixed(3))]),
         beats: Math.ceil(start / beatsPerBar) * beatsPerBar}
+}
+
+// ---------- mini-notation: drums and melodies as one line (Strudel's) ----------
+// A pattern is one bar per cycle: "bd ~ sd ~" is four quarters, "hh*8" eighths, "[bd ~ bd ~, ~ sd ~ sd]" two parts at
+// once, "bd(3,8)" three hits spread over eight, "<sd cp>" one per bar in turn, "~" a rest, "_" holds, ":0.6" a velocity.
+
+export type MiniSpec = { pattern: string, bars: number }
+export type MelodySpec = MiniSpec & { register: Register, key?: string, velocity?: number }
+export type RoleHit = [beat: number, role: string, velocity: number]
+
+type Event = { begin: number, length: number, value: unknown }
+const events = (text: string, bars: number): Event[] | string => {
+    if (text.trim() === "") {return "an empty pattern"}
+    try {
+        const haps = (mini(text) as { queryArc: (from: number, to: number) => Array<{ hasOnset: () => boolean, whole: { begin: { valueOf: () => number }, end: { valueOf: () => number } }, value: unknown }> })
+            .queryArc(0, bars).filter(hap => hap.hasOnset())
+        return haps.map(hap => ({begin: hap.whole.begin.valueOf(), length: hap.whole.end.valueOf() - hap.whole.begin.valueOf(), value: hap.value}))
+            .sort((a, b) => a.begin - b.begin)
+    } catch (error) {
+        return `"${text}" isn't mini-notation (${String((error as Error).message ?? error).split("\n")[0]})`
+    }
+}
+const barsOf = (bars: number): number => Math.max(1, Math.min(16, Math.round(bars) || 1))
+// A value and its velocity: "bd" or ["bd", 0.6] ("bd:0.6").
+const split = (value: unknown, fallback: number): [unknown, number] => Array.isArray(value)
+    ? [value[0], typeof value[1] === "number" && value[1] > 0 ? Math.min(1, value[1]) : fallback] : [value, fallback]
+
+// Drum names as producers and Strudel write them, to TakeDo's roles (knowledge.ts, DrumRoles).
+const DrumWords: Record<string, string> = {bd: "kick", kick: "kick", sd: "snare", snare: "snare", cp: "clap", clap: "clap",
+    rim: "rim", rs: "rim", hh: "closed_hat", ch: "closed_hat", hat: "closed_hat", oh: "open_hat", ride: "ride", rd: "ride",
+    crash: "crash", cr: "crash", lt: "tom_low", mt: "tom_mid", ht: "tom_high", sh: "shaker", shaker: "shaker", perc: "perc"}
+export const drumRoleOf = (word: string): string | null => DrumWords[word.toLowerCase()] ?? (DrumRoles[word] !== undefined ? word : null)
+
+// A drum pattern's hits, [beat, role, velocity], and the beats it loops over.
+export const drumHits = (spec: MiniSpec, beatsPerBar = 4): { hits: RoleHit[], beats: number } | string => {
+    const bars = barsOf(spec.bars)
+    const found = events(spec.pattern, bars)
+    if (typeof found === "string") {return found}
+    const hits: RoleHit[] = []
+    for (const event of found) {
+        const [word, velocity] = split(event.value, 0.8)
+        const role = drumRoleOf(String(word))
+        if (role === null) {return `"${String(word)}" isn't a drum (bd, sd, cp, rim, hh, oh, ride, crash, lt, mt, ht, sh, perc)`}
+        hits.push([Number((event.begin * beatsPerBar).toFixed(4)), role, velocity])
+    }
+    if (hits.length === 0) {return `"${spec.pattern}" has no hits`}
+    return {hits, beats: bars * beatsPerBar}
+}
+
+// Where a melody's degree 0 (the key's tonic) sits: the octave of each register its tonic starts in.
+const TonicFrom: Record<Register, number> = {low: 36, mid: 48, high: 60}
+
+// A melody's notes, [beat, pitch, beats, velocity]: numbers are degrees of the key's scale (0 the tonic, 7 an octave up,
+// -1 the degree below), note names are openDAW's (C3 = MIDI 60).
+export const melodyHits = (spec: MelodySpec, beatsPerBar = 4): { hits: Hit[], beats: number } | string => {
+    const bars = barsOf(spec.bars)
+    const found = events(spec.pattern, bars)
+    if (typeof found === "string") {return found}
+    const key = spec.key ? parseKey(spec.key) : null
+    const scale = key === null ? null : Modes[key.mode]
+    const tonic = key === null ? 0 : TonicFrom[spec.register] + key.tonic
+    const hits: Hit[] = []
+    for (const event of found) {
+        const [value, velocity] = split(event.value, spec.velocity ?? 0.75)
+        let pitch: number
+        if (typeof value === "number") {
+            if (scale === null) {return "scale degrees need the key (\"E minor\"); or write note names (e2, g#3)"}
+            const step = Math.round(value), octave = Math.floor(step / 7)
+            pitch = tonic + scale[step - octave * 7] + 12 * octave
+        } else {
+            const midi = Note.midi(String(value))
+            if (midi === null || !/\d$/.test(String(value))) {return `"${String(value)}" isn't a degree (0, 2, -3) or a note with its octave (e2, f#3)`}
+            pitch = midi + 12      // tonal's C4 is 60; openDAW's C3 is
+        }
+        if (pitch < 0 || pitch > 127) {return `"${String(value)}" is out of MIDI's range`}
+        hits.push([Number((event.begin * beatsPerBar).toFixed(4)), pitch, Number(Math.max(0.1, event.length * beatsPerBar * 0.95).toFixed(4)), velocity])
+    }
+    if (hits.length === 0) {return `"${spec.pattern}" has no notes`}
+    return {hits, beats: bars * beatsPerBar}
 }

@@ -7,10 +7,10 @@ import type {Actor, Note, Plan, Snapshot, Status, When} from "../../shared/proto
 import {type Action, type Anchor, commitAnchor, type Direction, type Piece, type PieceKind, PieceKinds, type Step as BoardStep} from "./board.ts"
 import type {Coordinator} from "./coordinator.ts"
 import type {Catalog} from "./catalog.ts"
-import {type Knowledge, shortlist} from "./knowledge.ts"
+import {drumMap, type Knowledge, shortlist} from "./knowledge.ts"
 import {analyse} from "./analysis.ts"
 import {hitOf, morphNotes, targetHitOf, tile} from "./generate.ts"
-import {chordHits, type ChordSpec} from "./compose.ts"
+import {chordHits, type ChordSpec, drumHits, melodyHits, type MelodySpec, type MiniSpec} from "./compose.ts"
 import {Kinds, type Kind} from "./notebook.ts"
 import {Limits, type LlmMember, type Member, performStep, projectFor, type Task} from "./members.ts"
 
@@ -142,12 +142,14 @@ Rules:
 const KindNotes: Record<PieceKind, string> = {
     drums: `- evolve_notes: a part's notes changing over several bars (a groove becoming another, a part thinning out or filling in), not a script per stage. Name where it's going (a knowledge pattern, or the notes written once) and how many stages; code works out each stage and rewrites the region's notes in place, so a looping region changes as it plays.
 - A region's notes play on every pass of its loop: rewriting them changes every repeat from when it lands.
+- Grooves as one line of mini-notation, code writes the hits: make_kit's drums, write_part's drums, evolve_notes's to_drums (\"[bd ~ ~ bd ~ ~ bd ~, ~ sd ~ sd, hh*8]\"; sd:0.4 a ghost note, <sd cp> a different one each bar with bars 2).
 - A style's drum sound (trap, house, techno, boom-bap, 80s) is a new kit, not new notes on the old one: apply_knowledge a kit entry (sound/kit-trap-808, kit-house-909, kit-boombap-mpc60, kit-boombap-sp12, kit-synthpop-linndrum) with the style's pattern and from_bar, or make_kit with samples you pick (samples finds them across 70 drum machines); then park (mute) the old drums at the bar the kit starts, so the two never play together.`,
     notes: `- A new part's sound (2026-11-25, the producer: sounds outside the drums were grating and not genre appropriate): pick a sampled instrument first: the knowledge base's \"Sampled instruments\" entries name a genre's usual ones (bass, keys, guitar, strings, pads, brass, leads) with their registers; sounds finds the rest of 300 (GeneralUser GS and openDAW's). make_instrument makes the track with its notes. Set a synth (Vaporisateur, Tubular) by hand only for a sound no sample has or when the producer asks for a synth, and then start from a knowledge sound entry. Play a sampled instrument in its register.
 - evolve_notes: a part's notes changing over several bars (a groove becoming another, a part thinning out or filling in), not a script per stage. Name where it's going (a knowledge pattern, or the notes written once) and how many stages; code works out each stage and rewrites the region's notes in place, so a looping region changes as it plays.
 - A region's notes play on every pass of its loop: rewriting them changes every repeat from when it lands.
 - An 808 bass (trap, drill, modern hip hop) is make_sampler: a long TR-808 kick played as notes (sound/808-bass), roots in the key around the kick, long notes with gaps.
-- Chords (pads, keys, strings, comping): write the progression, not the notes: make_instrument's chords, write_part's chords (a part on a track that exists, e.g. one a sound entry made empty) and evolve_notes's to_chords take chord names or numerals, a voicing, a register and a rhythm, and code writes the notes in key, voice-led. Write notes yourself for melodies and bass lines.
+- Chords (pads, keys, strings, comping): write the progression, not the notes: make_instrument's chords, write_part's chords (a part on a track that exists, e.g. one a sound entry made empty) and evolve_notes's to_chords take chord names or numerals, a voicing, a register and a rhythm, and code writes the notes in key, voice-led.
+- Bass lines, riffs and melodies: one line of mini-notation in scale degrees (melody, to_melody: \"0 ~ 0 [2 4] ~ 4 _ 3\", 0 the key's tonic), and code writes the notes in key; notes by hand only for what it can't say.
 - Pitches: write them in the key in facts, and keep each part in its role (a part in the bass register stays the bass). Note names here follow openDAW, where C3 is MIDI 60 (not C4): write pitches by the MIDI numbers facts gives.
 ${KeySlot}
 - A new named track with a bar of notes: const {audioUnitBox, trackBox, instrumentBox} = api.createInstrument(lib.adapters.InstrumentFactories.Vaporisateur); instrumentBox.label.setValue("Lead"); const region = api.createNoteRegion({trackBox, position: 0, duration: bar, name: "Lead"}); api.createNoteEvent({owner: region, position: 0, duration: lib.dsp.PPQN.Quarter, pitch: 60, velocity: 0.8});
@@ -234,6 +236,18 @@ const ChordsArg = z.object({
     register: z.enum(["low", "mid", "high"]).describe("Where the voices sit: low (MIDI 40–62), mid (52–76: keys), high (64–88)"),
     rhythm: z.string().describe("\"hold\" (each chord for its length), or one bar of sixteenths, x a hit, X an accent, . a rest, repeated over each chord: \"x...x...x...x...\" (quarters), \"..x...x...x...x.\" (offbeats), \"x..x..x.x...x...\"")
 }).describe("Or the part as chords, notes written by code: in key, each chord led to the nearest voicing of the last. progression \"\" to give notes instead")
+
+// Drums and melodies as one line of Strudel's mini-notation (compose.ts): one bar per cycle, code writes the hits.
+const MiniBars = z.number().int().describe("How many bars it runs before repeating, 1 to 16 (more than 1 with <a b> alternation: one per bar)")
+const DrumsArg = z.object({
+    pattern: z.string().describe("One bar of drums in Strudel mini-notation, parts at once split by commas: \"[bd ~ ~ bd ~ ~ bd ~, ~ sd ~ sd, hh*8]\" (bd kick, sd snare, cp clap, rim, hh closed hat, oh open hat, ride, crash, lt/mt/ht toms, sh shaker, perc; ~ a rest, x*8 repeats, bd(3,8) Euclid, <sd cp> one per bar, sd:0.5 a velocity 0..1 for ghost notes); \"\" for none"),
+    bars: MiniBars
+}).describe("Or the groove as mini-notation, hits written by code")
+const MelodyArg = z.object({
+    pattern: z.string().describe("A line in Strudel mini-notation, one bar per cycle: scale degrees of the key (0 the tonic, 2 the third, 4 the fifth, 7 the octave, -3 below; \"0 ~ 0 [2 4] ~ 4 _ 3\"; _ holds the note before, ~ a rest, [..] splits a step, <a b> one per bar, 4:0.5 a velocity 0..1), or note names with octaves, openDAW's (C3 = MIDI 60: \"e1 ~ e1 g1\"); \"\" for none"),
+    bars: MiniBars,
+    register: z.enum(["low", "mid", "high"]).describe("Where degree 0 sits: low (a bass: the tonic from MIDI 36), mid (48), high (60)")
+}).describe("Or a bass line, riff or melody as mini-notation, notes written by code in the key")
 
 // A new track's name says its role and sound, as a producer labels a track (2026-11-25, the producer: "I don't know what
 // 'Cubed' means, but I know what 'acid bass' is"); it's also what Jev reads to tell the parts apart.
@@ -429,15 +443,19 @@ export class Utility implements Member {
                 to_pattern: z.string().describe("A knowledge pattern entry to arrive at (\"pattern/boombap-1\"), repeated to fill the region's loop; \"\" to give to_notes"),
                 to_notes: z.array(z.tuple([z.string(), z.number(), z.number(), z.number()])).describe("The notes to arrive at, as the project shows a region's: [position in the region \"1.1.1:0\", MIDI pitch, length in sixteenths, velocity 0..127]; [] with to_pattern or to_chords"),
                 to_chords: ChordsArg,
+                to_melody: MelodyArg,
+                to_drums: DrumsArg,
                 key: z.string().describe("For a chord pattern: the key (\"A minor\"); \"\" for the project's"),
                 stages: z.number().int().describe("How many steps to get there, 1 to 16"),
                 at_bar: z.number().int().describe("Bars of playing after the producer's message the first stage lands on (1: the next bar line); 0 for as soon as possible"),
                 every_bars: z.number().int().describe("Bars between stages, 1 or more")},
                 handler((current, input) => this.#evolve(current, input))),
-            tool("write_part", "Write a part onto an existing notes track (one made with no notes, or one whose part you're replacing from a bar on): chords by code, or notes as written, looping. Replaces what the track had in those bars; the track's sound stays.", {
+            tool("write_part", "Write a part onto an existing notes track (one made with no notes, or one whose part you're replacing from a bar on): chords, a melody or drums by code, or notes as written, looping. Replaces what the track had in those bars; the track's sound stays.", {
                 track: z.string().describe("The track's ref (t4)"),
                 notes: z.array(z.tuple([z.number(), z.number(), z.number(), z.number()])).describe("[beat from 0, MIDI pitch, length in beats, velocity 0..1]; [] with chords"),
                 chords: ChordsArg,
+                melody: MelodyArg,
+                drums: DrumsArg,
                 loop_bars: z.number().int().describe("How many bars the notes loop over; 0 for 1 (with chords: the progression's length)"),
                 from_bar: z.number().int().describe("The timeline bar the part's region starts on (with the loop off: the next bar line after the edit lands, never a bar already played); 0 to cover the bars the other parts cover"),
                 bars: z.number().int().describe("How many bars the region runs (with the loop off: to the song's end); 0 for the default"),
@@ -478,7 +496,7 @@ export class Utility implements Member {
         const make = (kind: "kit" | "sampler" | "soundfont") => async (current: Current, given: Record<string, unknown>): Promise<string> => {
             const snapshot = await current.context.snapshot()
             if (snapshot === null) {return "Not done: no project is open."}
-            const input = this.#withChords(current.context, given, snapshot.timeline.signature[0])
+            const input = this.#withComposed(current.context, given, snapshot.timeline.signature[0])
             if (typeof input === "string") {return `Not done: ${input}.`}
             const made = knowledge[kind](shape(kind, input), snapshot)
             if (typeof made === "string") {return `Not done: ${made}.`}
@@ -506,6 +524,7 @@ export class Utility implements Member {
                 pattern: z.string().describe("A knowledge drum pattern to play (\"pattern/trap-halftime\"); \"\" for hits or none"),
                 hits: z.array(z.tuple([z.number(), z.string(), z.number()])).describe("Or the groove written out: [beat from 0, role, velocity 0..1], 16ths are 0.25 beats; [] for none"),
                 beats: z.number().describe("How many beats the hits loop over (4: one bar of 4/4); 0 with a pattern"),
+                drums: DrumsArg,
                 volume_db: z.number().describe("The track's volume, dB; 0 for unity"),
                 ...Placement},
                 handler(make("kit"))),
@@ -517,6 +536,7 @@ export class Utility implements Member {
                 release: z.number().describe("Release after a note ends, seconds (0.001..8); 0 for the default 0.1 (an 808 bass: 0.2–0.5)"),
                 notes: z.array(z.tuple([z.number(), z.number(), z.number(), z.number()])).describe("[beat from 0, MIDI pitch, length in beats, velocity 0..1]; [] for none or with chords"),
                 chords: ChordsArg,
+                melody: MelodyArg,
                 loop_bars: z.number().int().describe("How many bars the notes loop over; 0 for 1 (with chords: the progression's length)"),
                 volume_db: z.number().describe("The track's volume, dB; 0 for unity"),
                 ...Placement},
@@ -539,6 +559,7 @@ export class Utility implements Member {
                     sound: z.string().describe("A sound id from sounds (\"GeneralUser GS/Finger Bass\")"),
                     notes: z.array(z.tuple([z.number(), z.number(), z.number(), z.number()])).describe("[beat from 0, MIDI pitch, length in beats, velocity 0..1]; [] for none or with chords"),
                     chords: ChordsArg,
+                    melody: MelodyArg,
                     loop_bars: z.number().int().describe("How many bars the notes loop over; 0 for 1 (with chords: the progression's length)"),
                     volume_db: z.number().describe("The track's volume, dB; 0 for unity"),
                     ...Placement},
@@ -568,22 +589,49 @@ export class Utility implements Member {
     }
 
     // A make_* tool's chords, written into its notes (and its loop, the progression's length) by code.
-    #withChords(context: Coordinator, input: Record<string, unknown>, beatsPerBar: number): Record<string, unknown> | string {
+    // A tool's chords or melody written into its notes (and loop), its drums into its hits (and beats), by code.
+    #withComposed(context: Coordinator, input: Record<string, unknown>, beatsPerBar: number): Record<string, unknown> | string {
         const chords = input.chords as ChordSpec | undefined
-        if (chords === undefined || chords.progression.trim() === "") {return input}
-        const written = chordHits({...chords, key: this.#factsKey(context) || undefined}, beatsPerBar)
-        if (typeof written === "string") {return written}
-        context.card({agent: this.agent, name: this.name, doing: `chords by code: ${chords.progression}`})
-        return {...input, notes: written.hits, loop_bars: Number(input.loop_bars) || written.beats / beatsPerBar}
+        if (chords !== undefined && chords.progression.trim() !== "") {
+            const written = chordHits({...chords, key: this.#factsKey(context) || undefined}, beatsPerBar)
+            if (typeof written === "string") {return written}
+            context.card({agent: this.agent, name: this.name, doing: `chords by code: ${chords.progression}`})
+            return {...input, notes: written.hits, loop_bars: Number(input.loop_bars) || written.beats / beatsPerBar}
+        }
+        const melody = input.melody as MelodySpec | undefined
+        if (melody !== undefined && melody.pattern.trim() !== "") {
+            const written = melodyHits({...melody, key: this.#factsKey(context) || undefined}, beatsPerBar)
+            if (typeof written === "string") {return written}
+            context.card({agent: this.agent, name: this.name, doing: `notes by code: ${melody.pattern}`})
+            return {...input, notes: written.hits, loop_bars: written.beats / beatsPerBar}
+        }
+        const drums = input.drums as MiniSpec | undefined
+        if (drums !== undefined && drums.pattern.trim() !== "") {
+            const written = drumHits(drums, beatsPerBar)
+            if (typeof written === "string") {return written}
+            context.card({agent: this.agent, name: this.name, doing: `drums by code: ${drums.pattern}`})
+            return {...input, pattern: "", hits: written.hits, beats: written.beats}
+        }
+        return input
     }
 
     // A part onto an existing track (knowledge.part, kb.pattern), its chords written by code.
     async #writePart(current: Current, given: Record<string, unknown>): Promise<string> {
-        const snapshot = await current.context.snapshot()
+        const snapshot = await current.context.snapshot("full")
         if (snapshot === null) {return "Not done: no project is open."}
-        const input = this.#withChords(current.context, given, snapshot.timeline.signature[0])
+        const beatsPerBar = snapshot.timeline.signature[0]
+        const input = this.#withComposed(current.context, given, beatsPerBar)
         if (typeof input === "string") {return `Not done: ${input}.`}
-        const notes = (input.notes ?? []) as unknown[]
+        let notes = (input.notes ?? []) as unknown[]
+        if (Array.isArray(input.hits)) {        // drums: each role on the track's pad for it
+            const hits = input.hits as Array<[number, string, number]>
+            const track = snapshot.tracks.find(candidate => candidate.ref === input.track || candidate.name === input.track)
+            if (track === undefined) {return `Not done: no track ${String(input.track)}.`}
+            const mapped = drumMap(new Set(hits.map(([, role]) => role)), track)
+            if (typeof mapped === "string") {return `Not done: ${mapped}.`}
+            notes = hits.map(([beat, role, velocity]) => [beat, mapped.notes[role], 0.25, velocity])
+            input.loop_bars = Number(input.beats) / beatsPerBar
+        }
         const made = this.#knowledge!.part({track: input.track, notes: {notes, loop_bars: Number(input.loop_bars) || 1,
             from_bar: Number(input.from_bar) || 0, bars: Number(input.bars) || 0}}, snapshot)
         if (typeof made === "string") {return `Not done: ${made}.`}
@@ -625,7 +673,25 @@ export class Utility implements Member {
             says.push(`chords ${chords.progression}`)
             context.card({agent: this.agent, name: this.name, doing: `chords by code: ${chords.progression}`})
         }
-        if (to.length === 0) {return "Not done: give the target, as to_pattern, to_notes or to_chords."}
+        const melody = input.to_melody as MelodySpec | undefined
+        if (melody !== undefined && melody.pattern.trim() !== "") {
+            const written = melodyHits({...melody, key: this.#factsKey(context) || undefined}, beatsPerBar)
+            if (typeof written === "string") {return `Not done: ${written}.`}
+            to = tile(written.hits, written.beats, loopBeats)
+            says.push(`notes ${melody.pattern}`)
+            context.card({agent: this.agent, name: this.name, doing: `notes by code: ${melody.pattern}`})
+        }
+        const drums = input.to_drums as MiniSpec | undefined
+        if (drums !== undefined && drums.pattern.trim() !== "") {
+            const written = drumHits(drums, beatsPerBar)
+            if (typeof written === "string") {return `Not done: ${written}.`}
+            const mapped = drumMap(new Set(written.hits.map(([, role]) => role)), track)
+            if (typeof mapped === "string") {return `Not done: ${mapped}.`}
+            to = tile(written.hits.map(([beat, role, velocity]) => [beat, mapped.notes[role], 0.25, velocity]), written.beats, loopBeats)
+            says.push(`drums ${drums.pattern}`, ...mapped.says)
+            context.card({agent: this.agent, name: this.name, doing: `drums by code: ${drums.pattern}`})
+        }
+        if (to.length === 0) {return "Not done: give the target, as to_pattern, to_notes, to_chords, to_melody or to_drums."}
         const count = Math.max(1, Math.min(16, Math.round(Number(input.stages) || 1)))
         const every = Math.max(1, Math.round(Number(input.every_bars) || 1))
         const atBar = Number(input.at_bar) || 0
