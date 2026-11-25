@@ -790,17 +790,44 @@ export class Coordinator {
                 if (snapshot === null) {throw new Error("no project open")}
                 return writeOverview(this.#gateway, this.#catalog, this.modelLog(), snapshot)
             })
-            .then(overview => {
+            .then(async ({overview, names}) => {
                 if (!done("done")) {return}
-                this.#log.write("overview", overview)
-                this.#send({type: "overview", state: "done", overview})
-                this.#factsOverview(overview.lines)
+                const renamed = await this.#rename(names)
+                const shown = renamed.length === 0 ? overview
+                    : {...overview, lines: [...overview.lines, {label: "Renamed", text: `${renamed.join(", ")}, for what they play.`}]}
+                this.#log.write("overview", shown)
+                this.#send({type: "overview", state: "done", overview: shown})
+                this.#factsOverview(shown.lines)
             })
             .catch(error => {
                 if (!done("none")) {return}
                 this.#log.write("overview", {error: String(error)})
                 this.#send({type: "overview", state: "failed", detail: `The Team Lead couldn't read the project: ${String(error)}`})
             })
+    }
+
+    // Tracks named after their instrument get the overview's names (teamLead.ts, deviceNamed): one edit, the Team
+    // Lead's, undoable. Returns "Cubed → Acid Bass" for each track renamed.
+    async #rename(names: Record<string, string>): Promise<string[]> {
+        const snapshot = await this.snapshot()
+        if (snapshot === null || Object.keys(names).length === 0) {return []}
+        const pairs = Object.entries(names).flatMap(([ref, name]) => {
+            const track = snapshot.tracks.find(track => track.ref === ref)
+            return track === undefined || track.name === name ? [] : [{ref, from: track.name, to: name}]
+        })
+        if (pairs.length === 0) {return []}
+        const code = `for (const [track, name] of ${JSON.stringify(pairs.map(({ref, to}) => [ref, to]))}) ` +
+            `ref(track).inputAdapter.unwrap().labelField.setValue(name)`
+        const reason = "naming tracks for what they play"
+        if (!this.claim("agent:team_lead", ["project.script"], reason).ok) {return []}
+        try {
+            const status = await this.request("agent:team_lead", {op: "script", code,
+                description: `Tracks named for what they play: ${pairs.map(({from, to}) => `${from} → ${to}`).join(", ")}`},
+                {at: "asap"}, snapshot.at.seq, reason)
+            return status.state === "applied" ? pairs.map(({from, to}) => `${from} → ${to}`) : []
+        } finally {
+            this.release("agent:team_lead", ["project.script"])
+        }
     }
 
     #change(event: ChangeEvent): void {

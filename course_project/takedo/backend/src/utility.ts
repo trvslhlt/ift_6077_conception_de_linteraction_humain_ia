@@ -223,6 +223,11 @@ const withEveryTool = (snapshot: Snapshot): Snapshot => ({...snapshot, master: {
     ...snapshot.master.effects, {key: "any", name: "any", enabled: true, ref: "master.fx0",
         params: [{ref: "master.fx0.any", name: "any", value: 0, display: "0", min: 0, max: 1, stepped: false}]}]}})
 
+// A new track's name says its role and sound, as a producer labels a track (2026-11-25, the producer: "I don't know what
+// 'Cubed' means, but I know what 'acid bass' is"); it's also what Jev reads to tell the parts apart.
+const TrackName = "The track's name: its role and sound, as a producer labels a track (\"Acid Bass\", \"808 Bass\", \"Lofi Keys\", " +
+    "\"Trap Kit\", \"Muted Guitar\"); not an instrument's or device's name (\"Cubed\", \"Vaporisateur\"), nor a song or reference (\"Halogalo Riff\")"
+
 export class Utility implements Member {
     readonly agent: Actor = "agent:utility"
     readonly role = "utility"
@@ -471,7 +476,7 @@ export class Utility implements Member {
                         : found.map(sample => `${sample.id} (${sample.role ?? "?"}, ${sample.duration.toFixed(2)} s)`).join("\n")
                 }), {annotations: {readOnlyHint: true}}),
             tool("make_kit", "A new drum track: a kit (openDAW's Playfield) of samples you pick, one per role, optionally playing a groove from the start. The pads get role names, so knowledge drum patterns and evolve_notes find them. The old drums stay: park them (mute) when the new kit comes in.", {
-                name: z.string().describe("The track's name (\"Trap Kit\")"),
+                name: z.string().describe(TrackName),
                 pads: z.array(z.object({role: z.string().describe("kick, snare, clap, rim, closed_hat, open_hat, ride, crash, tom_low, tom_mid, tom_high, shaker, perc"),
                     sample: z.string().describe("A sample id from samples (\"RolandTR808/bd/BD0010\")")})),
                 pattern: z.string().describe("A knowledge drum pattern to play (\"pattern/trap-halftime\"); \"\" for hits or none"),
@@ -481,7 +486,7 @@ export class Utility implements Member {
                 ...Placement},
                 handler(make("kit"))),
             tool("make_sampler", "A new sampler track (openDAW's Nano): one sample played across the keys at pitch, e.g. an 808 bass from a long TR-808 kick (RolandTR808/bd/BD0010 or BD5010: 3 s, sounding G1, root_key 31, tune -35), optionally with notes.", {
-                name: z.string().describe("The track's name (\"808\")"),
+                name: z.string().describe(TrackName),
                 sample: z.string().describe("A sample id from samples"),
                 root_key: z.number().int().describe("The MIDI note the sample sounds at as recorded (60 if unknown or unpitched)"),
                 tune: z.number().describe("Fine tuning, cents, -1200..1200; 0 for none"),
@@ -505,7 +510,7 @@ export class Utility implements Member {
                             : found.map(sound => sound.source === "preset" ? `${sound.id} (${sound.device}${sound.about ? `: ${sound.about}` : ""})` : sound.id).join("\n")
                     }), {annotations: {readOnlyHint: true}}),
                 tool("make_instrument", "A new track playing a sound from sounds (a soundfont preset on openDAW's Soundfont device, or an openDAW factory preset on its synth), optionally with notes from the start. Set its sound once; its notes play as written (keep a bass in the bass register).", {
-                    name: z.string().describe("The track's name (\"Bass\")"),
+                    name: z.string().describe(TrackName),
                     sound: z.string().describe("A sound id from sounds (\"GeneralUser GS/Finger Bass\")"),
                     notes: z.array(z.tuple([z.number(), z.number(), z.number(), z.number()])).describe("[beat from 0, MIDI pitch, length in beats, velocity 0..1]; [] for none"),
                     loop_bars: z.number().int().describe("How many bars the notes loop over; 0 for 1"),
