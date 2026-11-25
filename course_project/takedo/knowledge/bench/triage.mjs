@@ -4,7 +4,8 @@
 //   msg    what the producer typed (@mentions kept: older sessions addressed members by name)
 //   path   mix: one mixer move, code can do it (part and move below) | effect: one audio effect on one part | team: the Team Lead
 //   part   for mix and effect: the track ref (Project, below), or whole_mix; null when the message doesn't say
-//   move   for mix: quieter | louder | mute | unmute | pan_left | pan_right | center
+//   move   for mix: quieter | louder | mute | unmute | pan_left | pan_right | center | back; a list when either is right
+//   recent the chat just before (follow-ups: "bring them back up" after "lower the drums"), oldest first
 //   src    observed (takedo/sessions logs, 2026-11-20..25) | simulated
 //
 // The drums and the bass are named as in the jam project (TR-808, Cubed): a part's name often doesn't say its role.
@@ -23,9 +24,10 @@ export const Project = {
     }
 }
 
-const mix = (msg, part, move, src = "observed") => ({msg, path: "mix", part, move, src})
-const effect = (msg, part, src = "observed") => ({msg, path: "effect", part, src})
-const team = (msg, src = "observed") => ({msg, path: "team", src})
+const mix = (msg, part, move, src = "observed", recent = []) => ({msg, path: "mix", part, move, src, recent})
+const effect = (msg, part, src = "observed", recent = []) => ({msg, path: "effect", part, src, recent})
+const team = (msg, src = "observed", recent = []) => ({msg, path: "team", src, recent})
+const said = (user, team_lead) => [{from: "user", text: user}, {from: "team_lead", text: team_lead}]
 
 export const Messages = [
     // ---------- mix: one mixer move ----------
@@ -51,6 +53,18 @@ export const Messages = [
     mix("slowly fade the drums out", "t1", "quieter", "simulated"),
     mix("more bass", "t3", "louder", "simulated"),
     mix("the guitar is drowning everything", "t6", "quieter", "simulated"),
+
+    // ---------- follow-ups: what they refer to is in the chat just before ----------
+    mix("bring them back up", "t1", ["louder", "back"], "observed", said("lower the drums", "TR-808 down 4 dB.")),
+    mix("a bit more", "t3", "quieter", "simulated", said("the bass is a bit too loud", "Cubed down 4 dB.")),
+    mix("undo that", "t3", ["back", "center"], "simulated", said("pan the bass a little to the left", "Cubed panned 25% left.")),
+    mix("the keys too", "t2", "quieter", "simulated", said("lower the drums", "TR-808 down 4 dB.")),
+    mix("and the pad", "t4", "mute", "simulated", said("mute the guitar", "Guitar muted.")),
+    mix("too much, put it back", "t1", ["back", "louder"], "simulated", said("lower the drums", "TR-808 down 4 dB.")),
+    mix("louder", "t2", "louder", "simulated", said("the keys are a bit too quiet", "Keys up 4 dB.")),
+    effect("a bit more", "whole_mix", "simulated", said("more reverb", "I'm bringing the master reverb up over the next four bars.")),
+    team("no, the other one", "simulated", said("lower the drums", "TR-808 down 4 dB.")),
+    team("why did you do that?", "simulated", said("lower the drums", "TR-808 down 4 dB.")),
 
     // ---------- effect: one audio effect on one part ----------
     effect("@effect_designer give the keys a big lush reverb", "t2"),

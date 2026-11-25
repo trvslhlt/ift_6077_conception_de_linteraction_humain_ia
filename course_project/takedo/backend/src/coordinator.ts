@@ -19,7 +19,7 @@ import type {LlmMember} from "./members.ts"
 import {analyse, isDrums} from "./analysis.ts"
 import type {Knowledge} from "./knowledge.ts"
 import {Utility} from "./utility.ts"
-import {triage, triageState} from "./triage.ts"
+import {type Line, triage, triageState} from "./triage.ts"
 import {fastMix} from "./fastpath.ts"
 
 // The backend half of the bus (TAKEDO_API.md, "Overview"), one per connected page: claims, plans, chat, routing.
@@ -86,6 +86,7 @@ export class Coordinator {
     #opening: string | undefined = undefined   // the page's id for this opening of the project (protocol.ts)
     readonly #notebooks: string
     #takes: Takes = new Takes(null)        // the open project's takes (takes.ts)
+    readonly #mixBefore = new Map<string, number>()    // each mix control's value before its latest change, latest last ("back")
     readonly #recentChanges: Array<{ t: number, pos: string, actor: string, label: string, from: unknown, to: unknown }> = []
     readonly #blending = new Map<string, Set<string>>()   // per dial: the requests its last move sent (#blend)
     #ledger: Ledger = new Ledger(null)      // the open project's activity ledger (ledger.ts)
@@ -685,7 +686,7 @@ export class Coordinator {
         if (this.#project === null) {return this.say("agent:team_lead", "Open a project first.")}
         const snapshot = await this.snapshot()
         if (snapshot === null) {return this.say("agent:team_lead", "Open a project first.")}
-        if (await this.#fastPath(message, snapshot)) {return}
+        if (await this.#fastPath(message, snapshot, history)) {return}
         await this.#keepFacts()
         return this.#captain.handle(this, {kind: "producer_message", text: message, history}, snapshot)
     }
@@ -693,12 +694,12 @@ export class Coordinator {
     // Jev in front of the Team Lead (triage.ts, fastpath.ts): one mixer move it's sure of is done by code at once, the
     // reply from the Team Lead's name; the line goes into the chat history, so the Team Lead's next turn sees it.
     // Anything else, or Jev unavailable, goes to the Team Lead as before.
-    async #fastPath(message: string, snapshot: Snapshot): Promise<boolean> {
+    async #fastPath(message: string, snapshot: Snapshot, history: Line[]): Promise<boolean> {
         if (!this.#gateway.available("fast_path")) {return false}
         const full = await this.snapshot("full")
-        const judged = await triage(this.#gateway, this.modelLog(), triageState(full ?? snapshot), message).catch(() => null)
+        const judged = await triage(this.#gateway, this.modelLog(), triageState(full ?? snapshot), message, history).catch(() => null)
         if (judged === null) {return false}
-        const fast = fastMix(judged, message, snapshot)
+        const fast = fastMix(judged, message, snapshot, Object.fromEntries(this.#mixBefore))
         this.#log.write("triage", {message, ...judged, fast: fast !== null})
         if (fast === null) {return false}
         const agent: Actor = "agent:team_lead"
@@ -834,6 +835,10 @@ export class Coordinator {
     #change(event: ChangeEvent): void {
         this.#log.seen(event.seq)
         this.#log.write("change", event)
+        event.changes.filter(({ref}) => /\.mix\.(volume|pan|mute)$/.test(ref) && typeof ref === "string").forEach(({ref, from}) => {
+            this.#mixBefore.delete(ref)
+            this.#mixBefore.set(ref, Number(from))
+        })
         event.changes.forEach(({label, from, to}) => this.#recentChanges.push({t: event.t, pos: event.pos, actor: event.actor, label,
             from: typeof from === "number" ? Number(from.toFixed(3)) : from, to: typeof to === "number" ? Number(to.toFixed(3)) : to}))
         this.#recentChanges.splice(0, Math.max(0, this.#recentChanges.length - 40))

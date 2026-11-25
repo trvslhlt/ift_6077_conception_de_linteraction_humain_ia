@@ -2,6 +2,7 @@ import {mkdirSync, writeFileSync} from "node:fs"
 import {join} from "node:path"
 import {Gateway, loadConfig} from "./gateway.ts"
 import {type Triage, triage, type TriageState} from "./triage.ts"
+import {Sure, SurePath} from "./fastpath.ts"
 
 // Jev in front of the Team Lead, judged (triage.ts): on knowledge/bench/triage.mjs's labelled messages, how often it
 // picks the right path, and for mixer moves the right part and move; then, at each threshold, how many messages a
@@ -12,7 +13,8 @@ import {type Triage, triage, type TriageState} from "./triage.ts"
 const Takedo = join(import.meta.dirname, "..", "..")
 const Concurrency = 4
 const {Messages, Project} = await import(join(Takedo, "knowledge", "bench", "triage.mjs")) as {
-    Messages: Array<{ msg: string, path: Triage["path"], part?: string | null, move?: Triage["move"], src: string }>,
+    Messages: Array<{ msg: string, path: Triage["path"], part?: string | null, move?: Triage["move"] | Triage["move"][], src: string,
+        recent: Array<{ from: string, text: string }> }>,
     Project: TriageState
 }
 const gateway = new Gateway(loadConfig(join(Takedo, "config", "models.json")))
@@ -22,7 +24,7 @@ await Promise.all(Array.from({length: Concurrency}, async () => {
     while (next < Messages.length) {
         const item = Messages[next++]
         try {
-            results.push({item, judged: await triage(gateway, () => {}, Project, item.msg)})
+            results.push({item, judged: await triage(gateway, () => {}, Project, item.msg, item.recent)})
         } catch (error) {
             results.push({item, error: String(error)})
         }
@@ -30,6 +32,7 @@ await Promise.all(Array.from({length: Concurrency}, async () => {
 }))
 
 type Judged = { item: typeof Messages[number], judged: Triage }
+const followUps = (rows: Judged[]) => rows.filter(({item}) => item.recent.length > 0)
 const judged = results.filter(result => result.judged !== undefined) as Judged[]
 const pct = (n: number, of: number): string => of === 0 ? "-" : `${Math.round(100 * n / of)}%`
 console.log(`${Messages.length} messages (${Messages.filter(item => item.src === "observed").length} observed), ${results.length - judged.length} errors`)
@@ -46,7 +49,7 @@ console.log(`  right: ${pct(judged.filter(({item, judged}) => item.path === judg
 // Mixer moves: the part and the move, where the label says mix.
 const mixes = judged.filter(({item}) => item.path === "mix")
 const partRight = ({item, judged}: Judged) => judged.part === item.part
-const moveRight = ({item, judged}: Judged) => judged.move === item.move
+const moveRight = ({item, judged}: Judged) => [item.move].flat().includes(judged.move)
 console.log(`\nMixer moves (${mixes.length}): part right ${pct(mixes.filter(partRight).length, mixes.length)}, ` +
     `move right ${pct(mixes.filter(moveRight).length, mixes.length)}, both ${pct(mixes.filter(result => partRight(result) && moveRight(result)).length, mixes.length)}`)
 mixes.filter(result => !partRight(result) || !moveRight(result)).forEach(({item, judged}) =>
@@ -61,6 +64,14 @@ for (const threshold of [0.5, 0.6, 0.7, 0.8, 0.9]) {
     console.log(`  ${threshold.toFixed(1)}: taken ${taken.length} of ${mixes.length} mixer moves, wrong ${wrong.length}` +
         `${wrong.length > 0 ? `: ${wrong.map(({item, judged}) => `"${item.msg}" → ${judged.part} ${judged.move}`).join("; ")}` : ""}`)
 }
+{
+    // The live policy (fastpath.ts): the path at SurePath, part and move at Sure, no number in the message, not "later".
+    const taken = judged.filter(({item, judged}) => judged.path === "mix" && judged.pathP >= SurePath && Math.min(judged.partP, judged.moveP) >= Sure
+        && !/\d/.test(item.msg) && judged.when !== "later")
+    const wrong = taken.filter(result => result.item.path !== "mix" || !partRight(result) || !moveRight(result))
+    console.log(`  live policy (path ${SurePath}, part and move ${Sure}, no numbers): taken ${taken.length} of ${mixes.length} mixer moves, wrong ${wrong.length}` +
+        `${wrong.length > 0 ? `: ${wrong.map(({item, judged}) => `"${item.msg}" → ${judged.part} ${judged.move}`).join("; ")}` : ""}`)
+}
 // Wrongly called mix, at any probability: what a fast path must never take.
 const notMix = judged.filter(({item, judged}) => item.path !== "mix" && judged.path === "mix")
 console.log(`\nNot a mixer move, judged mix (${notMix.length}):`)
@@ -69,6 +80,10 @@ const missed = mixes.filter(({judged}) => judged.path !== "mix")
 console.log(`Mixer moves judged another path (${missed.length}):`)
 missed.forEach(({item, judged}) => console.log(`  ${judged.path} p ${judged.pathP.toFixed(2)} "${item.msg}"`))
 
+const follow = followUps(judged)
+console.log(`\nFollow-ups (${follow.length}, with the chat before them): path right ${pct(follow.filter(({item, judged}) => item.path === judged.path).length, follow.length)}`)
+follow.forEach(({item, judged}) => console.log(`  "${item.msg}" after "${item.recent[0].text}": ${judged.path} ${judged.part} ${judged.move}` +
+    ` (p ${judged.pathP.toFixed(2)} ${judged.partP.toFixed(2)} ${judged.moveP.toFixed(2)}; want ${item.path}${item.part ? ` ${item.part}` : ""}${item.move ? ` ${[item.move].flat().join("/")}` : ""})`))
 const ms = judged.map(({judged}) => judged.ms).sort((a, b) => a - b)
 console.log(`\nLatency: median ${ms[Math.floor(ms.length / 2)]} ms, 90% ${ms[Math.floor(ms.length * 0.9)]} ms, max ${ms.at(-1)} ms (${Concurrency} at a time)`)
 

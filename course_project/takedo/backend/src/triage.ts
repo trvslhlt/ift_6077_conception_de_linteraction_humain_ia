@@ -20,7 +20,8 @@ export const Paths = {
 export const Moves = {
     quieter: "quieter, down, less of it, or fading out", louder: "louder, up, more of it, or fading in",
     mute: "muted, cut, silenced", unmute: "unmuted, brought back in", pan_left: "panned to the left",
-    pan_right: "panned to the right", center: "panned back to the centre"
+    pan_right: "panned to the right", center: "panned back to the centre",
+    back: "put back the way it was before the last change to it (undo a mixer move just made)"
 } as const
 export const When = {
     now: "right away, on the next beat or bar", gradual: "gradually, over a few beats or bars (a fade)",
@@ -28,7 +29,8 @@ export const When = {
 } as const
 const Amounts = ["A subtle touch that is barely noticeable", "A clear, moderate change", "A big, obvious change",
     "All the way: silent, or hard left or right"]
-const Premise = "The producer sent `message` to their AI music team while working on `project`, during playback. "
+const Premise = "The producer sent `message` to their AI music team while working on `project`, during playback; `recent` is " +
+    "the conversation just before it, oldest first, for what the message refers to (\"them\", \"it\", \"more\"). "
 
 // What Jev sees of the project: each part by its name, its role, instrument, effects and mix. The role is from its notes
 // (a "full" snapshot), as the project's facts say it (Coordinator, keepFacts): a part's name often doesn't (2026-11-25:
@@ -57,13 +59,19 @@ export type Triage = {
     ms: number
 }
 
-export const triage = async (gateway: Gateway, log: ModelLog, state: TriageState, message: string): Promise<Triage> => {
+// The last lines of the chat before the message (2026-11-25: "bring them back up", after "lower the drums", couldn't be
+// placed without them).
+export type Line = { from: string, text: string }
+export const RecentLines = 4
+
+export const triage = async (gateway: Gateway, log: ModelLog, state: TriageState, message: string,
+                             recent: Line[] = []): Promise<Triage> => {
     const parts: Record<string, string> = Object.fromEntries(Object.entries(state.tracks).map(([ref, track]) =>
         [ref, `the ${track.name}${track.role !== undefined ? `, the ${track.role === "pitched" ? "melodic or chordal part" : track.role === "no notes" ? "silent part" : track.role}` : ""}` +
             `${track.instrument ? ` (${track.instrument})` : ""}`]))
     parts.whole_mix = "the whole track, all parts together (the master)"
     const start = performance.now()
-    const answers = await gateway.judge("fast_path", {project: state, message}, {
+    const answers = await gateway.judge("fast_path", {project: state, recent: recent.slice(-RecentLines), message}, {
         path: choice(`${Premise}What does the message ask for?`, Paths),
         part: choice(`${Premise}Which part of the track is it about?`, parts),
         move: choice(`${Premise}If it asks for a mixer move, which one?`, Moves),

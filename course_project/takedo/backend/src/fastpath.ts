@@ -8,7 +8,9 @@ import type {Triage} from "./triage.ts"
 // and the message names no number (an exact value, a bar count: code can't fill those from Jev's answers, so the Team
 // Lead takes them), and it isn't for later (a named bar or phrase). Everything else goes to the Team Lead as before.
 
-export const Sure = 0.7
+// The path at 0.8 (with the chat before a message as context, a complaint, "its still muted", read as "unmute it" at 0.76);
+// the part and the move at 0.7 ("undo that" after a pan: the move at 0.72).
+export const SurePath = 0.8, Sure = 0.7
 const MinDb = -60, MaxDb = 6
 const VolumeSteps = [2, 4, 8]           // dB by Jev's amount: subtle, moderate, big; "all the way" is silence (or +6 dB)
 const PanSteps = [0.25, 0.5, 0.75]      // of the way to one side; "all the way" is hard left or right
@@ -17,8 +19,10 @@ const Fade = 8                          // beats: "gradually", a fade
 
 export type FastMix = { step: Step, says: string }
 
-export const fastMix = (judged: Triage, message: string, snapshot: Snapshot): FastMix | null => {
-    if (judged.path !== "mix" || Math.min(judged.pathP, judged.partP, judged.moveP) < Sure) {return null}
+// previous: each mix control's value before its latest change (a ref such as t1.mix.volume → its from), for "back".
+export const fastMix = (judged: Triage, message: string, snapshot: Snapshot,
+                        previous: Record<string, number> = {}): FastMix | null => {
+    if (judged.path !== "mix" || judged.pathP < SurePath || Math.min(judged.partP, judged.moveP) < Sure) {return null}
     if (/\d/.test(message) || judged.when === "later") {return null}
     const track = snapshot.tracks.find(track => track.ref === judged.part)
     const master = judged.part === "whole_mix"
@@ -29,6 +33,15 @@ export const fastMix = (judged: Triage, message: string, snapshot: Snapshot): Fa
     const beats = judged.when === "gradual" ? Fade : Smooth
     const step = (plan: Step["plan"], says: string): FastMix => ({step: {plan, when: {at: "asap"}, says}, says})
     switch (judged.move) {
+        case "back": {
+            // The part's control changed last, back to where it was (a glide; a mute is a step).
+            const control = ["volume", "pan", "mute"].map(name => `${prefix}.mix.${name}`).filter(ref => ref in previous).at(-1)
+            if (control === undefined) {return null}
+            const to = previous[control]
+            const what = control.endsWith("volume") ? "level" : control.endsWith("pan") ? "pan" : "mute"
+            return step(control.endsWith("mute") ? {op: "set", ref: control, to} : {op: "ramp", ref: control, to, beats},
+                `${capital(name)} back to its earlier ${what}.`)
+        }
         case "quieter": case "louder": {
             const now = master ? snapshot.master.volume : track!.mix.volume
             const down = judged.move === "quieter"

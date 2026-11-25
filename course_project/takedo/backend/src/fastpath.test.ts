@@ -40,10 +40,16 @@ describe("the mix fast path", () => {
         assert.deepEqual(fastMix(judged("t3", "pan_left", {amount: 0}), "pan the bass a little left", snapshot)?.step.plan,
             {op: "ramp", ref: "t3.mix.pan", to: -0.05, beats: 2})
     })
+    it("puts a part back where it was before its latest change", () => {
+        const fast = fastMix(judged("t1", "back"), "bring them back up", snapshot, {"t3.mix.pan": 0, "t1.mix.volume": -4})
+        assert.deepEqual(fast?.step.plan, {op: "ramp", ref: "t1.mix.volume", to: -4, beats: 2})
+        assert.equal(fastMix(judged("t2", "back"), "undo that", snapshot, {"t1.mix.volume": -4}), null)
+    })
     it("leaves to the Team Lead: a number, a later time, another path, or doubt", () => {
         assert.equal(fastMix(judged("t1", "quieter"), "set the drums to -20 dB", snapshot), null)
         assert.equal(fastMix(judged("t1", "quieter", {when: "later"}), "drums down at the chorus", snapshot), null)
         assert.equal(fastMix(judged("t1", "quieter", {path: "team"}), "make it trap", snapshot), null)
         assert.equal(fastMix(judged("t1", "quieter", {partP: 0.55}), "its too loud", snapshot), null)
+        assert.equal(fastMix(judged("t1", "unmute", {pathP: 0.76}), "its still muted", snapshot), null)
     })
 })
