@@ -540,3 +540,19 @@ These are for the detailed design, whatever the shape:
   end), so a part stops only when parked or muted. scenarios/jam.json: the new Chords part from bar 10 (where it was
   added) to bar 90, still playing where the take stopped (bar 78); the report checks that, using the bar recording
   stopped at (stopping sends openDAW's playhead to the start). Stages still rewrite notes in place: cycle 2.
+
+- 2026-11-25, a recorded jam with the loop off, cycle 2 (part): the take replays as performed, for notes and tempo. The
+  producer's review of a live jam (session bcb7301a): stages rewrote notes of regions running from bar 1, so the take
+  held only the last stage; the lofi slowdown was tempo steps (the project's one tempo field), not on the timeline; and
+  on "more ghost notes" the Team Lead read that field, 82 BPM, while automation played 170, and redid the finished
+  DnB glide from 82. Now, with the loop off (page/Adapter.ts): a script that changes a part's notes splits the region
+  where the playhead is (the next sixteenth): the bars played keep their notes as a new region, the region (ref
+  unchanged) goes on with the new ones, loop phase kept (#keepingPast/#keepPast); a tempo step is also written on the
+  tempo track there (#tempoOnTimeline); the snapshot's timeline.bpm is the tempo playing, with tempoAutomated. Found on
+  the way: inside an edit, openDAW's adapter lists (a track's regions, a part's notes) catch up only when it ends, so
+  the guards read boxes (the played-bars guard had let a part placed 13 bars back through). And another engine hang:
+  an effect added mid-take had its settings recorded (an automation region each, growing every frame), and the page's
+  keep-going lengthened those regions while the recorder shrank them back; now settings are written past the recorder
+  while recording, and keep-going extends note and audio parts only (`make jam-probe EDITS=effects|split`).
+  scenarios/jam.json: 43 edits, every stage a region from its bar (drums 17, bass 9, new chords 9 from bar 12), tempo
+  on the timeline, no stray lanes, no freeze. Still to do: agents' ramps recorded as automation points.

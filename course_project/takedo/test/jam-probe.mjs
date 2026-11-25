@@ -4,6 +4,7 @@
 // `make jam-probe`.
 import {chromium} from "playwright"
 import {readFileSync} from "node:fs"
+import probeEffects from "./probe-effects.mjs"
 
 const URL = process.env.URL ?? "http://localhost:8080/"
 const SECONDS = Number(process.env.SECONDS ?? 40)
@@ -35,7 +36,7 @@ try {
         await page.getByTestId("takedo-toggle").click()
         await page.waitForFunction(() => document.querySelector("[data-testid=takedo-status]")?.dataset.status === "open")
     }
-    const result = await page.evaluate(async ([seconds, bundled, edits, loop, rampMs]) => {
+    const result = await page.evaluate(async ([seconds, bundled, edits, loop, rampMs, effectPlans]) => {
         const {service} = window.takedo
         const {project} = service.projectProfileService.getValue().unwrap()
         const {timelineBox, engine} = project
@@ -67,6 +68,29 @@ try {
                 added = true
                 window.takedo.debug.addSynth("Probe keys", [[0, 52, 4], [4, 55, 4], [8, 59, 4], [12, 57, 4]])
                 return "added a track"
+            }
+            // EDITS=effects: once past bar 5, the effects a frozen jam added (test/probe-effects.mjs, its add_effect plans
+            // with their settings) through the page's own path, then the probe watches.
+            if (edits === "effects") {
+                if (added || engine.position.getValue() < 4 * bar) {return null}
+                added = true
+                const {adapter} = window.takedo
+                effectPlans.forEach(plan => adapter.apply({id: crypto.randomUUID(), from: "agent:utility", plan, when: {at: "asap"},
+                    seq: adapter.snapshot().at.seq}))
+                return `added ${effectPlans.length} effects`
+            }
+            // EDITS=split: from bar 3, every 2 bars, an agent's script (the page's path: splits the part where the playhead
+            // is) rewriting the first part's notes, a velocity changed each time, as a stage does.
+            if (edits === "split") {
+                if (engine.position.getValue() < 2 * bar || second % 4 !== 0) {return null}
+                const {adapter} = window.takedo
+                const pastRef = adapter.snapshot().tracks[0].regions.at(-1).ref
+                const code = `const collection = ref("${pastRef}").optCollection.unwrap()
+                    collection.events.asArray().slice().forEach(event => event.box.delete())
+                    for (let step = 0; step < 16; step++) {api.createNoteEvent({owner: ref("${pastRef}").box, position: step * 240, duration: 120, pitch: 36 + (step % 4), velocity: 0.3 + 0.4 * Math.random()})}`
+                adapter.apply({id: crypto.randomUUID(), from: "agent:utility", plan: {op: "script", code, description: "stage"}, when: {at: "asap"},
+                    seq: adapter.snapshot().at.seq})
+                return `stage on ${pastRef}`
             }
             // EDITS=ramp: from bar 14, every 2 bars, each part's volume ramped over 2 s as the page's ramps write it
             // (through openDAW's parameter adapter, a write per tick, unmarked): during a recording, written as automation.
@@ -132,7 +156,7 @@ try {
                 length: timelineBox.durationInPulses.getValue() / bar, ends: ends(), ctx: Number(service.audioContext.currentTime.toFixed(1)), edited})
         }
         return samples
-    }, [SECONDS, PROJECT !== "", process.env.EDITS ?? "", process.env.LOOP === "1", Number(process.env.RAMP_MS ?? 20)])
+    }, [SECONDS, PROJECT !== "", process.env.EDITS ?? "", process.env.LOOP === "1", Number(process.env.RAMP_MS ?? 20), probeEffects])
     result.forEach(sample => console.log(JSON.stringify(sample)))
 } finally {
     await browser.close()

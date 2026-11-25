@@ -54,7 +54,7 @@ export type Snapshot = {
     detail: Detail
     playing: boolean
     playback: Playback
-    timeline: { bpm: number, signature: [number, number], length: string }
+    timeline: { bpm: number, tempoAutomated?: boolean, signature: [number, number], length: string }
     tracks: Track[]
     master: { volume: number, effects: Device[] }
 }

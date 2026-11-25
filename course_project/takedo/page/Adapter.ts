@@ -1,11 +1,11 @@
-import {Terminable, Terminator} from "@opendaw/lib-std"
+import {Terminable, Terminator, UUID} from "@opendaw/lib-std"
 import {PPQN, ppqn} from "@opendaw/lib-dsp"
 import {Address, Box, PrimitiveUpdate, Update} from "@opendaw/lib-box"
 import {
     AudioRegionBoxAdapter, AudioUnitBoxAdapter, AutomatableParameterFieldAdapter, DeviceBoxAdapter, Devices,
     EffectDeviceBoxAdapter, NoteRegionBoxAdapter, PlayfieldDeviceBoxAdapter, TempoRange, TrackBoxAdapter
 } from "@opendaw/studio-adapters"
-import {ValueEventBox, ValueEventCollectionBox} from "@opendaw/studio-boxes"
+import {AudioRegionBox, NoteEventBox, NoteRegionBox, ValueEventBox, ValueEventCollectionBox} from "@opendaw/studio-boxes"
 import {EffectFactories, type EffectFactory, type Project} from "@opendaw/studio-core"
 import type {
     Actor, AddEffectPlan, Apply, BackendToPage, Change, Content, Detail, Device, FailReason, Note, ParamState, Playback, Region,
@@ -67,6 +67,16 @@ type Pending = { change: Change, actor: Actor, request?: string, timer: ReturnTy
 // A recorded jam with the loop off keeps going (#keepGoing): this many bars before the song's end, it grows by this many.
 const KeepAheadBars = 4
 const KeepGoingBars = 16
+
+type NoteEventCollectionAdapter = ReturnType<NoteRegionBoxAdapter["optCollection"]["unwrap"]>
+type Kept = { region: NoteRegionBoxAdapter, saved: ReturnType<NoteEventCollectionAdapter["copy"]>, notes: string, at: ppqn }
+// A part's notes as text, to tell whether a script changed them. Read from the boxes: the adapter's list of events
+// catches up only when the edit ends, so mid-edit it still shows the notes from before.
+const notesOf = (collection: NoteEventCollectionAdapter): string => collection.box.events.pointerHub.incoming()
+    .map(pointer => pointer.box).filter((box): box is NoteEventBox => box instanceof NoteEventBox)
+    .map(event => [event.position, event.duration, event.pitch, event.velocity, event.playCount, event.playCurve, event.cent, event.chance]
+        .map(field => field.getValue()).join())
+    .sort().join("|")
 
 export class Adapter implements Terminable {
     readonly #terminator = new Terminator()
@@ -160,7 +170,11 @@ export class Adapter implements Terminable {
         const {engine, timelineBox} = this.#project
         if (this.#extending || timelineBox.loopArea.enabled.getValue() || !engine.isRecording.getValue()) {return}
         const bar = this.#bar()
+        // Parts only: an automation region being recorded is the recorder's to grow (2026-11-25: lengthening one fought
+        // the recorder, which set it back each frame).
         const tracks = this.#units().flatMap(unit => unit.tracks.values())
+            .filter(track => track.regions.collection.asArray().every(region =>
+                region instanceof NoteRegionBoxAdapter || region instanceof AudioRegionBoxAdapter))
         const regions = tracks.flatMap(track => track.regions.collection.asArray())
         const end = regions.reduce((most, region) => Math.max(most, region.complete), 0)
         // Every part plays on: each track's last region, unless it's muted (parked) (2026-11-25: a part added mid-song
@@ -284,7 +298,10 @@ export class Adapter implements Terminable {
             detail,
             playing: engine.isPlaying.getValue(),
             playback: this.playback(),
-            timeline: {bpm: timelineBox.bpm.getValue(), signature: [nominator, denominator], length: this.#pos(end)},
+            // The tempo playing (the tempo track's, when it's on), not the project's field: a Team Lead that read the field,
+            // 82 BPM, while automation played 170 redid a finished tempo glide from 82 (2026-11-25).
+            timeline: {bpm: this.#tempoAutomated() ? Math.round(engine.bpm.getValue() * 10) / 10 : timelineBox.bpm.getValue(),
+                tempoAutomated: this.#tempoAutomated(), signature: [nominator, denominator], length: this.#pos(end)},
             tracks,
             master: {volume: master?.namedParameter.volume.getValue() ?? 0, effects: master ? this.#effectsOf(master) : []}
         }
@@ -418,8 +435,14 @@ export class Adapter implements Terminable {
                 const path = box.mapFields(field => field.fieldName, ...field.address.fieldKeys).join("/")
                 const setting = plan.settings.find(setting => setting.param === path)
                 if (setting === undefined || !Number.isFinite(setting.value)) {continue}
-                parameterFieldAdapters.opt(field.address).ifSome(parameter => parameter.setValue(isSwitch(parameter)
-                    ? setting.value !== 0 : parameter.valueMapping.clamp(setting.value)))
+                // While recording, written past the recorder: a setting is the device's setup, not a performance, and each
+                // write openDAW records opens an automation region that grows every frame until stop (2026-11-25: two
+                // effects added mid-take opened 11).
+                const recording = this.#project.engine.isRecording.getValue()
+                parameterFieldAdapters.opt(field.address).ifSome(parameter => {
+                    const value = isSwitch(parameter) ? setting.value !== 0 : parameter.valueMapping.clamp(setting.value)
+                    if (recording) {parameter.field.setValue(value)} else {parameter.setValue(value)}
+                })
             }
             return box
         }).unwrapOrNull())
@@ -455,6 +478,8 @@ export class Adapter implements Terminable {
             this.#tagged(request, () => this.#project.editing.modify(() => {
                 const loop = this.#loopNow()
                 const spans = this.#spans()
+                const kept = this.#keepingPast()
+                const bpm = this.#project.timelineBox.bpm.getValue()
                 value = runScript(plan.code, this.#env)
                 if (this.guarding) {
                     corrections = this.#guard()
@@ -465,6 +490,8 @@ export class Adapter implements Terminable {
                     const played = this.#playedProblem(spans)
                     if (played !== null) {throw new Error(played)}
                 }
+                this.#keepPast(kept)
+                this.#tempoOnTimeline(bpm)
             }))
         } catch (error) {
             return this.#status(request, {state: "failed", reason: "invalid_args", detail: errorText(error)})
@@ -524,9 +551,13 @@ export class Adapter implements Terminable {
     }
 
     // Where each region starts and ends, by address: what a script did to the timeline's past (#playedProblem).
+    // Read from the boxes: a track's list of region adapters catches up only when the edit ends, so mid-edit it misses a
+    // region the script just made (2026-11-25: a part placed at bar 11 while the playhead was at bar 24 got through).
     #spans(): Map<string, { position: ppqn, complete: ppqn }> {
-        return new Map(this.#units().flatMap(unit => unit.tracks.values().flatMap(track => track.regions.collection.asArray()))
-            .map(region => [region.address.toString(), {position: region.position, complete: region.complete}]))
+        return new Map(this.#units().flatMap(unit => unit.tracks.values()).flatMap(track => track.box.regions.pointerHub.incoming())
+            .map(pointer => pointer.box)
+            .filter((box): box is NoteRegionBox | AudioRegionBox => box instanceof NoteRegionBox || box instanceof AudioRegionBox)
+            .map(box => [box.address.toString(), {position: box.position.getValue(), complete: box.position.getValue() + box.duration.getValue()}]))
     }
 
     // With the loop off, the bars already played are the producer's take (2026-11-25: a live jam's new chords and pad
@@ -553,6 +584,78 @@ export class Adapter implements Terminable {
         return `not applied: the loop is off and bars before ${this.#pos(played)} are already played (the producer's take); ` +
             `${problems.join("; ")} would reach into them. Start a new region at the next bar line, ` +
             `${this.#pos(played + bar)} (Math.ceil(project.engine.position.getValue() / bar) * bar), running to the song's end`
+    }
+
+    // With the loop off, an edit to a part's notes changes only what's still to play (2026-11-25: stages rewrote the
+    // notes of regions running from bar 1, so the take replayed only the last stage). Before a script, each region the
+    // playhead is inside has its notes copied aside (#keepingPast); after, one whose notes changed is split where the
+    // playhead is (the next sixteenth): the bars before keep the copied notes as a new region, the region itself (its
+    // ref unchanged) starts there with the new ones, its pattern in phase. An unchanged one's copy is dropped.
+    #keepingPast(): Kept[] {
+        const {engine, timelineBox} = this.#project
+        if (!engine.isPlaying.getValue() || timelineBox.loopArea.enabled.getValue()) {return []}
+        const at = Math.ceil(engine.position.getValue() / PPQN.SemiQuaver) * PPQN.SemiQuaver
+        return this.#units().flatMap(unit => unit.tracks.values().flatMap(track => track.regions.collection.asArray()))
+            .filter((region): region is NoteRegionBoxAdapter => region instanceof NoteRegionBoxAdapter)
+            .filter(region => region.position < at && region.complete > at && region.hasCollection)
+            .map(region => {
+                const collection = region.optCollection.unwrap()
+                return {region, saved: collection.copy(), notes: notesOf(collection), at}
+            })
+    }
+
+    #keepPast(kept: Kept[]): void {
+        kept.forEach(({region, saved, notes, at}) => {
+            if (!region.box.isAttached() || notesOf(region.optCollection.unwrap()) === notes) {
+                saved.box.delete()
+                return
+            }
+            const {position, duration, loopOffset, loopDuration} = region
+            const played = at - position
+            region.box.position.setValue(at)
+            region.box.duration.setValue(duration - played)
+            region.box.loopOffset.setValue((loopOffset + played) % loopDuration)
+            const past = region.copyTo({position, duration: played, loopOffset, loopDuration})
+            past.box.events.refer(saved.box.owners)
+        })
+    }
+
+    // With the loop off, a tempo set by a script (api.setBpm, a step) is also written to the tempo track where the
+    // playhead is, so the take replays it (2026-11-25: a live jam's lofi slowdown, eight steps, replayed at one tempo).
+    // A step: the tempo playing now, then the new one, at the same position; later points are dropped (from here, this).
+    #tempoOnTimeline(before: number): void {
+        const {engine, timelineBox, boxGraph} = this.#project
+        const after = timelineBox.bpm.getValue()
+        if (after === before || !engine.isPlaying.getValue() || timelineBox.loopArea.enabled.getValue()) {return}
+        const {tempoTrack} = timelineBox
+        const collection = tempoTrack.events.targetVertex
+        if (collection.isEmpty() || !(collection.unwrap().box instanceof ValueEventCollectionBox)) {return}
+        const events = (collection.unwrap().box as ValueEventCollectionBox).events
+        const points = events.pointerHub.incoming().map(pointer => pointer.box)
+            .filter((box): box is ValueEventBox => box instanceof ValueEventBox)
+        const automated = tempoTrack.enabled.getValue() && points.length > 0
+        const now = automated ? engine.bpm.getValue() : before
+        const at = Math.ceil(engine.position.getValue() / PPQN.SemiQuaver) * PPQN.SemiQuaver
+        points.filter(point => !automated || point.position.getValue() >= at).forEach(point => point.delete())
+        const point = (position: ppqn, value: number, index: number): void => {
+            ValueEventBox.create(boxGraph, UUID.generate(), box => {
+                box.events.refer(events)
+                box.position.setValue(position)
+                box.value.setValue(value)
+                box.index.setValue(index)
+                box.interpolation.setValue(0)
+            })
+        }
+        if (!automated) {point(0, before, 0)}
+        point(at, now, 0)
+        point(at, after, 1)
+        tempoTrack.enabled.setValue(true)
+    }
+
+    #tempoAutomated(): boolean {
+        const {tempoTrack} = this.#project.timelineBox
+        return tempoTrack.enabled.getValue() && tempoTrack.events.targetVertex.mapOr(collection =>
+            collection.box instanceof ValueEventCollectionBox && collection.box.events.pointerHub.incoming().length > 0, false)
     }
 
     #tempoProblem(): string | null {

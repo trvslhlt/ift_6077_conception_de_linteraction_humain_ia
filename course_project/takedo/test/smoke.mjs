@@ -254,6 +254,48 @@ try {
     check("after the take, its lane is left alone (no live write over automation)",
         afterTake.state === "failed" && /automation/.test(afterTake.detail ?? ""), JSON.stringify(afterTake))
 
+    // ---------- loop off: an edit changes only what's still to play (the take replays as performed) ----------
+    // A part looping 1 bar over 64 bars from bar 1, the loop off: an agent rewriting its notes splits it where the
+    // playhead is (the bars played keep the old notes), and a tempo step lands on the tempo track.
+    await page.evaluate(() => {
+        window.takedo.debug.addSynth("Past", [[0, 48, 2], [8, 55, 2]])
+        const {project} = window.takedo.service.projectProfileService.getValue().unwrap()
+        const unit = project.rootBoxAdapter.audioUnits.adapters().find(unit => unit.label === "Past")
+        const region = unit.tracks.values()[0].regions.collection.asArray()[0]
+        project.editing.modify(() => {
+            project.timelineBox.loopArea.enabled.setValue(false)
+            region.box.loopDuration.setValue(3840); region.box.duration.setValue(64 * 3840)
+        })
+        if (!project.engine.isPlaying.getValue()) {project.engine.play()}
+    })
+    await page.waitForFunction(() => window.takedo.adapter.playback().playing && window.takedo.adapter.playback().bar >= 3, null, {timeout: 20000})
+    const pastRef = (await track("Past")).regions[0].ref
+    const transport = await page.evaluate(() => {
+        const {project} = window.takedo.service.projectProfileService.getValue().unwrap()
+        return {playing: project.engine.isPlaying.getValue(), loop: project.timelineBox.loopArea.enabled.getValue(), at: window.takedo.adapter.playback().pos}
+    })
+    const rewritten = await apply({op: "script", description: "Past: new notes", code: `
+        const collection = ref("${pastRef}").optCollection.unwrap()
+        collection.events.asArray().slice().forEach(event => event.box.delete())
+        api.createNoteEvent({owner: ref("${pastRef}").box, position: 0, duration: 480, pitch: 60, velocity: 0.7})`})
+    const past = await page.evaluate(() => window.takedo.adapter.snapshot("full").tracks.find(track => track.name === "Past"))
+    const [earlier, later] = [past.regions.find(region => region.ref !== pastRef), past.regions.find(region => region.ref === pastRef)]
+    check("loop off: rewriting a part's notes keeps the bars already played (split where the playhead is)",
+        rewritten.state === "applied" && past.regions.length === 2 && earlier?.from === "1.1.1" && earlier?.to === later?.from
+            && later.from !== "1.1.1" && (earlier.notes ?? []).length === 2 && (later.notes ?? []).length === 1,
+        `${rewritten.state} ${JSON.stringify(transport)}: ${JSON.stringify(past.regions.map(({ref, from, to, notes}) => ({ref, from, to, notes: notes?.length})))}`)
+    const intoPast = await apply({op: "script", description: "a part placed at bar 1", code: `
+        const unit = project.rootBoxAdapter.audioUnits.adapters().find(unit => unit.label === "Past")
+        api.createNoteRegion({trackBox: unit.tracks.values()[0].box, position: 0, duration: 2 * bar, name: "too early"})`})
+    check("loop off: a script placing a part in bars already played is refused", intoPast.state === "failed"
+        && /already played/.test(intoPast.detail ?? ""), JSON.stringify(intoPast).slice(0, 300))
+    const stepped = await apply({op: "script", description: "tempo step to 100", code: `api.setBpm(100)`})
+    await page.waitForTimeout(500)
+    const tempo = await page.evaluate(() => window.takedo.adapter.snapshot().timeline)
+    check("loop off: a tempo step is written on the tempo track, and the snapshot reports the tempo playing",
+        stepped.state === "applied" && tempo.tempoAutomated === true && Math.abs(tempo.bpm - 100) < 0.5, JSON.stringify(tempo))
+
+
     // ---------- mentions: autocomplete from the team, styled in the input ----------
     await page.getByTestId("takedo-input").fill("")
     await page.getByTestId("takedo-input").pressSequentially("@")
