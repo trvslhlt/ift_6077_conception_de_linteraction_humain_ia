@@ -3,9 +3,9 @@ import {PPQN, ppqn} from "@opendaw/lib-dsp"
 import {Address, Box, PrimitiveUpdate, Update} from "@opendaw/lib-box"
 import {
     AudioRegionBoxAdapter, AudioUnitBoxAdapter, AutomatableParameterFieldAdapter, DeviceBoxAdapter, Devices,
-    EffectDeviceBoxAdapter, NoteRegionBoxAdapter, PlayfieldDeviceBoxAdapter, TempoRange, TrackBoxAdapter
+    EffectDeviceBoxAdapter, NoteRegionBoxAdapter, PlayfieldDeviceBoxAdapter, RegionOverlap, TempoRange, TrackBoxAdapter
 } from "@opendaw/studio-adapters"
-import {AudioRegionBox, MaximizerDeviceBox, NoteEventBox, NoteRegionBox, ValueEventBox, ValueEventCollectionBox} from "@opendaw/studio-boxes"
+import {AudioRegionBox, MaximizerDeviceBox, NoteEventBox, NoteRegionBox, TrackBox, ValueEventBox, ValueEventCollectionBox} from "@opendaw/studio-boxes"
 import {EffectFactories, type EffectFactory, type Project} from "@opendaw/studio-core"
 import type {
     Actor, AddEffectPlan, Apply, BackendToPage, Change, Content, Detail, Device, FailReason, Note, ParamState, Playback, Region,
@@ -525,6 +525,7 @@ export class Adapter implements Terminable {
                 const kept = this.#keepingPast()
                 const bpm = this.#project.timelineBox.bpm.getValue()
                 const effects = this.#effectCount()
+                const overlaps = this.#overlaps()
                 value = runScript(plan.code, this.#env)
                 if (this.guarding) {
                     corrections = this.#guard()
@@ -538,6 +539,10 @@ export class Adapter implements Terminable {
                 }
                 this.#keepPast(kept)
                 this.#tempoOnTimeline(bpm)
+                if (this.guarding) {
+                    const overlap = this.#overlapProblem(overlaps)
+                    if (overlap !== null) {throw new Error(overlap)}
+                }
             }))
         } catch (error) {
             return this.#status(request, {state: "failed", reason: "invalid_args", detail: errorText(error)})
@@ -626,6 +631,38 @@ export class Adapter implements Terminable {
         return new Map(boxes(this.#project.rootBox.audioUnits).flatMap(unit => boxes(unit.tracks)).flatMap(track => boxes(track.regions))
             .filter((box): box is NoteRegionBox | AudioRegionBox => box instanceof NoteRegionBox || box instanceof AudioRegionBox)
             .map(box => [box.address.toString(), {position: box.position.getValue(), complete: box.position.getValue() + box.duration.getValue(), box}]))
+    }
+
+    // Regions that overlap on one track, as openDAW's ProjectValidation sees them (RegionOverlap: each next pair by
+    // position): keyed by the pair, with what to tell an agent. openDAW repairs them whenever the project is loaded, so
+    // also on every export (a copy): the earlier one cut short, or both deleted when they start together (2026-11-25: a
+    // fill script laid a groove region over a fill and an export showed "Some data is corrupt", 4 boxes).
+    #overlaps(): Map<string, string> {
+        type Hub = { pointerHub: { incoming(): ReadonlyArray<{ box: unknown }> } }
+        const units = this.#project.rootBox.audioUnits.pointerHub.incoming().map(pointer => pointer.box as { tracks?: Hub })
+        const found = new Map<string, string>()
+        for (const unit of units) {
+            for (const {box} of unit.tracks?.pointerHub.incoming() ?? []) {
+                if (!(box instanceof TrackBox)) {continue}
+                const sorted = RegionOverlap.sortedRegions(box)
+                for (let index = 1; index < sorted.length; index++) {
+                    const [left, right] = [sorted[index - 1], sorted[index]]
+                    if (RegionOverlap.find([left, right]).isEmpty()) {continue}
+                    const span = (region: typeof left): string => `"${region.label.getValue()}" (${this.#pos(region.position.getValue())} to ` +
+                        `${this.#pos(region.position.getValue() + region.duration.getValue())})`
+                    found.set(`${left.address.toString()}|${right.address.toString()}`, `${span(left)} and ${span(right)}`)
+                }
+            }
+        }
+        return found
+    }
+
+    #overlapProblem(before: Map<string, string>): string | null {
+        const added = [...this.#overlaps()].filter(([key]) => !before.has(key)).map(([, text]) => text)
+        if (added.length === 0) {return null}
+        return `not applied: regions would overlap on one track: ${added.join("; ")}. openDAW can't keep overlapping regions ` +
+            "(on load and on export it cuts the earlier one short, or deletes both if they start together). End the earlier " +
+            "region where the later one starts (box.duration), or start the later one where the earlier ends; muting one doesn't help"
     }
 
     // With the loop off, the bars already played are the producer's take (2026-11-25: a live jam's new chords and pad

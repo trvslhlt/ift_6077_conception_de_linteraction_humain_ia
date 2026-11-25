@@ -386,7 +386,7 @@ try {
     // region back into them is refused.
     const intoPast = await apply({op: "script", description: "a part placed at bar 1", code: `
         const unit = project.rootBoxAdapter.audioUnits.adapters().find(unit => unit.label === "Past")
-        api.createNoteRegion({trackBox: unit.tracks.values()[0].box, position: 0, duration: 32 * bar, loopDuration: bar, name: "too early"})`})
+        api.createNoteRegion({trackBox: api.createNoteTrack(unit.box), position: 0, duration: 32 * bar, loopDuration: bar, name: "too early"})`})
     const early = (await page.evaluate(() => window.takedo.adapter.snapshot("full").tracks.find(track => track.name === "Past")))
         .regions.find(region => region.name === "too early")
     const reached = await apply({op: "script", description: "the earlier part lengthened back", code: `
@@ -395,6 +395,14 @@ try {
         intoPast.state === "applied" && early !== undefined && early.from !== "1.1.1" && /\.1\.1$/.test(early.from)
             && reached.state === "failed" && /already played/.test(reached.detail ?? ""),
         JSON.stringify({intoPast: intoPast.state, early: early && {from: early.from, to: early.to}, reached: reached.state, detail: reached.detail?.slice(0, 160)}))
+    // Regions laid over each other on one track are refused: openDAW cuts or deletes them on every load and export
+    // (2026-11-25: "Some data is corrupt, 4 invalid boxes" on the producer's first export).
+    const overlapped = await apply({op: "script", description: "a fill laid over the part", code: `
+        const region = ref("${pastRef}")
+        api.createNoteRegion({trackBox: region.box.regions.targetVertex.unwrap().box, position: region.position + 8 * bar, duration: bar, name: "fill on top"})`})
+    check("a script that lays a region over another on the same track is refused (openDAW would cut or delete them on export)",
+        overlapped.state === "failed" && /overlap/.test(overlapped.detail ?? ""),
+        JSON.stringify({state: overlapped.state, detail: overlapped.detail?.slice(0, 200)}))
     const stepped = await apply({op: "script", description: "tempo step to 100", code: `api.setBpm(100)`})
     await page.waitForTimeout(500)
     const tempo = await page.evaluate(() => window.takedo.adapter.snapshot().timeline)
