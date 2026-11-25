@@ -106,10 +106,19 @@ export type ChangeEvent = { seq: number, t: number, pos: string, playing: boolea
 export type ChatLine = { id: string, t: number, from: Actor, to?: Actor, text: string }
 export type MemberCard = { agent: Actor, name: string, doing: string }
 // A member's control on its card (TAKEDO_API.md, "Controls"; INTERACTION.md's A2UI note): data only, drawn by the page
-// with a widget of its own, so no agent writes UI. Intent dials for now: moving one is a direction to its owner (who
-// reads meaning and the position between the ends low and high), never a change to the project. value: 0..1.
-export type Control = { ref: string, owner: Actor, kind: "intent", widget: "dial", label: string,
+// with a widget of its own, so no agent writes UI. Not everything is a slider (2026-11-25):
+// - widget: a dial (a range between low and high), a switch (one of two states, low or high: value 0 or 1), a choice
+//   (one of options: value its index) or a button (pressed: a one-shot, "a fill", "drop it"; value stays 0).
+// - kind, its speed: an intent control's move is a direction to its owner (who reads meaning and the position), never a
+//   change to the project by itself: a dial or switch between two kept takes is played by code at once, anything else
+//   waits for the owner's turn. A direct control is bound to parameters (bind) the page sets itself as the producer's
+//   own hand, instantly, each from its from to its to across the control (a macro knob; a switch for a mute); no agent
+//   turn, and the owner later sees it as the producer's change. Only dials and switches are direct.
+export type ControlWidget = "dial" | "switch" | "choice" | "button"
+export type Control = { ref: string, owner: Actor, kind: "intent" | "direct", widget: ControlWidget, label: string,
     low: string, high: string, meaning: string, value: number
+    options?: string[]                                          // choice: its options, in order
+    bind?: Array<{ ref: string, from: number, to: number }>     // direct: the parameters it sets (t2.mix.volume, t3.fx1.wet)
     transitions?: Record<string, "handover" | "crossfade"> }   // per track ref, how a part in one end only comes and goes (blend.ts)
 // Who's on the team, for the team view (mentions, autocomplete). role: the @name.
 export type TeamMember = { role: string, name: string, area: string }

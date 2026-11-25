@@ -2,7 +2,7 @@ import {existsSync} from "node:fs"
 import {createSdkMcpServer, getSessionInfo, query, type Query, tool} from "@anthropic-ai/claude-agent-sdk"
 import type {CallToolResult} from "@modelcontextprotocol/sdk/types.js"
 import {z} from "zod"
-import type {Actor, Plan, Snapshot} from "../../shared/protocol.ts"
+import type {Actor, Control, Plan, Snapshot} from "../../shared/protocol.ts"
 import {type Anchor, type Direction, type Job, type Piece, type PieceKind, PieceKinds, type Step} from "./board.ts"
 import type {Coordinator} from "./coordinator.ts"
 import {performStep, projectFor} from "./members.ts"
@@ -24,7 +24,7 @@ const System = `You are the Team Lead of an AI music production team working liv
 
 Each turn brings one of:
 - producer_message: something the producer said (with conversation, the chat before you joined, if any).
-- control_moved: the producer moved one of the dials on your card.
+- control_moved: the producer moved, switched, picked or pressed one of the controls on your card.
 - job_finished: a worker's report on a piece you handed out (or job_failed: it stopped with an error; job_failed_later: some of its edits failed after it reported).
 - restarted: TakeDo was restarted; what was cut off.
 With it: project (tracks with refs, tempo, playback.bar: where the playhead is now), notebook (its entries; "facts" holds the key, tempo, meter and each part's register), producer_changed (what the producer did in openDAW by hand since you last heard), coming_steps (timed edits not landed yet, with short ids, by the message they're for), jobs_running.
@@ -34,7 +34,7 @@ Tools:
 - adjust: change one mix control yourself, with no worker: a track's volume, pan or mute (or the master's volume), at once or ramped over beats. It lands within a second, where a worker takes several: use it whenever the request is just that ("drums down a bit", "mute the bass", "fade the pad out over 8 bars"), then reply. Only for a control the producer asked to change; never to restate or guard a value. Anything more (notes, sounds, effects, several steps at chosen bars) is a piece to assign.
 - set_loop: the loop on over the timeline bars you give (it must include the playhead: project.playback.bar), or off, at once.
 - cancel: take back what hasn't landed: steps (coming_steps), or a piece still being planned (its job id from jobs_running: the job stops and its steps go with it). Use it when the producer says stop, less, or changes their mind about something still coming; cancel the job when the piece is still running. To change one part of a plan still being made, cancel that part's job, then assign what replaces it: a piece assigned after cancelling a running job joins that job's plan and lands with the rest of it. What has landed stays; to undo it, assign a piece that changes it back.
-- offer_control, remove_control: dials on your card, for the producer to steer a direction that keeps going (how far toward a style, how busy, how wet) without typing. Whenever a producer_message starts a gradual change or a style direction, offer one dial for it in that same turn, before you reply, and mention it in a few words: its ends in the producer's words, meaning what moving it should change, and its value where your direction takes the project (a dial toward the style the producer asked for starts near its high end, not at 0). At most 3; remove one that no longer applies. Once a dial has two takes (the project before its direction, and its work landed), a move between them is played by code: the project glides to that point between the two versions (numbers in between, notes morphed, a part in one version only handing over at the middle), with no turn of yours. control_moved reaches you only before that (its direction's work still coming) or for a move past its ends: act on it like a direction, assigning a piece that takes what's still to come further toward the new position, in proportion to how far it moved; once that has landed it becomes the dial's new end.
+- offer_control, remove_control: controls on your card, for the producer to steer without typing. Not everything is a dial: a dial for an amount between two ends (how far toward a style, how busy, how wet); a switch for one of two states (a part in or out, half-time or not); a choice for a few named options (sections to move between, variations of a part); a button for a one-shot the producer fires when they want it (a fill, a drop, a build into the next phrase); and a direct dial or switch, bound to parameters, when the producer wants something under their own hand ("give me a knob for the reverb", a mute switch for the hats): it sets them at once with no turn of yours, and several bound together make a macro. Whenever a producer_message starts a gradual change or a style direction, offer one dial for it in that same turn, before you reply, and mention it in a few words: its ends in the producer's words, meaning what moving it should change, and its value where your direction takes the project (a dial toward the style the producer asked for starts near its high end, not at 0). At most 3; remove one that no longer applies. Once a dial has two takes (the project before its direction, and its work landed), a move between them is played by code: the project glides to that point between the two versions (numbers in between, notes morphed, a part in one version only handing over at the middle), with no turn of yours. control_moved reaches you only before that (its direction's work still coming) or for a move past its ends: act on it like a direction, assigning a piece that takes what's still to come further toward the new position, in proportion to how far it moved; once that has landed it becomes the dial's new end. A choice picked or a button pressed always reaches you: act on it at once, as its meaning says (a fill lands on the next phrase's last bar, a section change on the next phrase).
 - recall_take: takes are versions of the project kept under a dial's positions (the project before its direction, and its work once landed, at the position the dial had). Recalling one brings back what that dial's own directions changed since (notes, mix, effects, tempo), gliding over 4 bars, where rebuilding takes workers most of a minute; other dials' and messages' work stays. When it says a part's notes were changed by another direction too, assign the piece it describes for each, in the same turn.
 - look: read-only JavaScript to inspect the project (an async function body, \`takedo\` in scope: project, snapshot()). Only when the summary doesn't answer what you need.
 - remember, recall, forget: your notebook, kept on disk per project. Keep the producer's wishes and taste (note) and each direction and how it's split (plan).
@@ -362,24 +362,37 @@ export class Captain {
                     if (revising !== undefined) {current.revising = revising}
                     return current.context.cancel(ids.includes("all") ? "all" : ids)
                 })),
-            tool("offer_control", "Put a dial on your card in the team view (or change one you have: same name), for the producer to steer a direction that keeps going. It changes nothing by itself.", {
+            tool("offer_control", "Put a control on your card in the team view (or change one you have: same name), for the producer to steer without typing. An intent control changes nothing by itself: its move reaches you (or, for a dial or switch between its two takes, is played by code). A direct one sets the parameters it's bound to at once, as the producer's own hand.", {
                 name: z.string().regex(/^[a-z][a-z0-9_]{0,30}$/).describe("A short id, lower case (\"lofi_amount\")"),
                 label: z.string().max(30).describe("What the producer reads on it, a word or two (\"Lofi\", \"Busy\")"),
-                low: z.string().max(30).describe("Its 0 end, in the producer's words (\"clean\")"),
-                high: z.string().max(30).describe("Its 1 end (\"dusty tape\")"),
-                meaning: z.string().describe("What moving it should change, for yourself later: what changes, between which settings"),
-                value: z.number().min(0).max(1).describe("Where it starts: where the direction you just assigned takes the project once it has landed, not how far it has got yet (asked for a lush lofi beat on a lofi dial: near 1), so moving it means more or less than that"),
-                before: z.number().min(0).max(1).describe("Where the project was before this direction, on this dial (a lofi dial for a beat that wasn't lofi: 0). Its take is kept there.")},
+                widget: z.enum(["dial", "switch", "choice", "button"]).default("dial").describe("dial: an amount between two ends; switch: one of two states (a part in or out, half-time or not); choice: one of a few named options (sections, variations, kits); button: a one-shot the producer presses when they want it (a fill, a drop, a build into the next phrase)"),
+                kind: z.enum(["intent", "direct"]).default("intent").describe("intent: a direction to you; direct: a dial or switch bound to parameters (bind), set instantly with no turn of yours (a macro knob for the reverb, a mute switch), for something the producer wants under their own hand"),
+                low: z.string().max(30).default("").describe("dial, switch: its 0 end or off state, in the producer's words (\"clean\")"),
+                high: z.string().max(30).default("").describe("dial, switch: its 1 end or on state (\"dusty tape\")"),
+                options: z.array(z.string().max(24)).max(6).optional().describe("choice: 2 to 6 options, in order (\"verse\", \"chorus\", \"break\")"),
+                bind: z.array(z.object({ref: z.string().describe("A parameter's ref: t2.mix.volume, t3.fx1.wet, master.mix.volume"),
+                    from: z.number().describe("Its value at 0 (or off)"), to: z.number().describe("Its value at 1 (or on)")})).max(8).optional()
+                    .describe("direct: the parameters it sets, each from its from to its to across the control (several make a macro)"),
+                meaning: z.string().describe("What moving or pressing it should change, for yourself later: what changes, between which settings"),
+                value: z.number().min(0).describe("Where it starts: a dial or switch where the direction you just assigned takes the project once it has landed, not how far it has got yet (asked for a lush lofi beat on a lofi dial: near 1); a choice, its option's index; a button, 0; a direct control, where its parameters are now"),
+                before: z.number().min(0).max(1).optional().describe("An intent dial or switch for a direction you just assigned: where the project was before it, on this control (a lofi dial for a beat that wasn't lofi: 0). Its take is kept there.")},
                 handler(async (current, input) => {
                     const ref = `c:${String(input.name)}`
+                    const widget = input.widget as Control["widget"]
+                    const kind = input.kind as Control["kind"]
                     const fresh = !current.context.controls().some(control => control.ref === ref)
-                    const said = current.context.offerControl(this.agent, {ref, label: String(input.label), low: String(input.low),
-                        high: String(input.high), meaning: String(input.meaning), value: Number(input.value)})
-                    if (fresh) {current.context.ledger.dial(ref, current.direction.id)}
-                    // The project before this direction, kept as the dial's other end.
+                    const said = current.context.offerControl(this.agent, {ref, kind, widget, label: String(input.label), low: String(input.low ?? ""),
+                        high: String(input.high ?? ""), meaning: String(input.meaning), value: Number(input.value),
+                        ...(input.options !== undefined ? {options: (input.options as string[]).map(String)} : {}),
+                        ...(input.bind !== undefined ? {bind: (input.bind as Array<{ ref: string, from: number, to: number }>)
+                            .map(({ref, from, to}) => ({ref: String(ref), from: Number(from), to: Number(to)}))} : {})})
                     const placed = current.context.controls().find(control => control.ref === ref)
-                    if (!fresh || placed === undefined || current.before === undefined) {return said}
-                    const before = Number.isFinite(Number(input.before)) ? Math.min(1, Math.max(0, Number(input.before))) : placed.value >= 0.5 ? 0 : 1
+                    if (!fresh || placed === undefined) {return said}
+                    current.context.ledger.dial(ref, current.direction.id)
+                    // An intent dial's or switch's other end: the project before this direction, kept as a take.
+                    if (kind !== "intent" || (widget !== "dial" && widget !== "switch") || current.before === undefined) {return said}
+                    const before = input.before !== undefined && Number.isFinite(Number(input.before)) ? Math.min(1, Math.max(0, Number(input.before)))
+                        : placed.value >= 0.5 ? 0 : 1
                     const id = await current.context.keepTake(ref, before, "the project before this direction", current.before)
                     return id === null ? said : `${said} Kept the project before this direction as take ${id}.`
                 })),

@@ -4,7 +4,8 @@
 // Run via `make scenario SCENARIO=<name>` (scenarios/<name>.json); shares the studio container's network like smoke.mjs.
 // A message may carry restart_after_ms: the backend is killed that long after it's sent (the Makefile does it when this
 // drops scenarios/.restart), and its reply is the one after the page has reconnected.
-// A step may move a control instead of sending text: {"control": "<ref, or omitted for the first one shown>", "value": 0..1};
+// A step may move a control instead of sending text: {"control": "<ref, or omitted for the first one shown>", "value": 0..1}
+// (a switch's or a choice's option index; a button is pressed), optionally the first of a "widget" or "kind";
 // A message with "no_settle": true moves on as soon as it's answered, without waiting for its edits to land.
 // or change a parameter in openDAW as the producer would, with no reply expected: {"set": "t1.mix.volume", "value": -20}.
 // {"wait_ms": 30000} just lets the project play (a probe with no agents: only set and wait steps).
@@ -170,13 +171,22 @@ try {
             continue
         }
         if (step.control !== undefined) {
-            const selector = step.control === "" ? "[data-testid=takedo-control]" : `[data-testid=takedo-control][data-ref="${step.control}"]`
+            // widget, kind: the first control of that widget or kind (the Team Lead names its controls itself).
+            const selector = `[data-testid=takedo-control]${step.control === "" ? "" : `[data-ref="${step.control}"]`}` +
+                `${step.widget === undefined ? "" : `[data-widget="${step.widget}"]`}${step.kind === undefined ? "" : `[data-kind="${step.kind}"]`}`
             const found = await page.waitForSelector(selector, {timeout: 5000}).then(() => true, () => false)
             const label = found ? await page.evaluate(([selector, value]) => {
                 const control = document.querySelector(selector)
+                // A dial is let go at the value; a switch or a choice is clicked on its option (the value's index); a button pressed.
                 const input = control.querySelector("input")
-                input.value = String(Math.round(value * 100))
-                input.dispatchEvent(new Event("change"))
+                if (input !== null) {
+                    input.value = String(Math.round(value * 100))
+                    input.dispatchEvent(new Event("input"))
+                    input.dispatchEvent(new Event("change"))
+                } else {
+                    const buttons = [...control.querySelectorAll("button")]
+                    buttons[Math.min(buttons.length - 1, Math.max(0, Math.round(value)))]?.click()
+                }
                 return `${control.dataset.ref} (${control.firstElementChild.textContent})`
             }, [selector, step.value]) : null
             text = label === null ? `(no control to move${step.control === "" ? "" : ` ${step.control}`})` : `(moved ${label} to ${step.value})`
@@ -218,7 +228,9 @@ try {
         console.log(`> ${text}\n${lines.map(line => `  ${line.shown ?? line.from}: ${line.text}`).join("\n")}\n  (${(replyMs / 1000).toFixed(1)} s to reply, ${((Date.now() - start) / 1000).toFixed(1)} s to settle)`)
     }
     run.controls = await page.evaluate(() => [...document.querySelectorAll("[data-testid=takedo-control]")].map(control => ({
-        ref: control.dataset.ref, label: control.firstElementChild.textContent, value: Number(control.querySelector("input").value) / 100})))
+        ref: control.dataset.ref, label: control.firstElementChild.textContent, widget: control.dataset.widget,
+        value: control.querySelector("input") !== null ? Number(control.querySelector("input").value) / 100
+            : Math.max(0, [...control.querySelectorAll("button")].findIndex(button => button.dataset.on === "true"))})))
     run.after = await full()
     run.playing = await page.evaluate(() => window.opendaw.engine.isPlaying())
     run.clock.end = await clock()

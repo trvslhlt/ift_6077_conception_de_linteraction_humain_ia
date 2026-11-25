@@ -1,0 +1,51 @@
+{
+ "//": "Not everything is a slider (2026-11-25): the producer asks for a knob of their own on the bass reverb (a direct dial, set at once by the page as their hand), a switch to drop the drums out, and a button for a drum fill; then uses each.",
+ "project": "01_good_base.odb",
+ "messages": [
+  {
+   "text": "put a reverb on the bass and give me a knob for how wet it is, I want to ride it myself"
+  },
+  {
+   "wait_ms": 8000
+  },
+  {
+   "text": "also give me a switch to drop the drums out and back in, and a button I can hit for a drum fill"
+  },
+  {
+   "wait_ms": 8000
+  },
+  {
+   "control": "",
+   "kind": "direct",
+   "widget": "dial",
+   "value": 0.9
+  },
+  {
+   "wait_ms": 4000
+  },
+  {
+   "control": "",
+   "widget": "switch",
+   "value": 0
+  },
+  {
+   "wait_ms": 15000
+  },
+  {
+   "control": "",
+   "widget": "button",
+   "value": 1
+  },
+  {
+   "wait_ms": 15000
+  },
+  {
+   "control": "",
+   "widget": "switch",
+   "value": 1
+  },
+  {
+   "wait_ms": 15000
+  }
+ ]
+}

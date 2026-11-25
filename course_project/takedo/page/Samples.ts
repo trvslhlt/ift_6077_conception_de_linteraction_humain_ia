@@ -18,7 +18,7 @@ export type TakeDoSoundfont = { uuid: string, file: string, name: string, about:
 let manifest: Promise<{ samples: ReadonlyArray<TakeDoSample>, soundfonts: ReadonlyArray<TakeDoSoundfont> }> | null = null
 const loaded = () => {
     manifest ??= fetch(`${Root}/manifest.json`)
-        .then(response => response.ok ? response.json() : {})
+        .then((response): Promise<{ samples?: TakeDoSample[], soundfonts?: TakeDoSoundfont[] }> => response.ok ? response.json() : Promise.resolve({}))
         .then(json => ({samples: json.samples ?? [], soundfonts: json.soundfonts ?? []}))
         .catch(() => ({samples: [], soundfonts: []}))
     return manifest

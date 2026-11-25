@@ -192,30 +192,97 @@ export const TakeDoPanel = ({lifecycle, service, visible}: Construct): HTMLEleme
         showControls(agent, [])
         return box
     }
+    // Not everything is a slider: a dial (a range between its ends), a switch (two states), a choice (a few options) or
+    // a button (a press). An intent control's release, flip, pick or press is sent to its owner; a direct one also sets
+    // the parameters it's bound to as the producer's own hand while it moves (one undo step a gesture).
+    const send = (control: Control, value: number): void => connection.send({type: "control", ref: control.ref, value})
+    const direct = (control: Control, value: number, mark: boolean): void => {
+        const adapter = handle.adapter
+        if (control.kind !== "direct" || adapter === null) {return}
+        ;(control.bind ?? []).forEach(({ref, from, to}) => adapter.setAsProducer(ref, from + (to - from) * value, mark))
+    }
+    const shell = (control: Control, body: HTMLElement, ends: boolean): HTMLElement => (
+        <div data-testid="takedo-control" data-ref={control.ref} data-widget={control.widget} data-kind={control.kind}
+             title={control.meaning}>
+            <div style={{fontWeight: "bold"}}>{control.label}{control.kind === "direct" ? <span style={{opacity: "0.5",
+                fontWeight: "normal"}}> · direct</span> : null}</div>
+            {body}
+            {ends ? <div style={{display: "flex", justifyContent: "space-between", opacity: "0.6", fontSize: "10px"}}>
+                <span>{control.low}</span><span>{control.high}</span>
+            </div> : null}
+        </div>
+    )
+    const chip = (text: string, on: boolean, press: () => void, testid: string): HTMLButtonElement => {
+        const button: HTMLButtonElement = (
+            <button data-testid={testid} data-on={String(on)} style={{fontSize: "11px", padding: "0.15em 0.6em", cursor: "pointer",
+                borderRadius: "4px", border: "1px solid #555", color: "inherit",
+                background: on ? "rgba(70, 120, 140, 0.9)" : "rgba(40, 44, 50, 0.95)"}}>{text}</button>
+        )
+        button.onclick = press
+        return button
+    }
     const dial = (control: Control): HTMLElement => {
         const input: HTMLInputElement = (
             <input type="range" min="0" max="100" step="1" value={String(Math.round(control.value * 100))}
                    data-testid="takedo-control-input" aria-label={`${control.label}, from ${control.low} to ${control.high}`}
                    style={{width: "100%", margin: "0.2em 0"}}/>
         )
-        input.onchange = () => connection.send({type: "control", ref: control.ref, value: Number(input.value) / 100})
-        return (
-            <div data-testid="takedo-control" data-ref={control.ref} title={control.meaning}>
-                <div style={{fontWeight: "bold"}}>{control.label}</div>
-                {input}
-                <div style={{display: "flex", justifyContent: "space-between", opacity: "0.6", fontSize: "10px"}}>
-                    <span>{control.low}</span><span>{control.high}</span>
-                </div>
-            </div>
-        )
+        if (control.kind === "direct") {
+            input.onpointerdown = () => handle.adapter?.gestureMark()
+            input.oninput = () => direct(control, Number(input.value) / 100, false)
+        }
+        input.onchange = () => {
+            if (control.kind === "direct") {handle.adapter?.gestureMark()}
+            send(control, Number(input.value) / 100)
+        }
+        return shell(control, input, true)
     }
+    const toggle = (control: Control): HTMLElement => {
+        const on = control.value >= 0.5
+        const row: HTMLElement = <div style={{display: "flex", columnGap: "0.3em", margin: "0.2em 0"}}/>
+        const pick = (value: number) => () => {
+            if ((value >= 0.5) === on) {return}
+            direct(control, value, true)
+            send(control, value)
+            row.querySelectorAll("button").forEach((button, index) => {
+                const lit = index === value
+                button.dataset.on = String(lit)
+                button.style.background = lit ? "rgba(70, 120, 140, 0.9)" : "rgba(40, 44, 50, 0.95)"
+            })
+        }
+        row.append(chip(control.low || "off", !on, pick(0), "takedo-control-option"), chip(control.high || "on", on, pick(1), "takedo-control-option"))
+        return shell(control, row, false)
+    }
+    const choice = (control: Control): HTMLElement => {
+        const row: HTMLElement = <div style={{display: "flex", flexWrap: "wrap", gap: "0.3em", margin: "0.2em 0"}}/>
+        const options = control.options ?? []
+        options.forEach((option, index) => row.append(chip(option, Math.round(control.value) === index, () => {
+            send(control, index)
+            row.querySelectorAll("button").forEach((button, other) => {
+                button.dataset.on = String(other === index)
+                button.style.background = other === index ? "rgba(70, 120, 140, 0.9)" : "rgba(40, 44, 50, 0.95)"
+            })
+        }, "takedo-control-option")))
+        return shell(control, row, false)
+    }
+    const press = (control: Control): HTMLElement => {
+        const button = chip(control.label, false, () => {
+            send(control, 1)
+            button.style.background = "rgba(70, 120, 140, 0.9)"
+            setTimeout(() => button.style.background = "rgba(40, 44, 50, 0.95)", 300)
+        }, "takedo-control-press")
+        const element = shell(control, <div style={{margin: "0.2em 0"}}>{button}</div>, false)
+        element.firstElementChild?.remove()
+        return element
+    }
+    const widgets: Record<Control["widget"], (control: Control) => HTMLElement> = {dial, switch: toggle, choice, button: press}
     const showControls = (agent: string, controls: ReadonlyArray<Control>): void => {
         const box = controlsBox(agent)
         // A dial being dragged stays as it is; it reports when it's let go.
         if (box.contains(document.activeElement) && box.querySelector("input:active") !== null) {return}
         box.replaceChildren(...(controls.length === 0
             ? [<div style={{opacity: "0.5"}}>No controls yet</div>]
-            : controls.filter(control => control.widget === "dial").map(dial)))
+            : controls.map(control => (widgets[control.widget] ?? dial)(control))))
     }
     // Each card: the member, its area, what it says it's doing, and the controls it offers the producer. One per
     // roster member from the start; an agent outside the roster gets one when it acts.

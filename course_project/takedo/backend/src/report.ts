@@ -298,9 +298,14 @@ if (before === undefined || after === undefined) {
     }
     // Controls (when the scenario moves one): offered, and each move heard: a reply and edits after it.
     if (run.messages.some(message => message.control === true)) {
-        const offered = log.filter(entry => entry.type === "controls").flatMap(entry => entry.controls as Array<{ ref: string, label: string, low: string, high: string }>)
+        type Offered = { ref: string, label: string, low: string, high: string, widget?: string, kind?: string, options?: string[],
+            bind?: Array<{ ref: string }> }
+        const offered = log.filter(entry => entry.type === "controls").flatMap(entry => entry.controls as Offered[])
+        const shape = (control: Offered): string => `${control.kind === "direct" ? "direct " : ""}${control.widget ?? "dial"}` +
+            (control.widget === "button" ? "" : control.widget === "choice" ? `: ${(control.options ?? []).join(" / ")}` : `: ${control.low} → ${control.high}`) +
+            (control.bind === undefined ? "" : `, on ${control.bind.map(bound => bound.ref).join(", ")}`)
         check(offered.length > 0, offered.length > 0
-            ? `controls offered: ${[...new Map(offered.map(control => [control.ref, `"${control.label}" (${control.low} → ${control.high})`])).values()].join(", ")}`
+            ? `controls offered: ${[...new Map(offered.map(control => [control.ref, `"${control.label}" (${shape(control)})`])).values()].join(", ")}`
             : "no control was offered")
         const moves = log.filter(entry => entry.type === "control")
         for (const move of moves) {
@@ -308,6 +313,16 @@ if (before === undefined || after === undefined) {
             const next = log.find(entry => entry.t > move.t && (entry.type === "control" || entry.type === "chat" && entry.from === "user"))?.t ?? Infinity
             const edits = requests.filter(entry => entry.t > move.t && entry.t < next).length
             const replied = log.some(entry => entry.t > move.t && entry.t < next && entry.type === "chat" && entry.from !== "user")
+            // A direct control's move is the producer's own hand on its parameters, set by the page: no reply, no agent
+            // edits, a change of the producer's on each bound parameter within a second.
+            if (move.kind === "direct") {
+                const bound = (offered.findLast(control => control.ref === move.ref)?.bind ?? []).map(entry => entry.ref)
+                const set = log.filter(entry => entry.type === "change" && entry.actor === "user" && entry.t >= move.t - 1000 && entry.t < move.t + 1000)
+                    .flatMap(entry => (entry.changes as Array<{ ref: string }>).map(change => change.ref)).filter(ref => bound.includes(ref))
+                check(set.length > 0 && !replied, `moving ${move.ref} (direct) to ${move.value}: ${set.length > 0 ? `set ${[...new Set(set)].join(", ")} as the producer's hand`
+                    : `none of ${bound.join(", ") || "its parameters"} set`}${replied ? ", and a reply (none expected)" : ""}`)
+                continue
+            }
             // Between a dial's two takes a move is played by code (blend.ts): no reply, its edits within seconds.
             const blend = log.find(entry => entry.t >= move.t && entry.t < next && entry.type === "blend")
             if (blend !== undefined) {

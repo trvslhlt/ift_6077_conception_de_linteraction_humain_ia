@@ -792,12 +792,23 @@ export class Adapter implements Terminable {
         return true
     }
 
-    // A parameter set as the producer would (not tagged as an agent's), for tests: false if there's no such ref.
-    setAsProducer(ref: string, value: number): boolean {
-        const param = this.#allParams().find(candidate => candidate.ref === ref)
-        if (param === undefined) {return false}
-        this.#project.editing.modify(() => param.parameter.setValue(value))
+    // A parameter set as the producer would (not tagged as an agent's): tests, and a direct control on a card (the
+    // producer's own hand, so it's recorded and the Team Lead sees it as theirs). False if there's no such ref. A
+    // gesture's writes go unmarked (mark false) between gestureMark() calls, so a drag is one undo step, as a knob's is.
+    setAsProducer(ref: string, value: number, mark: boolean = true): boolean {
+        const param = this.#param(ref)
+        if (param === null || !Number.isFinite(value)) {return false}
+        const {parameter} = param
+        const written = isSwitch(parameter) ? value >= 0.5
+            : isStepped(parameter) ? Math.round(parameter.valueMapping.clamp(value)) : parameter.valueMapping.clamp(value)
+        this.#project.editing.modify(() => parameter.setValue(written), mark)
         return true
+    }
+
+    gestureMark(): void {this.#project.editing.mark()}
+
+    // Whether a ref is a parameter that can be set (a direct control's binding).
+    hasParam(ref: string): boolean {return this.#param(ref) !== null
     }
 
     // Requests still waiting for their bar or under way. They outlive a backend restart (2026-11-22: the board keeps the

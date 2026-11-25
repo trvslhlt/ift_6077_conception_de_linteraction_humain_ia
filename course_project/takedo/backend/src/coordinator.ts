@@ -33,9 +33,26 @@ const Edge = 0.02
 // handing leftovers to one long-lived utility session), kept until it's retired (step 3).
 // Controls a member may have on its card at once (INTERACTION.md: one intent control each; a few while it's tried out).
 export const MaxControls = 3
+const MaxOptions = 6
+const Pressed = -1                                  // a button's "was" in #moved: never its value, so a press is always news
+// A parameter a direct control may set: a track's or the master's mix control, or an effect's parameter.
+const ParamRef = /^(t\d+|master)\.(mix\.(volume|pan|mute|solo)|fx\d+\.[A-Za-z0-9_.]+)$/
+// A control's value as its widget has it: a switch on one of its two states, a choice on an option, a button at 0.
+const settled = (widget: Control["widget"], value: number, options?: ReadonlyArray<string>): number => {
+    const clamped = Number.isFinite(value) ? value : 0
+    switch (widget) {
+        case "dial": return Math.min(1, Math.max(0, clamped))
+        case "switch": return clamped >= 0.5 ? 1 : 0
+        case "choice": return Math.min((options?.length ?? 1) - 1, Math.max(0, Math.round(clamped)))
+        case "button": return 0
+    }
+}
 // A control's position in words, for its owner: where it sits between its two ends.
 export const placed = (control: Control): string => {
-    const {value, low, high} = control
+    const {value, low, high, widget, options = []} = control
+    if (widget === "switch") {return value >= 0.5 ? `on "${high}" (off is "${low}")` : `on "${low}" (the other is "${high}")`}
+    if (widget === "choice") {return `"${options[Math.round(value)] ?? "?"}" (of ${options.map(option => `"${option}"`).join(", ")})`}
+    if (widget === "button") {return "a button"}
     const where = value <= 0.05 ? `all the way to "${low}"` : value < 0.35 ? `toward "${low}"` : value <= 0.65 ? `in the middle`
         : value < 0.95 ? `toward "${high}"` : `all the way to "${high}"`
     return `${value.toFixed(2)}, ${where} (0 is "${low}", 1 is "${high}")`
@@ -412,7 +429,7 @@ export class Coordinator {
         const notebook = this.#notebook
         if (notebook === null) {return}
         if (controls.length === 0) {notebook.delete("controls")} else {
-            notebook.set("controls", "state", `Dials on your card, as the producer has them now: ${controls.map(control =>
+            notebook.set("controls", "state", `Controls on your card, as the producer has them now: ${controls.map(control =>
                 `"${control.label}" (${control.ref}) at ${placed(control)}: ${control.meaning}`).join("; ")}.`, JSON.stringify(controls))
         }
         this.#log.write("controls", {controls})
@@ -421,8 +438,8 @@ export class Coordinator {
 
     #sendControls(): void {this.#send({type: "controls", controls: this.controls()})}
 
-    // A member puts a dial on its card, or changes one it has (same ref: the producer's position is kept).
-    offerControl(owner: Actor, offered: Omit<Control, "owner" | "kind" | "widget">): string {
+    // A member puts a control on its card, or changes one it has (same ref: the producer's position is kept).
+    offerControl(owner: Actor, offered: Omit<Control, "owner">): string {
         if (this.#notebook === null) {return "Not offered: no project is open."}
         const controls = this.controls()
         const existing = controls.find(control => control.ref === offered.ref)
@@ -430,11 +447,25 @@ export class Coordinator {
         if (existing === undefined && controls.filter(control => control.owner === owner).length >= MaxControls) {
             return `Not offered: you have ${MaxControls} controls already; remove one that no longer applies first.`
         }
-        const control: Control = {...offered, owner, kind: "intent", widget: "dial",
-            value: existing?.value ?? Math.min(1, Math.max(0, offered.value))}
+        const {widget, kind} = offered
+        const options = widget === "choice" ? (offered.options ?? []).filter(option => option.trim() !== "") : undefined
+        if (options !== undefined && (options.length < 2 || options.length > MaxOptions)) {
+            return `Not offered: a choice needs 2 to ${MaxOptions} options.`
+        }
+        const bind = kind === "direct" ? (offered.bind ?? []).filter(({ref, from, to}) =>
+            ParamRef.test(ref) && Number.isFinite(from) && Number.isFinite(to)) : undefined
+        if (bind !== undefined && (bind.length === 0 || (widget !== "dial" && widget !== "switch"))) {
+            return "Not offered: a direct control is a dial or a switch, bound to at least one parameter (t2.mix.volume, t3.fx1.wet) with its from and to."
+        }
+        const control: Control = {ref: offered.ref, owner, kind, widget, label: offered.label, low: offered.low, high: offered.high,
+            meaning: offered.meaning, value: settled(widget, existing?.widget === widget ? existing.value : offered.value, options),
+            ...(options !== undefined ? {options} : {}), ...(bind !== undefined ? {bind} : {}),
+            ...(existing?.transitions !== undefined ? {transitions: existing.transitions} : {})}
         this.#setControls(existing === undefined ? [...controls, control]
             : controls.map(candidate => candidate.ref === control.ref ? control : candidate))
-        return `On your card: "${control.label}" at ${placed(control)}. Moving it will reach you as control_moved.`
+        return `On your card: "${control.label}" at ${placed(control)}. ${kind === "direct"
+            ? "The producer's moves set its parameters at once, as their own hand; you'll see them as producer_changed."
+            : widget === "button" ? "A press will reach you as control_moved." : "Moving it will reach you as control_moved."}`
     }
 
     removeControl(owner: Actor, ref: string): string {
@@ -462,16 +493,23 @@ export class Coordinator {
         const moved = controls.find(control => control.ref === ref)
         if (moved === undefined || !Number.isFinite(value)) {return}
         const was = this.#moved.has(ref) ? null : moved.value
-        const control = {...moved, value: Math.min(1, Math.max(0, value))}
+        const control = {...moved, value: settled(moved.widget, value, moved.options)}
         this.#setControls(controls.map(candidate => candidate.ref === ref ? control : candidate))
-        this.#log.write("control", {ref, value: control.value, owner: control.owner})
-        if (!this.#moved.has(ref)) {this.#moved.set(ref, was ?? moved.value)}
+        this.#log.write("control", {ref, value: control.value, owner: control.owner, widget: control.widget, kind: control.kind})
+        // A direct control's move is the producer's own hand on its parameters (the page set them): nothing for its owner
+        // to do now; it sees them as producer_changed with its next turn.
+        if (control.kind === "direct") {return}
+        // A button keeps no position: each press is news (Pressed, below).
+        if (!this.#moved.has(ref)) {this.#moved.set(ref, control.widget === "button" ? Pressed : was ?? moved.value)}
         const describe = (): string => {
             const now = this.controls()
             const text = [...this.#moved].flatMap(([ref, was]) => {
                 const control = now.find(candidate => candidate.ref === ref)
-                return control === undefined || control.value === was ? []
-                    : [`The producer moved your control "${control.label}" from ${was.toFixed(2)} to ${placed(control)}. It means: ${control.meaning}`]
+                if (control === undefined) {return []}
+                if (control.widget === "button") {return [`The producer pressed your button "${control.label}". It means: ${control.meaning}`]}
+                if (control.value === was) {return []}
+                const from = control.widget === "dial" ? was.toFixed(2) : placed({...control, value: was}).replace(/ \(.*$/, "")
+                return [`The producer moved your control "${control.label}" from ${from} to ${placed(control)}. It means: ${control.meaning}`]
             }).join("\n")
             this.#moved.clear()
             return text
@@ -488,7 +526,8 @@ export class Coordinator {
             void this.#blend(ref, control.value).catch(error => this.#log.write("blend_failed", {ref, error: String(error)}))
         }
         const lead = () => {
-            this.card({agent: captain.agent, name: captain.name, doing: `heard: ${control.label} ${placed(control).replace(/ \(0 is.*$/, "")}`})
+            this.card({agent: captain.agent, name: captain.name, doing: control.widget === "button" ? `heard: ${control.label}, pressed`
+                : `heard: ${control.label} ${placed(control).replace(/ \((0 is|of|off is|the other is) .*$/, "")}`})
             if (this.#steering) {return}
             this.#steering = true
             captain.later(this, async () => {
@@ -496,12 +535,15 @@ export class Coordinator {
                 const was = this.#moved.get(ref)
                 const controls = [...this.#moved.keys()]
                 const text = describe()
-                if (text !== "" && was !== undefined) {await this.#keepLanded(ref, was)}
+                if (text !== "" && was !== undefined && versioned) {await this.#keepLanded(ref, was)}
                 const snapshot = text === "" ? null : await this.snapshot()
                 return snapshot === null ? null : {turn: {kind: "control_moved", text, controls}, snapshot}
             }).catch(error => this.say("agent:team_lead", `Something went wrong: ${String(error)}`))
         }
-        if (this.#steering) {return lead()}
+        // Only a dial or a switch lies between two versions of the project (its takes); a choice's or a button's move is
+        // always its owner's to act on.
+        const versioned = control.widget === "dial" || control.widget === "switch"
+        if (this.#steering || !versioned) {return lead()}
         if (within()) {return glide()}
         // The first move after its direction landed: that work is the dial's other end, kept now, then glided between.
         const previous = this.#moved.get(ref)
