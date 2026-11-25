@@ -84,6 +84,8 @@ export class Board {
         return direction
     }
 
+    textOf(id: string): string | undefined {return this.#directions.get(id)?.text}
+
     // Steps of a direction on a bar, staged or sent.
     count(direction: string, bar: number): number {
         return this.#steps.filter(step => step.direction === direction && step.bar === bar).length

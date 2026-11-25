@@ -20,7 +20,7 @@ import {analyse, isDrums} from "./analysis.ts"
 import type {Knowledge} from "./knowledge.ts"
 import {Utility} from "./utility.ts"
 import {type Line, triage, triageState} from "./triage.ts"
-import {fastMix} from "./fastpath.ts"
+import {fastMix, SurePath} from "./fastpath.ts"
 
 // The backend half of the bus (TAKEDO_API.md, "Overview"), one per connected page: claims, plans, chat, routing.
 // Talks to the page's adapter for state (snapshot queries) and to apply plans.
@@ -86,6 +86,7 @@ export class Coordinator {
     #opening: string | undefined = undefined   // the page's id for this opening of the project (protocol.ts)
     readonly #notebooks: string
     #takes: Takes = new Takes(null)        // the open project's takes (takes.ts)
+    #effectAsked: string | null = null                // the producer's latest message Jev judged one effect (#effectKnob)
     readonly #mixBefore = new Map<string, number>()    // each mix control's value before its latest change, latest last ("back")
     readonly #recentChanges: Array<{ t: number, pos: string, actor: string, label: string, from: unknown, to: unknown }> = []
     readonly #blending = new Map<string, Set<string>>()   // per dial: the requests its last move sent (#blend)
@@ -315,7 +316,10 @@ export class Coordinator {
             this.#log.write("request", request)
             this.#requests.set(id, status => {
                 onStatus(status)
-                if (status.state === "applied") {this.#recordActivity(request, status, belongs)}
+                if (status.state === "applied") {
+                    this.#recordActivity(request, status, belongs)
+                    void this.#effectKnob(request, status, belongs)
+                }
                 if (Terminal.includes(status.state)) {resolve(status)}
             })
             this.#send({type: "apply", request})
@@ -699,6 +703,7 @@ export class Coordinator {
         const full = await this.snapshot("full")
         const judged = await triage(this.#gateway, this.modelLog(), triageState(full ?? snapshot), message, history).catch(() => null)
         if (judged === null) {return false}
+        if (judged.path === "effect" && judged.pathP >= SurePath) {this.#effectAsked = message}
         const fast = fastMix(judged, message, snapshot, Object.fromEntries(this.#mixBefore))
         this.#log.write("triage", {message, ...judged, fast: fast !== null})
         if (fast === null) {return false}
@@ -830,6 +835,35 @@ export class Coordinator {
         } finally {
             this.release("agent:team_lead", ["project.script"])
         }
+    }
+
+    // An effect the producer asked for gets a knob (2026-11-25: "put a reverb on master", then "more reverb", and no
+    // control to ride): when an edit made for a message Jev judged one effect adds one, code offers a direct dial on
+    // the Team Lead's card bound to its amount (wet or mix), and the Team Lead says so. Only for that message's first
+    // effect: a style direction's effects get none, so the card doesn't fill up.
+    async #effectKnob(request: Apply, status: Status, activity: Activity | undefined): Promise<void> {
+        const asked = activity === undefined ? undefined : this.board.textOf(activity.direction)
+        if (this.#effectAsked === null || asked !== this.#effectAsked) {return}
+        const added = touchedBy(request.plan, status).effects.find(effect => effect.change === "added")
+        if (added === undefined) {return}
+        this.#effectAsked = null
+        // After its fade-in (a beat, page/Adapter.ts EffectFadeBeats), so the knob starts where the effect settles.
+        const tempo = (await this.snapshot())?.timeline.bpm ?? 120
+        await new Promise(resolve => setTimeout(resolve, 1.5 * 60000 / tempo))
+        const snapshot = await this.snapshot()
+        if (snapshot === null) {return}
+        const devices = [...snapshot.tracks.map(track => ({where: track.name, effects: track.effects})), {where: "the master", effects: snapshot.master.effects}]
+        const owner = devices.find(({effects}) => effects.some(effect => effect.ref === added.ref))
+        const device = owner?.effects.find(effect => effect.ref === added.ref)
+        const amount = device?.params?.find(param => /\.(wet|mix)$/.test(param.ref))
+        if (owner === undefined || device === undefined || amount === undefined) {return}
+        // A wet in dB from -40 (barely there) to 0; a mix from none to all.
+        const [from, to] = amount.ref.endsWith(".wet") ? [Math.max(amount.min, -40), Math.min(amount.max, 0)] : [amount.min, amount.max]
+        const value = Math.max(0, Math.min(1, (amount.value - from) / (to - from)))
+        const said = this.offerControl("agent:team_lead", {ref: `c:${added.ref.replace(/\./g, "_")}_amount`, kind: "direct", widget: "dial",
+            label: `${device.name} on ${owner.where === "the master" ? "the master" : owner.where}`, low: "dry", high: "wet",
+            meaning: `How much of the ${device.name} you hear`, value, bind: [{ref: amount.ref, from, to}]})
+        if (said.startsWith("On your card")) {this.say("agent:team_lead", `There's a knob for the ${device.name.toLowerCase()} on my card, to set how much of it you hear.`)}
     }
 
     #change(event: ChangeEvent): void {
