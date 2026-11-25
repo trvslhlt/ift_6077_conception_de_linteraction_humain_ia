@@ -174,7 +174,9 @@ export const chordHits = (spec: ChordSpec, beatsPerBar = 4): { hits: Hit[], beat
 // A pattern is one bar per cycle: "bd ~ sd ~" is four quarters, "hh*8" eighths, "[bd ~ bd ~, ~ sd ~ sd]" two parts at
 // once, "bd(3,8)" three hits spread over eight, "<sd cp>" one per bar in turn, "~" a rest, "_" holds, ":0.6" a velocity.
 
-export type MiniSpec = { pattern: string, bars: number }
+// swing: where an off-beat eighth lands, as a fraction of the beat (0.5 straight, 0.58 a lazy boom-bap, 0.67 a shuffle);
+// sixteenths between move with it.
+export type MiniSpec = { pattern: string, bars: number, swing?: number }
 export type MelodySpec = MiniSpec & { register: Register, key?: string, velocity?: number }
 export type RoleHit = [beat: number, role: string, velocity: number]
 
@@ -191,6 +193,10 @@ const events = (text: string, bars: number): Event[] | string => {
     }
 }
 const barsOf = (bars: number): number => Math.max(1, Math.min(16, Math.round(bars) || 1))
+export const swung = (beat: number, swing = 0.5): number => {
+    const s = Math.max(0.5, Math.min(0.75, swing || 0.5)), whole = Math.floor(beat + 1e-9), f = beat - whole
+    return whole + (f <= 0.5 ? f * 2 * s : s + (f - 0.5) * 2 * (1 - s))
+}
 // A value and its velocity: "bd" or ["bd", 0.6] ("bd:0.6").
 const split = (value: unknown, fallback: number): [unknown, number] => Array.isArray(value)
     ? [value[0], typeof value[1] === "number" && value[1] > 0 ? Math.min(1, value[1]) : fallback] : [value, fallback]
@@ -211,7 +217,7 @@ export const drumHits = (spec: MiniSpec, beatsPerBar = 4): { hits: RoleHit[], be
         const [word, velocity] = split(event.value, 0.8)
         const role = drumRoleOf(String(word))
         if (role === null) {return `"${String(word)}" isn't a drum (bd, sd, cp, rim, hh, oh, ride, crash, lt, mt, ht, sh, perc)`}
-        hits.push([Number((event.begin * beatsPerBar).toFixed(4)), role, velocity])
+        hits.push([Number(swung(event.begin * beatsPerBar, spec.swing).toFixed(4)), role, velocity])
     }
     if (hits.length === 0) {return `"${spec.pattern}" has no hits`}
     return {hits, beats: bars * beatsPerBar}

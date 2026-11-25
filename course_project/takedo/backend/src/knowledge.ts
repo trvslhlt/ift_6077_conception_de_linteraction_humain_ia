@@ -3,6 +3,7 @@ import {basename, join} from "node:path"
 import type {Snapshot, Track} from "../../shared/protocol.ts"
 import type {Catalog, CatalogParameter} from "./catalog.ts"
 import type {Samples} from "./samples.ts"
+import {drumHits} from "./compose.ts"
 
 // The knowledge base (project_plan/KNOWLEDGE.md): what agents would otherwise look up or work out again every session,
 // kept as small named entries, some of which code can apply. One JSON file per entry under <dir>/<kind>/<name>.json
@@ -24,9 +25,38 @@ export type Step = { op: string, at?: number, input?: Record<string, unknown>, k
     args?: Record<string, unknown>, script?: string, when?: string }
 export type Apply = { params: Record<string, Param>, steps: Step[] }
 // Notes with no sound: drums by role, chords by numeral, both in beats from the pattern's start.
+// Stored as a line where it can be (2026-11-25): drums as Strudel mini-notation (mini, bars, swing: compose.ts), chords as a
+// progression ("I:4 V:4 vi:4 IV:4"), which a worker reads and varies in one line; the loader writes the hits and chords
+// from them. Played patterns (Groove MIDI: timing off the grid) keep their hits.
 export type Pattern =
-    | { type: "drums", beats: number, hits: Array<[beat: number, role: string, velocity: number]> }
-    | { type: "chords", beats: number, chords: Array<[beat: number, numeral: string, beats: number]>, velocity?: number }
+    | { type: "drums", beats: number, hits: Array<[beat: number, role: string, velocity: number]>, mini?: string, bars?: number, swing?: number }
+    | { type: "chords", beats: number, chords: Array<[beat: number, numeral: string, beats: number]>, velocity?: number, progression?: string }
+
+// A stored pattern's hits or chords, from its line; a problem as a string.
+export const expandPattern = (pattern: Pattern): Pattern | string => {
+    if (pattern.type === "drums" && typeof pattern.mini === "string") {
+        const written = drumHits({pattern: pattern.mini, bars: pattern.bars ?? 1, swing: pattern.swing})
+        return typeof written === "string" ? written : {...pattern, beats: written.beats, hits: written.hits}
+    }
+    if (pattern.type === "chords" && typeof pattern.progression === "string") {
+        const chords: Array<[number, string, number]> = []
+        let beat = 0
+        for (const token of pattern.progression.trim().split(/\s+/)) {
+            const [numeral, length] = token.split(":"), beats = length === undefined ? 4 : Number(length)
+            if (!(beats > 0) || numeral === "") {return `${token}: a numeral and its beats ("vi:4")`}
+            chords.push([beat, numeral, beats])
+            beat += beats
+        }
+        return {...pattern, beats: beat, chords}
+    }
+    return pattern
+}
+// What a reader sees of a pattern: its line, without the hits or chords written from it.
+const patternView = (pattern: Pattern): Record<string, unknown> => {
+    if (pattern.type === "drums" && typeof pattern.mini === "string") {const {hits: _, ...rest} = pattern; return rest}
+    if (pattern.type === "chords" && typeof pattern.progression === "string") {const {chords: _, ...rest} = pattern; return rest}
+    return pattern
+}
 export type Entry = {
     key: string, kind: Kind, summary: string, tags: string[], devices: string[], links: string[]
     checked: { how: typeof Checks[number], by: string, date: string, opendaw: string }
@@ -307,7 +337,10 @@ export const loadKnowledge = (dir: string, catalog: Catalog, warn: (text: string
             for (const file of readdirSync(folder).filter(name => name.endsWith(".json"))) {
                 const key = `${kind}/${basename(file, ".json")}`
                 try {
-                    const entry = JSON.parse(readFileSync(join(folder, file), "utf8")) as Entry
+                    const stored = JSON.parse(readFileSync(join(folder, file), "utf8")) as Entry
+                    const expanded = stored.pattern === undefined ? undefined : expandPattern(stored.pattern)
+                    if (typeof expanded === "string") {throw new Error(`its pattern: ${expanded}`)}
+                    const entry = expanded === undefined ? stored : {...stored, pattern: expanded}
                     const problems = shape(entry, key)
                     if (problems.length > 0) {throw new Error(problems.join("; "))}
                     if (draft && entries.has(key)) {throw new Error("a reviewed entry has that key")}
@@ -827,7 +860,7 @@ export const loadKnowledge = (dir: string, catalog: Catalog, warn: (text: string
                 const other = entries.get(link)
                 return other === undefined ? [] : [line(other)]
             })
-            return {...entry, ...(linked.length > 0 ? {linked} : {})}
+            return {...entry, ...(entry.pattern !== undefined ? {pattern: patternView(entry.pattern) as Pattern} : {}), ...(linked.length > 0 ? {linked} : {})}
         }),
         expand: (key, args, snapshot) => expand(key, args, snapshot),
         patternHits: (key, track, args, beatsPerBar) => {
@@ -868,12 +901,14 @@ export const loadKnowledge = (dir: string, catalog: Catalog, warn: (text: string
                 ...(isRecord(input.apply) ? {apply: input.apply as Apply} : {}),
                 ...(isRecord(input.pattern) ? {pattern: input.pattern as Pattern} : {})
             } satisfies Entry
-            const problems = [...shape(entry, key), ...crossProblems(entry)]
+            const expanded = entry.pattern === undefined ? undefined : expandPattern(entry.pattern)
+            if (typeof expanded === "string") {return `Not kept: its pattern: ${expanded}.`}
+            const problems = [...shape({...entry, ...(expanded ? {pattern: expanded} : {})}, key), ...crossProblems(entry)]
             if (problems.length > 0) {return `Not kept: ${problems.join("; ")}.`}
             const folder = join(dir, "drafts", kind)
             mkdirSync(folder, {recursive: true})
             writeFileSync(join(folder, `${name}.json`), `${JSON.stringify(entry, null, 2)}\n`)
-            entries.set(key, {...entry, draft: true})
+            entries.set(key, {...entry, ...(expanded ? {pattern: expanded} : {}), draft: true})
             return `Kept as draft ${key}; it's in the index from now on, marked as a draft.`
         }
     }

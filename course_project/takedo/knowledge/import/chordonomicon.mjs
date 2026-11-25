@@ -208,7 +208,7 @@ for (const [genre, byProgression] of [...counts].sort(([a], [b]) => a.localeComp
                     `A loop of ${chords.length} chords, written from the tonic when it's in it (songs start it anywhere). Numerals follow the key's own scale (natural minor in minor keys); b and # mark roots outside it. A bar per chord; change the rhythm and voicing to suit the part.`,
                     "From user-written chord charts, with each song's key estimated: frequent progressions are reliable, rarer ones less so."
                 ],
-                pattern: {type: "chords", beats: chords.length * 4, chords: chords.map((chord, slot) => [slot * 4, chord, 4])},
+                pattern: {type: "chords", progression: chords.map(chord => `${chord}:4`).join(" ")},     // a bar per chord
                 apply: {params: {track: {type: "track", about: "a chordal part (keys, pad)"}, key: {type: "key", about: "the project's key, e.g. \"G major\""},
                     from_bar: {type: "number", optional: true}, bars: {type: "number", optional: true}, octave: {type: "number", optional: true, default: 3}},
                     steps: [{op: "pattern", input: {track: "$track", key: "$key", from_bar: "$from_bar", bars: "$bars", octave: "$octave"}}]}

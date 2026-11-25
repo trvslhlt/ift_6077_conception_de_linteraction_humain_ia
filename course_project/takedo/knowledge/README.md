@@ -21,6 +21,11 @@ make knowledge-bench    # which producer messages the entries serve (offline); P
 | `import/*.mjs` | the imports that write the generated entries (deterministic: same input, same files) |
 | `bench/messages.mjs` | producer messages (observed in the session logs, from jev_bench, simulated), each labelled with the entries that would serve it; read by `backend/src/knowledge.bench.ts`. Results go to `bench/results/` (git-ignored) |
 
+A pattern is stored as a line where it can be: drums as Strudel mini-notation (`"mini": "[bd ~ ~ bd ~ ~ bd ~, ~ sd ~ sd, hh*8]"`,
+one bar per cycle, with `bars` and `swing`, the off-beat eighth's place in the beat), chords as a progression of numerals
+and beats (`"progression": "ii7:4 V7:4 Imaj7:8"`). The loader writes the hits and chords from them; a worker reads the
+line and can vary it in one line. The Groove MIDI drums keep their `hits`: their timing is played, off the grid.
+
 A reviewed entry that doesn't validate stops the backend at startup, like the catalog; a draft that doesn't is
 skipped with a warning.
 

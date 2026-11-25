@@ -42,6 +42,16 @@ const Names = ["takedo", "project", "api", "lib", "ref", "bar", "ppqn", "pos", "
 const compiles = (code: string): void => {new Function(...Names, `{\n${code}\n}`)}
 
 describe("loading", () => {
+    it("writes stored lines into hits and chords, and shows readers the line", () => {
+        const [boombap] = knowledge.get(["pattern/boombap-1"]) as Array<{ pattern: Record<string, unknown> }>
+        assert.ok(typeof boombap.pattern.mini === "string" && boombap.pattern.hits === undefined, JSON.stringify(boombap.pattern))
+        const hits = knowledge.patternHits("pattern/boombap-1", track("t1", "Drums", "Playfield"), {}, 4)
+        assert.ok(typeof hits !== "string" && hits.beats === 4 && hits.hits.length === 13, String(hits))
+        const [jazz] = knowledge.get(["pattern/jazz-ii-v-i"]) as Array<{ pattern: Record<string, unknown> }>
+        assert.equal(jazz.pattern.progression, "ii7:4 V7:4 Imaj7:8")
+        const chords = knowledge.patternHits("pattern/jazz-ii-v-i", track("t2", "Keys", "Tubular"), {key: "C major"}, 4)
+        assert.ok(typeof chords !== "string" && chords.beats === 16, String(chords))
+    })
     it("loads every entry without errors or warnings", () => {
         assert.ok(knowledge.size >= 50, `only ${knowledge.size} entries`)
         assert.deepEqual(warnings, [])

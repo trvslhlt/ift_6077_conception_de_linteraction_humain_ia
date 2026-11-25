@@ -32,24 +32,7 @@
  ],
  "pattern": {
   "type": "chords",
-  "beats": 12,
-  "chords": [
-   [
-    0,
-    "I",
-    4
-   ],
-   [
-    4,
-    "V",
-    4
-   ],
-   [
-    8,
-    "bVII",
-    4
-   ]
-  ]
+  "progression": "I:4 V:4 bVII:4"
  },
  "apply": {
   "params": {
