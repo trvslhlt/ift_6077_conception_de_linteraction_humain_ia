@@ -1,6 +1,7 @@
 import {choice, score} from "@typesafe-ai/sdk"
 import type {Snapshot} from "../../shared/protocol.ts"
 import type {Gateway, ModelLog} from "./gateway.ts"
+import {isDrums} from "./analysis.ts"
 
 // Jev in front of the Team Lead (2026-11-25, the user: Jev sits in front of every model call, the Team Lead's and each
 // worker's). One request, its questions answered in parallel: what path the producer's message needs, and, in case
@@ -29,12 +30,20 @@ const Amounts = ["A subtle touch that is barely noticeable", "A clear, moderate 
     "All the way: silent, or hard left or right"]
 const Premise = "The producer sent `message` to their AI music team while working on `project`, during playback. "
 
-// What Jev sees of the project: each part by its name, instrument, effects and mix.
-export type TriageTrack = { name: string, instrument: string | null, effects: string[], volume_db: number, muted: boolean, pan: number }
+// What Jev sees of the project: each part by its name, its role, instrument, effects and mix. The role is from its notes
+// (a "full" snapshot), as the project's facts say it (Coordinator, keepFacts): a part's name often doesn't (2026-11-25:
+// the bass of the jam project is "Cubed", and "bring the bass down a bit" was judged the drums').
+export type Role = "drums" | "bass" | "pitched" | "no notes"
+export type TriageTrack = { name: string, role?: Role, instrument: string | null, effects: string[], volume_db: number, muted: boolean, pan: number }
 export type TriageState = { tempo: number, tracks: Record<string, TriageTrack> }
+const roleOf = (track: Snapshot["tracks"][number]): Role | undefined => {
+    if (track.regions.every(region => region.notes === undefined)) {return isDrums(track) ? "drums" : undefined}
+    const pitches = track.regions.flatMap(region => region.notes ?? []).map(([, pitch]) => pitch)
+    return pitches.length === 0 ? "no notes" : isDrums(track) ? "drums" : Math.max(...pitches) < 60 ? "bass" : "pitched"
+}
 export const triageState = (snapshot: Snapshot): TriageState => ({
     tempo: snapshot.timeline.bpm,
-    tracks: Object.fromEntries(snapshot.tracks.map(track => [track.ref, {name: track.name, instrument: track.instrument,
+    tracks: Object.fromEntries(snapshot.tracks.map(track => [track.ref, {name: track.name, role: roleOf(track), instrument: track.instrument,
         effects: track.effects.map(effect => effect.name), volume_db: Number(track.mix.volume.toFixed(1)), muted: track.mix.mute,
         pan: Number(track.mix.pan.toFixed(2))}]))
 })
@@ -50,7 +59,8 @@ export type Triage = {
 
 export const triage = async (gateway: Gateway, log: ModelLog, state: TriageState, message: string): Promise<Triage> => {
     const parts: Record<string, string> = Object.fromEntries(Object.entries(state.tracks).map(([ref, track]) =>
-        [ref, `the ${track.name}${track.instrument ? ` (${track.instrument})` : ""}`]))
+        [ref, `the ${track.name}${track.role !== undefined ? `, the ${track.role === "pitched" ? "melodic or chordal part" : track.role === "no notes" ? "silent part" : track.role}` : ""}` +
+            `${track.instrument ? ` (${track.instrument})` : ""}`]))
     parts.whole_mix = "the whole track, all parts together (the master)"
     const start = performance.now()
     const answers = await gateway.judge("fast_path", {project: state, message}, {

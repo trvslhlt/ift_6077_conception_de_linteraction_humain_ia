@@ -111,6 +111,21 @@ try {
                 })
                 return `ramping ${units.length} volumes to ${target}`
             }
+            // EDITS=lanes: from bar 6, every 2 bars, agents' ramps through the page (window.takedo.adapter.apply): with the
+            // loop off, each is written into its automation lane (Adapter #automate, 2026-11-25). Every part's volume, and
+            // two ramps at once on one parameter (a later one cuts the earlier's region), as a stalled jam had them.
+            if (edits === "lanes") {
+                if (engine.position.getValue() < 6 * bar || second % 4 !== 0) {return null}
+                const {adapter} = window.takedo
+                const snapshot = adapter.snapshot()
+                const ramp = (ref, to) => adapter.apply({id: crypto.randomUUID(), from: "agent:utility", plan: {op: "ramp", ref, to, beats: 16},
+                    when: {at: "asap"}, seq: snapshot.at.seq})
+                const target = second % 8 === 0 ? -6 : -1
+                snapshot.tracks.forEach(track => ramp(`${track.ref}.mix.volume`, target))
+                ramp("master.mix.volume", target / 2)
+                ramp("master.mix.volume", target / 3)
+                return `lane ramps on ${snapshot.tracks.length + 2} volumes to ${target}`
+            }
             // EDITS=ride: from bar 4, a hand riding one knob without letting go (2026-11-25: a producer riding a tremolo's
             // symmetry while recording broke the engine): the first part's volume, a write every RAMP_MS, a slow wobble.
             if (edits === "ride") {

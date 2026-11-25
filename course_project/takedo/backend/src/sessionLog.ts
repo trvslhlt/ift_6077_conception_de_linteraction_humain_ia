@@ -6,7 +6,7 @@ import {join} from "node:path"
 
 export type LogType = "session" | "project" | "chat" | "route" | "claim" | "request" | "status" | "change" | "model"
     | "card" | "view" | "overview" | "by_hand" | "look" | "engine" | "unsaid"
-    | "agent_session" | "controls" | "control" | "board" | "take" | "activity" | "blend" | "blend_failed"
+    | "agent_session" | "controls" | "control" | "board" | "take" | "activity" | "blend" | "blend_failed" | "triage"
 
 export class SessionLog {
     readonly #file: string

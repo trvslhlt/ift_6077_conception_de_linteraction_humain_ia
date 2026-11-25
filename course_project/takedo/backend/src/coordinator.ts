@@ -19,6 +19,8 @@ import type {LlmMember} from "./members.ts"
 import {analyse, isDrums} from "./analysis.ts"
 import type {Knowledge} from "./knowledge.ts"
 import {Utility} from "./utility.ts"
+import {triage, triageState} from "./triage.ts"
+import {fastMix} from "./fastpath.ts"
 
 // The backend half of the bus (TAKEDO_API.md, "Overview"), one per connected page: claims, plans, chat, routing.
 // Talks to the page's adapter for state (snapshot queries) and to apply plans.
@@ -682,8 +684,28 @@ export class Coordinator {
         if (this.#project === null) {return this.say("agent:team_lead", "Open a project first.")}
         const snapshot = await this.snapshot()
         if (snapshot === null) {return this.say("agent:team_lead", "Open a project first.")}
+        if (await this.#fastPath(message, snapshot)) {return}
         await this.#keepFacts()
         return this.#captain.handle(this, {kind: "producer_message", text: message, history}, snapshot)
+    }
+
+    // Jev in front of the Team Lead (triage.ts, fastpath.ts): one mixer move it's sure of is done by code at once, the
+    // reply from the Team Lead's name; the line goes into the chat history, so the Team Lead's next turn sees it.
+    // Anything else, or Jev unavailable, goes to the Team Lead as before.
+    async #fastPath(message: string, snapshot: Snapshot): Promise<boolean> {
+        if (!this.#gateway.available("fast_path")) {return false}
+        const full = await this.snapshot("full")
+        const judged = await triage(this.#gateway, this.modelLog(), triageState(full ?? snapshot), message).catch(() => null)
+        if (judged === null) {return false}
+        const fast = fastMix(judged, message, snapshot)
+        this.#log.write("triage", {message, ...judged, fast: fast !== null})
+        if (fast === null) {return false}
+        const agent: Actor = "agent:team_lead"
+        this.say(agent, fast.says)
+        void performStep(this, agent, fast.step, message).then(result => {
+            if (/not done/.test(result)) {this.say(agent, `That didn't land: ${result.replace(/^.*?: not done/, "not done")}.`)}
+        })
+        return true
     }
 
     // ---------- jobs (the captain's workers) ----------

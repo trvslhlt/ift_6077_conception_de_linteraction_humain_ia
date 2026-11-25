@@ -7,18 +7,19 @@
 //   move   for mix: quieter | louder | mute | unmute | pan_left | pan_right | center
 //   src    observed (takedo/sessions logs, 2026-11-20..25) | simulated
 //
+// The drums and the bass are named as in the jam project (TR-808, Cubed): a part's name often doesn't say its role.
 // Labels are judgments, so review them. The rule: mix and effect are single, clear moves a fast path could do with no
 // model; anything with two moves, an exact value, a timing beyond "now" or "gradually", or a complaint is team.
 
 export const Project = {
     tempo: 88,
     tracks: {
-        t1: {name: "Drums", instrument: "Playfield", effects: [], volume_db: -4, muted: false, pan: 0},
-        t2: {name: "Keys", instrument: "Tubular", effects: ["Reverb"], volume_db: -6, muted: false, pan: 0},
-        t3: {name: "Bass", instrument: "Vaporisateur", effects: ["Delay"], volume_db: -5, muted: false, pan: 0},
-        t4: {name: "Pad", instrument: "Vaporisateur", effects: [], volume_db: -12, muted: false, pan: 0},
-        t5: {name: "Synth", instrument: "Vaporisateur", effects: [], volume_db: -8, muted: true, pan: 0},
-        t6: {name: "Guitar", instrument: "Soundfont", effects: ["Waveshaper"], volume_db: -9, muted: false, pan: 0.2}
+        t1: {name: "TR-808", role: "drums", instrument: "Playfield", effects: [], volume_db: -4, muted: false, pan: 0},
+        t2: {name: "Keys", role: "pitched", instrument: "Tubular", effects: ["Reverb"], volume_db: -6, muted: false, pan: 0},
+        t3: {name: "Cubed", role: "bass", instrument: "Vaporisateur", effects: ["Delay"], volume_db: -5, muted: false, pan: 0},
+        t4: {name: "Pad", role: "pitched", instrument: "Vaporisateur", effects: [], volume_db: -12, muted: false, pan: 0},
+        t5: {name: "Synth", role: "pitched", instrument: "Vaporisateur", effects: [], volume_db: -8, muted: true, pan: 0},
+        t6: {name: "Guitar", role: "pitched", instrument: "Soundfont", effects: ["Waveshaper"], volume_db: -9, muted: false, pan: 0.2}
     }
 }
 
