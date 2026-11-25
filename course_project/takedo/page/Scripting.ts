@@ -52,16 +52,26 @@ const bound = (target: object, key: string | symbol): unknown => {
     const value = Reflect.get(target, key, target)
     return typeof value === "function" ? value.bind(target) : value
 }
+// A part taken out is parked, not deleted (decided 2026-11-25, the producer: create new elements and park unused ones):
+// a dial or a later request can bring it back, and a take keeps it. So the project's API refuses deleting a track.
+const parkInstead = (): never => {
+    throw new Error("not applied: parts aren't deleted, they're parked so they can come back: mute the track " +
+        "(ref(\"t3\").namedParameter.mute.setValue(true)) and switch off its instrument and effects " +
+        "(ref(\"t3\").inputAdapter.ifSome(input => input.box.enabled.setValue(false)); ref(\"t3.fx1\").enabledField.setValue(false))")
+}
+export const withoutDeleting = (api: Project["api"]): Project["api"] => new Proxy(api, {get: (target, key) =>
+    key === "deleteAudioUnit" ? parkInstead : bound(target, key)})
 export const withoutTransport = (project: Project): Project => {
     const engine = new Proxy(project.engine, {get: (target, key) =>
         typeof key === "string" && EngineTransport.has(key) ? refuse(`engine.${key}`) : bound(target, key)})
-    return new Proxy(project, {get: (target, key) => key === "engine" ? engine
+    const api = withoutDeleting(project.api)
+    return new Proxy(project, {get: (target, key) => key === "engine" ? engine : key === "api" ? api
         : typeof key === "string" && ProjectTransport.has(key) ? refuse(`project.${key}`) : bound(target, key)})
 }
 
 export const scriptEnv = (project: Project, resolve: (ref: string) => unknown, snapshot: () => unknown,
                           bar: () => ppqn, pos: (position: ppqn) => string): ScriptEnv => ({
-    project: withoutTransport(project), api: project.api,
+    project: withoutTransport(project), api: withoutDeleting(project.api),
     lib: {std: Std, dsp: {PPQN}, adapters: Adapters, core: Core},
     ref: resolve,
     get bar() {return bar()},

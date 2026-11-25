@@ -1,0 +1,6 @@
+{"//": "Taking things out parks them (2026-11-25): a part the producer has the team remove is muted with its instrument switched off, an effect is switched off; nothing is deleted, so a dial or a later request can bring it back.",
+ "project": "01_good_base.odb", "messages": [
+  {"text": "add a soft synth pad playing long chords"},
+  {"text": "remove the synth"},
+  {"text": "take the echo out of the bass"},
+  {"wait_ms": 10000}]}

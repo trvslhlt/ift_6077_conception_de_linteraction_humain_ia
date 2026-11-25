@@ -51,7 +51,9 @@ const content = (device: DeviceBoxAdapter): { content?: Content } =>
     device instanceof PlayfieldDeviceBoxAdapter
         ? {content: {pads: device.samples.adapters().map(pad => ({note: pad.indexField.getValue(), name: pad.fileLabel}))}}
         : {}
-const isSwitch = (parameter: AutomatableParameterFieldAdapter): boolean => typeof parameter.getValue() === "boolean"
+// By the field's kind, not its value: a value written as a number into a switch would otherwise make every later write
+// a number too (2026-11-25, found while chasing a stuck mute).
+const isSwitch = (parameter: AutomatableParameterFieldAdapter): boolean => typeof parameter.field.initValue === "boolean"
 const isStepped = (parameter: AutomatableParameterFieldAdapter): boolean =>
     isSwitch(parameter) || !parameter.valueMapping.floating()
 const print = (parameter: AutomatableParameterFieldAdapter): string => {
@@ -460,9 +462,10 @@ export class Adapter implements Terminable {
         const effect = this.#units().flatMap(unit => this.#effects(unit)).find(effect => effect.ref === this.#named(plan.ref))
         if (effect === undefined) {return this.#status(request, {state: "failed", reason: "unknown_ref", detail: plan.ref})}
         if (!(await this.#land(request))) {return}
-        this.#tagged(request, () => this.#project.editing.modify(() => Devices.deleteEffectDevices([effect.adapter])))
+        // Parked, not deleted (2026-11-25): switched off, its settings kept, so a dial or a later request can bring it back.
+        this.#tagged(request, () => this.#project.editing.modify(() => effect.adapter.enabledField.setValue(false)))
         this.#params = null
-        this.#status(request, {state: "applied", result: {ref: plan.ref, label: effect.label}})
+        this.#status(request, {state: "applied", result: {ref: plan.ref, label: `${effect.label} (switched off)`}})
     }
 
     // One edit: rolled back by openDAW if it throws; undone if it changed anything the producer holds.

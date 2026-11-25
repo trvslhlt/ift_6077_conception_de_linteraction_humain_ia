@@ -248,6 +248,13 @@ if (before === undefined || after === undefined) {
             .map(track => `${track.name} (${track.regions.map(region => `${region.from}–${region.to}`).join(", ") || "no regions"})`)
         check(gone.length === 0, `${gone.length} new parts not playing at the end (bar ${now}, loop off)${gone.length > 0 ? `: ${gone.join(", ")}` : ""}`)
     }
+    // Nothing is deleted (2026-11-25): a part or effect taken out is parked, so it can come back and a take keeps it.
+    const afterTracks = new Map(after.tracks.map(track => [track.ref, track]))
+    const gone = before.tracks.filter(track => !afterTracks.has(track.ref)).map(track => track.name)
+    const goneEffects = before.tracks.flatMap(track => track.effects.filter(effect =>
+        !(afterTracks.get(track.ref)?.effects ?? []).some(other => other.ref === effect.ref)).map(effect => `${track.name} ${effect.name}`))
+    check(gone.length === 0 && goneEffects.length === 0, `${gone.length + goneEffects.length} parts or effects deleted rather than parked` +
+        `${gone.length + goneEffects.length > 0 ? `: ${[...gone, ...goneEffects].join(", ")}` : ""}`)
     if (added.length > 0) {out.push(`- New tracks: ${added.map(track => `${track.name} (${track.device?.name ?? track.instrument ?? "?"})`).join(", ")}`)}
     check(failed.length === 0, `${failed.length} edits not done${failed.length > 0 ? `: ${failed.map(entry => entry.detail ?? entry.reason ?? entry.state).join("; ")}` : ""}`)
     out.push(`- At most ${bunched} edits landed in one bar`)

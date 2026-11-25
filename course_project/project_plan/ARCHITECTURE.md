@@ -556,3 +556,14 @@ These are for the detailed design, whatever the shape:
   while recording, and keep-going extends note and audio parts only (`make jam-probe EDITS=effects|split`).
   scenarios/jam.json: 43 edits, every stage a region from its bar (drums 17, bass 9, new chords 9 from bar 12), tempo
   on the timeline, no stray lanes, no freeze. Still to do: agents' ramps recorded as automation points.
+
+- 2026-11-25, nothing is deleted; workers know the Vaporisateur. From the producer's long loop-on session (11a7ebb4):
+  "remove the synth" deleted its track, against "create new elements and park unused ones". Now a part or effect taken
+  out is parked: scripts can't call deleteAudioUnit (refused with how to park), remove_effect switches the effect off
+  instead of deleting it, and the Team Lead's prompt says "remove" means park. The report checks no part or effect
+  disappeared. Three supersaw scripts failed on guessed names (waveform, osc.at, unison 7): the worker prompt now gives
+  Vaporisateur's oscillators[0..1] {waveform 0-3, volume dB, octave, tune ct}, unisonCount 1/3/5, and a supersaw.
+  A switch is told by its field's kind, not its current value (a number written into one kept later writes numbers).
+  scenarios/remove.json: pad muted, bass delay switched off, both kept. Unexplained: in that session the synth's mute
+  and solo stopped responding while the project said unmuted; suspected openDAW's strip after scripts that threw on
+  that synth mid-edit (a reload would tell).
