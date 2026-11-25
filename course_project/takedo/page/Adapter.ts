@@ -5,7 +5,7 @@ import {
     AudioRegionBoxAdapter, AudioUnitBoxAdapter, AutomatableParameterFieldAdapter, DeviceBoxAdapter, Devices,
     EffectDeviceBoxAdapter, NoteRegionBoxAdapter, PlayfieldDeviceBoxAdapter, TempoRange, TrackBoxAdapter
 } from "@opendaw/studio-adapters"
-import {AudioRegionBox, NoteEventBox, NoteRegionBox, ValueEventBox, ValueEventCollectionBox} from "@opendaw/studio-boxes"
+import {AudioRegionBox, MaximizerDeviceBox, NoteEventBox, NoteRegionBox, ValueEventBox, ValueEventCollectionBox} from "@opendaw/studio-boxes"
 import {EffectFactories, type EffectFactory, type Project} from "@opendaw/studio-core"
 import type {
     Actor, AddEffectPlan, Apply, BackendToPage, Change, Content, Detail, Device, FailReason, Note, ParamState, Playback, Region,
@@ -14,8 +14,9 @@ import type {
 import {numeric, primitives} from "./Catalog"
 import {touchedBetween} from "@/takedo_shared/touched"
 import {Clock} from "./Clock"
-import {type Correction, guardField} from "./Guard"
+import {ceilingOf, type Correction, guardField} from "./Guard"
 import {runLook, runScript, type ScriptEnv, scriptEnv, serialize} from "./Scripting"
+import {loadTakedoPresets} from "./Samples"
 import type {Connection} from "./Connection"
 
 // The page half of the bus (TAKEDO_API.md, "Overview"): the only TakeDo code that touches openDAW. Holds the ref map,
@@ -116,6 +117,7 @@ export class Adapter implements Terminable {
         this.#connection = connection
         this.#env = scriptEnv(project, ref => this.#resolve(ref), () => this.snapshot(), () => this.#bar(),
             position => this.#pos(position))
+        void loadTakedoPresets()
         this.#terminator.own(connection.subscribeMessages(message => this.#receive(message)))
         this.#terminator.own(project.boxGraph.subscribeToAllUpdates({onUpdate: update => this.#observe(update)}))
         const onHold = (event: Event): void => {
@@ -419,11 +421,14 @@ export class Adapter implements Terminable {
                 detail: "this parameter has an automation lane; writing it would switch the lane off until stop"})
         }
         const switched = isSwitch(parameter)
-        const to = switched ? (plan.to !== 0 ? 1 : 0)
+        const ranged = switched ? (plan.to !== 0 ? 1 : 0)
             : isStepped(parameter) ? Math.round(parameter.valueMapping.clamp(plan.to)) : parameter.valueMapping.clamp(plan.to)
-        if (!switched && Math.abs(to - plan.to) > Math.max(0.01, Math.abs(plan.to) * 0.001) && !isStepped(parameter)) {
-            return this.#status(request, {state: "failed", reason: "out_of_range", detail: `${plan.to} → ${to}`})
+        if (!switched && Math.abs(ranged - plan.to) > Math.max(0.01, Math.abs(plan.to) * 0.001) && !isStepped(parameter)) {
+            return this.#status(request, {state: "failed", reason: "out_of_range", detail: `${plan.to} → ${ranged}`})
         }
+        // Under its safe ceiling (Guard.ts): a delay's feedback stops at 90%, not at a runaway 100%.
+        const ceiling = ceilingOf(parameter.field)
+        const to = ceiling !== null && ranged > ceiling ? ceiling : ranged
         if ((this.#lastTouched.get(plan.ref) ?? 0) > request.seq) {
             return this.#status(request, {state: "failed", reason: "stale",
                 detail: `${param.label} changed after seq ${request.seq}`})
@@ -460,6 +465,7 @@ export class Adapter implements Terminable {
         }
         if (!(await this.#land(request))) {return}
         const {api, boxAdapters, parameterFieldAdapters} = this.#project
+        let limited: string | null = null
         const box = this.#tagged(request, () => this.#project.editing.modify(() => {
             const box = api.insertEffect(unit.box.audioEffects, factory)
             boxAdapters.adapterFor(box, Devices.isEffect) // registers its parameters
@@ -472,10 +478,13 @@ export class Adapter implements Terminable {
                 // effects added mid-take opened 11).
                 const recording = this.#project.engine.isRecording.getValue()
                 parameterFieldAdapters.opt(field.address).ifSome(parameter => {
-                    const value = isSwitch(parameter) ? setting.value !== 0 : parameter.valueMapping.clamp(setting.value)
+                    const ceiling = ceilingOf(parameter.field)
+                    const ranged = parameter.valueMapping.clamp(setting.value)
+                    const value = isSwitch(parameter) ? setting.value !== 0 : ceiling !== null && ranged > ceiling ? ceiling : ranged
                     if (recording) {parameter.field.setValue(value)} else {parameter.setValue(value)}
                 })
             }
+            limited = this.#safetyLimiter()
             return box
         }).unwrapOrNull())
         if (box === null) {return this.#status(request, {state: "failed", reason: "opendaw_error", detail: "insert failed"})}
@@ -486,7 +495,7 @@ export class Adapter implements Terminable {
         this.#lastAgentEdit = {label: `${factory.defaultName} on ${unit.label}`, steps: this.#historySteps}
         this.#jamming ||= this.#project.engine.isPlaying.getValue()
         this.#status(request, {state: "applied",
-            result: {ref: effect?.ref ?? plan.track, label: effect?.label ?? factory.defaultName, device}})
+            result: {ref: effect?.ref ?? plan.track, label: effect?.label ?? factory.defaultName, device, ...(limited !== null ? {corrected: [limited]} : {})}})
     }
 
     async #removeEffect(request: Apply, plan: RemoveEffectPlan): Promise<void> {
@@ -508,15 +517,18 @@ export class Adapter implements Terminable {
         this.#updates = 0
         let value: unknown
         let corrections: Correction[] = []
+        let limited: string | null = null
         try {
             this.#tagged(request, () => this.#project.editing.modify(() => {
                 const loop = this.#loopNow()
                 const spans = this.#spans()
                 const kept = this.#keepingPast()
                 const bpm = this.#project.timelineBox.bpm.getValue()
+                const effects = this.#effectCount()
                 value = runScript(plan.code, this.#env)
                 if (this.guarding) {
                     corrections = this.#guard()
+                    if (this.#effectCount() > effects) {limited = this.#safetyLimiter()}
                     const tempo = this.#tempoProblem()
                     if (tempo !== null) {throw new Error(tempo)}
                     const moved = this.#loopProblem(loop)
@@ -544,12 +556,30 @@ export class Adapter implements Terminable {
         this.#status(request, {state: "applied",
             result: {ref: "project", label: plan.description, value: serialize(value), updates,
                 touched: touchedBetween(before, this.snapshot("full")),
-                ...(corrections.length > 0 ? {corrected: corrections.map(({field, from, to}) =>
-                    `${field}: ${from} → ${to} (outside its range)`)} : {})}})
+                ...(corrections.length > 0 || limited !== null ? {corrected: [...corrections.map(({field, from, to}) =>
+                    `${field}: ${from} → ${to} (outside its range or its safe ceiling)`), ...(limited === null ? [] : [limited])]} : {})}})
     }
 
     // Inside the script's edit: every field it wrote, brought into openDAW's declared range (Guard.ts), named as a
     // person reads it (the box and the field's path).
+    // Every audio effect in the project, to see whether an edit added one.
+    #effectCount(): number {
+        return this.#units().reduce((sum, unit) => sum + unit.box.audioEffects.pointerHub.incoming().length, 0)
+    }
+
+    // A safe default (2026-11-25, B4): an agent's edit that adds an effect, with no limiter switched on at the master,
+    // puts openDAW's Maximizer at the end of the master's effects, so a heavy chain can't clip the output. A producer who
+    // switched theirs off isn't overridden by edits that add nothing. Inside the edit, so it's one undo step with it.
+    #safetyLimiter(): string | null {
+        const master = this.#units().find(unit => unit.isOutput)
+        const factory = effectFactory("Maximizer")
+        if (master === undefined || factory === null) {return null}
+        const limiting = master.box.audioEffects.pointerHub.incoming().some(({box}) => box instanceof MaximizerDeviceBox && box.enabled.getValue())
+        if (limiting) {return null}
+        this.#project.api.insertEffect(master.box.audioEffects, factory)
+        return "added a Maximizer at the end of the master (a safety limiter: none was switched on)"
+    }
+
     #guard(): Correction[] {
         const touched = this.#touched
         if (touched === null) {return []}

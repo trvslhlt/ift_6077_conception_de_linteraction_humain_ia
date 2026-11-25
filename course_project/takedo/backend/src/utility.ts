@@ -492,7 +492,7 @@ export class Utility implements Member {
                 ...Placement},
                 handler(make("sampler"))),
             ...(samples.sounds.length === 0 ? [] : [
-                tool("sounds", "Find sampled instruments (soundfont presets: GeneralUser GS's 287 General MIDI sounds, and openDAW's upright piano, guitars, harp, organ, xylophone, TB-303) by words in their names. Real played samples, usually a better start for a genre's bass, keys, strings, brass, guitar or pad than a synth set by hand.", {
+                tool("sounds", "Find instrument sounds by words in their names and descriptions: sampled instruments (soundfont presets: GeneralUser GS's 287 General MIDI sounds, and openDAW's upright piano, guitars, harp, organ, xylophone, TB-303) and openDAW's factory synth presets (\"openDAW/...\": FM Rhodes, organs, pads, house and square basses, brass, plucks, on Tubular, Neon, Vaporisateur, Nano). Usually a better start for a genre's bass, keys, strings, brass, guitar or pad than a synth set by hand.", {
                     words: z.string().describe("Words in the name (\"fingered bass\", \"electric piano\", \"strings\", \"pad\"); \"\" lists the soundfonts")},
                     handler((_current, input) => {
                         const words = String(input.words ?? "").trim()
@@ -501,16 +501,28 @@ export class Utility implements Member {
                                 .map(([font, count]) => `${font}: ${count} sounds`).join("\n")
                         }
                         const found = samples.searchSounds(words, 40)
-                        return found.length === 0 ? "Nothing matches; try fewer or other words." : found.map(sound => sound.id).join("\n")
+                        return found.length === 0 ? "Nothing matches; try fewer or other words."
+                            : found.map(sound => sound.source === "preset" ? `${sound.id} (${sound.device}${sound.about ? `: ${sound.about}` : ""})` : sound.id).join("\n")
                     }), {annotations: {readOnlyHint: true}}),
-                tool("make_instrument", "A new track playing a sampled instrument (openDAW's Soundfont device on a preset from sounds), optionally with notes from the start. Set its sound once; its notes play as written (keep a bass in the bass register).", {
+                tool("make_instrument", "A new track playing a sound from sounds (a soundfont preset on openDAW's Soundfont device, or an openDAW factory preset on its synth), optionally with notes from the start. Set its sound once; its notes play as written (keep a bass in the bass register).", {
                     name: z.string().describe("The track's name (\"Bass\")"),
                     sound: z.string().describe("A sound id from sounds (\"GeneralUser GS/Finger Bass\")"),
                     notes: z.array(z.tuple([z.number(), z.number(), z.number(), z.number()])).describe("[beat from 0, MIDI pitch, length in beats, velocity 0..1]; [] for none"),
                     loop_bars: z.number().int().describe("How many bars the notes loop over; 0 for 1"),
                     volume_db: z.number().describe("The track's volume, dB; 0 for unity"),
                     ...Placement},
-                    handler(make("soundfont")))])
+                    handler(make("soundfont"))),
+                ...(samples.effects.length === 0 ? [] : [tool("effect_preset", `Put one of openDAW's factory effect presets at the end of a track's effects (or the master's), already set: ${samples.effects.map(effect => `${effect.name} (${effect.device}${effect.about ? `, ${effect.about}` : ""})`).join("; ")}. Quicker and safer than setting an effect by hand; change its parameters after if the piece needs.`, {
+                    track: z.string().describe("The track's ref (t2), or master"),
+                    preset: z.string().describe("The preset's name (\"Large Plate\")"),
+                    at_bar: Placement.at_bar},
+                    handler(async (current, input) => {
+                        const snapshot = await current.context.snapshot()
+                        if (snapshot === null) {return "Not done: no project is open."}
+                        const made = knowledge.effectPreset(input, snapshot)
+                        if (typeof made === "string") {return `Not done: ${made}.`}
+                        return this.#run(current, made.says, made.code, Number(input.at_bar) || 0)
+                    }))])])
         ]
     }
 

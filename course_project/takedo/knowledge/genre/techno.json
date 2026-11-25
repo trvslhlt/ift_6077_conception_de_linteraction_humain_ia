@@ -26,7 +26,8 @@
     "sound/tubular-brass-sect",
     "sound/sine-sub-vaporisateur",
     "sound/bells-celesta",
-    "sound/bass-acid-303"
+    "sound/bass-acid-303",
+    "sound/bass-square-neon"
   ],
   "checked": {
     "how": "written",

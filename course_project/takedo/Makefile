@@ -128,8 +128,10 @@ jam-probe: build $(TYPES_DIR)/packages ## Does a recorded loop-off jam keep goin
 # the studio serves samples/ and openDAW reloads a sample from there whenever the browser has lost its copy.
 DRUM_MACHINES_COMMIT := 6577395a4d05031728ced2ec3e5637fa89d8be48
 # Soundfonts (knowledge/import/soundfonts.json: GeneralUser GS by commit, openDAW's own by asset UUID), the same way.
-samples: samples/tidal-drum-machines/.commit-$(DRUM_MACHINES_COMMIT) ## Fetch the sample collections and soundfonts (pinned) into samples/
+.PHONY: samples
+samples: samples/tidal-drum-machines/.commit-$(DRUM_MACHINES_COMMIT) ## Fetch the sample collections, soundfonts and openDAW's presets (pinned) into samples/
 	node knowledge/import/soundfonts.mjs samples
+	node knowledge/import/presets.mjs samples
 	node knowledge/import/samples.mjs samples
 samples/tidal-drum-machines/.commit-$(DRUM_MACHINES_COMMIT):
 	rm -rf samples/tidal-drum-machines && mkdir -p samples/tidal-drum-machines

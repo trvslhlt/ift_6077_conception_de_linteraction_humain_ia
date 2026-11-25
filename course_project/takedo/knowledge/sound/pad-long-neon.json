@@ -1,0 +1,50 @@
+{
+  "key": "sound/pad-long-neon",
+  "kind": "sound",
+  "summary": "Long retro pad (openDAW's Neon preset): slow 80s synth pad for synthwave, ambient, dream pop",
+  "tags": [
+    "pad",
+    "retro",
+    "80s",
+    "synthwave",
+    "ambient",
+    "dream pop",
+    "slow",
+    "warm"
+  ],
+  "devices": [
+    "Neon"
+  ],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (sound palette, openDAW presets)",
+    "date": "2026-11-25",
+    "opendaw": "652e6ca"
+  },
+  "group": "Synth presets (openDAW's factory presets, make_instrument)",
+  "label": "Long Pad",
+  "body": [
+    "Long held chords in MIDI 48-76, a bar or more each.",
+    "Register: MIDI 36-84 (openDAW names C3 = 60); outside it, it sounds wrong. Sound: openDAW/Long Pad, openDAW's factory preset for Neon: make_instrument (sound \"openDAW/Long Pad\") makes the track with its notes in one edit; apply makes it empty."
+  ],
+  "apply": {
+    "params": {
+      "name": {
+        "type": "text",
+        "optional": true
+      }
+    },
+    "steps": [
+      {
+        "op": "soundfont",
+        "input": {
+          "name": "$name",
+          "default_name": "Long Pad",
+          "sound": "openDAW/Long Pad",
+          "volume_db": -6
+        }
+      }
+    ]
+  }
+}

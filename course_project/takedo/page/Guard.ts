@@ -35,11 +35,28 @@ export const fixInt = (constraints: Constraints.Int32, value: number, previous: 
     return Math.min(constraints.max, Math.max(constraints.min, whole))
 }
 
-// Brings one field into its range; returns the correction made, or null if it was fine.
+// Safe ceilings for agents' writes (2026-11-25, B4): inside openDAW's ranges, but past them a part runs away or gets
+// loud enough to hurt (a delay's feedback at 100% builds forever, a reverb's decay at 100% never dies, a resonant filter
+// whistles, +24 dB of EQ or input gain clips the chain). By box and field name; the producer's own moves aren't capped.
+const Ceilings: Record<string, number> = {
+    "DelayDeviceBox:feedback": 0.9,
+    "DattorroReverbDeviceBox:decay": 0.95,
+    "ReverbDeviceBox:decay": 0.95,
+    "VaporisateurDeviceBox:resonance": 6,
+    "RevampDeviceBox:gain": 12,
+    "RevampDeviceBox:q": 6,
+    "CrusherDeviceBox:boost": 12,
+    "CompressorDeviceBox:inputgain": 12
+}
+export const ceilingOf = (vertex: Vertex): number | null =>
+    vertex instanceof Float32Field ? Ceilings[`${vertex.box.name}:${vertex.fieldName}`] ?? null : null
+
+// Brings one field into its range (and under its safe ceiling); returns the correction made, or null if it was fine.
 export const guardField = (vertex: Vertex, previous: unknown): Correction | null => {
     const before = typeof previous === "number" ? previous : 0
     if (vertex instanceof Float32Field) {
-        const value = vertex.getValue(), fixed = fixFloat(vertex.constraints, value, before)
+        const value = vertex.getValue(), ranged = fixFloat(vertex.constraints, value, before)
+        const ceiling = ceilingOf(vertex), fixed = ceiling !== null && ranged > ceiling ? ceiling : ranged
         if (Object.is(fixed, value)) {return null}
         vertex.setValue(fixed)
         return {field: vertex.address.toString(), from: value, to: fixed}

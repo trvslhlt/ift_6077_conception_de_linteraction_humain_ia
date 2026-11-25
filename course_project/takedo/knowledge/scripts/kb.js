@@ -163,6 +163,30 @@ const kb = (() => {
             return {track: "new", name: product.instrumentBox.label.getValue(), sound: args.preset_name,
                 ...(args.notes ? {notes: writeNotes(product.trackBox, null, args.notes)} : {})}
         },
+        // One of openDAW's factory presets as a new track (Tubular's FM Rhodes, Neon's house bass): its device made, then
+        // the preset's instrument and its own effects put in, the track kept for the notes.
+        preset(args) {
+            const bytes = takedo.preset(args.uuid)
+            if (bytes === null) {throw new Error(`the preset ${args.preset_name} isn't loaded in the page yet; try again in a moment`)}
+            const product = newInstrument(args.device, args.name, args.volume_db)
+            const attempt = lib.adapters.PresetDecoder.replaceAudioUnit(bytes, product.audioUnitBox, {keepTimeline: true})
+            if (attempt.isFailure()) {throw new Error(`the preset ${args.preset_name} didn't apply: ${attempt.failureReason()}`)}
+            const input = product.audioUnitBox.input.pointerHub.incoming().at(0)?.box
+            if (input !== undefined && args.name) {input.label.setValue(args.name)}
+            return {track: "new", name: args.name, sound: args.preset_name,
+                ...(args.notes ? {notes: writeNotes(product.trackBox, null, args.notes)} : {})}
+        },
+        // One of openDAW's effect presets (Large Plate, Soft Wall, Vocal EQ) at the end of a track's effects.
+        effectPreset(args) {
+            const bytes = takedo.preset(args.uuid)
+            if (bytes === null) {throw new Error(`the preset ${args.preset_name} isn't loaded in the page yet; try again in a moment`)}
+            const unit = unitOf(args.track)
+            const field = unit.box.audioEffects
+            const index = field.pointerHub.incoming().length
+            const attempt = lib.adapters.PresetDecoder.insertEffectChain(bytes, field, index, lib.adapters.PresetHeader.ChainKind.Audio)
+            if (attempt.isFailure()) {throw new Error(`the preset ${args.preset_name} didn't apply: ${attempt.failureReason()}`)}
+            return {track: args.track, effect: args.preset_name, at: index + 1}
+        },
         tempo(args) {
             api.setBpm(args.bpm)
             return {bpm: project.timelineBox.bpm.getValue()}

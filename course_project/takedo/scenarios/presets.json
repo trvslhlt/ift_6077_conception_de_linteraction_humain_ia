@@ -1,0 +1,5 @@
+{"//": "openDAW's factory presets and safe effects (2026-11-25, B2/B4): an 80s synth-pop turn wants synth sounds (a CZ-style bass, FM keys, synth brass) the workers start from openDAW's presets, and a big reverb that stays safe.",
+ "project": "01_good_base.odb", "messages": [
+  {"text": "turn this into an 80s synth-pop groove: a new synth bass, bright FM keys and some brass stabs"},
+  {"wait_ms": 20000},
+  {"text": "put a big plate reverb on the keys"}]}

@@ -5,7 +5,7 @@
 // hh closed hat, oh open hat, cp clap, rim, cr crash, ...), length and sample rate (from the WAV header).
 // Usage: node knowledge/import/samples.mjs <samples dir>
 import {createHash} from "node:crypto"
-import {openSync, readSync, closeSync, readdirSync, readFileSync, statSync, writeFileSync} from "node:fs"
+import {existsSync, openSync, readSync, closeSync, readdirSync, readFileSync, statSync, writeFileSync} from "node:fs"
 import {join, relative, sep} from "node:path"
 
 const root = process.argv[2] ?? "samples"
@@ -39,7 +39,7 @@ const header = path => {
 }
 
 const walk = dir => readdirSync(dir, {withFileTypes: true}).flatMap(entry =>
-    entry.isDirectory() ? (entry.name === "soundfonts" ? [] : walk(join(dir, entry.name))) : /\.wav$/i.test(entry.name) ? [join(dir, entry.name)] : [])
+    entry.isDirectory() ? (entry.name === "soundfonts" || entry.name === "presets" ? [] : walk(join(dir, entry.name))) : /\.wav$/i.test(entry.name) ? [join(dir, entry.name)] : [])
 
 const samples = walk(root).sort().flatMap(path => {
     const file = relative(root, path).split(sep).join("/")
@@ -82,5 +82,9 @@ const soundfonts = sources.flatMap(source => {
     return [{uuid: source.uuid ?? uuidOf(`soundfonts/${source.file}`), file: `soundfonts/${source.file}`, name: source.name,
         about: source.about, size: statSync(path).size, presets: presetsOf(path)}]
 })
-writeFileSync(join(root, "manifest.json"), JSON.stringify({made: new Date().toISOString(), samples, soundfonts}))
-console.log(`${samples.length} samples and ${soundfonts.length} soundfonts (${soundfonts.reduce((sum, font) => sum + font.presets.length, 0)} presets) in ${join(root, "manifest.json")}`)
+// openDAW's factory presets (presets.mjs fetched them): those whose file is here.
+const presets = JSON.parse(readFileSync(new URL("./presets.json", import.meta.url), "utf8")).presets
+    .filter(preset => existsSync(join(root, "presets", `${preset.uuid}.odp`)))
+    .map(({uuid, name, category, device, about}) => ({uuid, name, category, device, about, file: `presets/${uuid}.odp`}))
+writeFileSync(join(root, "manifest.json"), JSON.stringify({made: new Date().toISOString(), samples, soundfonts, presets}))
+console.log(`${samples.length} samples, ${soundfonts.length} soundfonts (${soundfonts.reduce((sum, font) => sum + font.presets.length, 0)} presets) and ${presets.length} openDAW presets in ${join(root, "manifest.json")}`)

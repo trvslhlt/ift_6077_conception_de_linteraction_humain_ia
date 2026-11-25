@@ -3,6 +3,7 @@ import {PPQN, ppqn} from "@opendaw/lib-dsp"
 import * as Adapters from "@opendaw/studio-adapters"
 import * as Core from "@opendaw/studio-core"
 import type {Project} from "@opendaw/studio-core"
+import {takedoPreset} from "./Samples"
 
 // The open path's environment (STRATEGY.md, "Keep the open path"): what a script or a look gets as `takedo`. The
 // project and openDAW's libraries as they are, plus TakeDo's refs and bar arithmetic, so scripts and the snapshot
@@ -17,6 +18,7 @@ export type ScriptEnv = {
     ppqn(pos: string): ppqn                         // "5.1.1" → pulses
     pos(position: ppqn): string                     // pulses → "5.1.1"
     snapshot(): unknown                             // the outline snapshot agents read
+    preset(uuid: string): ArrayBuffer | null        // one of openDAW's factory presets TakeDo keeps (samples/presets), its bytes
 }
 
 const MaxChars = 6000
@@ -83,7 +85,8 @@ export const scriptEnv = (project: Project, resolve: (ref: string) => unknown, s
             + (sixteenths - 1) * PPQN.SemiQuaver
     },
     pos,
-    snapshot
+    snapshot,
+    preset: takedoPreset
 })
 
 // Runs a function body with `takedo` in scope, and its parts as plain names too (project, api, lib, ref, bar, ppqn,

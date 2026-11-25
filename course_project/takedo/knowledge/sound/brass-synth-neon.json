@@ -1,0 +1,49 @@
+{
+  "key": "sound/brass-synth-neon",
+  "kind": "sound",
+  "summary": "Synth brass (openDAW's Neon preset, CZ-style): 80s brass stabs for synth-pop, funk and synthwave",
+  "tags": [
+    "brass",
+    "synth brass",
+    "stabs",
+    "80s",
+    "synth-pop",
+    "funk",
+    "synthwave"
+  ],
+  "devices": [
+    "Neon"
+  ],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (sound palette, openDAW presets)",
+    "date": "2026-11-25",
+    "opendaw": "652e6ca"
+  },
+  "group": "Synth presets (openDAW's factory presets, make_instrument)",
+  "label": "Synth Brass",
+  "body": [
+    "Short chord stabs in MIDI 52-79 on the offbeats.",
+    "Register: MIDI 48-84 (openDAW names C3 = 60); outside it, it sounds wrong. Sound: openDAW/Brass, openDAW's factory preset for Neon: make_instrument (sound \"openDAW/Brass\") makes the track with its notes in one edit; apply makes it empty."
+  ],
+  "apply": {
+    "params": {
+      "name": {
+        "type": "text",
+        "optional": true
+      }
+    },
+    "steps": [
+      {
+        "op": "soundfont",
+        "input": {
+          "name": "$name",
+          "default_name": "Synth Brass",
+          "sound": "openDAW/Brass",
+          "volume_db": -6
+        }
+      }
+    ]
+  }
+}

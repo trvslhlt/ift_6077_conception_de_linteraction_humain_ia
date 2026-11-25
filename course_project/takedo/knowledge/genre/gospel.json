@@ -26,7 +26,8 @@
     "sound/choir-oohs",
     "sound/bass-finger",
     "sound/keys-rhodes",
-    "sound/keys-grand-piano"
+    "sound/keys-grand-piano",
+    "sound/organ-leslie-tubular"
   ],
   "checked": {
     "how": "written",

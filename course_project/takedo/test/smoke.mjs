@@ -317,6 +317,41 @@ try {
         madeFont.state === "applied" && font?.state === "loaded" && font.preset === "Finger Bass" && font.index === finger.index,
         JSON.stringify({made: madeFont.state, detail: madeFont.detail, ...font}))
 
+    // ---------- openDAW's factory presets (samples/presets): a synth preset as a new track, an effect preset on a track ----------
+    const presets = await page.evaluate(async () => (await (await fetch("/sample-collections/manifest.json")).json()).presets ?? [])
+    const houseBass = presets.find(preset => preset.name === "House Bass"), plate = presets.find(preset => preset.name === "Large Plate")
+    await page.waitForFunction(uuid => window.takedo.adapter.env.preset(uuid) !== null, houseBass?.uuid, {timeout: 10000}).catch(() => {})
+    const madePreset = houseBass === undefined ? {state: "no preset in the manifest"} : await apply({op: "script", description: "a house bass from openDAW's presets",
+        code: `const args = ${JSON.stringify({name: "House", uuid: houseBass.uuid, device: houseBass.device, preset_name: houseBass.name, volume_db: -6,
+            notes: {...notes, name: "house", notes: [[0, 36, 0.5, 0.8]]}})};\n${helpers}\nreturn kb.preset(args)`})
+    const madePlate = plate === undefined ? {state: "no preset in the manifest"} : await apply({op: "script", description: "a large plate on the keys",
+        code: `const args = ${JSON.stringify({track: keys, uuid: plate.uuid, preset_name: plate.name})};\n${helpers}\nreturn kb.effectPreset(args)`})
+    const presetState = await page.evaluate(keys => {
+        const tracks = window.takedo.adapter.snapshot().tracks
+        const house = tracks.find(track => track.name === "House")
+        return {house: house === undefined ? null : {instrument: house.instrument, regions: house.regions.length},
+            keysEffects: tracks.find(track => track.ref === keys)?.effects.map(effect => effect.key) ?? []}
+    }, keys)
+    check("openDAW's factory presets (samples/presets): a Neon house bass as a new track with notes, a Large Plate on the keys",
+        madePreset.state === "applied" && madePlate.state === "applied" && presetState.house?.instrument === "Neon"
+            && presetState.house.regions === 1 && presetState.keysEffects.at(-1) === "DattorroReverb",
+        JSON.stringify({preset: madePreset.state, presetDetail: madePreset.detail, plate: madePlate.state, plateDetail: madePlate.detail, ...presetState}))
+
+    // ---------- safe defaults (B4): a runaway feedback capped; an effect added with no limiter on the master brings one ----------
+    const offMaster = await apply({op: "script", description: "the master's limiters switched off", code: `
+        project.rootBoxAdapter.audioUnits.adapters().find(unit => unit.isOutput).box.audioEffects.pointerHub.incoming()
+            .forEach(({box}) => box.enabled.setValue(false))`})
+    const delayed = await apply({op: "add_effect", track: keys, device: "Delay", factory: "Delay", settings: [{param: "feedback", value: 1}]})
+    const capped = delayed.state !== "applied" ? null : await apply({op: "set", ref: `${delayed.result.ref}.feedback`, to: 1})
+    const masterFx = await page.evaluate(() => window.takedo.adapter.snapshot().master.effects.map(effect => effect.key))
+    const feedback = await page.evaluate(ref => window.takedo.adapter.snapshot().tracks.flatMap(track => track.effects)
+        .find(effect => effect.ref === ref)?.params.find(param => param.ref.endsWith(".feedback"))?.value ?? null, delayed.result?.ref)
+    check("safe defaults: a delay's feedback stops at 90%, and adding an effect with the master's limiter off puts a Maximizer back on it",
+        offMaster.state === "applied" && delayed.state === "applied" && capped?.state === "applied" && Math.abs(feedback - 0.9) < 0.01
+            && masterFx.filter(key => key === "Maximizer").length >= 2 && (delayed.result.corrected ?? []).some(text => /safety limiter/.test(text)),
+        JSON.stringify({off: offMaster.state, delayed: delayed.state, delayedDetail: delayed.detail, corrected: delayed.result?.corrected, capped: capped?.state,
+            cappedDetail: capped?.detail, feedback, masterFx}))
+
     // ---------- loop off: an edit changes only what's still to play (the take replays as performed) ----------
     // A part looping 1 bar over 64 bars from bar 1, the loop off: an agent rewriting its notes splits it where the
     // playhead is (the bars played keep the old notes), and a tempo step lands on the tempo track.

@@ -285,6 +285,7 @@ export type Knowledge = {
     sampler(input: Record<string, unknown>, snapshot: Snapshot): { code: string, says: string } | string
     // A new track playing a soundfont's preset (a sampled instrument: "GeneralUser GS/Finger Bass"), optionally with notes.
     soundfont(input: Record<string, unknown>, snapshot: Snapshot): { code: string, says: string } | string
+    effectPreset(input: Record<string, unknown>, snapshot: Snapshot): { code: string, says: string } | string
     readonly samples: Samples | null
     draft(entry: Record<string, unknown>, by: string): string
     voices(): Record<string, string[]>
@@ -605,9 +606,26 @@ export const loadKnowledge = (dir: string, catalog: Catalog, warn: (text: string
         const name = typeof input.name === "string" && input.name !== "" ? input.name : typeof input.default_name === "string" ? input.default_name : sound.preset
         const notes = melodicNotes(input, snapshot, owner, name)
         if (typeof notes === "string") {return notes}
+        const says = `${name}: a new track playing ${sound.id}${notes === null ? "" : `, from bar ${String(notes.from_bar)}`}`
+        if (sound.source === "preset") {
+            if (catalog.device(sound.device ?? "")?.allowed === false) {return `${sound.id} is for ${sound.device}, which isn't allowed`}
+            return {code: helper("preset", {name, uuid: sound.uuid, device: sound.device, preset_name: sound.preset,
+                volume_db: volumeOf(input.volume_db), notes})!, says}
+        }
         return {code: helper("soundfont", {name, uuid: sound.uuid, file_name: sound.soundfont, preset: sound.index, preset_name: sound.preset,
-                volume_db: volumeOf(input.volume_db), notes})!,
-            says: `${name}: a new track playing ${sound.id}${notes === null ? "" : `, from bar ${String(notes.from_bar)}`}`}
+                volume_db: volumeOf(input.volume_db), notes})!, says}
+    }
+    // One of openDAW's effect presets at the end of a track's effects.
+    const effectPresetPlan = (input: Record<string, unknown>, snapshot: Snapshot): { code: string, says: string } | string => {
+        if (kbScript === null) {return "the knowledge base's page helpers (scripts/kb.js) are missing"}
+        if (samples === null || samples.effects.length === 0) {return "no effect presets here (make samples)"}
+        const preset = samples.effect(String(input.preset))
+        if (preset === null) {return `no effect preset ${String(input.preset)}; there are: ${samples.effects.map(effect => effect.name).join(", ")}`}
+        const track = input.track === "master" ? {ref: "master", name: "the master"}
+            : snapshot.tracks.find(candidate => candidate.ref === input.track || candidate.name === input.track)
+        if (track === undefined) {return `no track ${String(input.track)}`}
+        return {code: helper("effectPreset", {track: track.ref, uuid: preset.uuid, preset_name: preset.name})!,
+            says: `${preset.name} (${preset.device}) on ${track.name}`}
     }
     const samplerPlan = (input: Record<string, unknown>, snapshot: Snapshot, owner: Entry | null): { code: string, says: string } | string => {
         if (kbScript === null) {return "the knowledge base's page helpers (scripts/kb.js) are missing"}
@@ -815,6 +833,7 @@ export const loadKnowledge = (dir: string, catalog: Catalog, warn: (text: string
         },
         sampler: (input, snapshot) => samplerPlan(input, snapshot, null),
         soundfont: (input, snapshot) => soundfontPlan(input, snapshot, null),
+        effectPreset: (input, snapshot) => effectPresetPlan(input, snapshot),
         samples,
         voices: () => Object.fromEntries([...cartridges].map(([name, voices]) => [name, voices.map(entry => entry.name)])),
         // An agent's entry, kept as a draft until a person reviews it. Returns what happened, for the model.

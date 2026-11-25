@@ -1,0 +1,49 @@
+{
+  "key": "sound/bass-square-neon",
+  "kind": "sound",
+  "summary": "Square bass (openDAW's Neon preset): hollow square-wave synth bass for synthwave, electro, chiptune-ish pop",
+  "tags": [
+    "bass",
+    "square",
+    "synth bass",
+    "synthwave",
+    "electro",
+    "80s",
+    "chiptune"
+  ],
+  "devices": [
+    "Neon"
+  ],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (sound palette, openDAW presets)",
+    "date": "2026-11-25",
+    "opendaw": "652e6ca"
+  },
+  "group": "Synth presets (openDAW's factory presets, make_instrument)",
+  "label": "Square Bass",
+  "body": [
+    "Eighth-note and arpeggiated lines in MIDI 28-48.",
+    "Register: MIDI 28-55 (openDAW names C3 = 60); outside it, it sounds wrong. Sound: openDAW/Square Bass, openDAW's factory preset for Neon: make_instrument (sound \"openDAW/Square Bass\") makes the track with its notes in one edit; apply makes it empty."
+  ],
+  "apply": {
+    "params": {
+      "name": {
+        "type": "text",
+        "optional": true
+      }
+    },
+    "steps": [
+      {
+        "op": "soundfont",
+        "input": {
+          "name": "$name",
+          "default_name": "Square Bass",
+          "sound": "openDAW/Square Bass",
+          "volume_db": -6
+        }
+      }
+    ]
+  }
+}

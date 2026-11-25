@@ -14,13 +14,15 @@ export type TakeDoSample = {
 
 const Root = "/sample-collections"
 export type TakeDoSoundfont = { uuid: string, file: string, name: string, about: string, size: number }
+export type TakeDoPreset = { uuid: string, file: string, name: string, category: "instrument" | "audio-effect", device: string, about: string }
+type Manifest = { samples: ReadonlyArray<TakeDoSample>, soundfonts: ReadonlyArray<TakeDoSoundfont>, presets: ReadonlyArray<TakeDoPreset> }
 
-let manifest: Promise<{ samples: ReadonlyArray<TakeDoSample>, soundfonts: ReadonlyArray<TakeDoSoundfont> }> | null = null
+let manifest: Promise<Manifest> | null = null
 const loaded = () => {
     manifest ??= fetch(`${Root}/manifest.json`)
-        .then((response): Promise<{ samples?: TakeDoSample[], soundfonts?: TakeDoSoundfont[] }> => response.ok ? response.json() : Promise.resolve({}))
-        .then(json => ({samples: json.samples ?? [], soundfonts: json.soundfonts ?? []}))
-        .catch(() => ({samples: [], soundfonts: []}))
+        .then((response): Promise<Partial<Manifest>> => response.ok ? response.json() : Promise.resolve({}))
+        .then(json => ({samples: json.samples ?? [], soundfonts: json.soundfonts ?? [], presets: json.presets ?? []}))
+        .catch(() => ({samples: [], soundfonts: [], presets: []}))
     return manifest
 }
 
@@ -65,3 +67,16 @@ export const loadTakedoSoundfont = async (uuid: UUID.Bytes, progress: (value: nu
     const {uuid: _uuid, ...meta} = asSoundfont(font)
     return [buffer, meta]
 }
+
+// openDAW's factory presets (samples/presets/, pinned): small (325 KB in all), so all are fetched once a project opens and
+// kept, since scripts run synchronously inside one edit and can't wait for a download (kb.preset, kb.effectPreset).
+const presetBytes = new Map<string, ArrayBuffer>()
+let presetsLoading: Promise<void> | null = null
+export const loadTakedoPresets = (): Promise<void> => {
+    presetsLoading ??= loaded().then(({presets}) => Promise.all(presets.map(async preset => {
+        const response = await fetch(fileUrl(preset.file)).catch(() => null)
+        if (response?.ok === true) {presetBytes.set(preset.uuid, await response.arrayBuffer())}
+    }))).then(() => {})
+    return presetsLoading
+}
+export const takedoPreset = (uuid: string): ArrayBuffer | null => presetBytes.get(uuid) ?? null

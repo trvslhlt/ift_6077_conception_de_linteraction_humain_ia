@@ -1,0 +1,564 @@
+{
+ "//": "openDAW's factory presets (assets.opendaw.studio/presets, 2026-11-25), pinned by hash: instruments and audio effects on devices TakeDo allows (no Apparat/Werkstatt scripts; Playfield kits left out, TakeDo has its own). make samples fetches them into samples/presets/ (presets.mjs).",
+ "source": "https://assets.opendaw.studio/presets",
+ "presets": [
+  {
+   "uuid": "c44a4898-d9e5-419e-8548-82c602b3587b",
+   "name": "Auto Panning",
+   "category": "audio-effect",
+   "device": "Tidal",
+   "about": "",
+   "size": 1954,
+   "sha256": "9153a62bdcae3832a77458114899dc913580f1467004608de972904913523663"
+  },
+  {
+   "uuid": "67ca3f16-510a-480b-bca6-249c7cf59719",
+   "name": "Hard Pump",
+   "category": "audio-effect",
+   "device": "Tidal",
+   "about": "",
+   "size": 1948,
+   "sha256": "793fd6d879c2bda40ae9b204db1e01917e8f2b5292022f3b0a01a00da24cf2a0"
+  },
+  {
+   "uuid": "640a9318-9e11-4b34-b791-317fc5a30dab",
+   "name": "Flanger",
+   "category": "audio-effect",
+   "device": "Delay",
+   "about": "Classic flanger",
+   "size": 2024,
+   "sha256": "10cb83bbf1a378eb61ef12f24fa6f0c5877df55bd80493e34f53837b64af8ec2"
+  },
+  {
+   "uuid": "2cc4417d-79ae-4874-9ba2-94cdffce1ad3",
+   "name": "Broken Delay",
+   "category": "audio-effect",
+   "device": "Delay",
+   "about": "",
+   "size": 2034,
+   "sha256": "41566b3126a10bfacd372d5097427378167e1a231c0fb58dd43933fc03dbe6cb"
+  },
+  {
+   "uuid": "57b56247-1e22-4069-a411-af1c3ebd1d25",
+   "name": "8bit",
+   "category": "audio-effect",
+   "device": "Crusher",
+   "about": "Emulates retro sound",
+   "size": 1922,
+   "sha256": "b2a472835ef5d9f855a9ea88e3be8eb21a5b97e3704e7c94b4b9a75756bb9b02"
+  },
+  {
+   "uuid": "4b0bf90a-e8e0-4287-86f6-a54282b1d571",
+   "name": "Destroy",
+   "category": "audio-effect",
+   "device": "Crusher",
+   "about": "Heavy crushing",
+   "size": 1928,
+   "sha256": "93328e5c8727296ce06264ef8b2718068c2cca403257332e379203ffdbd4a555"
+  },
+  {
+   "uuid": "7ca3dfdc-cbb5-43be-8136-6e42a3afd4a2",
+   "name": "Soft Wall",
+   "category": "audio-effect",
+   "device": "Compressor",
+   "about": "",
+   "size": 2013,
+   "sha256": "5c24d6ddf2b683580b5d952beb3d0ead5cce9a1459431d64af3a62127bb7925e"
+  },
+  {
+   "uuid": "4365abbd-14be-46d5-a51f-1bb98906d94a",
+   "name": "Strong Wall",
+   "category": "audio-effect",
+   "device": "Compressor",
+   "about": "",
+   "size": 2017,
+   "sha256": "f196d3b462260dfde10ca2a6dcd4d9a5177ad386d2681192714d3211b12a9158"
+  },
+  {
+   "uuid": "7fa35573-97f3-4d77-bd8c-b205d47b5fe3",
+   "name": "Fold 2X",
+   "category": "audio-effect",
+   "device": "Fold",
+   "about": "",
+   "size": 1912,
+   "sha256": "45f083ea8bd47d523d3d1465b2b8006feb0bc1fab0ca4bed8518d28804918b71"
+  },
+  {
+   "uuid": "36cb2044-42ed-4f80-9024-c62d8aaae3af",
+   "name": "Violent",
+   "category": "audio-effect",
+   "device": "Fold",
+   "about": "5x folding",
+   "size": 1912,
+   "sha256": "610f8ad22aee14edc13b9a4bce9ab0802bcc2a8af14c1863b34d6e0979a4c6e4"
+  },
+  {
+   "uuid": "e98a2c5e-1614-48a4-b22d-c57383807fd3",
+   "name": "Noise Gate",
+   "category": "audio-effect",
+   "device": "Gate",
+   "about": "",
+   "size": 1962,
+   "sha256": "149f84a169515ce1943c07de5d69f9a81a2d4771cab25693d9a0bf4127d54430"
+  },
+  {
+   "uuid": "e0d1bb0d-64e3-4547-9e82-ea4bfe27e2c8",
+   "name": "Large Plate",
+   "category": "audio-effect",
+   "device": "DattorroReverb",
+   "about": "",
+   "size": 2030,
+   "sha256": "9b813564820ff96d68acc5ca1fc61d718de7cda7babe2a1c757308fcc04c9d47"
+  },
+  {
+   "uuid": "2a35bab2-78ec-43ac-9c94-1387f25dd337",
+   "name": "Small Plate",
+   "category": "audio-effect",
+   "device": "DattorroReverb",
+   "about": "",
+   "size": 2030,
+   "sha256": "caeda601c32a5c93897f2de2c7071bcb46cb5a95a53df7a883b1b88c868f082b"
+  },
+  {
+   "uuid": "38cf8def-5c6a-45c1-ad55-80b269ecc717",
+   "name": "Toy Piano",
+   "category": "instrument",
+   "device": "Nano",
+   "about": "A sample based Toy Piano",
+   "size": 1916,
+   "sha256": "7e6f94a988c0448de3ffe7780a3c9eac7e65495af819f5a4e56e0761843b2688"
+  },
+  {
+   "uuid": "2eae52b4-296b-4090-bed0-3795f98089be",
+   "name": "Bounce Blobs",
+   "category": "instrument",
+   "device": "Vaporisateur",
+   "about": "Bouncing classic",
+   "size": 2147,
+   "sha256": "8d7321c180601200d2b87340c2e60b25553fe0b8b187cf2f69f00bf13dbecee0"
+  },
+  {
+   "uuid": "b7459b5a-67ff-47ba-a4a0-7049facf0826",
+   "name": "Retro Square",
+   "category": "instrument",
+   "device": "Vaporisateur",
+   "about": "Classic Retro Square",
+   "size": 2147,
+   "sha256": "94e75e6afdad18ef998bd3cc0c499698682753a18f82ee5b2d6a013035cef2da"
+  },
+  {
+   "uuid": "61e0109c-8291-4690-9a45-04243b3f62e7",
+   "name": "Mono",
+   "category": "audio-effect",
+   "device": "StereoTool",
+   "about": "Stereo to mono",
+   "size": 1949,
+   "sha256": "d482c9182e6bc51253564f0a0249e2e460f1156c3ef3380abf21d4eaaa2f0ad4"
+  },
+  {
+   "uuid": "aacb61f9-eaef-4354-9301-b8b0c1659ea7",
+   "name": "Gain -6db",
+   "category": "audio-effect",
+   "device": "StereoTool",
+   "about": "",
+   "size": 1959,
+   "sha256": "1df11de331ceadd6f442a170f86d76b7ad8b43b0a78ed2c14e7ae428f820a1c8"
+  },
+  {
+   "uuid": "0ac550cc-a0d4-4517-9bf7-7f56c9dd6570",
+   "name": "Gain -3db",
+   "category": "audio-effect",
+   "device": "StereoTool",
+   "about": "",
+   "size": 1959,
+   "sha256": "dc6b0726e7817790db5108dd8edaf85dad11dc538679682645abd59d533604ba"
+  },
+  {
+   "uuid": "903d8411-c9a4-47ba-992b-766703b09347",
+   "name": "Invert Phase",
+   "category": "audio-effect",
+   "device": "StereoTool",
+   "about": "",
+   "size": 1965,
+   "sha256": "c86a949af0f1467f7347ef6e62119f71c2155ca2fc10b42a2405920c0adc147c"
+  },
+  {
+   "uuid": "4baddc0b-213a-4d5f-994a-6bbe3e286521",
+   "name": "Cut High",
+   "category": "audio-effect",
+   "device": "Revamp",
+   "about": "",
+   "size": 2211,
+   "sha256": "cf81923125e1cde3480d894d845dc2a29c0bf3efdab5c87390ea19970aa44c09"
+  },
+  {
+   "uuid": "6db78630-de08-42b8-b152-eef35270c90c",
+   "name": "Cut Low",
+   "category": "audio-effect",
+   "device": "Revamp",
+   "about": "",
+   "size": 2209,
+   "sha256": "c49629da9eee293143f74cceb1365a20d43cf7edbbc6e906d5483f9453ea2cd4"
+  },
+  {
+   "uuid": "7bd91960-410a-4c41-86c7-33d8d8d20ea0",
+   "name": "Vocal EQ",
+   "category": "audio-effect",
+   "device": "Revamp",
+   "about": "Vocal EQ Cheat Sheet",
+   "size": 2211,
+   "sha256": "4445241ff69e6bcee0cc097130e7ee56dd8c2d48f0cf178306feeaa77f817e3d"
+  },
+  {
+   "uuid": "d90f8d36-36e6-4bb4-bbf9-f2a2c365fa2a",
+   "name": "Upright Piano",
+   "category": "instrument",
+   "device": "Soundfont",
+   "about": "Upright Piano",
+   "size": 1916,
+   "sha256": "0cd0c1da25c123184a421caf4f8a3fd9135c0d2077ce242c9ed4c79e48e5b8df"
+  },
+  {
+   "uuid": "5afe353b-4723-42c8-aebe-03e2ae5ec3de",
+   "name": "Rhode",
+   "category": "instrument",
+   "device": "Nano",
+   "about": "Sample based Rhode piano",
+   "size": 1900,
+   "sha256": "467efdb92cd1989873983e07d3c943734f199bf962104ea44674ae73d6fd5fcc"
+  },
+  {
+   "uuid": "16b13127-6580-4f35-a7e9-18fd3a5b5d3f",
+   "name": "Retro Pluck",
+   "category": "instrument",
+   "device": "Vaporisateur",
+   "about": "A game-ish retro synth sound",
+   "size": 2145,
+   "sha256": "0f8befd7c26998364f4e39e50d911e077b41c17d32fccdd9ee5157b087498fe1"
+  },
+  {
+   "uuid": "66090796-c052-4ef6-9e75-fa2f5dd87ba9",
+   "name": "-3dB Direct",
+   "category": "audio-effect",
+   "device": "Maximizer",
+   "about": "",
+   "size": 1917,
+   "sha256": "d680bb4212273faadfdc79093c1cd559080d77562226ef80ed46d7737f24ce3b"
+  },
+  {
+   "uuid": "6023bee2-4a10-4604-b0a9-d3681294ef2f",
+   "name": "Brass",
+   "category": "instrument",
+   "device": "Neon",
+   "about": "PluginBoutique VirtualCZ",
+   "size": 3095,
+   "sha256": "3c321e4891d6c5db814df4b7ad8f7b108ddecefe4e63931d22eb61f0facebaea"
+  },
+  {
+   "uuid": "1fa2b765-e712-4300-bc88-a3f06479e613",
+   "name": "House Bass",
+   "category": "instrument",
+   "device": "Neon",
+   "about": "PluginBoutique VirtualCZ",
+   "size": 3105,
+   "sha256": "caa99110bac2247fde6bc76dbb5d1a221495c638c33a8bd4beb0f1586e94d31d"
+  },
+  {
+   "uuid": "26b0b451-fe5a-4c97-9d3e-557cd82c7ab5",
+   "name": "Square Bass",
+   "category": "instrument",
+   "device": "Neon",
+   "about": "PluginBoutique VirtualCZ",
+   "size": 3107,
+   "sha256": "30d48f57116bf72dc9d3938864acc55d4bfaaeabf8161bf090db0f784002be70"
+  },
+  {
+   "uuid": "c8812a4d-ad4c-4abe-a9f0-1ae5c6e8aac7",
+   "name": "Zelda",
+   "category": "instrument",
+   "device": "Neon",
+   "about": "Zelda inspired sound sequence",
+   "size": 3133,
+   "sha256": "ddebe9d0c022c74465fbcbd702aeeb4db41ebad9abbb0286898b483a54765944"
+  },
+  {
+   "uuid": "17ead643-89ae-4790-857a-b7f294a59ce7",
+   "name": "Xylophone",
+   "category": "instrument",
+   "device": "Neon",
+   "about": "Xylophone",
+   "size": 3141,
+   "sha256": "610a8c8715cd956e625de23168593ba66c9e9411e62165b8a3ef45b4f05a94b1"
+  },
+  {
+   "uuid": "a2c2fb24-e731-416f-822a-98b7df69a7e4",
+   "name": "Soft Piano",
+   "category": "instrument",
+   "device": "Neon",
+   "about": "Vibrating e-piano sound",
+   "size": 3143,
+   "sha256": "f2d90e17d534aaca97553fb207d0819c00f1feaf0327a0cc50b8d25bd8cc38b7"
+  },
+  {
+   "uuid": "fa8b5b40-9566-43d2-b6d9-8a43020f2e6e",
+   "name": "Shimmer",
+   "category": "instrument",
+   "device": "Neon",
+   "about": "Dull shimmering pad",
+   "size": 3137,
+   "sha256": "809d17a6afd03a8ab861094e4b9ed85b73613edeb1cf4320fd3bc46b7f653731"
+  },
+  {
+   "uuid": "dcb87452-b9ba-414e-9cd3-f05e517f55c4",
+   "name": "Long Pad",
+   "category": "instrument",
+   "device": "Neon",
+   "about": "Retro pad",
+   "size": 3139,
+   "sha256": "6b706ea3f0fddcdaaf9ff07c11b33ea044baac775d5dde88640c271ee54e96af"
+  },
+  {
+   "uuid": "2c4c3a12-476a-4ffb-8600-084b70e091c3",
+   "name": "Glas",
+   "category": "instrument",
+   "device": "Neon",
+   "about": "Bright glas tune",
+   "size": 3131,
+   "sha256": "035ba01373ec93b4ab5b52de69de94235d8103a86a5c9a3a99430796b25e12cc"
+  },
+  {
+   "uuid": "2ee2c7f0-b260-4f0f-a517-425158217ec6",
+   "name": "Drill Fx",
+   "category": "instrument",
+   "device": "Neon",
+   "about": "Undefined effect sound",
+   "size": 3139,
+   "sha256": "099000386c8b90a34f31f352db134321140fdcbb74ad8ead54def9ba09d1039e"
+  },
+  {
+   "uuid": "2821d76d-6deb-48d2-9354-91a8a55bd623",
+   "name": "Toms",
+   "category": "instrument",
+   "device": "Neon",
+   "about": "Drum sound",
+   "size": 3131,
+   "sha256": "bc8636d98d468b3ebc0542121617443cf248bd8421db1765a91cb15f9f672540"
+  },
+  {
+   "uuid": "521ed0f0-ed1a-4454-ade3-10fe5e4a661e",
+   "name": "Meow",
+   "category": "instrument",
+   "device": "Vaporisateur",
+   "about": "😻",
+   "size": 2190,
+   "sha256": "42c230bcae14c363bca27fa943e0a2780406a3decf162284cb24c2b38512547d"
+  },
+  {
+   "uuid": "caead116-ab2d-42a8-acbb-e592fc93e983",
+   "name": "Mono Bass",
+   "category": "audio-effect",
+   "device": "FrequencySplit",
+   "about": "Narrows the stereo image of frequencies below 240Hz.",
+   "size": 2567,
+   "sha256": "ef6880f112ba916cdc4ab472c78abbaeba0662dee2b5452e2fb91eff3ae2aa61"
+  },
+  {
+   "uuid": "c52efbcd-4e74-4c57-b463-7583f3e08c26",
+   "name": "Bass Roads",
+   "category": "instrument",
+   "device": "Tubular",
+   "about": "Close to fm piano sound",
+   "size": 3458,
+   "sha256": "5314473284aee6b905fba85cc33b58f09f0c4103794ee82b1fddaef1726ccd38"
+  },
+  {
+   "uuid": "7e628c43-4200-4362-97a3-f531a0c10ce8",
+   "name": "Bimmel",
+   "category": "instrument",
+   "device": "Tubular",
+   "about": "Bright chimes.",
+   "size": 3458,
+   "sha256": "98a9c92765d76b90f892c5dca46013b20d2050272b09a43d872742f5dbd126fb"
+  },
+  {
+   "uuid": "792cd9cd-9313-4afd-9776-6842686ecd2e",
+   "name": "Brassssy 2",
+   "category": "instrument",
+   "device": "Tubular",
+   "about": "Brass synth sound",
+   "size": 3456,
+   "sha256": "1122312f25f259935bde1ca9d2ae413ad0a99deed73edb48e598eed6ccc2a3a5"
+  },
+  {
+   "uuid": "f816e5b5-24ba-4052-8c92-6fa22d9250bf",
+   "name": "Curved Air",
+   "category": "instrument",
+   "device": "Tubular",
+   "about": "Dreamy scifi pad",
+   "size": 3458,
+   "sha256": "69465e310bc274ed9d847f214115afd46c7e74de26fe3fe8222ad2f88435a7c3"
+  },
+  {
+   "uuid": "d0c7b344-85c6-4f40-95e7-29cd5b615d15",
+   "name": "DINGL 19.1",
+   "category": "instrument",
+   "device": "Tubular",
+   "about": "Short high pitched grains",
+   "size": 3458,
+   "sha256": "fcc62af0ef5c74c34071fbe5d4729f96c16d587a1e00f1b173157bc70768b231"
+  },
+  {
+   "uuid": "a2b9f6f9-e80c-4bb4-82d3-56afbead4fb2",
+   "name": "Dream",
+   "category": "instrument",
+   "device": "Tubular",
+   "about": "Soft warm bass",
+   "size": 3458,
+   "sha256": "b1c01d4de42dbf41416832c7ea01585210bb8dc7c6e4c74c8a6b4c90963efec9"
+  },
+  {
+   "uuid": "af67ac23-d6a7-45e1-ba26-e9f1ee352ad7",
+   "name": "Galaxy",
+   "category": "instrument",
+   "device": "Tubular",
+   "about": "Spacy tune bass with a soft tail",
+   "size": 3450,
+   "sha256": "da7c00b6b372c94f26bb4bebe0ff625dd1766bd5abc276c0f23170e7b8111eba"
+  },
+  {
+   "uuid": "799c66a7-68ca-4887-a405-8235b581c367",
+   "name": "Glenda's",
+   "category": "instrument",
+   "device": "Tubular",
+   "about": "Shimmering bass",
+   "size": 3454,
+   "sha256": "a293bab5829c47393e6415ba9839a644d871dabc1e2e031efdfaa1473da3c350"
+  },
+  {
+   "uuid": "9a3a2abd-8575-44c1-941c-bf848c6dcc60",
+   "name": "Hollow",
+   "category": "instrument",
+   "device": "Tubular",
+   "about": "Close to a Xylophone yet more synth like",
+   "size": 3458,
+   "sha256": "245f31c751220a5e752b42621b2e1b256f5ee21086c30c23661e59fd410b4cc0"
+  },
+  {
+   "uuid": "ee3a0fac-9848-440f-acdc-d142496745d5",
+   "name": "Ice.Galaxy",
+   "category": "instrument",
+   "device": "Tubular",
+   "about": "Soft bright dreamy pad",
+   "size": 3458,
+   "sha256": "991393099badf5ad6a468108f9989f0a0f55ce0b0ef12cf2bd07ba2091904b27"
+  },
+  {
+   "uuid": "8f106147-708c-4961-b9fb-c001709e2902",
+   "name": "Lead",
+   "category": "instrument",
+   "device": "Tubular",
+   "about": "Wooden lead sound",
+   "size": 3458,
+   "sha256": "6ac0da97955cfed3ca3f86d3fe48bdefcc733807b2b974077c12b9b2c10e4689"
+  },
+  {
+   "uuid": "cb8ee7f1-ceb6-44fa-a8cc-28a6204f5d87",
+   "name": "Leslie 5",
+   "category": "instrument",
+   "device": "Tubular",
+   "about": "Leslie organ",
+   "size": 3454,
+   "sha256": "de97cebc792ea8c3bc32f00b3fac742341f682c5d515cc9df7e0be5a4839866e"
+  },
+  {
+   "uuid": "48fb3ac2-968a-490b-bdc6-e0c484a4ed2b",
+   "name": "Mongolia",
+   "category": "instrument",
+   "device": "Tubular",
+   "about": "Mongolian virtual synth sound",
+   "size": 3454,
+   "sha256": "03347a7864492b2568dd0ab3cb6df612f44ccb43e5eca3f826e7b1bdf9a37b14"
+  },
+  {
+   "uuid": "a1ee786f-c6a3-4886-b0d7-a8646248a09d",
+   "name": "Oberheim B3",
+   "category": "instrument",
+   "device": "Tubular",
+   "about": "Soft pad",
+   "size": 3458,
+   "sha256": "e66c27df869f84e633e889e5f99eb446003eecef3928f8437125f53bec31830f"
+  },
+  {
+   "uuid": "6350d997-a0c2-4998-909d-9ab62a1b2c0c",
+   "name": "Pan Pipe 8",
+   "category": "instrument",
+   "device": "Tubular",
+   "about": "Virtual panpipe",
+   "size": 3458,
+   "sha256": "ccf0c283775f6b9039ae9f39872d31cc4b081ed7d7b4584e7a8c8e63b240212e"
+  },
+  {
+   "uuid": "2c8a4477-3dee-4756-9213-c3d1016a7929",
+   "name": "Rhodes",
+   "category": "instrument",
+   "device": "Tubular",
+   "about": "A FM Rhodes Piano",
+   "size": 3458,
+   "sha256": "e54e9cac6957f26e0ad253564c907196caf155816e8eea81afa933a44695a773"
+  },
+  {
+   "uuid": "9f01ab16-9870-401f-9db6-a84e634c7a53",
+   "name": "Stoned",
+   "category": "instrument",
+   "device": "Tubular",
+   "about": "Nicely layered, bright synth",
+   "size": 3456,
+   "sha256": "fb4e0f837bfcb04432672f3c793fc47a2584e544cb21b7d871890474a83c176e"
+  },
+  {
+   "uuid": "32431873-f04e-43f5-9d3c-d27f819fb5b3",
+   "name": "String Brass",
+   "category": "instrument",
+   "device": "Tubular",
+   "about": "Dull string synth",
+   "size": 3458,
+   "sha256": "1cd043cad9c097b512b53dc98652c7781066883501515968b4441ff36f2c128c"
+  },
+  {
+   "uuid": "c24966f3-249c-4272-a95b-bac3a8b3b3e5",
+   "name": "Thoughts",
+   "category": "instrument",
+   "device": "Tubular",
+   "about": "Layered string wood",
+   "size": 3458,
+   "sha256": "b625afa034447323d9cc1e4b96d8dcc24c23512c14bcde2e9afe0bd3d71596cb"
+  },
+  {
+   "uuid": "307558ba-7c3b-4e06-90fc-354bbed2f639",
+   "name": "Vibration",
+   "category": "instrument",
+   "device": "Tubular",
+   "about": "Vibraphone like sound",
+   "size": 3458,
+   "sha256": "c438fe5b9c5916706d52f8a0cb0e138bac203b49ab9050b7f3fd9419000b3abf"
+  },
+  {
+   "uuid": "17801592-2ad6-4d17-89c7-18e57c4ef134",
+   "name": "Woofer",
+   "category": "instrument",
+   "device": "Tubular",
+   "about": "Brassy synth sound",
+   "size": 3458,
+   "sha256": "a68cc83da95c9669dafeec951944f169297aaf33f683bb79d6e5790a842edee0"
+  },
+  {
+   "uuid": "d43a47e9-3dbf-4218-aeee-9365bdcded37",
+   "name": "Wow",
+   "category": "instrument",
+   "device": "Tubular",
+   "about": "Soft brassy pad",
+   "size": 3456,
+   "sha256": "91ca72374574d3fd848b95fedcf6d5c4d3f4fdde089190d5d72957195cb4af4e"
+  }
+ ]
+}

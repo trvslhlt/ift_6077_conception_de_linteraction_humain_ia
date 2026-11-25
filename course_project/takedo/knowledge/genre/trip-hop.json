@@ -27,7 +27,8 @@
     "chain/dub-echo",
     "sound/strings-slow",
     "sound/choir-oohs",
-    "sound/bells-celesta"
+    "sound/bells-celesta",
+    "sound/pad-long-neon"
   ],
   "checked": {
     "how": "written",

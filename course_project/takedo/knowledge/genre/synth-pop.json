@@ -29,7 +29,10 @@
     "sound/keys-fm-ep",
     "sound/bass-synth",
     "sound/strings-slow",
-    "sound/lead-saw"
+    "sound/lead-saw",
+    "sound/bass-square-neon",
+    "sound/brass-synth-neon",
+    "sound/pluck-retro-vaporisateur"
   ],
   "checked": {
     "how": "written",

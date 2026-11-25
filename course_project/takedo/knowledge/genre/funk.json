@@ -29,7 +29,9 @@
     "sound/keys-organ",
     "sound/brass-section",
     "sound/bass-finger",
-    "sound/keys-rhodes"
+    "sound/keys-rhodes",
+    "sound/organ-leslie-tubular",
+    "sound/brass-synth-neon"
   ],
   "checked": {
     "how": "written",

@@ -12,7 +12,7 @@
     "keys"
   ],
   "devices": [
-    "Soundfont"
+    "Tubular"
   ],
   "links": [],
   "checked": {
@@ -21,11 +21,11 @@
     "date": "2026-11-25",
     "opendaw": "652e6ca"
   },
-  "group": "Sampled instruments (soundfonts, make_instrument)",
+  "group": "Synth presets (openDAW's factory presets, make_instrument)",
   "label": "FM electric piano",
   "body": [
-    "Bright 80s chords and arpeggios.",
-    "Register: MIDI 40-88 (openDAW names C3 = 60); outside it, it sounds wrong. Sound: GeneralUser GS/FM Electric Piano, a sampled instrument: make_instrument (sound \"GeneralUser GS/FM Electric Piano\") makes the track with its notes in one edit; apply makes it empty."
+    "Bright 80s chords and arpeggios. The General MIDI one: GeneralUser GS/FM Electric Piano.",
+    "Register: MIDI 40-88 (openDAW names C3 = 60); outside it, it sounds wrong. Sound: openDAW/Rhodes, openDAW's factory preset for Tubular (its DX7-style FM synth): make_instrument (sound \"openDAW/Rhodes\") makes the track with its notes in one edit; apply makes it empty."
   ],
   "apply": {
     "params": {
@@ -40,7 +40,7 @@
         "input": {
           "name": "$name",
           "default_name": "FM Piano",
-          "sound": "GeneralUser GS/FM Electric Piano",
+          "sound": "openDAW/Rhodes",
           "volume_db": -5
         }
       }

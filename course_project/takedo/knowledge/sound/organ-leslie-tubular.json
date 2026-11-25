@@ -1,0 +1,51 @@
+{
+  "key": "sound/organ-leslie-tubular",
+  "kind": "sound",
+  "summary": "Leslie organ (openDAW's Tubular preset): gospel, soul, funk, rock organ with a spinning speaker",
+  "tags": [
+    "organ",
+    "leslie",
+    "b3",
+    "hammond",
+    "gospel",
+    "soul",
+    "funk",
+    "rock",
+    "keys"
+  ],
+  "devices": [
+    "Tubular"
+  ],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (sound palette, openDAW presets)",
+    "date": "2026-11-25",
+    "opendaw": "652e6ca"
+  },
+  "group": "Synth presets (openDAW's factory presets, make_instrument)",
+  "label": "Leslie Organ",
+  "body": [
+    "Held chords and stabs in MIDI 48-79; drawbar organ through a rotary speaker.",
+    "Register: MIDI 36-84 (openDAW names C3 = 60); outside it, it sounds wrong. Sound: openDAW/Leslie 5, openDAW's factory preset for Tubular: make_instrument (sound \"openDAW/Leslie 5\") makes the track with its notes in one edit; apply makes it empty."
+  ],
+  "apply": {
+    "params": {
+      "name": {
+        "type": "text",
+        "optional": true
+      }
+    },
+    "steps": [
+      {
+        "op": "soundfont",
+        "input": {
+          "name": "$name",
+          "default_name": "Leslie Organ",
+          "sound": "openDAW/Leslie 5",
+          "volume_db": -6
+        }
+      }
+    ]
+  }
+}

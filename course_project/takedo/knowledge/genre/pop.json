@@ -24,7 +24,8 @@
     "sound/strings-slow",
     "sound/keys-grand-piano",
     "sound/guitar-clean",
-    "sound/bass-finger"
+    "sound/bass-finger",
+    "sound/pluck-retro-vaporisateur"
   ],
   "checked": {
     "how": "written",

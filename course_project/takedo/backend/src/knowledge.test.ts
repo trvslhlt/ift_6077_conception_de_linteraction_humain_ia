@@ -312,6 +312,17 @@ describe("kits", {skip: samples.size === 0 ? "no samples/ (make samples)" : fals
         compiles((made as { code: string }).code)
         assert.match(String(withSamples.soundfont({sound: "GeneralUser GS/Kazoo Deluxe"}, snapshot)), /no sound/)
     })
+    it("makes an openDAW factory preset a new track on its synth, and puts an effect preset on a track", () => {
+        assert.ok(samples.searchSounds("house bass", 5).some(sound => sound.id === "openDAW/House Bass" && sound.device === "Neon"))
+        const made = withSamples.soundfont({name: "Bass", sound: "openDAW/House Bass", notes: {notes: [[0, 40, 1, 0.9]], loop_bars: 1, from_bar: 1, bars: 4}}, snapshot)
+        assert.ok(typeof made !== "string" && made.code.includes("return kb.preset(args)") && made.code.includes('"device":"Neon"'), String(made))
+        compiles((made as { code: string }).code)
+        const track = snapshot.tracks[0]
+        const plate = withSamples.effectPreset({track: track.ref, preset: "Large Plate"}, snapshot)
+        assert.ok(typeof plate !== "string" && plate.code.includes("return kb.effectPreset(args)") && plate.says.includes("DattorroReverb"), String(plate))
+        compiles((plate as { code: string }).code)
+        assert.match(String(withSamples.effectPreset({track: track.ref, preset: "Huge Hall"}, snapshot)), /no effect preset Huge Hall; there are: .*Large Plate/)
+    })
     it("makes the 808 bass a Nano at G1, with notes as written", () => {
         const planned = withSamples.expand("sound/808-bass", {}, snapshot)
         assert.ok(Array.isArray(planned) && planned[0].kind === "script" && planned[0].code.includes('"root_key":31'), String(planned))

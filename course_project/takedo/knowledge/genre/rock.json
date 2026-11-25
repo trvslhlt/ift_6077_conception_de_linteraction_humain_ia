@@ -25,7 +25,8 @@
     "sound/keys-upright-piano",
     "sound/keys-organ",
     "sound/guitar-nylon",
-    "sound/guitar-clean"
+    "sound/guitar-clean",
+    "sound/organ-leslie-tubular"
   ],
   "checked": {
     "how": "written",

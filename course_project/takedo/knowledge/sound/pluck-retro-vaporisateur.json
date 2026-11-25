@@ -1,0 +1,51 @@
+{
+  "key": "sound/pluck-retro-vaporisateur",
+  "kind": "sound",
+  "summary": "Retro pluck (openDAW's Vaporisateur preset): short game-ish synth pluck for arps and hooks in synthwave, pop, electro",
+  "tags": [
+    "pluck",
+    "retro",
+    "arp",
+    "chiptune",
+    "game",
+    "synthwave",
+    "pop",
+    "electro",
+    "hook"
+  ],
+  "devices": [
+    "Vaporisateur"
+  ],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (sound palette, openDAW presets)",
+    "date": "2026-11-25",
+    "opendaw": "652e6ca"
+  },
+  "group": "Synth presets (openDAW's factory presets, make_instrument)",
+  "label": "Retro Pluck",
+  "body": [
+    "Sixteenth-note arpeggios and short hooks in MIDI 60-88.",
+    "Register: MIDI 48-96 (openDAW names C3 = 60); outside it, it sounds wrong. Sound: openDAW/Retro Pluck, openDAW's factory preset for Vaporisateur: make_instrument (sound \"openDAW/Retro Pluck\") makes the track with its notes in one edit; apply makes it empty."
+  ],
+  "apply": {
+    "params": {
+      "name": {
+        "type": "text",
+        "optional": true
+      }
+    },
+    "steps": [
+      {
+        "op": "soundfont",
+        "input": {
+          "name": "$name",
+          "default_name": "Retro Pluck",
+          "sound": "openDAW/Retro Pluck",
+          "volume_db": -6
+        }
+      }
+    ]
+  }
+}
