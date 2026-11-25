@@ -237,3 +237,11 @@ Known gaps in what's built:
   playing chords "an FM electric piano"). Presets aren't read yet. Nothing reads the overview back yet: members work
   from the snapshot.
 - **The refresh button appears after any box graph update,** UI state such as selection included, not only edits.
+- **The custodian (noted 2026-11-25, not built):** the page's guards (`page/Adapter.ts`: overlaps, played bars,
+  automation lanes, ceilings, limiter, the producer's transport) are TakeDo's custodian: code, not an agent, so
+  musical agents never implement openDAW's constraints. Most guards refuse with an explanation, costing the agent a
+  turn; where the fix is unambiguous they should repair and say so instead: end the earlier of two overlapping regions
+  where the later starts; with the loop on, write a laned control's change into its lane rather than refusing.
+  Deferred: in 534 logged sessions real refusals are rare (most of the 260 failures are the smoke test triggering each
+  guard on purpose). Later, an export-prep pass (tidy the many small automation regions, label parked parts, check the
+  arrangement end to end) could use judgment, off the live path.
