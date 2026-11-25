@@ -1,0 +1,9 @@
+{"//": "A style dial between its two versions (2026-11-25): after 'make it trap' lands, moving the dial is played by code between the project before and the trap version, no Team Lead turn: tempo and levels in between, the drums and bass handing over at the middle with the groove moving across, the rest crossfading. Swept down, to the middle and around it, and back up.",
+ "project": "01_good_base.odb", "messages": [
+  {"text": "Slowly evolve this into a trap hip hop beat"},
+  {"wait_ms": 30000},
+  {"control": "", "value": 0}, {"wait_ms": 12000},
+  {"control": "", "value": 0.5}, {"wait_ms": 12000},
+  {"control": "", "value": 0.3}, {"wait_ms": 12000},
+  {"control": "", "value": 0.7}, {"wait_ms": 12000},
+  {"control": "", "value": 1}, {"wait_ms": 12000}]}

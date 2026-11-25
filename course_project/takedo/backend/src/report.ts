@@ -308,6 +308,14 @@ if (before === undefined || after === undefined) {
             const next = log.find(entry => entry.t > move.t && (entry.type === "control" || entry.type === "chat" && entry.from === "user"))?.t ?? Infinity
             const edits = requests.filter(entry => entry.t > move.t && entry.t < next).length
             const replied = log.some(entry => entry.t > move.t && entry.t < next && entry.type === "chat" && entry.from !== "user")
+            // Between a dial's two takes a move is played by code (blend.ts): no reply, its edits within seconds.
+            const blend = log.find(entry => entry.t >= move.t && entry.t < next && entry.type === "blend")
+            if (blend !== undefined) {
+                const first = requests.find(entry => entry.t > move.t && entry.t < next)
+                check(edits > 0, `moving ${move.ref} to ${move.value}: played between its takes by code (${Math.round(Number(blend.f) * 100)}% of the way), ` +
+                    `${edits} edits${first === undefined ? "" : `, the first ${((first.t - move.t) / 1000).toFixed(1)} s after`}`)
+                continue
+            }
             check(replied && edits > 0, `moving ${move.ref} to ${move.value}: ${replied ? "a reply" : "no reply"} and ${edits} edits after it`)
         }
         if (run.controls !== undefined) {out.push(`- Controls at the end: ${run.controls.map(control => `${control.label} ${control.value}`).join(", ") || "none"}`)}

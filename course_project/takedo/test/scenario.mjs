@@ -24,6 +24,7 @@ const bundle = readFileSync(join(dirname(file), "projects", scenario.project)).t
 // An edit is still landing while its row says so; a message is settled when none is, or after this long.
 const SettleMs = scenario.settle_ms ?? 300000
 const ReplyMs = scenario.reply_ms ?? 240000
+const ControlReplyMs = 15000
 
 const browser = await chromium.launch({args: ["--autoplay-policy=no-user-gesture-required"]})
 const page = await (await browser.newContext({viewport: {width: 1440, height: 900}})).newPage()
@@ -201,8 +202,9 @@ try {
             console.log(`  (backend restarted ${(restartAfter / 1000).toFixed(0)} s in; session ${run.sessions.at(-1)})`)
             replies = restartReplies
         }
+        // A dial moved between its two takes is played by code, with no reply: waited for briefly, then its edits.
         await page.waitForFunction(([seen, replies]) => document.querySelectorAll("[data-testid=takedo-chat] li").length > seen + replies,
-            [seen, replies], {timeout: ReplyMs}).catch(() => {})
+            [seen, replies], {timeout: step.control !== undefined ? ControlReplyMs : ReplyMs}).catch(() => {})
         const replyMs = Date.now() - start
         // Replies can keep coming while the utility works; wait for its edits to land.
         const settleStart = Date.now()

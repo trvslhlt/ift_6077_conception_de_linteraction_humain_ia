@@ -6,7 +6,8 @@ import {
 import type {Catalog} from "./catalog.ts"
 import type {Gateway, ModelLog} from "./gateway.ts"
 import {createTeam, type Member, performStep, type Task} from "./members.ts"
-import {RecallBars, recallOf, scopeOf, Takes} from "./takes.ts"
+import {type Recall, RecallBars, recallOf, type Scope, scopeOf, Takes} from "./takes.ts"
+import {blendOf} from "./blend.ts"
 import {type Activity, Ledger, touchedBy} from "./ledger.ts"
 import type {LogType, SessionLog} from "./sessionLog.ts"
 import type {PartRole} from "./router.ts"
@@ -24,6 +25,8 @@ import {Utility} from "./utility.ts"
 
 const ClaimMs = 30000
 const HistoryLines = 12
+// A dial move this close past one of its two ends still counts as between them (blend.ts).
+const Edge = 0.02
 // Who's in play. "utility" (the default; the name is older than what it now runs): the captain takes every message
 // and hands pieces to workers, the utility in a fresh session per piece, running in parallel (ARCHITECTURE.md, "The
 // team's structure", 2026-11-22); "team": the older full team (Jev routing, the one-off Team Lead split, specialists
@@ -64,6 +67,7 @@ export class Coordinator {
     #opening: string | undefined = undefined   // the page's id for this opening of the project (protocol.ts)
     readonly #notebooks: string
     #takes: Takes = new Takes(null)        // the open project's takes (takes.ts)
+    readonly #blending = new Map<string, Set<string>>()   // per dial: the requests its last move sent (#blend)
     #ledger: Ledger = new Ledger(null)      // the open project's activity ledger (ledger.ts)
     #notebook: Notebook | null = null       // the open project's
     #startKept = false                      // whether this session has kept the project's starting state
@@ -428,6 +432,17 @@ export class Coordinator {
         return `Removed ${ref}.`
     }
 
+    // How a part in one of a dial's two versions only comes and goes as the dial moves (blend.ts): a default per part
+    // (drums and bass hand over at the middle, the rest crossfade) that the Team Lead can change.
+    setTransition(owner: Actor, ref: string, track: string, transition: "handover" | "crossfade"): string {
+        const controls = this.controls()
+        const control = controls.find(candidate => candidate.ref === ref && candidate.owner === owner)
+        if (control === undefined) {return `You have no control ${ref}.`}
+        this.#setControls(controls.map(candidate => candidate === control
+            ? {...control, transitions: {...control.transitions ?? {}, [track]: transition}} : candidate))
+        return `${control.label}: ${track} will ${transition === "handover" ? "hand over at the middle" : "crossfade across the dial"}.`
+    }
+
     // The producer let go of a control: a direction to its owner (TAKEDO_API.md, "Controls"), queued behind whatever
     // it's doing. Its card shows the move was heard at once.
     #control(ref: string, value: number): void {
@@ -451,18 +466,35 @@ export class Coordinator {
         }
         const captain = this.#captain
         if (control.owner !== captain.agent) {return}
-        this.card({agent: captain.agent, name: captain.name, doing: `heard: ${control.label} ${placed(control).replace(/ \(0 is.*$/, "")}`})
-        if (this.#steering) {return}
-        this.#steering = true
-        captain.later(this, async () => {
-            this.#steering = false
-            const was = this.#moved.get(ref)
-            const controls = [...this.#moved.keys()]
-            const text = describe()
-            if (text !== "" && was !== undefined) {await this.#keepLanded(ref, was)}
-            const snapshot = text === "" ? null : await this.snapshot()
-            return snapshot === null ? null : {turn: {kind: "control_moved", text, controls}, snapshot}
-        }).catch(error => this.say("agent:team_lead", `Something went wrong: ${String(error)}`))
+        const within = () => {
+            const ends = this.#takes.ends(ref)
+            return ends !== null && control.value >= ends.lo.value - Edge && control.value <= ends.hi.value + Edge
+        }
+        const glide = () => {
+            this.#moved.delete(ref)
+            this.card({agent: captain.agent, name: captain.name, doing: `${control.label} ${placed(control).replace(/ \(0 is.*$/, "")}: gliding there`})
+            void this.#blend(ref, control.value).catch(error => this.#log.write("blend_failed", {ref, error: String(error)}))
+        }
+        const lead = () => {
+            this.card({agent: captain.agent, name: captain.name, doing: `heard: ${control.label} ${placed(control).replace(/ \(0 is.*$/, "")}`})
+            if (this.#steering) {return}
+            this.#steering = true
+            captain.later(this, async () => {
+                this.#steering = false
+                const was = this.#moved.get(ref)
+                const controls = [...this.#moved.keys()]
+                const text = describe()
+                if (text !== "" && was !== undefined) {await this.#keepLanded(ref, was)}
+                const snapshot = text === "" ? null : await this.snapshot()
+                return snapshot === null ? null : {turn: {kind: "control_moved", text, controls}, snapshot}
+            }).catch(error => this.say("agent:team_lead", `Something went wrong: ${String(error)}`))
+        }
+        if (this.#steering) {return lead()}
+        if (within()) {return glide()}
+        // The first move after its direction landed: that work is the dial's other end, kept now, then glided between.
+        const previous = this.#moved.get(ref)
+        if (previous === undefined || !this.#landed()) {return lead()}
+        void this.#keepLanded(ref, previous).then(() => within() ? glide() : lead())
     }
 
     // ---------- the activity ledger (ledger.ts) ----------
@@ -492,7 +524,12 @@ export class Coordinator {
 
     // A dial moved: if its direction's work has all landed (nothing coming, no job running), the project is that
     // direction at the dial's old position, kept as a take before the Team Lead acts on the move.
+    #landed(): boolean {return !this.board.outstanding().some(({steps}) => steps.length > 0) && this.board.running().length === 0}
+
     async #keepLanded(ref: string, value: number): Promise<void> {
+        // Only a position past the dial's two ends: one between them is a blend of the two, not a version of its own.
+        const ends = this.#takes.ends(ref)
+        if (ends !== null && value > ends.lo.value + Edge && value < ends.hi.value - Edge) {return}
         if (this.board.outstanding().some(({steps}) => steps.length > 0) || this.board.running().length > 0) {return}
         await this.keepTake(ref, value, "its direction's work, landed")
     }
@@ -511,6 +548,42 @@ export class Coordinator {
             `${recall.conflicts.join(", ")}'s notes. To take this dial's part out of them, assign a piece for each (notes): its notes ` +
             `as they are now, without what this dial's direction did to them, at the dial's new position.`
         if (recall.scripts.length === 0 && recall.values.length === 0) {return `Nothing to bring back for this dial: what it changed since take ${id} is as the take has it, or someone else's now.${conflicts}`}
+        const says = await this.#sendRecall(agent, recall, now, `recall take ${id}`, reason, activity)
+        return `Recalling take ${id} over the next ${RecallBars} bars, only what this dial's directions changed: ${says.join(", ")}.` +
+            (recall.missing.length > 0 ? ` Can't bring back: ${recall.missing.join(", ")}.` : "") + conflicts
+    }
+
+    // A dial moved between its two takes: the project f of the way from one to the other (blend.ts), glided to as a
+    // recall, by code (no Team Lead turn). What a move before it sent and hasn't landed yet is taken back first.
+    async #blend(ref: string, value: number): Promise<void> {
+        const ends = this.#takes.ends(ref), captain = this.#captain
+        const now = await this.snapshot("full")
+        if (ends === null || now === null) {return}
+        this.#blending.get(ref)?.forEach(request => this.#send({type: "cancel", request}))
+        const sent = new Set<string>()
+        this.#blending.set(ref, sent)
+        const {lo, hi} = ends
+        const f = Math.min(1, Math.max(0, (value - lo.value) / (hi.value - lo.value)))
+        const blend = blendOf(lo.snapshot, hi.snapshot, f, now, this.controls().find(control => control.ref === ref)?.transitions ?? {})
+        const scope = scopeOf(lo.t < hi.t ? lo : hi, this.#ledger.entries(), this.#ledger.directionsOf(ref))
+        // Also what the blend governs (a leaving part's notes it morphs), and everything on a track the dial's work made.
+        const made = (key: string) => {
+            const track = /^(?:value|notes|regions|switch|effect) (t\d+)/.exec(key)?.[1]
+            return track !== undefined && scope.owns(`track ${track}`)
+        }
+        const wide: Scope = {owns: key => scope.owns(key) || blend.governs.has(key) || made(key), value: scope.value, shared: scope.shared}
+        const recall = recallOf(blend.target, now, wide)
+        const direction = this.#ledger.directionsOf(ref).at(-1)
+        const says = recall.scripts.length === 0 && recall.values.length === 0 ? []
+            : await this.#sendRecall(captain.agent, recall, now, `dial ${ref} to ${value.toFixed(2)}`, `dial ${ref}`,
+                direction === undefined ? undefined : {direction}, request => sent.add(request))
+        this.#log.write("blend", {ref, value, f, from: lo.id, to: hi.id, says: [...blend.says, ...says], conflicts: recall.conflicts})
+    }
+
+    // Sends a recall's edits, each on its bar from the next bar line; answers with what they'll do once they're sent.
+    async #sendRecall(agent: Actor, recall: Recall, now: Snapshot, label: string, reason: string, activity: Activity | undefined,
+                      sent: (request: string) => void = () => {}): Promise<string[]> {
+        const track = (status: Status) => {if (status.state === "scheduled" || status.state === "queued") {sent(status.request)}}
         const from = {position: now.playback.position, played: now.playback.played}
         const at = (bar: number): When => ({at: "bar", bar, from})
         await Promise.all(recall.first.map(({ref, to}) => performStep(this, agent, {plan: {op: "set", ref, to}, when: {at: "asap"}, says: "", activity}, reason)))
@@ -518,24 +591,23 @@ export class Coordinator {
             const claimed = this.claim(agent, ["project.script"], reason)
             if (!claimed.ok) {return `${says || "a stage"}: not done, ${claimed.holder.replace("agent:", "")} is running a script`}
             try {
-                const status = await this.request(agent, {op: "script", code, description: `recall take ${id}, bar ${bar} of ${RecallBars}`}, at(bar), now.at.seq, reason,
-                    () => {}, undefined, activity)
+                const status = await this.request(agent, {op: "script", code, description: `${label}, bar ${bar} of ${RecallBars}`}, at(bar), now.at.seq, reason,
+                    track, undefined, activity)
                 return status.state === "applied" ? says : `${says || `bar ${bar}`}: not done (${status.reason}: ${status.detail ?? ""})`
             } finally {
                 this.release(agent, ["project.script"])
             }
         })
         const values = recall.values.map(({ref, to, beats, bar, says}) =>
-            performStep(this, agent, {plan: beats > 0 ? {op: "ramp", ref, to, beats} : {op: "set", ref, to}, when: at(bar), says, activity}, reason))
+            performStep(this, agent, {plan: beats > 0 ? {op: "ramp", ref, to, beats} : {op: "set", ref, to}, when: at(bar), says, activity}, reason, track))
         const all = Promise.all([...scripts, ...values]).then(results => {
             const failed = results.filter(result => /not done/.test(result))
-            this.#log.write("take", {recalled: id, scripts: recall.scripts.length, values: recall.values.length, failed})
-            if (failed.length > 0) {this.say(agent, `Part of bringing that version back didn't land: ${failed.join("; ")}.`)}
+            this.#log.write("take", {recalled: label, scripts: recall.scripts.length, values: recall.values.length, failed})
+            const real = failed.filter(result => !/cancelled/.test(result))
+            if (real.length > 0) {this.say(agent, `Part of bringing that version back didn't land: ${real.join("; ")}.`)}
         })
         void all
-        const says = [...recall.scripts.map(script => script.says), ...recall.values.map(value => value.says)].filter(text => text !== "")
-        return `Recalling take ${id} over the next ${RecallBars} bars, only what this dial's directions changed: ${says.join(", ")}.` +
-            (recall.missing.length > 0 ? ` Can't bring back: ${recall.missing.join(", ")}.` : "") + conflicts
+        return [...recall.scripts.map(script => script.says), ...recall.values.map(value => value.says)].filter(text => text !== "")
     }
 
     // ---------- chat and routing ----------

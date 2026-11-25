@@ -42,6 +42,14 @@ export class Takes {
 
     get(id: string): Take | null {return this.#takes.find(take => take.id === id) ?? null}
 
+    // A dial's two ends (blend.ts): its lowest and highest takes, when they're apart. A move between them is worked
+    // out by code; one past them is the Team Lead's to build (and its work, landed, widens the span).
+    ends(control: string): { lo: Take, hi: Take } | null {
+        const own = this.#takes.filter(take => take.control === control).sort((a, b) => a.value - b.value)
+        if (own.length < 2 || own.at(-1)!.value - own[0].value < 0.1) {return null}
+        return {lo: own[0], hi: own.at(-1)!}
+    }
+
     // For the Team Lead, per dial: "k2: 0.90, after its direction's work landed (07:36)".
     lines(): string[] {
         return this.#takes.map(take => `${take.id}: ${take.control} at ${take.value.toFixed(2)}, ${take.label} (${new Date(take.t).toISOString().slice(11, 16)})`)

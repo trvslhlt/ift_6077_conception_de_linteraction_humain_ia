@@ -596,3 +596,18 @@ These are for the detailed design, whatever the shape:
   minutes while the parts they'd parked left gaps. Moving or lengthening an old region back is still refused. With the
   loop off, a pattern placed without from_bar goes just ahead of the playhead. scenarios/trap.json (trap, then house,
   loop off): 16 of 16 edits, a TR-808 kit and an 808 bass, then a TR-909 kit, old parts parked.
+
+- 2026-11-25, a style dial plays between its two versions. In the user's session the trap dial was re-decided by the
+  Team Lead on every move: at 0.18 and 0.49 it layered the trap kit under the old drums (two grooves at once), it
+  called 0.01 → 0.18 "toward current groove", and every landed position became a take, so by 0.94, 0.86 and 0.80 each
+  move snapped to one ("already matches, nothing changed"). Now (backend/src/blend.ts) a move between a dial's two
+  takes, its lowest and highest, is worked out by code and glided to as a recall (recallOf, takes.ts), with no Team
+  Lead turn: numbers in between; a part in both versions has its notes morphed f of the way (morphNotes); a part in one
+  version only either hands over at the middle (the default for drums and bass: one plays until 0.5, the other from
+  there; paired parts carry the groove across, drums mapped by role onto the other kit's pads, pitched lines moved by
+  octaves into the other part's register) or crossfades by gain over the whole range (the default for the rest; the
+  user: handover a default, not a rule; the Team Lead's set_transition changes it per part on a dial); switches at the
+  middle. The first move after a direction lands keeps its work as the far end; only moves past the ends reach the Team
+  Lead, and only those keep new takes. A newer move takes back what the last one sent and hasn't landed.
+  scenarios/dial-blend.json: trap, then 0, 0.5, 0.3, 0.7 played by code (4-13 edits each, scheduled at once), 1 (past the
+  landed 0.9) built by the Team Lead.

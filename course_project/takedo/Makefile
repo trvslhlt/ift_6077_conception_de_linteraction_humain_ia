@@ -79,7 +79,7 @@ check: ## Type-check the backend and shared code (needs `npm ci` in backend/ onc
 	cd backend && npx tsc --noEmit
 
 knowledge: ## Check the knowledge base offline: every entry against the catalog, the music helpers, expansion, the knowledge route (needs `npm ci` in backend/ once)
-	cd backend && node --test src/knowledge.test.ts src/router.test.ts src/reply.test.ts src/staging.test.ts src/generate.test.ts src/notebook.test.ts src/takes.test.ts src/ledger.test.ts
+	cd backend && node --test src/knowledge.test.ts src/router.test.ts src/reply.test.ts src/staging.test.ts src/generate.test.ts src/notebook.test.ts src/takes.test.ts src/ledger.test.ts src/blend.test.ts
 
 # PICKERS=jev and/or claude also asks the models which entry each message needs (costs money; keys from .env).
 knowledge-bench: ## Which producer messages the knowledge base serves (knowledge/bench/; PICKERS="route claude" to run the pickers)

@@ -109,7 +109,8 @@ export type MemberCard = { agent: Actor, name: string, doing: string }
 // with a widget of its own, so no agent writes UI. Intent dials for now: moving one is a direction to its owner (who
 // reads meaning and the position between the ends low and high), never a change to the project. value: 0..1.
 export type Control = { ref: string, owner: Actor, kind: "intent", widget: "dial", label: string,
-    low: string, high: string, meaning: string, value: number }
+    low: string, high: string, meaning: string, value: number
+    transitions?: Record<string, "handover" | "crossfade"> }   // per track ref, how a part in one end only comes and goes (blend.ts)
 // Who's on the team, for the team view (mentions, autocomplete). role: the @name.
 export type TeamMember = { role: string, name: string, area: string }
 // The project overview (FEATURES.md, "Project overview"): labelled lines from the Team Lead's model; the page adds the
