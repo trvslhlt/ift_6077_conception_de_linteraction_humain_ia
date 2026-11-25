@@ -177,7 +177,10 @@ export const chordHits = (spec: ChordSpec, beatsPerBar = 4): { hits: Hit[], beat
 // swing: where an off-beat eighth lands, as a fraction of the beat (0.5 straight, 0.58 a lazy boom-bap, 0.67 a shuffle);
 // sixteenths between move with it.
 export type MiniSpec = { pattern: string, bars: number, swing?: number }
-export type MelodySpec = MiniSpec & { register: Register, key?: string, velocity?: number }
+// range: the pitches a line keeps to, each note moved by octaves into it (2026-11-25: "0 5 3 4" on a bass put its 5 a
+// sixth above the root, C3, where a bass player plays the C below); by default its register's, for a part being changed
+// the part's own (rangeOf).
+export type MelodySpec = MiniSpec & { register: Register, key?: string, velocity?: number, range?: [number, number] }
 export type RoleHit = [beat: number, role: string, velocity: number]
 
 type Event = { begin: number, length: number, value: unknown }
@@ -223,8 +226,27 @@ export const drumHits = (spec: MiniSpec, beatsPerBar = 4): { hits: RoleHit[], be
     return {hits, beats: bars * beatsPerBar}
 }
 
-// Where a melody's degree 0 (the key's tonic) sits: the octave of each register its tonic starts in.
+// Where a melody's degree 0 (the key's tonic) sits: the octave of each register its tonic starts in; and the pitches
+// each register's lines keep to.
 const TonicFrom: Record<Register, number> = {low: 36, mid: 48, high: 60}
+const LineRanges: Record<Register, [number, number]> = {low: [28, 55], mid: [45, 76], high: [57, 88]}
+// The range a part's notes cover, an octave at least, so a line written for it stays in its role.
+export const rangeOf = (pitches: number[]): [number, number] | undefined => {
+    if (pitches.length === 0) {return undefined}
+    let low = Math.min(...pitches), high = Math.max(...pitches)
+    const short = 12 - (high - low)
+    if (short > 0) {low -= Math.floor(short / 2); high += Math.ceil(short / 2)}
+    return [low, high]
+}
+// A note outside the range goes to its octave inside it nearest the note before (the smallest leap a player would make).
+const fold = (pitch: number, [low, high]: [number, number], previous: number | null): number => {
+    if (pitch >= low && pitch <= high) {return pitch}
+    const inside: number[] = []
+    for (let octave = pitch % 12; octave <= 127; octave += 12) {if (octave >= low && octave <= high) {inside.push(octave)}}
+    if (inside.length === 0) {return pitch}
+    const target = previous ?? (low + high) / 2
+    return inside.reduce((best, candidate) => Math.abs(candidate - target) < Math.abs(best - target) ? candidate : best)
+}
 
 // A melody's notes, [beat, pitch, beats, velocity]: numbers are degrees of the key's scale (0 the tonic, 7 an octave up,
 // -1 the degree below), note names are openDAW's (C3 = MIDI 60).
@@ -248,6 +270,7 @@ export const melodyHits = (spec: MelodySpec, beatsPerBar = 4): { hits: Hit[], be
             if (midi === null || !/\d$/.test(String(value))) {return `"${String(value)}" isn't a degree (0, 2, -3) or a note with its octave (e2, f#3)`}
             pitch = midi + 12      // tonal's C4 is 60; openDAW's C3 is
         }
+        pitch = fold(pitch, spec.range ?? LineRanges[spec.register] ?? LineRanges.mid, hits.at(-1)?.[1] ?? null)
         if (pitch < 0 || pitch > 127) {return `"${String(value)}" is out of MIDI's range`}
         hits.push([Number((event.begin * beatsPerBar).toFixed(4)), pitch, Number(Math.max(0.1, event.length * beatsPerBar * 0.95).toFixed(4)), velocity])
     }

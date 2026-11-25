@@ -10,7 +10,7 @@ import type {Catalog} from "./catalog.ts"
 import {drumMap, type Knowledge, shortlist} from "./knowledge.ts"
 import {analyse} from "./analysis.ts"
 import {hitOf, morphNotes, targetHitOf, tile} from "./generate.ts"
-import {chordHits, type ChordSpec, drumHits, melodyHits, type MelodySpec, type MiniSpec} from "./compose.ts"
+import {chordHits, type ChordSpec, drumHits, melodyHits, type MelodySpec, type MiniSpec, rangeOf} from "./compose.ts"
 import {Kinds, type Kind} from "./notebook.ts"
 import {Limits, type LlmMember, type Member, performStep, projectFor, type Task} from "./members.ts"
 
@@ -675,7 +675,8 @@ export class Utility implements Member {
         }
         const melody = input.to_melody as MelodySpec | undefined
         if (melody !== undefined && melody.pattern.trim() !== "") {
-            const written = melodyHits({...melody, key: this.#factsKey(context) || undefined}, beatsPerBar)
+            const written = melodyHits({...melody, key: this.#factsKey(context) || undefined,
+                range: rangeOf(from.map(([, pitch]) => pitch))}, beatsPerBar)     // the part keeps to where it plays
             if (typeof written === "string") {return `Not done: ${written}.`}
             to = tile(written.hits, written.beats, loopBeats)
             says.push(`notes ${melody.pattern}`)

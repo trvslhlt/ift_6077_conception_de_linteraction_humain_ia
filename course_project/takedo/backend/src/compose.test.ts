@@ -1,6 +1,6 @@
 import {strict as assert} from "node:assert"
 import {describe, it} from "node:test"
-import {chordHits, drumHits, melodyHits, numeralChord, parseKey} from "./compose.ts"
+import {chordHits, drumHits, melodyHits, numeralChord, parseKey, rangeOf} from "./compose.ts"
 
 // Chords written by code (compose.ts). Run from backend/: node --test src/compose.test.ts
 
@@ -73,6 +73,14 @@ describe("mini-notation", () => {
         assert.equal(line.hits[2][2], 1.9)                                                                  // the fifth held two beats
         const below = melodyHits({pattern: "-1 7", bars: 1, register: "mid", key: "C major"})
         assert.ok(typeof below !== "string" && below.hits.map(([, pitch]) => pitch).join() === "47,60")
+    })
+    it("keeps a line in the part's range: a bass's 5 is the sixth below, not above", () => {
+        // The Cubed bass (A1–A2) evolved to "<0 5 3 4>" (2026-11-25: its C went to C3).
+        const bass = melodyHits({pattern: "<0 5 3 4>", bars: 4, register: "mid", key: "E minor", range: rangeOf([45, 52, 57])})
+        assert.ok(typeof bass !== "string")
+        assert.deepEqual(bass.hits.map(([, pitch]) => pitch), [52, 48, 57, 47])     // E2 C2 A2 B1: in its range, C and B below
+        const lead = melodyHits({pattern: "0 9", bars: 1, register: "high", key: "C major"})
+        assert.ok(typeof lead !== "string" && lead.hits.map(([, pitch]) => pitch).join() === "60,76")
     })
     it("reads note names as openDAW's (C3 = 60), and needs the key for degrees", () => {
         const named = melodyHits({pattern: "c3 e2", bars: 1, register: "mid"})
