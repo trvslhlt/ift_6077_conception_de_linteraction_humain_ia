@@ -23,6 +23,15 @@ export const Moves = {
     pan_right: "panned to the right", center: "panned back to the centre",
     back: "put back the way it was before the last change to it (undo a mixer move just made)"
 } as const
+export const Effects = {
+    reverb: "reverb, a room, hall or plate, space", delay: "delay or echo, repeats", distortion: "distortion, drive, overdrive, saturation, grit",
+    crusher: "a bit crusher, lo-fi crunch, sample-rate reduction", compressor: "a compressor, glue, squash, punch",
+    limiter: "a limiter, so it doesn't clip or take the headroom", tremolo: "tremolo, a pulsing volume",
+    other: "another effect (a filter, an EQ, chorus, phaser, a gate...), or no effect at all"
+} as const
+export const Actions = {
+    add: "add it", remove: "take it out", more: "more of it (wetter, stronger)", less: "less of it (drier, gentler)"
+} as const
 export const When = {
     now: "right away, on the next beat or bar", gradual: "gradually, over a few beats or bars (a fade)",
     later: "at a later point: the next phrase, a section or a named bar", unspecified: "the message doesn't say when"
@@ -54,6 +63,8 @@ export type Triage = {
     path: keyof typeof Paths, pathP: number
     part: string, partP: number                   // a track ref, or "whole_mix"
     move: keyof typeof Moves, moveP: number
+    effect: keyof typeof Effects, effectP: number
+    action: keyof typeof Actions, actionP: number
     amount: number                                // 0..3 on Amounts' scale
     when: keyof typeof When
     ms: number
@@ -75,6 +86,8 @@ export const triage = async (gateway: Gateway, log: ModelLog, state: TriageState
         path: choice(`${Premise}What does the message ask for?`, Paths),
         part: choice(`${Premise}Which part of the track is it about?`, parts),
         move: choice(`${Premise}If it asks for a mixer move, which one?`, Moves),
+        effect: choice(`${Premise}If it asks about an audio effect, which kind?`, Effects),
+        action: choice(`${Premise}If it asks about an audio effect, what should happen to it?`, Actions),
         amount: score(`${Premise}How large a change do they want?`, Amounts),
         when: choice(`${Premise}When should the change happen?`, When)
     }, log)
@@ -83,6 +96,8 @@ export const triage = async (gateway: Gateway, log: ModelLog, state: TriageState
         path: answers.path.choice as Triage["path"], pathP: p(answers.path),
         part: answers.part.choice, partP: p(answers.part),
         move: answers.move.choice as Triage["move"], moveP: p(answers.move),
+        effect: answers.effect.choice as Triage["effect"], effectP: p(answers.effect),
+        action: answers.action.choice as Triage["action"], actionP: p(answers.action),
         amount: answers.amount.score, when: answers.when.choice as Triage["when"],
         ms: Math.round(performance.now() - start)
     }

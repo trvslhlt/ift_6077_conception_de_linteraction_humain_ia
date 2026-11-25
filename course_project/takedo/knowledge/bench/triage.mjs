@@ -5,10 +5,12 @@
 //   path   mix: one mixer move, code can do it (part and move below) | effect: one audio effect on one part | team: the Team Lead
 //   part   for mix and effect: the track ref (Project, below), or whole_mix; null when the message doesn't say
 //   move   for mix: quieter | louder | mute | unmute | pan_left | pan_right | center | back; a list when either is right
+//   effect for effect: reverb | delay | distortion | crusher | compressor | limiter | tremolo | other; action: add | remove | more | less
 //   recent the chat just before (follow-ups: "bring them back up" after "lower the drums"), oldest first
 //   src    observed (takedo/sessions logs, 2026-11-20..25) | simulated
 //
 // The drums and the bass are named as in the jam project (TR-808, Cubed): a part's name often doesn't say its role.
+// The Keys already have a reverb and the Guitar a Waveshaper: "give the keys a big lush reverb" is add or more.
 // Labels are judgments, so review them. The rule: mix and effect are single, clear moves a fast path could do with no
 // model; anything with two moves, an exact value, a timing beyond "now" or "gradually", or a complaint is team.
 
@@ -25,7 +27,7 @@ export const Project = {
 }
 
 const mix = (msg, part, move, src = "observed", recent = []) => ({msg, path: "mix", part, move, src, recent})
-const effect = (msg, part, src = "observed", recent = []) => ({msg, path: "effect", part, src, recent})
+const effect = (msg, part, kind, action, src = "observed", recent = []) => ({msg, path: "effect", part, effect: kind, action, src, recent})
 const team = (msg, src = "observed", recent = []) => ({msg, path: "team", src, recent})
 const said = (user, team_lead) => [{from: "user", text: user}, {from: "team_lead", text: team_lead}]
 
@@ -62,19 +64,25 @@ export const Messages = [
     mix("and the pad", "t4", "mute", "simulated", said("mute the guitar", "Guitar muted.")),
     mix("too much, put it back", "t1", ["back", "louder"], "simulated", said("lower the drums", "TR-808 down 4 dB.")),
     mix("louder", "t2", "louder", "simulated", said("the keys are a bit too quiet", "Keys up 4 dB.")),
-    effect("a bit more", "whole_mix", "simulated", said("more reverb", "I'm bringing the master reverb up over the next four bars.")),
+    effect("a bit more", "whole_mix", "reverb", "more", "simulated", said("more reverb", "I'm bringing the master reverb up over the next four bars.")),
+    effect("more reverb", "whole_mix", "reverb", "more", "observed", said("put a reverb on master", "Adding a reverb on the master.")),
     team("no, the other one", "simulated", said("lower the drums", "TR-808 down 4 dB.")),
     team("why did you do that?", "simulated", said("lower the drums", "TR-808 down 4 dB.")),
 
     // ---------- effect: one audio effect on one part ----------
-    effect("@effect_designer give the keys a big lush reverb", "t2"),
-    effect("put a big plate reverb on the keys", "t2"),
-    effect("take the echo out of the bass", "t3"),
-    effect("put a limiter on that track so it doesn't eat all the headroom", null),
-    effect("add a tremolo after the limiter with a rhythm matching the project", null),
-    effect("less reverb on the keys", "t2", "simulated"),
-    effect("put some delay on the pad", "t4", "simulated"),
-    effect("add a low-pass filter to the whole thing", "whole_mix", "simulated"),
+    effect("@effect_designer give the keys a big lush reverb", "t2", "reverb", ["add", "more"]),
+    effect("put a big plate reverb on the keys", "t2", "reverb", ["add", "more"]),
+    effect("take the echo out of the bass", "t3", "delay", "remove"),
+    effect("put a limiter on that track so it doesn't eat all the headroom", null, "limiter", "add"),
+    effect("add a tremolo after the limiter with a rhythm matching the project", null, "tremolo", "add"),
+    effect("put a reverb on master", "whole_mix", "reverb", "add"),
+    effect("less reverb on the keys", "t2", "reverb", "less", "simulated"),
+    effect("put some delay on the pad", "t4", "delay", "add", "simulated"),
+    effect("add a low-pass filter to the whole thing", "whole_mix", "other", "add", "simulated"),
+    effect("add some distortion to the guitar", "t6", "distortion", ["add", "more"], "simulated"),
+    effect("crush the drums", "t1", "crusher", "add", "simulated"),
+    effect("less distortion on the guitar", "t6", "distortion", "less", "simulated"),
+    effect("compress the bass", "t3", "compressor", "add", "simulated"),
 
     // ---------- team: everything else ----------
     team("Slowly, and without sudden large changes, evolve this into a lofi girl beat"),

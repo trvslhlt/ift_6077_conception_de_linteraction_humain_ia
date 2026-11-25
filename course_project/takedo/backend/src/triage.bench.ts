@@ -2,7 +2,7 @@ import {mkdirSync, writeFileSync} from "node:fs"
 import {join} from "node:path"
 import {Gateway, loadConfig} from "./gateway.ts"
 import {type Triage, triage, type TriageState} from "./triage.ts"
-import {Sure, SurePath} from "./fastpath.ts"
+import {Sure, SurePart, SurePath} from "./fastpath.ts"
 
 // Jev in front of the Team Lead, judged (triage.ts): on knowledge/bench/triage.mjs's labelled messages, how often it
 // picks the right path, and for mixer moves the right part and move; then, at each threshold, how many messages a
@@ -14,6 +14,7 @@ const Takedo = join(import.meta.dirname, "..", "..")
 const Concurrency = 4
 const {Messages, Project} = await import(join(Takedo, "knowledge", "bench", "triage.mjs")) as {
     Messages: Array<{ msg: string, path: Triage["path"], part?: string | null, move?: Triage["move"] | Triage["move"][], src: string,
+        effect?: Triage["effect"], action?: Triage["action"] | Triage["action"][],
         recent: Array<{ from: string, text: string }> }>,
     Project: TriageState
 }
@@ -80,6 +81,19 @@ const missed = mixes.filter(({judged}) => judged.path !== "mix")
 console.log(`Mixer moves judged another path (${missed.length}):`)
 missed.forEach(({item, judged}) => console.log(`  ${judged.path} p ${judged.pathP.toFixed(2)} "${item.msg}"`))
 
+// The effect path (fastpath.ts, fastEffect): path at SurePath, part, effect and action at Sure, a known effect, no numbers.
+const effects = judged.filter(({item}) => item.path === "effect")
+const effectRight = ({item, judged}: Judged) => judged.part === item.part && judged.effect === item.effect && [item.action].flat().includes(judged.action)
+console.log(`\nEffects (${effects.length}): part, effect and action all right ${pct(effects.filter(effectRight).length, effects.length)}`)
+effects.filter(result => !effectRight(result)).forEach(({item, judged}) => console.log(`  "${item.msg}": ${judged.part} ${judged.effect} ${judged.action}` +
+    ` (want ${item.part} ${item.effect} ${item.action}; p ${judged.partP.toFixed(2)} ${judged.effectP.toFixed(2)} ${judged.actionP.toFixed(2)})`))
+{
+    const taken = judged.filter(({item, judged}) => judged.path === "effect" && judged.pathP >= SurePath && judged.effect !== "other"
+        && judged.partP >= SurePart && Math.min(judged.effectP, judged.actionP) >= Sure && !/\d/.test(item.msg) && judged.when !== "later")
+    const wrong = taken.filter(result => result.item.path !== "effect" || !effectRight(result))
+    console.log(`  live policy: taken ${taken.length} of ${effects.filter(({item}) => item.effect !== "other" && item.part !== null).length} fast-able effect messages, wrong ${wrong.length}` +
+        `${wrong.length > 0 ? `: ${wrong.map(({item, judged}) => `"${item.msg}" → ${judged.part} ${judged.effect} ${judged.action}`).join("; ")}` : ""}`)
+}
 const follow = followUps(judged)
 console.log(`\nFollow-ups (${follow.length}, with the chat before them): path right ${pct(follow.filter(({item, judged}) => item.path === judged.path).length, follow.length)}`)
 follow.forEach(({item, judged}) => console.log(`  "${item.msg}" after "${item.recent[0].text}": ${judged.path} ${judged.part} ${judged.move}` +

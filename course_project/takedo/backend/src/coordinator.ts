@@ -20,7 +20,7 @@ import {analyse, isDrums} from "./analysis.ts"
 import type {Knowledge} from "./knowledge.ts"
 import {Utility} from "./utility.ts"
 import {type Line, triage, triageState} from "./triage.ts"
-import {fastMix, SurePath} from "./fastpath.ts"
+import {fastEffect, fastMix, SurePath} from "./fastpath.ts"
 
 // The backend half of the bus (TAKEDO_API.md, "Overview"), one per connected page: claims, plans, chat, routing.
 // Talks to the page's adapter for state (snapshot queries) and to apply plans.
@@ -319,6 +319,7 @@ export class Coordinator {
                 if (status.state === "applied") {
                     this.#recordActivity(request, status, belongs)
                     void this.#effectKnob(request, status, belongs)
+                    if (request.plan.op === "remove_effect") {this.#dropKnobs(request.plan.ref)}
                 }
                 if (Terminal.includes(status.state)) {resolve(status)}
             })
@@ -704,12 +705,14 @@ export class Coordinator {
         const judged = await triage(this.#gateway, this.modelLog(), triageState(full ?? snapshot), message, history).catch(() => null)
         if (judged === null) {return false}
         if (judged.path === "effect" && judged.pathP >= SurePath) {this.#effectAsked = message}
-        const fast = fastMix(judged, message, snapshot, Object.fromEntries(this.#mixBefore))
+        const fast = fastMix(judged, message, snapshot, Object.fromEntries(this.#mixBefore)) ?? fastEffect(judged, message, full ?? snapshot)
         this.#log.write("triage", {message, ...judged, fast: fast !== null})
         if (fast === null) {return false}
         const agent: Actor = "agent:team_lead"
         this.say(agent, fast.says)
-        void performStep(this, agent, {...fast.step, decided: {by: "jev", ms: judged.ms}}, message).then(result => {
+        // Its own direction on the board, so the edit is owned (the ledger) and an effect it adds gets its knob (#effectKnob).
+        const direction = this.board.direction(message)
+        void performStep(this, agent, {...fast.step, decided: {by: "jev", ms: judged.ms}, activity: {direction: direction.id}}, message).then(result => {
             if (/not done/.test(result)) {this.say(agent, `That didn't land: ${result.replace(/^.*?: not done/, "not done")}.`)}
         })
         return true
@@ -866,7 +869,31 @@ export class Coordinator {
         if (said.startsWith("On your card")) {this.say("agent:team_lead", `There's a knob for the ${device.name.toLowerCase()} on my card, to set how much of it you hear.`)}
     }
 
+    // A parked effect's knobs leave the card with it.
+    #dropKnobs(effect: string): void {
+        const controls = this.controls()
+        const kept = controls.filter(control => !(control.bind ?? []).some(({ref}) => ref.startsWith(`${effect}.`)))
+        if (kept.length !== controls.length) {this.#setControls(kept)}
+    }
+
+    // A direct knob follows its parameter when an agent moves it ("more reverb" after the reverb's knob was offered);
+    // the producer's own moves aren't echoed back, so the knob doesn't fight their hand.
+    #followKnobs(event: ChangeEvent): void {
+        if (event.actor === "user") {return}
+        const controls = this.controls()
+        let moved = false
+        const next = controls.map(control => {
+            const bound = control.kind === "direct" && control.widget === "dial" ? control.bind?.[0] : undefined
+            const change = bound === undefined ? undefined : event.changes.find(change => change.ref === bound.ref)
+            if (bound === undefined || change === undefined || bound.to === bound.from) {return control}
+            moved = true
+            return {...control, value: Math.max(0, Math.min(1, (Number(change.to) - bound.from) / (bound.to - bound.from)))}
+        })
+        if (moved) {this.#setControls(next)}
+    }
+
     #change(event: ChangeEvent): void {
+        this.#followKnobs(event)
         this.#log.seen(event.seq)
         this.#log.write("change", event)
         event.changes.filter(({ref}) => /\.mix\.(volume|pan|mute)$/.test(ref) && typeof ref === "string").forEach(({ref, from}) => {

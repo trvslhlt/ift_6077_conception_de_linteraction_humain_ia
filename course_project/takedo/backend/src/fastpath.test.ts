@@ -1,7 +1,7 @@
 import {strict as assert} from "node:assert"
 import {describe, it} from "node:test"
 import type {Snapshot, Track} from "../../shared/protocol.ts"
-import {fastMix} from "./fastpath.ts"
+import {fastEffect, fastMix} from "./fastpath.ts"
 import type {Triage} from "./triage.ts"
 
 // The mix fast path offline: Jev's answers given, so these check what code does with them. Run from backend/:
@@ -19,7 +19,30 @@ const snapshot: Snapshot = {
     master: {volume: 0, effects: []}
 }
 const judged = (part: string, move: Triage["move"], extra: Partial<Triage> = {}): Triage => ({
-    path: "mix", pathP: 0.95, part, partP: 0.95, move, moveP: 0.95, amount: 1, when: "unspecified", ms: 90, ...extra
+    path: "mix", pathP: 0.95, part, partP: 0.95, move, moveP: 0.95, effect: "other", effectP: 0, action: "add", actionP: 0,
+    amount: 1, when: "unspecified", ms: 90, ...extra
+})
+
+describe("the effect fast path", () => {
+    const withReverb: Snapshot = {...snapshot, master: {volume: 0, effects: [{key: "Reverb", name: "Reverb", enabled: true, ref: "master.fx1",
+        params: [{ref: "master.fx1.wet", name: "Wet", value: -12, display: "-12 dB", min: -96, max: 0, stepped: false}]}]}}
+    const effect = (part: string, kind: Triage["effect"], action: Triage["action"], extra: Partial<Triage> = {}): Triage =>
+        judged(part, "quieter", {path: "effect", effect: kind, effectP: 0.95, action, actionP: 0.95, ...extra})
+    it("adds an effect with settings by Jev's amount", () => {
+        assert.deepEqual(fastEffect(effect("whole_mix", "reverb", "add"), "put a reverb on master", snapshot)?.step.plan,
+            {op: "add_effect", track: "master", device: "Reverb", factory: "Reverb", settings: [{param: "decay", value: 0.5}, {param: "wet", value: -12}]})
+    })
+    it("makes more of one there, adds one where there's none", () => {
+        assert.deepEqual(fastEffect(effect("whole_mix", "reverb", "more"), "more reverb", withReverb)?.step.plan,
+            {op: "ramp", ref: "master.fx1.wet", to: -7, beats: 2})
+        assert.equal(fastEffect(effect("whole_mix", "reverb", "more"), "more reverb", snapshot)?.step.plan.op, "add_effect")
+    })
+    it("takes one out (parked), and leaves to the Team Lead what it can't place", () => {
+        assert.deepEqual(fastEffect(effect("whole_mix", "reverb", "remove"), "take the reverb off", withReverb)?.step.plan,
+            {op: "remove_effect", ref: "master.fx1"})
+        assert.equal(fastEffect(effect("whole_mix", "reverb", "add", {partP: 0.84}), "add a reverb after the limiter", snapshot), null)
+        assert.equal(fastEffect(effect("t1", "other", "add"), "add a phaser to the drums", snapshot), null)
+    })
 })
 
 describe("the mix fast path", () => {

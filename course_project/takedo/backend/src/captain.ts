@@ -250,7 +250,8 @@ export class Captain {
     // The fast path for one mix control (decided 2026-11-24): the Team Lead's own edit, sent at once, so a small request
     // lands about a second after its decision instead of a worker's session later. Only what may() allows.
     // Its own edits: adjust (one mix control, checked there) and recalling a take (values, and one script).
-    may(plan: Plan): boolean {return plan.op === "set" || plan.op === "ramp" || plan.op === "script"}
+    // add_effect and remove_effect: Jev's effect path acts in the Team Lead's name (fastpath.ts); its own tools don't ask for them.
+    may(plan: Plan): boolean {return ["set", "ramp", "script", "add_effect", "remove_effect"].includes(plan.op)}
 
     // The loop, set by the Team Lead itself before it hands out pieces (2026-11-24: an arrange piece widened it while
     // the other workers planned for the old one, and a keys part came out 4 bars long in a 16-bar loop).
