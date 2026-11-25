@@ -255,24 +255,43 @@ try {
         afterTake.state === "failed" && /automation/.test(afterTake.detail ?? ""), JSON.stringify(afterTake))
 
     // ---------- TakeDo's own samples: a kit from samples/ loads through openDAW's sample chain (reinstallable) ----------
-    const kit = await page.evaluate(async () => {
+    // Made by the knowledge base's page helpers as the backend sends them (sound/kit-trap-808, make_kit, make_sampler):
+    // a Playfield whose pads are named by role, and a Nano 808 bass on G1, both with notes, their samples all loaded.
+    const helpers = readFileSync("/knowledge-scripts/kb.js", "utf8")
+    const manifest = await page.evaluate(async () => (await (await fetch("/sample-collections/manifest.json")).json()).samples)
+    const pick = (machine, file) => manifest.find(sample => sample.machine === machine && sample.file.endsWith(`/${file}`))
+    const pads = [["kick", "Kick", "BD2525.WAV"], ["snare", "Snare", "SD5075.WAV"], ["closed_hat", "Closed Hat", "CH.WAV"], ["open_hat", "Open Hat", "OH25.WAV"]]
+        .map(([role, label, file], index) => {
+            const sample = pick("RolandTR808", file)
+            return {note: 60 + index, uuid: sample.uuid, name: `${label} (RolandTR808 ${file.replace(".WAV", "")})`, duration: sample.duration,
+                exclude: role.endsWith("hat")}
+        })
+    const boom = pick("RolandTR808", "BD0010.WAV")
+    const notes = {from_bar: 1, bars: 2, loop_bars: 1, name: "smoke", notes: [[0, 60, 0.25, 0.9], [1, 62, 0.25, 0.6], [2, 61, 0.25, 0.9]]}
+    const madeKit = await apply({op: "script", description: "a TR-808 kit from TakeDo's samples",
+        code: `const args = ${JSON.stringify({name: "Kit 808", pads, volume_db: -3, notes})};\n${helpers}\nreturn kb.kit(args)`})
+    const madeBass = await apply({op: "script", description: "an 808 bass on a sampler",
+        code: `const args = ${JSON.stringify({name: "808", uuid: boom.uuid, file_name: "RolandTR808 BD0010", duration: boom.duration, root_key: 31,
+            settings: {tune: -35, release: 0.3}, volume_db: 0, notes: {...notes, name: "808", notes: [[0, 33, 2, 0.9]]}})};\n${helpers}\nreturn kb.sampler(args)`})
+    const kit = await page.evaluate(async uuids => {
         const {project} = window.takedo.service.projectProfileService.getValue().unwrap()
         const {lib} = window.takedo.adapter.env
-        const {samples} = await (await fetch("/sample-collections/manifest.json")).json()
-        const picks = ["kick", "snare", "closed hat", "open hat", "clap"]
-            .map(role => samples.find(sample => sample.machine === "RolandTR808" && sample.role === role))
-        project.editing.modify(() => project.api.createInstrument(lib.adapters.InstrumentFactories.Playfield, {name: "Kit 808",
-            attachment: picks.map((sample, index) => ({note: 60 + index, uuid: lib.std.UUID.parse(sample.uuid), name: sample.name,
-                durationInSeconds: sample.duration, exclude: false}))}))
-        const states = () => picks.map(sample => project.sampleManager.getOrCreate(lib.std.UUID.parse(sample.uuid)).state.type)
+        const states = () => uuids.map(uuid => project.sampleManager.getOrCreate(lib.std.UUID.parse(uuid)).state.type)
         const start = Date.now()
         while (states().some(state => state !== "loaded" && state !== "error") && Date.now() - start < 15000) {
             await new Promise(resolve => setTimeout(resolve, 100))
         }
-        return {states: states(), names: picks.map(sample => sample.name)}
-    })
-    check("a kit of TakeDo's samples (TR-808 from samples/) loads into a Playfield", kit.states.every(state => state === "loaded"),
-        JSON.stringify(kit))
+        const tracks = window.takedo.adapter.snapshot().tracks
+        const nano = project.rootBoxAdapter.audioUnits.adapters().find(unit => unit.label === "808")?.inputAdapter.unwrap().box
+        return {states: states(), pads: tracks.find(track => track.name === "Kit 808")?.device?.content?.pads ?? null,
+            kitBars: tracks.find(track => track.name === "Kit 808")?.bars ?? null,
+            bass: nano === undefined ? null : {rootKey: nano.rootKey.getValue(), tune: nano.tune.getValue(), file: nano.file.nonEmpty()}}
+    }, [...pads.map(pad => pad.uuid), boom.uuid])
+    check("a kit and an 808 bass of TakeDo's samples (from samples/), made by the knowledge helpers, load and play",
+        madeKit.state === "applied" && madeBass.state === "applied" && kit.states.every(state => state === "loaded")
+            && kit.pads?.length === 4 && kit.pads[0].name.startsWith("Kick") && kit.kitBars?.from === 1
+            && kit.bass?.rootKey === 31 && kit.bass.tune === -35 && kit.bass.file,
+        JSON.stringify({kit: madeKit.state, kitDetail: madeKit.detail, bass: madeBass.state, bassDetail: madeBass.detail, ...kit}))
 
     // ---------- loop off: an edit changes only what's still to play (the take replays as performed) ----------
     // A part looping 1 bar over 64 bars from bar 1, the loop off: an agent rewriting its notes splits it where the
@@ -304,11 +323,19 @@ try {
         rewritten.state === "applied" && past.regions.length === 2 && earlier?.from === "1.1.1" && earlier?.to === later?.from
             && later.from !== "1.1.1" && (earlier.notes ?? []).length === 2 && (later.notes ?? []).length === 1,
         `${rewritten.state} ${JSON.stringify(transport)}: ${JSON.stringify(past.regions.map(({ref, from, to, notes}) => ({ref, from, to, notes: notes?.length})))}`)
+    // A new part placed in bars already played starts at the current bar instead, its loop in step; lengthening an existing
+    // region back into them is refused.
     const intoPast = await apply({op: "script", description: "a part placed at bar 1", code: `
         const unit = project.rootBoxAdapter.audioUnits.adapters().find(unit => unit.label === "Past")
-        api.createNoteRegion({trackBox: unit.tracks.values()[0].box, position: 0, duration: 2 * bar, name: "too early"})`})
-    check("loop off: a script placing a part in bars already played is refused", intoPast.state === "failed"
-        && /already played/.test(intoPast.detail ?? ""), JSON.stringify(intoPast).slice(0, 300))
+        api.createNoteRegion({trackBox: unit.tracks.values()[0].box, position: 0, duration: 32 * bar, loopDuration: bar, name: "too early"})`})
+    const early = (await page.evaluate(() => window.takedo.adapter.snapshot("full").tracks.find(track => track.name === "Past")))
+        .regions.find(region => region.name === "too early")
+    const reached = await apply({op: "script", description: "the earlier part lengthened back", code: `
+        const region = ref("${pastRef}"); region.box.position.setValue(0); region.box.duration.setValue(region.box.duration.getValue() + region.position)`})
+    check("loop off: a new part placed in bars already played starts at the current bar; reaching back with an old one is refused",
+        intoPast.state === "applied" && early !== undefined && early.from !== "1.1.1" && /\.1\.1$/.test(early.from)
+            && reached.state === "failed" && /already played/.test(reached.detail ?? ""),
+        JSON.stringify({intoPast: intoPast.state, early: early && {from: early.from, to: early.to}, reached: reached.state, detail: reached.detail?.slice(0, 160)}))
     const stepped = await apply({op: "script", description: "tempo step to 100", code: `api.setBpm(100)`})
     await page.waitForTimeout(500)
     const tempo = await page.evaluate(() => window.takedo.adapter.snapshot().timeline)

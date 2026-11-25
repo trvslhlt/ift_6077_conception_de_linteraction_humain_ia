@@ -1,0 +1,55 @@
+{
+  "key": "sound/808-bass",
+  "kind": "sound",
+  "summary": "808 bass: a long TR-808 kick played as notes on the Nano sampler (booming sub, decays over ~3 s)",
+  "tags": [
+    "808",
+    "bass",
+    "sub",
+    "trap",
+    "drill",
+    "hip hop",
+    "boom",
+    "sampler"
+  ],
+  "devices": [
+    "Nano"
+  ],
+  "links": [
+    "sound/kit-trap-808",
+    "genre/trap",
+    "sound/sine-sub-vaporisateur"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (style kits)",
+    "date": "2026-11-24",
+    "opendaw": "652e6ca"
+  },
+  "body": [
+    "The trap and drill bass: the TR-808's long kick (BD0010, 3 s) sounds at about 50 Hz, G1 (MIDI 31) 35 cents sharp, so root_key 31, tune -35 plays it in tune. Play roots in the key between E1 and C2 (MIDI 28\u201336), on and around the kick, with long notes and gaps; it's the loudest thing in the mix.",
+    "Apply makes the track with no notes; make_sampler does the same with notes in one edit (better: the part isn't silent between edits)."
+  ],
+  "apply": {
+    "params": {
+      "name": {
+        "type": "text",
+        "optional": true
+      }
+    },
+    "steps": [
+      {
+        "op": "sampler",
+        "input": {
+          "name": "$name",
+          "default_name": "808",
+          "sample": "RolandTR808/bd/BD0010",
+          "root_key": 31,
+          "tune": -35,
+          "release": 0.3,
+          "volume_db": 0
+        }
+      }
+    ]
+  }
+}

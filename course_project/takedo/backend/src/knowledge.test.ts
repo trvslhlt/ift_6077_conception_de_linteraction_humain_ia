@@ -6,6 +6,7 @@ import {after, describe, it} from "node:test"
 import type {Snapshot, Track} from "../../shared/protocol.ts"
 import {loadCatalog} from "./catalog.ts"
 import {chordPitches, drumMap, loadKnowledge, parseKey, progressionKey, progressionMode, readCartridge, shortlist} from "./knowledge.ts"
+import {loadSamples} from "./samples.ts"
 
 // Offline checks of the knowledge base (KNOWLEDGE.md): every entry loads and validates against the catalog, the music
 // helpers give the right pitches, and entries expand to edits whose scripts at least compile. Run from backend/:
@@ -18,6 +19,9 @@ cpSync(join(Takedo, "knowledge"), scratch, {recursive: true})
 after(() => rmSync(scratch, {recursive: true, force: true}))
 const warnings: string[] = []
 const knowledge = loadKnowledge(scratch, catalog, text => warnings.push(text))
+// TakeDo's sample collections, when fetched (make samples): the kits' samples are checked against them.
+const samples = loadSamples(join(Takedo, "samples"))
+const withSamples = loadKnowledge(scratch, catalog, text => warnings.push(text), samples)
 
 const track = (ref: string, name: string, instrument: string, extra: Partial<Track> = {}): Track => ({
     ref, name, kind: "notes", instrument, device: {key: instrument, name: instrument, enabled: true},
@@ -259,5 +263,52 @@ describe("genres", () => {
         const planned = knowledge.expand("genre/lofi-hip-hop", {drums: "t1", keys: "t2", key: "C major"}, snapshot)
         assert.ok(Array.isArray(planned) && planned.length === 5, String(planned))
         assert.ok(planned.slice(2).every(step => step.at === 8 && step.kind === "op"))
+    })
+})
+
+describe("kits", {skip: samples.size === 0 ? "no samples/ (make samples)" : false}, () => {
+    it("names samples by machine, role folder and file", () => {
+        assert.equal(Math.round(samples.find("RolandTR808/bd/BD0010")?.duration ?? 0), 3)
+        assert.ok(samples.search({machine: "909", role: "kick"}, 10).every(sample => sample.id.startsWith("RolandTR909/bd/")))
+    })
+    it("makes a kit entry into a new Playfield whose pads the drum patterns find", () => {
+        const planned = withSamples.expand("sound/kit-trap-808", {pattern: "pattern/trap-2bar", from_bar: 9, bars: 16}, snapshot)
+        assert.ok(Array.isArray(planned), String(planned))
+        assert.equal(planned.length, 1)
+        assert.equal(planned[0].kind, "script")
+        assert.match(planned[0].says, /Trap Kit: a new kit track \(Kick \(RolandTR808 BD2525\)/)
+        assert.match(planned[0].says, /trap-2bar from bar 9/)
+        if (planned[0].kind === "script") {
+            compiles(planned[0].code)
+            const args = JSON.parse(planned[0].code.slice("const args = ".length, planned[0].code.indexOf(";\n")))
+            const kick = args.pads.find((pad: { name: string }) => pad.name.startsWith("Kick")).note
+            assert.ok(args.notes.notes.some(([beat, pitch]: number[]) => beat === 0 && pitch === kick), "the kick on 1 is the kick pad")
+            assert.equal(args.notes.loop_bars, 2)
+        }
+    })
+    it("with the loop off, places a kit's groove just ahead of the playhead, not over bars already played", () => {
+        const take = {...snapshot, playback: {...snapshot.playback, bar: 30, loop: {...snapshot.playback.loop, on: false}}}
+        const planned = withSamples.expand("sound/kit-house-909", {pattern: "pattern/four-on-the-floor"}, take)
+        assert.ok(Array.isArray(planned) && /from bar 32/.test(planned[0].says), JSON.stringify(planned))
+    })
+    it("makes an empty kit when no pattern is given", () => {
+        const planned = withSamples.expand("sound/kit-house-909", {}, snapshot)
+        assert.ok(Array.isArray(planned) && planned[0].kind === "script" && planned[0].code.includes('"notes":null'), String(planned))
+    })
+    it("makes a kit with hits written out, and refuses unknown roles and samples", () => {
+        const made = withSamples.kit({name: "K", pads: [{role: "kick", sample: "RolandTR808/bd/BD0010"}, {role: "snare", sample: "RolandTR808/sd/SD0010"}],
+            notes: {hits: [[0, "kick", 1], [1, "snare", 0.8]], beats: 4, from_bar: 3, bars: 8}}, snapshot)
+        assert.ok(typeof made !== "string" && made.says.includes("from bar 3"), String(made))
+        assert.match(String(withSamples.kit({pads: [{role: "cowbell", sample: "RolandTR808/bd/BD0010"}]}, snapshot)), /unknown drum role cowbell/)
+        assert.match(String(withSamples.kit({pads: [{role: "kick", sample: "RolandTR808/bd/NOPE"}]}, snapshot)), /no sample RolandTR808\/bd\/NOPE/)
+        assert.match(String(withSamples.kit({pads: [{role: "kick", sample: "RolandTR808/bd/BD0010"}], notes: {hits: [[0, "tuba", 1]], beats: 4}}, snapshot)), /unknown drum role tuba/)
+    })
+    it("makes the 808 bass a Nano at G1, with notes as written", () => {
+        const planned = withSamples.expand("sound/808-bass", {}, snapshot)
+        assert.ok(Array.isArray(planned) && planned[0].kind === "script" && planned[0].code.includes('"root_key":31'), String(planned))
+        const made = withSamples.sampler({sample: "RolandTR808/bd/BD0010", root_key: 31, tune: -35, notes: {notes: [[0, 33, 2, 1]], loop_bars: 1, from_bar: 5, bars: 4}}, snapshot)
+        assert.ok(typeof made !== "string", String(made))
+        compiles(made.code)
+        assert.ok(made.code.includes('"tune":-35') && made.code.includes('"from_bar":5'))
     })
 })

@@ -17,6 +17,9 @@
     "Vaporisateur"
   ],
   "links": [
+    "sound/kit-trap-808",
+    "sound/808-bass",
+    "pattern/trap-2bar",
     "pattern/trap-halftime",
     "pattern/prog-trap-characteristic-1",
     "genre/boom-bap",
@@ -36,8 +39,8 @@
     160
   ],
   "body": [
-    "Drums: snare or clap on 3 (half-time), kick syncopated with the 808, hats in 16ths with 32nd and triplet rolls.",
-    "Bass: the 808 is a long, low sine-like note with slides, following the kick; it is the loudest thing.",
+    "Drums: snare or clap on 3 (half-time), kick syncopated with the 808, hats in 16ths with 32nd and triplet rolls (pattern/trap-2bar). The sound is the TR-808: a new kit track from sound/kit-trap-808 (old drums parked), not the old kit with a new pattern.",
+    "Bass: the 808 is a long, low boom following the kick, the loudest thing: sound/808-bass (a long TR-808 kick on a sampler, make_sampler), or a sine sub as a fallback.",
     "Harmony: minor, often just i–VI or i–iv–v; a short melody on bells, plucks, a choir or strings, dark and sparse.",
     "Space: little reverb on drums, more on the melody.",
     "Apply: pattern/trap-halftime on the drums, then pattern/prog-trap-characteristic-1 on the keys four bars later. It leaves tempo and sounds to you: move the tempo toward 130–160 gradually, and swap sounds from the links."

@@ -1,0 +1,107 @@
+{
+  "key": "sound/kit-trap-808",
+  "kind": "sound",
+  "summary": "TR-808 kit for trap: short punchy kick, snappy snare and hand clap, crisp closed hat, open hat, rim",
+  "tags": [
+    "trap",
+    "808",
+    "hip hop",
+    "drill",
+    "kit",
+    "drums",
+    "TR-808",
+    "modern"
+  ],
+  "devices": [
+    "Playfield"
+  ],
+  "links": [
+    "pattern/trap-2bar",
+    "pattern/trap-halftime",
+    "sound/808-bass",
+    "genre/trap"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (style kits)",
+    "date": "2026-11-24",
+    "opendaw": "652e6ca"
+  },
+  "body": [
+    "The Roland TR-808's own samples (tidal-drum-machines). In trap the kick is short and the long boom is the 808 bass on its own track (sound/808-bass): keep the kick under it, on the bass's first notes.",
+    "Clap and snare stacked on 3 (half-time); hats bright and busy with rolls (pattern/trap-2bar).",
+    "Apply makes a new drum track (it never replaces the old one): park the old drums (mute) at the bar the new kit starts. Pads are named by role, so drum patterns and evolve_notes find them; samples (the tool) finds other sounds to swap in with make_kit."
+  ],
+  "apply": {
+    "params": {
+      "pattern": {
+        "type": "text",
+        "optional": true,
+        "about": "a knowledge drum pattern for it to play from the start (\"pattern/trap-2bar\"); leave out for an empty kit"
+      },
+      "from_bar": {
+        "type": "number",
+        "optional": true,
+        "about": "the timeline bar its region starts on (loop off: the next bar line after it lands)"
+      },
+      "bars": {
+        "type": "number",
+        "optional": true,
+        "about": "how many bars it runs (loop off: to the song's end)"
+      },
+      "name": {
+        "type": "text",
+        "optional": true
+      }
+    },
+    "steps": [
+      {
+        "op": "kit",
+        "input": {
+          "name": "$name",
+          "default_name": "Trap Kit",
+          "volume_db": -3,
+          "pads": [
+            {
+              "role": "kick",
+              "sample": "RolandTR808/bd/BD2525"
+            },
+            {
+              "role": "snare",
+              "sample": "RolandTR808/sd/SD5075"
+            },
+            {
+              "role": "clap",
+              "sample": "RolandTR808/cp/cp2"
+            },
+            {
+              "role": "closed_hat",
+              "sample": "RolandTR808/hh/CH"
+            },
+            {
+              "role": "open_hat",
+              "sample": "RolandTR808/oh/OH25"
+            },
+            {
+              "role": "rim",
+              "sample": "RolandTR808/rim/RS"
+            },
+            {
+              "role": "crash",
+              "sample": "RolandTR808/cr/CY5050"
+            },
+            {
+              "role": "perc",
+              "sample": "RolandTR808/cb/CB"
+            }
+          ],
+          "notes": {
+            "of": "$pattern",
+            "from_bar": "$from_bar",
+            "bars": "$bars"
+          }
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,7 @@
+{"//": "A style's sound (2026-11-24): the producer's trap request in their session got a new pattern on the old kit and was 'not even close'. Now a style's drums are a new kit from TakeDo's samples (sound/kit-trap-808) with the style's groove, the old drums parked, and an 808 bass on a sampler. Loop off, as the producer plays it. Then house, to see a second kit swap.",
+ "project": "01_good_base.odb", "messages": [
+  {"loop": false},
+  {"text": "make it trap"},
+  {"wait_ms": 20000},
+  {"text": "now turn it into house"},
+  {"wait_ms": 15000}]}

@@ -113,7 +113,7 @@ Timing:
 - at_bar counts bars of playing after the producer's message, like from_bar and to_bar: 1 is the next bar line, 2 the one after, through every pass of the loop, whatever the loop is or becomes. An edit for a later bar (at_bar above 0) is staged: it answers at once and goes out when you reply, so its steps land in their bars' order however long you take. at_bar 0 lands at once. Failures of staged edits reach you later. A look sees only what has landed.
 - Land changes ahead of the playhead when timing matters; structural changes (lengths, new regions) can land as soon as possible.
 - When the loop is on (playback.loop), only its bars are heard: put what you write inside them. A new part's region covers the loop (its pattern looping); a change over time is edits staged on later bars, each landing on a later pass, never content placed at later timeline bars, which the loop never reaches. Leave the loop as it is (project.timelineBox.loopArea): the Team Lead sets it before handing out pieces, and other workers are planning for it now. If your piece needs more room, say so in your report.
-- When the loop is off, the song plays straight through and what has played is the producer's recording: never place or lengthen a region into bars already played. A new part's region starts at the next bar line after the playhead (Math.ceil(project.engine.position.getValue() / bar) * bar) its pattern looping (loopDuration shorter than duration); give it any length of a few bars or more: the page keeps each track's last region going as the song grows, and a part stops only when it's parked or muted. Your piece's bars count from the producer's message, not from the timeline's start. To bring back a part that stopped, add a new region from the next bar line; the page refuses an edit that reaches into bars already played. Rewriting a part's notes is fine: the page splits its region where the playhead is, so the bars played keep their notes in a new region and the ref you used goes on from there with yours. A tempo you set (api.setBpm) is written on the tempo track there too; snapshot().timeline.bpm is the tempo playing.
+- When the loop is off, the song plays straight through and what has played is the producer's recording: never place or lengthen a region into bars already played. A new part's region starts at the next bar line after the playhead (Math.ceil(project.engine.position.getValue() / bar) * bar) its pattern looping (loopDuration shorter than duration); give it any length of a few bars or more: the page keeps each track's last region going as the song grows, and a part stops only when it's parked or muted. Your piece's bars count from the producer's message, not from the timeline's start. To bring back a part that stopped, add a new region from the next bar line. A new region placed in bars already played (your edit landed later than planned) is moved up by the page to start at the current bar, its loop in step; moving or lengthening an existing region into them is refused. Park the old part in the same edit as, or after, the new one comes in, never before: a part parked early leaves a gap. Rewriting a part's notes is fine: the page splits its region where the playhead is, so the bars played keep their notes in a new region and the ref you used goes on from there with yours. A tempo you set (api.setBpm) is written on the tempo track there too; snapshot().timeline.bpm is the tempo playing.
 - The transport is the producer's: never play, stop, record or move the playhead (engine.play/stop/setPosition, recording); those calls are refused.
 
 Both run a function body with \`takedo\` in scope (its parts are also plain names: project, api, lib, ref, bar, ppqn, pos, snapshot); \`return\` a value to see it (JSON; openDAW objects show as their class name, so return plain data). look's body may await; run's is synchronous.
@@ -140,14 +140,18 @@ Rules:
 // and rules, not every kind's. The kinds are what Jev will classify (board.ts, PieceKinds).
 const KindNotes: Record<PieceKind, string> = {
     drums: `- evolve_notes: a part's notes changing over several bars (a groove becoming another, a part thinning out or filling in), not a script per stage. Name where it's going (a knowledge pattern, or the notes written once) and how many stages; code works out each stage and rewrites the region's notes in place, so a looping region changes as it plays.
-- A region's notes play on every pass of its loop: rewriting them changes every repeat from when it lands.`,
+- A region's notes play on every pass of its loop: rewriting them changes every repeat from when it lands.
+- A style's drum sound (trap, house, techno, boom-bap, 80s) is a new kit, not new notes on the old one: apply_knowledge a kit entry (sound/kit-trap-808, kit-house-909, kit-boombap-mpc60, kit-boombap-sp12, kit-synthpop-linndrum) with the style's pattern and from_bar, or make_kit with samples you pick (samples finds them across 70 drum machines); then park (mute) the old drums at the bar the kit starts, so the two never play together.`,
     notes: `- evolve_notes: a part's notes changing over several bars (a groove becoming another, a part thinning out or filling in), not a script per stage. Name where it's going (a knowledge pattern, or the notes written once) and how many stages; code works out each stage and rewrites the region's notes in place, so a looping region changes as it plays.
 - A region's notes play on every pass of its loop: rewriting them changes every repeat from when it lands.
+- An 808 bass (trap, drill, modern hip hop) is make_sampler: a long TR-808 kick played as notes (sound/808-bass), roots in the key around the kick, long notes with gaps.
 - Pitches: write them in the key in facts, and keep each part in its role (a part in the bass register stays the bass). Note names here follow openDAW, where C3 is MIDI 60 (not C4): write pitches by the MIDI numbers facts gives.
 ${KeySlot}
 - A new named track with a bar of notes: const {audioUnitBox, trackBox, instrumentBox} = api.createInstrument(lib.adapters.InstrumentFactories.Vaporisateur); instrumentBox.label.setValue("Lead"); const region = api.createNoteRegion({trackBox, position: 0, duration: bar, name: "Lead"}); api.createNoteEvent({owner: region, position: 0, duration: lib.dsp.PPQN.Quarter, pitch: 60, velocity: 0.8});
 - A track made in this script has no adapter yet (ref and audioUnits.adapters() don't find it until the edit ends): set its level with audioUnitBox.volume.setValue(dB) and its instrument's settings on instrumentBox's fields (instrumentBox.cutoff.setValue(2200)), with the names namedParameter shows on a track of that instrument. Every field has a range (the box schema's constraints; a parameter's valueMapping); a value outside it can crash the audio engine, so TakeDo brings it back in and the result lists what it corrected.`,
     sound: `- An instrument's settings: ref("t2").inputAdapter.unwrap().namedParameter (e.g. Cubed: cutoff, resonance, envMod, decay, accent; Vaporisateur: cutoff, resonance, attack, decay, sustain, release, …); set them with .setValue(v). A drum machine (Playfield) has none: its sounds are samples by pad.
+- A style's drum sound (trap, house, techno, boom-bap, 80s) is a new kit, not new notes on the old one: apply_knowledge a kit entry (sound/kit-trap-808, kit-house-909, kit-boombap-mpc60, kit-boombap-sp12, kit-synthpop-linndrum) with the style's pattern and from_bar, or make_kit with samples you pick (samples finds them across 70 drum machines); then park (mute) the old drums at the bar the kit starts, so the two never play together.
+- An 808 bass (trap, drill, modern hip hop) is make_sampler: a long TR-808 kick played as notes (sound/808-bass), roots in the key around the kick, long notes with gaps.
 - Vaporisateur's namedParameter: oscillators[0] and oscillators[1], each {waveform (0 sine, 1 triangle, 2 saw, 3 square), volume (dB; -Infinity is off), octave (-3..3), tune (cents)}; unisonCount is 1, 3 or 5 only; unisonDetune in cents (1..1200); unisonStereo 0..1; cutoff (Hz), resonance, filterOrder (1..4), attack, decay, sustain, release. A supersaw: both oscillators saw at 0 dB, the second tuned +7 ct, unisonCount 5, unisonDetune 25, unisonStereo 0.8.
 - A new named track with a bar of notes: const {audioUnitBox, trackBox, instrumentBox} = api.createInstrument(lib.adapters.InstrumentFactories.Vaporisateur); instrumentBox.label.setValue("Lead"); const region = api.createNoteRegion({trackBox, position: 0, duration: bar, name: "Lead"}); api.createNoteEvent({owner: region, position: 0, duration: lib.dsp.PPQN.Quarter, pitch: 60, velocity: 0.8});
 - A track made in this script has no adapter yet (ref and audioUnits.adapters() don't find it until the edit ends): set its level with audioUnitBox.volume.setValue(dB) and its instrument's settings on instrumentBox's fields (instrumentBox.cutoff.setValue(2200)), with the names namedParameter shows on a track of that instrument. Every field has a range (the box schema's constraints; a parameter's valueMapping); a value outside it can crash the audio engine, so TakeDo brings it back in and the result lists what it corrected.
@@ -409,7 +413,78 @@ export class Utility implements Member {
                 stages: z.number().int().describe("How many steps to get there, 1 to 16"),
                 at_bar: z.number().int().describe("Bars of playing after the producer's message the first stage lands on (1: the next bar line); 0 for as soon as possible"),
                 every_bars: z.number().int().describe("Bars between stages, 1 or more")},
-                handler((current, input) => this.#evolve(current, input)))
+                handler((current, input) => this.#evolve(current, input))),
+            ...(knowledge.samples === null || knowledge.samples.size === 0 ? [] : this.#sampleTools(handler))
+        ]
+    }
+
+    // TakeDo's sample collections (samples.ts): ~2,800 one-shots from 70 drum machines, found by machine and role, made
+    // into a new kit track (Playfield) or a sampler track (Nano: one sample played across the keys, an 808 bass).
+    #sampleTools(handler: (run: (current: Current, input: Record<string, unknown>) => Promise<string> | string)
+        => (input: Record<string, unknown>) => Promise<CallToolResult>) {
+        const knowledge = this.#knowledge!, samples = knowledge.samples!
+        const Placement = {
+            from_bar: z.number().int().describe("The timeline bar the part's region starts on (with the loop off: the next bar line after the edit lands, never a bar already played); 0 to cover the bars the other parts cover"),
+            bars: z.number().int().describe("How many bars the region runs (with the loop off: to the song's end); 0 for the default"),
+            at_bar: z.number().int().describe("Bars of playing after the producer's message the edit lands on (1: the next bar line); 0 for as soon as possible")}
+        const placed = (input: Record<string, unknown>, notes: Record<string, unknown>): Record<string, unknown> =>
+            ({...notes, from_bar: Number(input.from_bar) || 0, bars: Number(input.bars) || 0})
+        // The tool's input as the kit and sampler ops take it (knowledge.ts).
+        const shape = (kind: "kit" | "sampler", input: Record<string, unknown>): Record<string, unknown> => {
+            const common = {name: input.name, volume_db: Number(input.volume_db) || 0}
+            if (kind === "kit") {
+                const pattern = String(input.pattern ?? ""), hits = (input.hits ?? []) as unknown[]
+                return {...common, pads: input.pads,
+                    notes: pattern !== "" ? placed(input, {of: pattern}) : hits.length > 0 ? placed(input, {hits, beats: Number(input.beats) || 4}) : undefined}
+            }
+            const notes = (input.notes ?? []) as unknown[]
+            return {...common, sample: input.sample, root_key: input.root_key,
+                ...(Number(input.tune) ? {tune: Number(input.tune)} : {}), ...(Number(input.release) > 0 ? {release: Number(input.release)} : {}),
+                notes: notes.length > 0 ? placed(input, {notes, loop_bars: Number(input.loop_bars) || 1}) : undefined}
+        }
+        const make = (kind: "kit" | "sampler") => async (current: Current, input: Record<string, unknown>): Promise<string> => {
+            const snapshot = await current.context.snapshot()
+            if (snapshot === null) {return "Not done: no project is open."}
+            const made = knowledge[kind](shape(kind, input), snapshot)
+            if (typeof made === "string") {return `Not done: ${made}.`}
+            current.context.card({agent: this.agent, name: this.name, doing: kind === "kit" ? "building a drum kit…" : "setting up a sampler…"})
+            return this.#run(current, made.says, made.code, Number(input.at_bar) || 0)
+        }
+        return [
+            tool("samples", "Find drum and percussion samples in TakeDo's collections (~2,800 one-shots from 70 classic drum machines: TR-808, TR-909, LinnDrum, MPC60, SP-12, DMX, ...) by machine, role and words; all empty lists the machines.", {
+                machine: z.string().describe("Part of a machine's name (\"808\", \"LinnDrum\", \"MPC\"); \"\" for any"),
+                role: z.string().describe("kick, snare, clap, rim, closed hat, open hat, crash, ride, low tom, mid tom, high tom, cowbell, percussion, shaker, tambourine, misc, effect; \"\" for any"),
+                words: z.string().describe("Words in the sample's id (\"BD0010\", \"Gated\"); \"\" for none")},
+                handler((_current, input) => {
+                    const machine = String(input.machine ?? ""), role = String(input.role ?? ""), words = String(input.words ?? "")
+                    if (machine === "" && role === "" && words === "") {
+                        return samples.machines().map(entry => `${entry.machine} (${entry.count}): ${entry.roles.join(", ")}`).join("\n")
+                    }
+                    const found = samples.search({machine, role, words}, 60)
+                    return found.length === 0 ? "Nothing matches; leave a field empty or list the machines."
+                        : found.map(sample => `${sample.id} (${sample.role ?? "?"}, ${sample.duration.toFixed(2)} s)`).join("\n")
+                }), {annotations: {readOnlyHint: true}}),
+            tool("make_kit", "A new drum track: a kit (openDAW's Playfield) of samples you pick, one per role, optionally playing a groove from the start. The pads get role names, so knowledge drum patterns and evolve_notes find them. The old drums stay: park them (mute) when the new kit comes in.", {
+                name: z.string().describe("The track's name (\"Trap Kit\")"),
+                pads: z.array(z.object({role: z.string().describe("kick, snare, clap, rim, closed_hat, open_hat, ride, crash, tom_low, tom_mid, tom_high, shaker, perc"),
+                    sample: z.string().describe("A sample id from samples (\"RolandTR808/bd/BD0010\")")})),
+                pattern: z.string().describe("A knowledge drum pattern to play (\"pattern/trap-halftime\"); \"\" for hits or none"),
+                hits: z.array(z.tuple([z.number(), z.string(), z.number()])).describe("Or the groove written out: [beat from 0, role, velocity 0..1], 16ths are 0.25 beats; [] for none"),
+                beats: z.number().describe("How many beats the hits loop over (4: one bar of 4/4); 0 with a pattern"),
+                volume_db: z.number().describe("The track's volume, dB; 0 for unity"),
+                ...Placement},
+                handler(make("kit"))),
+            tool("make_sampler", "A new sampler track (openDAW's Nano): one sample played across the keys at pitch, e.g. an 808 bass from a long TR-808 kick (RolandTR808/bd/BD0010 or BD5010: 3 s, sounding G1, root_key 31, tune -35), optionally with notes.", {
+                name: z.string().describe("The track's name (\"808\")"),
+                sample: z.string().describe("A sample id from samples"),
+                root_key: z.number().int().describe("The MIDI note the sample sounds at as recorded (60 if unknown or unpitched)"),
+                tune: z.number().describe("Fine tuning, cents, -1200..1200; 0 for none"),
+                release: z.number().describe("Release after a note ends, seconds (0.001..8); 0 for the default 0.1 (an 808 bass: 0.2–0.5)"),
+                notes: z.array(z.tuple([z.number(), z.number(), z.number(), z.number()])).describe("[beat from 0, MIDI pitch, length in beats, velocity 0..1]; [] for none"),
+                loop_bars: z.number().int().describe("How many bars the notes loop over; 0 for 1"),
+                volume_db: z.number().describe("The track's volume, dB; 0 for unity"),
+                ...Placement},
+                handler(make("sampler")))
         ]
     }
 

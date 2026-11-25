@@ -1,0 +1,106 @@
+{
+  "key": "sound/kit-synthpop-linndrum",
+  "kind": "sound",
+  "summary": "LinnDrum kit for 80s synth-pop and synthwave: tight kick, snare, hats, clap, sidestick, tambourine",
+  "tags": [
+    "synth-pop",
+    "synthpop",
+    "synthwave",
+    "80s",
+    "LinnDrum",
+    "Linn",
+    "pop",
+    "kit",
+    "drums",
+    "retro"
+  ],
+  "devices": [
+    "Playfield"
+  ],
+  "links": [
+    "genre/synth-pop",
+    "genre/synthwave"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (style kits)",
+    "date": "2026-11-24",
+    "opendaw": "652e6ca"
+  },
+  "body": [
+    "The LinnDrum, the 80s pop drum machine. A big reverb on the snare (gated in synthwave) does most of the period sound.",
+    "Apply makes a new drum track (it never replaces the old one): park the old drums (mute) at the bar the new kit starts. Pads are named by role, so drum patterns and evolve_notes find them; samples (the tool) finds other sounds to swap in with make_kit."
+  ],
+  "apply": {
+    "params": {
+      "pattern": {
+        "type": "text",
+        "optional": true,
+        "about": "a knowledge drum pattern for it to play from the start (\"pattern/trap-2bar\"); leave out for an empty kit"
+      },
+      "from_bar": {
+        "type": "number",
+        "optional": true,
+        "about": "the timeline bar its region starts on (loop off: the next bar line after it lands)"
+      },
+      "bars": {
+        "type": "number",
+        "optional": true,
+        "about": "how many bars it runs (loop off: to the song's end)"
+      },
+      "name": {
+        "type": "text",
+        "optional": true
+      }
+    },
+    "steps": [
+      {
+        "op": "kit",
+        "input": {
+          "name": "$name",
+          "default_name": "Linn Kit",
+          "volume_db": -3,
+          "pads": [
+            {
+              "role": "kick",
+              "sample": "LinnDrum/bd/Bassdrum"
+            },
+            {
+              "role": "snare",
+              "sample": "LinnDrum/sd/0Snarderum-01"
+            },
+            {
+              "role": "closed_hat",
+              "sample": "LinnDrum/hh/Hat Closed-01"
+            },
+            {
+              "role": "open_hat",
+              "sample": "LinnDrum/oh/Hat Open"
+            },
+            {
+              "role": "clap",
+              "sample": "LinnDrum/cp/Clap"
+            },
+            {
+              "role": "rim",
+              "sample": "LinnDrum/rim/Sidestick-01"
+            },
+            {
+              "role": "shaker",
+              "sample": "LinnDrum/tb/Tambourine"
+            },
+            {
+              "role": "crash",
+              "sample": "LinnDrum/cr/Crash"
+            }
+          ],
+          "notes": {
+            "of": "$pattern",
+            "from_bar": "$from_bar",
+            "bars": "$bars"
+          }
+        }
+      }
+    ]
+  }
+}

@@ -14,6 +14,8 @@
     "Vaporisateur"
   ],
   "links": [
+    "sound/kit-boombap-mpc60",
+    "sound/kit-boombap-sp12",
     "pattern/boombap-1",
     "pattern/jazz-ii-v-i",
     "pattern/lofi-vamp-vi-iv",

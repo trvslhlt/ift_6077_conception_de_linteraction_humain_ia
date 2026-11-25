@@ -256,8 +256,8 @@ export class Coordinator {
             onStatus: (status: Status) => void = () => {}, step?: string, activity?: Activity): Promise<Status> {
         const id = randomUUID()
         if (step !== undefined) {this.board.link(step, id)}
-        const staged = step === undefined ? undefined : this.board.step(step)
-        const belongs: Activity | undefined = activity ?? (staged === undefined ? undefined
+        const staged = step === undefined ? null : this.board.step(step)
+        const belongs: Activity | undefined = activity ?? (staged === null ? undefined
             : {direction: staged.direction, ...(staged.job !== undefined ? {job: staged.job} : {}), step: staged.id})
         const allowed = agent === this.#captain.agent ? this.#captain.may(plan) : this.#members.find(member => member.agent === agent)?.may(plan) === true
         if (!allowed) {

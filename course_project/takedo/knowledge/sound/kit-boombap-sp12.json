@@ -1,0 +1,102 @@
+{
+  "key": "sound/kit-boombap-sp12",
+  "kind": "sound",
+  "summary": "E-mu SP-12 kit for boom-bap: gritty kick and snare, closed and open hat, clap, rim",
+  "tags": [
+    "boom bap",
+    "boom-bap",
+    "hip hop",
+    "SP-12",
+    "80s",
+    "90s",
+    "gritty",
+    "kit",
+    "drums"
+  ],
+  "devices": [
+    "Playfield"
+  ],
+  "links": [
+    "pattern/boombap-1",
+    "sound/kit-boombap-mpc60",
+    "genre/boom-bap"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (style kits)",
+    "date": "2026-11-24",
+    "opendaw": "652e6ca"
+  },
+  "body": [
+    "The E-mu SP-12, grittier than the MPC60 (12-bit at 26 kHz). Many kicks and snares to choose from (samples, machine SP12).",
+    "Apply makes a new drum track (it never replaces the old one): park the old drums (mute) at the bar the new kit starts. Pads are named by role, so drum patterns and evolve_notes find them; samples (the tool) finds other sounds to swap in with make_kit."
+  ],
+  "apply": {
+    "params": {
+      "pattern": {
+        "type": "text",
+        "optional": true,
+        "about": "a knowledge drum pattern for it to play from the start (\"pattern/trap-2bar\"); leave out for an empty kit"
+      },
+      "from_bar": {
+        "type": "number",
+        "optional": true,
+        "about": "the timeline bar its region starts on (loop off: the next bar line after it lands)"
+      },
+      "bars": {
+        "type": "number",
+        "optional": true,
+        "about": "how many bars it runs (loop off: to the song's end)"
+      },
+      "name": {
+        "type": "text",
+        "optional": true
+      }
+    },
+    "steps": [
+      {
+        "op": "kit",
+        "input": {
+          "name": "$name",
+          "default_name": "SP-12 Kit",
+          "volume_db": -3,
+          "pads": [
+            {
+              "role": "kick",
+              "sample": "EmuSP12/bd/Bassdrum-03"
+            },
+            {
+              "role": "snare",
+              "sample": "EmuSP12/sd/Snaredrum-05"
+            },
+            {
+              "role": "closed_hat",
+              "sample": "EmuSP12/hh/Hat Closed-01"
+            },
+            {
+              "role": "open_hat",
+              "sample": "EmuSP12/oh/Hhopen1"
+            },
+            {
+              "role": "clap",
+              "sample": "EmuSP12/cp/Clap"
+            },
+            {
+              "role": "rim",
+              "sample": "EmuSP12/rim/zRim Shot-01"
+            },
+            {
+              "role": "ride",
+              "sample": "EmuSP12/rd/Ride"
+            }
+          ],
+          "notes": {
+            "of": "$pattern",
+            "from_bar": "$from_bar",
+            "bars": "$bars"
+          }
+        }
+      }
+    ]
+  }
+}

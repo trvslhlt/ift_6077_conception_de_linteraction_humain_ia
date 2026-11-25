@@ -125,6 +125,33 @@ const kb = (() => {
             compressor.release.setValue(args.release)
             return {track: args.track, keyed_from: args.source, threshold: args.threshold, ratio: args.ratio}
         },
+        // A new drum kit track: a Playfield whose pads are TakeDo samples (UUIDs from samples/manifest.json; the studio
+        // reloads them from /sample-collections when the browser hasn't got them), optionally with notes. Pads at 60, 61, ...
+        kit(args) {
+            const uuid = lib.std.UUID.parse
+            const product = api.createInstrument(lib.adapters.InstrumentFactories.Playfield, {name: args.name,
+                attachment: args.pads.map(pad => ({note: pad.note, uuid: uuid(pad.uuid), name: pad.name,
+                    durationInSeconds: pad.duration, exclude: pad.exclude}))})
+            if (args.volume_db !== null && args.volume_db !== undefined) {product.audioUnitBox.volume.setValue(args.volume_db)}
+            return {track: "new", name: product.instrumentBox.label.getValue(), pads: args.pads.map(pad => `${pad.note} ${pad.name}`),
+                ...(args.notes ? {notes: writeNotes(product.trackBox, null, args.notes)} : {})}
+        },
+        // A new sampler track: a Nano playing one TakeDo sample across the keys, at its own pitch on root_key (an 808 bass
+        // is a long TR-808 kick played as notes).
+        sampler(args) {
+            const id = lib.std.UUID.parse(args.uuid)
+            const file = project.boxGraph.findBox(id).unwrapOrElse(() => project.boxGraph.createBox("AudioFileBox", id, box => {
+                box.fileName.setValue(args.file_name)
+                box.endInSeconds.setValue(args.duration)
+            }))
+            const product = api.createInstrument(lib.adapters.InstrumentFactories.Nano, {name: args.name, attachment: file})
+            product.instrumentBox.rootKey.setValue(args.root_key)
+            const missing = setFields(product.instrumentBox, args.settings)
+            if (args.volume_db !== null && args.volume_db !== undefined) {product.audioUnitBox.volume.setValue(args.volume_db)}
+            return {track: "new", name: product.instrumentBox.label.getValue(), root_key: args.root_key,
+                ...(missing.length > 0 ? {not_found: missing} : {}),
+                ...(args.notes ? {notes: writeNotes(product.trackBox, null, args.notes)} : {})}
+        },
         tempo(args) {
             api.setBpm(args.bpm)
             return {bpm: project.timelineBox.bpm.getValue()}

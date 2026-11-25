@@ -556,26 +556,44 @@ export class Adapter implements Terminable {
     // Where each region starts and ends, by address: what a script did to the timeline's past (#playedProblem).
     // Read from the boxes: a track's list of region adapters catches up only when the edit ends, so mid-edit it misses a
     // region the script just made (2026-11-25: a part placed at bar 11 while the playhead was at bar 24 got through).
-    #spans(): Map<string, { position: ppqn, complete: ppqn }> {
-        return new Map(this.#units().flatMap(unit => unit.tracks.values()).flatMap(track => track.box.regions.pointerHub.incoming())
-            .map(pointer => pointer.box)
+    #spans(): Map<string, { position: ppqn, complete: ppqn, box: NoteRegionBox | AudioRegionBox }> {
+        // From the boxes (root → units → tracks → regions), not the adapters: a track made in this script has no adapter yet.
+        type Hub = { pointerHub: { incoming(): ReadonlyArray<{ box: unknown }> } }
+        const boxes = (hub: Hub | undefined): ReadonlyArray<{ tracks?: Hub, regions?: Hub }> =>
+            hub === undefined ? [] : hub.pointerHub.incoming().map(pointer => pointer.box as { tracks?: Hub, regions?: Hub })
+        return new Map(boxes(this.#project.rootBox.audioUnits).flatMap(unit => boxes(unit.tracks)).flatMap(track => boxes(track.regions))
             .filter((box): box is NoteRegionBox | AudioRegionBox => box instanceof NoteRegionBox || box instanceof AudioRegionBox)
-            .map(box => [box.address.toString(), {position: box.position.getValue(), complete: box.position.getValue() + box.duration.getValue()}]))
+            .map(box => [box.address.toString(), {position: box.position.getValue(), complete: box.position.getValue() + box.duration.getValue(), box}]))
     }
 
     // With the loop off, the bars already played are the producer's take (2026-11-25: a live jam's new chords and pad
     // were placed from bar 1 while the playhead was at bars 15 and 70, so they were never heard, and a fix lengthened
     // them back over bars already played). A script may not start a region, move one or lengthen one into them; it
     // starts a new region from the next bar line instead. Notes rewritten in place aren't caught here (stages, for now).
+    // A new notes region placed into the bars played is moved up instead (2026-11-24: an edit is planned a few bars before
+    // it lands, so a part placed at "the next bar" was often refused when it landed, the workers retried for minutes, and
+    // the parts they'd parked left gaps): it starts at the current bar, its loop going on in step, as if it had started where
+    // it was placed. One that would end by then is moved whole. Moved or lengthened regions are still refused.
     #playedProblem(before: Map<string, { position: ppqn, complete: ppqn }>): string | null {
         const {engine, timelineBox} = this.#project
         if (!engine.isPlaying.getValue() || timelineBox.loopArea.enabled.getValue()) {return null}
         const bar = this.#bar()
         const played = Math.floor(engine.position.getValue() / bar) * bar
-        const problems = [...this.#spans()].flatMap(([address, {position, complete}]) => {
+        const problems = [...this.#spans()].flatMap(([address, {position, complete, box}]) => {
             const was = before.get(address)
             if (was === undefined) {
-                return position < played ? [`a new region from ${this.#pos(position)} to ${this.#pos(complete)}`] : []
+                if (position >= played) {return []}
+                if (!(box instanceof NoteRegionBox)) {return [`a new region from ${this.#pos(position)} to ${this.#pos(complete)}`]}
+                const loopDuration = box.loopDuration.getValue()
+                if (complete <= played + bar) {
+                    box.position.setValue(played)
+                } else {
+                    const cut = played - position
+                    box.position.setValue(played)
+                    box.duration.setValue(complete - played)
+                    if (loopDuration > 0) {box.loopOffset.setValue((box.loopOffset.getValue() + cut) % loopDuration)}
+                }
+                return []
             }
             if (position < was.position && position < played) {return [`a region moved back to ${this.#pos(position)}`]}
             if (complete > was.complete && was.complete < played) {

@@ -579,3 +579,20 @@ These are for the detailed design, whatever the shape:
   in the collection decodes with openDAW's own decoder. Smoke test: a TR-808 kit (createInstrument(Playfield) with an
   attachment of our UUIDs) loads in a fresh browser. Next: agents build kits and swap pads; kits per style in the
   knowledge base; the trap recipe pointing at them.
+
+- 2026-11-25, sound collections, piece 2: agents use the kits. The backend reads samples/manifest.json (mounted
+  read-only; backend/src/samples.ts) and names each sample "<machine>/<folder code>/<file>" ("RolandTR808/bd/BD0010").
+  Two knowledge ops: kit (a new Playfield track whose pads are our samples, named by role, "Kick (RolandTR808 BD2525)",
+  so DrumRoles and drum patterns find them; hats share a choke group) and sampler (a new Nano track playing one sample
+  across the keys at root_key). Workers get samples (search by machine, role, words), make_kit (pads, plus a pattern
+  entry or hits written out) and make_sampler (with notes). Entries: sound/kit-trap-808, kit-house-909,
+  kit-boombap-mpc60, kit-boombap-sp12, kit-synthpop-linndrum, sound/808-bass (the TR-808's 3 s kick sounds at ~50 Hz:
+  root 31, tune -35) and pattern/trap-2bar (32nd and triplet hat rolls); the genres link them. The first trap run
+  rewrote the old kit's notes: the Team Lead handed out "the drums (t1) become a trap pattern" in 8 steps. Its prompt now
+  says a style's sound is new parts (a kit, an 808) with the old ones parked. Two loop-off fixes came out of it: the
+  played-bars guard read region adapters per unit, so a track made in the same script slipped past it (now read from
+  boxes, root to regions); and a new notes region placed in bars already played (edits land a few bars after they're
+  planned) is moved up to the current bar, its loop in step, instead of refused, which had sent workers retrying for
+  minutes while the parts they'd parked left gaps. Moving or lengthening an old region back is still refused. With the
+  loop off, a pattern placed without from_bar goes just ahead of the playhead. scenarios/trap.json (trap, then house,
+  loop off): 16 of 16 edits, a TR-808 kit and an 808 bass, then a TR-909 kit, old parts parked.

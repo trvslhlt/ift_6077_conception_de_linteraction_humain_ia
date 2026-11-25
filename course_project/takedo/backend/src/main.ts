@@ -8,6 +8,7 @@ import {
 import {Coordinator} from "./coordinator.ts"
 import {loadCatalog} from "./catalog.ts"
 import {loadKnowledge} from "./knowledge.ts"
+import {loadSamples} from "./samples.ts"
 import {Gateway, loadConfig} from "./gateway.ts"
 import {SessionLog} from "./sessionLog.ts"
 
@@ -22,6 +23,7 @@ const source = process.env.OPENDAW_SOURCE ?? "../.opendaw"   // openDAW's source
 const ModelsConfig = process.env.MODELS_CONFIG ?? "../config/models.json"
 const CatalogDir = process.env.CATALOG_DIR ?? "../catalog"
 const KnowledgeDir = process.env.KNOWLEDGE_DIR ?? "../knowledge"   // the knowledge base (KNOWLEDGE.md); drafts are written here
+const SamplesDir = process.env.SAMPLES_DIR ?? "../samples"         // TakeDo's sample collections (make samples)
 
 const gateway = new Gateway(loadConfig(ModelsConfig))
 const catalog = loadCatalog(`${CatalogDir}/devices.json`, `${CatalogDir}/generated.json`)
@@ -30,8 +32,9 @@ const log = (event: string, detail: object = {}): void =>
     console.log(JSON.stringify({t: new Date().toISOString(), event, ...detail}))
 
 // A reviewed entry that doesn't validate stops startup (like the catalog); drafts that don't are skipped with a warning.
-const knowledge = loadKnowledge(KnowledgeDir, catalog, text => log("knowledge_warning", {text}))
-log("knowledge", {entries: knowledge.size})
+const samples = loadSamples(SamplesDir)
+const knowledge = loadKnowledge(KnowledgeDir, catalog, text => log("knowledge_warning", {text}), samples)
+log("knowledge", {entries: knowledge.size, samples: samples.size})
 
 const send = (socket: WebSocket, message: BackendToPage): void => socket.send(encode(message))
 

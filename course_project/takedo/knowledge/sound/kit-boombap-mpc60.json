@@ -1,0 +1,104 @@
+{
+  "key": "sound/kit-boombap-mpc60",
+  "kind": "sound",
+  "summary": "Akai MPC60 kit for boom-bap and lo-fi: fat kick, crunchy snares, closed and open hat, clap, rim",
+  "tags": [
+    "boom bap",
+    "boom-bap",
+    "lofi",
+    "lo-fi",
+    "hip hop",
+    "MPC",
+    "90s",
+    "kit",
+    "drums",
+    "dusty"
+  ],
+  "devices": [
+    "Playfield"
+  ],
+  "links": [
+    "pattern/boombap-1",
+    "sound/kit-boombap-sp12",
+    "genre/boom-bap",
+    "genre/lofi-hip-hop"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (style kits)",
+    "date": "2026-11-24",
+    "opendaw": "652e6ca"
+  },
+  "body": [
+    "The Akai MPC60's 12-bit drums, the boom-bap sound: loud dry kick and snare, swung hats (pattern/boombap-1). For lo-fi, play it quieter and add production/lofi.",
+    "Apply makes a new drum track (it never replaces the old one): park the old drums (mute) at the bar the new kit starts. Pads are named by role, so drum patterns and evolve_notes find them; samples (the tool) finds other sounds to swap in with make_kit."
+  ],
+  "apply": {
+    "params": {
+      "pattern": {
+        "type": "text",
+        "optional": true,
+        "about": "a knowledge drum pattern for it to play from the start (\"pattern/trap-2bar\"); leave out for an empty kit"
+      },
+      "from_bar": {
+        "type": "number",
+        "optional": true,
+        "about": "the timeline bar its region starts on (loop off: the next bar line after it lands)"
+      },
+      "bars": {
+        "type": "number",
+        "optional": true,
+        "about": "how many bars it runs (loop off: to the song's end)"
+      },
+      "name": {
+        "type": "text",
+        "optional": true
+      }
+    },
+    "steps": [
+      {
+        "op": "kit",
+        "input": {
+          "name": "$name",
+          "default_name": "MPC Kit",
+          "volume_db": -3,
+          "pads": [
+            {
+              "role": "kick",
+              "sample": "AkaiMPC60/bd/0 Bassdrum"
+            },
+            {
+              "role": "snare",
+              "sample": "AkaiMPC60/sd/Snare 2"
+            },
+            {
+              "role": "closed_hat",
+              "sample": "AkaiMPC60/hh/Closed Hat"
+            },
+            {
+              "role": "open_hat",
+              "sample": "AkaiMPC60/oh/Open Hat"
+            },
+            {
+              "role": "clap",
+              "sample": "AkaiMPC60/cp/Clap"
+            },
+            {
+              "role": "rim",
+              "sample": "AkaiMPC60/rim/Rim Gated"
+            },
+            {
+              "role": "ride",
+              "sample": "AkaiMPC60/rd/Ride"
+            }
+          ],
+          "notes": {
+            "of": "$pattern",
+            "from_bar": "$from_bar",
+            "bars": "$bars"
+          }
+        }
+      }
+    ]
+  }
+}

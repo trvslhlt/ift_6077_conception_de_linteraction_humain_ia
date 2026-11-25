@@ -2,6 +2,7 @@ import {existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync} from "n
 import {basename, join} from "node:path"
 import type {Snapshot, Track} from "../../shared/protocol.ts"
 import type {Catalog, CatalogParameter} from "./catalog.ts"
+import type {Samples} from "./samples.ts"
 
 // The knowledge base (project_plan/KNOWLEDGE.md): what agents would otherwise look up or work out again every session,
 // kept as small named entries, some of which code can apply. One JSON file per entry under <dir>/<kind>/<name>.json
@@ -47,7 +48,7 @@ export type Planned =
 export type IndexLine = { key: string, summary: string, tags: string[], draft?: true, group?: string, label?: string }
 
 const FixedOps = ["add_effect", "set_param", "remove_effect", "volume", "pan", "mute"] as const
-const Ops = [...FixedOps, "instrument", "dx7", "pattern", "tempo", "script", "entry"]
+const Ops = [...FixedOps, "instrument", "dx7", "kit", "sampler", "pattern", "tempo", "script", "entry"]
 const ParamTypes = ["track", "amount", "number", "key", "text"]
 const DefaultAmount = 1                             // "a clear, moderate change", on Jev's 0..3 amount scale
 const MaxDepth = 6
@@ -144,6 +145,11 @@ export const DrumRoles: Record<string, { names: RegExp, fallback?: string, gm: n
     shaker: {names: /shak|maraca|cabasa|tambourine/i, fallback: "closed_hat", gm: 70},
     perc: {names: /conga|bongo|cowbell|perc|clave|block/i, fallback: "rim", gm: 75}
 }
+
+// A kit's pad names (page: the pad's sample name), which DrumRoles above read back: "Closed Hat (RolandTR808 CH)".
+const RoleLabels: Record<string, string> = {kick: "Kick", snare: "Snare", rim: "Rim", clap: "Clap", closed_hat: "Closed Hat",
+    open_hat: "Open Hat", ride: "Ride", crash: "Crash", tom_low: "Low Tom", tom_mid: "Mid Tom", tom_high: "High Tom",
+    shaker: "Shaker", perc: "Perc"}
 
 // Each role used in a pattern, mapped to a pad of the track's kit, or to General MIDI notes when it has no pads.
 export const drumMap = (roles: Iterable<string>, track: Track): { notes: Record<string, number>, says: string[] } | string => {
@@ -273,12 +279,18 @@ export type Knowledge = {
         : { hits: Array<[number, number, number, number]>, beats: number, says: string[] } | string
     // A script calling one page helper (scripts/kb.js) with these args; null without the helpers.
     script(call: string, args: unknown): string | null
+    // A new drum kit track (Playfield) from TakeDo's samples, or a new sampler track (Nano) playing one sample across the
+    // keys, optionally with notes; the edit, or why not. Input as the kit and sampler ops take it.
+    kit(input: Record<string, unknown>, snapshot: Snapshot): { code: string, says: string } | string
+    sampler(input: Record<string, unknown>, snapshot: Snapshot): { code: string, says: string } | string
+    readonly samples: Samples | null
     draft(entry: Record<string, unknown>, by: string): string
     voices(): Record<string, string[]>
     readonly size: number
 }
 
-export const loadKnowledge = (dir: string, catalog: Catalog, warn: (text: string) => void = () => {}): Knowledge => {
+export const loadKnowledge = (dir: string, catalog: Catalog, warn: (text: string) => void = () => {},
+    samples: Samples | null = null): Knowledge => {
     const entries = new Map<string, Entry & { draft?: true }>()
     const cartridges = new Map<string, Array<{ name: string, data: Uint8Array }>>()
     const scripts = new Map<string, string>()
@@ -413,6 +425,20 @@ export const loadKnowledge = (dir: string, catalog: Catalog, warn: (text: string
             if (step.op === "dx7" && typeof input.voice === "string" && !input.voice.startsWith("$") && voice(input.voice) === null) {
                 problems.push(`${where}: no DX7 voice ${input.voice} (cartridge/voice name, in ${dx7})`)
             }
+            if (step.op === "kit") {
+                const pads = Array.isArray(input.pads) ? input.pads as Array<Record<string, unknown>> : []
+                if (pads.length === 0) {problems.push(`${where}: a kit needs pads: [{role, sample}]`)}
+                pads.forEach(pad => {
+                    if (DrumRoles[String(pad.role)] === undefined) {problems.push(`${where}: unknown drum role ${String(pad.role)}`)}
+                    if (samples !== null && samples.size > 0 && !String(pad.sample).startsWith("$") && samples.find(String(pad.sample)) === null) {
+                        problems.push(`${where}: no sample ${String(pad.sample)}`)
+                    }
+                })
+            }
+            if (step.op === "sampler" && samples !== null && samples.size > 0 && typeof input.sample === "string"
+                && !input.sample.startsWith("$") && samples.find(input.sample) === null) {
+                problems.push(`${where}: no sample ${input.sample}`)
+            }
             if (step.op === "pattern" && entry.pattern === undefined && typeof input.of !== "string") {
                 problems.push(`${where}: no pattern here, and no "of" naming one`)
             }
@@ -473,8 +499,10 @@ export const loadKnowledge = (dir: string, catalog: Catalog, warn: (text: string
         typeof ref === "string" ? snapshot.tracks.find(track => track.ref === ref) ?? null : null
 
     // Where a pattern goes when the caller doesn't say: the bars the track's regions cover, else the loop, else the
-    // bars the other parts cover.
+    // bars the other parts cover. With the loop off (a take: the song plays straight through), from just ahead of the playhead instead (2026-11-24: a
+    // house kit landing at bar 30 was placed over bars 1-16, already played, and never heard).
     const defaultSpan = (snapshot: Snapshot, track: Track | null, minBars: number): { from: number, bars: number } => {
+        if (snapshot.playback.playing && !snapshot.playback.loop.on) {return {from: snapshot.playback.bar + 2, bars: Math.max(minBars, 16)}}
         if (track?.bars) {return {from: track.bars.from, bars: Math.max(minBars, track.bars.to - track.bars.from + 1)}}
         const covered = snapshot.tracks.flatMap(other => other.bars === null ? [] : [other.bars])
         if (covered.length > 0) {
@@ -501,6 +529,86 @@ export const loadKnowledge = (dir: string, catalog: Catalog, warn: (text: string
         void beatsPerBar
         return {notes: pattern.chords.flatMap(([beat, numeral, beats]) => (chordPitches(numeral, key, octave) ?? [])
             .map(pitch => [beat, pitch, beats * 0.95, velocity] as [number, number, number, number])), says: [`chords in ${key.name}`]}
+    }
+
+    // The notes a pattern step (or an instrument's or kit's `notes`) writes, as the page helper takes them: the pattern
+    // named by `of`, else the owner's own.
+    const notesOf = (input: Record<string, unknown>, track: Track | null, owner: Entry | null, snapshot: Snapshot)
+        : Record<string, unknown> | string => {
+        const beatsPerBar = snapshot.timeline.signature[0]
+        const source = typeof input.of === "string" ? entries.get(input.of) : owner
+        if (source?.pattern === undefined) {return typeof input.of === "string" ? `no pattern entry ${input.of}` : `${owner?.key ?? "notes"}: no pattern to write`}
+        const written = patternNotes(source.pattern, track, input, beatsPerBar)
+        if (typeof written === "string") {return written}
+        const loopBars = Math.max(1, Math.ceil(source.pattern.beats / beatsPerBar))
+        const span = defaultSpan(snapshot, track, loopBars)
+        const from = typeof input.from_bar === "number" && input.from_bar > 0 ? input.from_bar : span.from
+        const bars = typeof input.bars === "number" && input.bars > 0 ? input.bars : span.bars
+        return {from_bar: from, bars, loop_bars: loopBars, name: source.key.split("/")[1], notes: written.notes,
+            says: written.says}
+    }
+
+    const helper = (call: string, args: unknown): string | null => kbScript === null ? null
+        : `const args = ${JSON.stringify(args)};\n${kbScript}\nreturn kb.${call}(args)`
+    const sampleLabel = (sample: { machine: string | null, id: string }): string => `${sample.machine ?? ""} ${sample.id.split("/").pop()}`.trim()
+    const volumeOf = (value: unknown): number | null => typeof value === "number" && value >= -60 && value <= 6 ? value : null
+    // Notes go in when `notes` names a pattern (`of`), or when the owner has one; a null `of` (an unset param) means none.
+    const wantsNotes = (input: Record<string, unknown>, owner: Entry | null): input is Record<string, unknown> & { notes: Record<string, unknown> } =>
+        isRecord(input.notes) && (typeof input.notes.of === "string" || (input.notes.of === undefined && owner?.pattern !== undefined))
+    const kitPlan = (input: Record<string, unknown>, snapshot: Snapshot, owner: Entry | null): { code: string, says: string } | string => {
+        if (kbScript === null) {return "the knowledge base's page helpers (scripts/kb.js) are missing"}
+        if (samples === null || samples.size === 0) {return "no sample collections here (make samples)"}
+        const pads = Array.isArray(input.pads) ? input.pads as Array<Record<string, unknown>> : []
+        if (pads.length === 0) {return "a kit needs pads: [{role, sample}]"}
+        const resolved: Array<{ note: number, uuid: string, name: string, duration: number, exclude: boolean }> = []
+        for (const pad of pads) {
+            const role = String(pad.role)
+            if (DrumRoles[role] === undefined) {return `unknown drum role ${role} (one of ${Object.keys(DrumRoles).join(", ")})`}
+            const sample = samples.find(String(pad.sample))
+            if (sample === null) {return `no sample ${String(pad.sample)} (find them with samples; ids look like RolandTR808/bd/BD0010)`}
+            resolved.push({note: 60 + resolved.length, uuid: sample.uuid, name: `${RoleLabels[role]} (${sampleLabel(sample)})`,
+                duration: sample.duration, exclude: role === "closed_hat" || role === "open_hat"})
+        }
+        const name = typeof input.name === "string" && input.name !== "" ? input.name : typeof input.default_name === "string" ? input.default_name : "Kit"
+        let notes: Record<string, unknown> | null = null
+        if (wantsNotes(input, owner)) {
+            const track = {ref: "new", name, bars: null, device: {content: {pads: resolved.map(pad => ({note: pad.note, name: pad.name}))}}} as unknown as Track
+            const written = notesOf(input.notes, track, owner, snapshot)
+            if (typeof written === "string") {return written}
+            notes = written
+        }
+        return {code: helper("kit", {name, pads: resolved, volume_db: volumeOf(input.volume_db), notes})!,
+            says: `${name}: a new kit track (${resolved.map(pad => pad.name).join(", ")})${notes === null ? ""
+                : `, ${String(notes.name)} from bar ${String(notes.from_bar)}`}`}
+    }
+    const samplerPlan = (input: Record<string, unknown>, snapshot: Snapshot, owner: Entry | null): { code: string, says: string } | string => {
+        if (kbScript === null) {return "the knowledge base's page helpers (scripts/kb.js) are missing"}
+        if (samples === null || samples.size === 0) {return "no sample collections here (make samples)"}
+        const sample = samples.find(String(input.sample))
+        if (sample === null) {return `no sample ${String(input.sample)} (find them with samples; ids look like RolandTR808/bd/BD0010)`}
+        const root = typeof input.root_key === "number" ? Math.round(input.root_key) : 60
+        if (root < 0 || root > 127) {return "root_key is a MIDI note, 0..127"}
+        const name = typeof input.name === "string" && input.name !== "" ? input.name
+            : typeof input.default_name === "string" ? input.default_name : sampleLabel(sample)
+        let notes: Record<string, unknown> | null = null
+        if (isRecord(input.notes) && Array.isArray(input.notes.notes)) {
+            // Notes as written: [beat, pitch, beats, velocity 0..1], looping every loop_bars.
+            const given = input.notes, loopBars = typeof given.loop_bars === "number" && given.loop_bars > 0 ? given.loop_bars : 1
+            const span = defaultSpan(snapshot, null, loopBars)
+            notes = {from_bar: typeof given.from_bar === "number" && given.from_bar > 0 ? given.from_bar : span.from,
+                bars: typeof given.bars === "number" && given.bars > 0 ? given.bars : span.bars, loop_bars: loopBars, name, notes: given.notes}
+        } else if (wantsNotes(input, owner)) {
+            const written = notesOf(input.notes, null, owner, snapshot)
+            if (typeof written === "string") {return written}
+            notes = written
+        }
+        const settings: Record<string, number> = {}
+        for (const field of ["release", "attack", "volume", "tune"] as const) {
+            if (typeof input[field] === "number") {settings[field] = input[field] as number}
+        }
+        return {code: helper("sampler", {name, uuid: sample.uuid, file_name: sampleLabel(sample), duration: sample.duration,
+                root_key: root, settings, volume_db: volumeOf(input.volume_db), notes})!,
+            says: `${name}: a new sampler track playing ${sampleLabel(sample)} across the keys (root ${root})`}
     }
 
     const expand = (key: string, given: Record<string, unknown>, snapshot: Snapshot, depth = 0, at = 0): Planned[] | string => {
@@ -535,23 +643,9 @@ export const loadKnowledge = (dir: string, catalog: Catalog, warn: (text: string
             if (isRecord(value)) {return Object.fromEntries(Object.entries(value).map(([name, item]) => [name, fill(item)]))}
             return value
         }
-        const beatsPerBar = snapshot.timeline.signature[0]
         const planned: Planned[] = []
-        const script = (call: string, callArgs: unknown): string | null => kbScript === null ? null
-            : `const args = ${JSON.stringify(callArgs)};\n${kbScript}\nreturn kb.${call}(args)`
-        // The notes a pattern step (or an instrument's `notes`) writes, as the page helper takes them.
-        const notesFor = (input: Record<string, unknown>, track: Track | null, owner: Entry): Record<string, unknown> | string => {
-            const source = typeof input.of === "string" ? entries.get(input.of) : owner
-            if (source?.pattern === undefined) {return `${owner.key}: no pattern to write`}
-            const written = patternNotes(source.pattern, track, input, beatsPerBar)
-            if (typeof written === "string") {return written}
-            const loopBars = Math.max(1, Math.ceil(source.pattern.beats / beatsPerBar))
-            const span = defaultSpan(snapshot, track, loopBars)
-            const from = typeof input.from_bar === "number" && input.from_bar > 0 ? input.from_bar : span.from
-            const bars = typeof input.bars === "number" && input.bars > 0 ? input.bars : span.bars
-            return {from_bar: from, bars, loop_bars: loopBars, name: source.key.split("/")[1], notes: written.notes,
-                says: written.says}
-        }
+        const script = helper
+        const notesFor = (input: Record<string, unknown>, track: Track | null, owner: Entry) => notesOf(input, track, owner, snapshot)
         for (const step of entry.apply.steps) {
             if (step.when !== undefined && args[step.when] === null) {continue}
             const stepAt = at + (typeof step.at === "number" ? step.at : 0)
@@ -601,6 +695,12 @@ export const loadKnowledge = (dir: string, catalog: Catalog, warn: (text: string
                         code: script("instrument", {track: track?.ref ?? null, factory: device.factory, settings, name,
                             volume_db: input.volume_db ?? null, notes})!})
                 }
+                continue
+            }
+            if (step.op === "kit" || step.op === "sampler") {
+                const made = (step.op === "kit" ? kitPlan : samplerPlan)(input, snapshot, entry)
+                if (typeof made === "string") {return `${entry.key}: ${made}`}
+                planned.push({at: stepAt, kind: "script", ...made})
                 continue
             }
             if (step.op === "tempo") {
@@ -674,7 +774,19 @@ export const loadKnowledge = (dir: string, catalog: Catalog, warn: (text: string
             const written = patternNotes(pattern, track, args, beatsPerBar)
             return typeof written === "string" ? written : {hits: written.notes, beats: pattern.beats, says: written.says}
         },
-        script: (call, args) => kbScript === null ? null : `const args = ${JSON.stringify(args)};\n${kbScript}\nreturn kb.${call}(args)`,
+        script: helper,
+        // A kit's notes may be hits by role written here ({hits: [[beat, role, velocity]], beats}) rather than a pattern entry.
+        kit: (input, snapshot) => {
+            const given = isRecord(input.notes) && Array.isArray(input.notes.hits) ? input.notes : null
+            if (given === null) {return kitPlan(input, snapshot, null)}
+            const pattern: Pattern = {type: "drums", beats: Number(given.beats) || snapshot.timeline.signature[0], hits: given.hits as Array<[number, string, number]>}
+            const problems = patternProblems(pattern)
+            if (problems.length > 0) {return problems.slice(0, 5).join("; ")}
+            const {hits: _hits, beats: _beats, ...rest} = given
+            return kitPlan({...input, notes: rest}, snapshot, {key: "pattern/written", pattern} as Entry)
+        },
+        sampler: (input, snapshot) => samplerPlan(input, snapshot, null),
+        samples,
         voices: () => Object.fromEntries([...cartridges].map(([name, voices]) => [name, voices.map(entry => entry.name)])),
         // An agent's entry, kept as a draft until a person reviews it. Returns what happened, for the model.
         draft: (input, by) => {

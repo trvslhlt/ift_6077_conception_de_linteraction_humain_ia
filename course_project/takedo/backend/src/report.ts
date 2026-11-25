@@ -11,9 +11,10 @@ import {type Entry as Activity, ownedBy} from "./ledger.ts"
 type Line = { from: string, shown?: string, text: string }
 type Run = {
     scenario: string, project: string, session?: string, sessions?: string[], started: string, clock?: { start: Tick, end?: Tick }, playing?: boolean, stoppedAtBar?: number, problems: string[]
+    recording?: Array<{ start?: number, stop?: number }>
     before?: Snapshot, after?: Snapshot
     controls?: Array<{ ref: string, label: string, value: number }>
-    messages: Array<{ text: string, set?: { ref: string, value: number, ok: boolean }, control?: boolean, restartAfterMs?: number, restartReplies?: number, replyMs: number, settledMs: number, settled: boolean, replies: Line[] }>
+    messages: Array<{ text: string, set?: { ref: string, value: number, ok: boolean }, control?: boolean, transport?: boolean, restartAfterMs?: number, restartReplies?: number, replyMs: number, settledMs: number, settled: boolean, replies: Line[] }>
 }
 type Tick = { t: number, played: number }
 type Entry = Record<string, any> & { t: number, type: string }

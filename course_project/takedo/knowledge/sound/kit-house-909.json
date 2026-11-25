@@ -1,0 +1,106 @@
+{
+  "key": "sound/kit-house-909",
+  "kind": "sound",
+  "summary": "TR-909 kit for house and techno: thumping kick, clap, sizzling closed and open hats, ride, rim",
+  "tags": [
+    "house",
+    "techno",
+    "deep house",
+    "909",
+    "TR-909",
+    "kit",
+    "drums",
+    "dance",
+    "four on the floor"
+  ],
+  "devices": [
+    "Playfield"
+  ],
+  "links": [
+    "pattern/four-on-the-floor",
+    "genre/house",
+    "genre/techno"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (style kits)",
+    "date": "2026-11-24",
+    "opendaw": "652e6ca"
+  },
+  "body": [
+    "The Roland TR-909: the sound of house and techno. Kick on every beat, clap on 2 and 4, open hat on the off-beats (pattern/four-on-the-floor); the ride on the off-beats lifts a drop.",
+    "Apply makes a new drum track (it never replaces the old one): park the old drums (mute) at the bar the new kit starts. Pads are named by role, so drum patterns and evolve_notes find them; samples (the tool) finds other sounds to swap in with make_kit."
+  ],
+  "apply": {
+    "params": {
+      "pattern": {
+        "type": "text",
+        "optional": true,
+        "about": "a knowledge drum pattern for it to play from the start (\"pattern/trap-2bar\"); leave out for an empty kit"
+      },
+      "from_bar": {
+        "type": "number",
+        "optional": true,
+        "about": "the timeline bar its region starts on (loop off: the next bar line after it lands)"
+      },
+      "bars": {
+        "type": "number",
+        "optional": true,
+        "about": "how many bars it runs (loop off: to the song's end)"
+      },
+      "name": {
+        "type": "text",
+        "optional": true
+      }
+    },
+    "steps": [
+      {
+        "op": "kit",
+        "input": {
+          "name": "$name",
+          "default_name": "909 Kit",
+          "volume_db": -3,
+          "pads": [
+            {
+              "role": "kick",
+              "sample": "RolandTR909/bd/Bassdrum-02"
+            },
+            {
+              "role": "clap",
+              "sample": "RolandTR909/cp/Clap"
+            },
+            {
+              "role": "snare",
+              "sample": "RolandTR909/sd/sd03"
+            },
+            {
+              "role": "closed_hat",
+              "sample": "RolandTR909/hh/hh01"
+            },
+            {
+              "role": "open_hat",
+              "sample": "RolandTR909/oh/oh01"
+            },
+            {
+              "role": "ride",
+              "sample": "RolandTR909/rd/rd01"
+            },
+            {
+              "role": "rim",
+              "sample": "RolandTR909/rim/rs01"
+            },
+            {
+              "role": "crash",
+              "sample": "RolandTR909/cr/cr01"
+            }
+          ],
+          "notes": {
+            "of": "$pattern",
+            "from_bar": "$from_bar",
+            "bars": "$bars"
+          }
+        }
+      }
+    ]
+  }
+}
