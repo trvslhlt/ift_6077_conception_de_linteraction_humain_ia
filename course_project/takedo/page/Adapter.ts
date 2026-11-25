@@ -36,6 +36,8 @@ import type {Connection} from "./Connection"
 
 const StallSeconds = 3            // a playhead stuck this long while playing: the engine has stalled
 const EngineSettleMs = 3000      // an engine start this soon after the adapter is the project opening, not a restart
+const GlideBeats = 0.25          // the shortest change of a continuous value: a sixteenth's glide, never a jump
+const EffectFadeBeats = 1        // an effect added or parked fades through its wet or mix over a beat
 const LeadMs = 200              // edits land at least this far ahead of the playhead (STRATEGY.md, "Timing")
 const GestureFoldMs = 300       // value changes on a ref with no further change for this long form one change event
 
@@ -467,11 +469,14 @@ export class Adapter implements Terminable {
         }
         if (!(await this.#land(request))) {return}
         if (held()) {return this.#status(request, {state: "dropped", reason: "held"})}
-        if (this.#onTimeline()) {return this.#automate(request, param, to, plan.op === "ramp" && !isStepped(parameter) ? plan.beats : 0)}
+        // No jumps (2026-11-25, the producer: every change that can be gradual is, short, not slow): a continuous value
+        // glides at least a sixteenth; a switch or a stepped choice is a step.
+        const glide = (beats: number): number => isStepped(parameter) ? 0 : Math.max(beats, GlideBeats)
+        if (this.#onTimeline()) {return this.#automate(request, param, to, glide(plan.op === "ramp" ? plan.beats : 0))}
         if (laneRefused()) {return this.#status(request, {state: "failed", reason: "not_allowed", detail: laneDetail})}
         const from = numeric(parameter.getValue())
-        const beats = plan.op === "ramp" && !isStepped(parameter) && this.#project.engine.isPlaying.getValue() ? plan.beats : 0
-        if (beats > 0) {this.#status(request, {state: "running", landsAt: this.#pos()})}
+        const beats = this.#project.engine.isPlaying.getValue() ? glide(plan.op === "ramp" ? plan.beats : 0) : 0
+        if (plan.op === "ramp" && beats > GlideBeats) {this.#status(request, {state: "running", landsAt: this.#pos()})}
         if (!(await this.#ramp(request, parameter, from, to, beats))) {
             return this.#status(request, {state: "applied", detail: `handed over at ${this.#pos()} to a later change of this control`,
                 result: {ref: plan.ref, label: param.label, from, to: numeric(parameter.getValue())}})
@@ -493,6 +498,8 @@ export class Adapter implements Terminable {
         if (!(await this.#land(request))) {return}
         const {api, boxAdapters, parameterFieldAdapters} = this.#project
         let limited: string | null = null
+        let fadeIn: { parameter: AutomatableParameterFieldAdapter, to: number } | null = null
+        const recording = this.#project.engine.isRecording.getValue()
         const box = this.#tagged(request, () => this.#project.editing.modify(() => {
             const box = api.insertEffect(unit.box.audioEffects, factory)
             boxAdapters.adapterFor(box, Devices.isEffect) // registers its parameters
@@ -503,7 +510,6 @@ export class Adapter implements Terminable {
                 // While recording, written past the recorder: a setting is the device's setup, not a performance, and each
                 // write openDAW records opens an automation region that grows every frame until stop (2026-11-25: two
                 // effects added mid-take opened 11).
-                const recording = this.#project.engine.isRecording.getValue()
                 parameterFieldAdapters.opt(field.address).ifSome(parameter => {
                     const ceiling = ceilingOf(parameter.field)
                     const ranged = parameter.valueMapping.clamp(setting.value)
@@ -512,9 +518,20 @@ export class Adapter implements Terminable {
                 })
             }
             limited = this.#safetyLimiter()
+            // It comes in at nothing and fades up to its setting (no jumps, 2026-11-25).
+            const amount = this.#project.engine.isPlaying.getValue() ? this.#amountOf(box) : null
+            if (amount !== null) {
+                fadeIn = {parameter: amount, to: numeric(amount.getValue())}
+                const silent = amount.valueMapping.y(0)
+                if (recording) {amount.field.setValue(silent as never)} else {amount.setValue(silent as never)}
+            }
             return box
         }).unwrapOrNull())
         if (box === null) {return this.#status(request, {state: "failed", reason: "opendaw_error", detail: "insert failed"})}
+        if (fadeIn !== null) {
+            const {parameter, to} = fadeIn as { parameter: AutomatableParameterFieldAdapter, to: number }
+            void this.#fade(request, parameter, numeric(parameter.valueMapping.y(0)), to, EffectFadeBeats)
+        }
         const adapter = this.#project.boxAdapters.adapterFor(box, Devices.isEffect)
         this.#params = null
         const effect = this.#effects(unit).find(effect => effect.adapter === adapter)
@@ -530,6 +547,29 @@ export class Adapter implements Terminable {
         if (effect === undefined) {return this.#status(request, {state: "failed", reason: "unknown_ref", detail: plan.ref})}
         if (!(await this.#land(request))) {return}
         // Parked, not deleted (2026-11-25): switched off, its settings kept, so a dial or a later request can bring it back.
+        // First it fades out through its amount (no jumps), which is then set back, so it returns as it was.
+        const amount = this.#amountOf(effect.adapter.box)
+        const {engine} = this.#project
+        if (amount !== null && engine.isPlaying.getValue() && (amount.track.isEmpty() || this.#onTimeline())) {
+            const kept = numeric(this.valueAt(amount, engine.position.getValue()))
+            const silent = numeric(amount.valueMapping.y(0))
+            if (this.#onTimeline()) {
+                // In its lane: down over a beat, then back to its setting at the same point, as it's switched off there.
+                const lead = LeadMs * engine.bpm.getValue() * PPQN.Quarter / 60000
+                const at = Math.ceil((engine.position.getValue() + lead) / PPQN.SemiQuaver) * PPQN.SemiQuaver
+                const end = at + EffectFadeBeats * PPQN.Quarter
+                this.#writeLane(request, amount, at, end - at, kept, silent, true, kept)
+                while (this.#onTimeline() && engine.position.getValue() < end) {await this.#clock.tick()}
+            } else {
+                await this.#ramp(request, amount, kept, silent, EffectFadeBeats)
+            }
+            this.#tagged(request, () => this.#project.editing.modify(() => {
+                effect.adapter.enabledField.setValue(false)
+                amount.field.setValue((isSwitch(amount) ? kept !== 0 : kept) as never)
+            }))
+            this.#params = null
+            return this.#status(request, {state: "applied", result: {ref: plan.ref, label: `${effect.label} (faded out and switched off)`}})
+        }
         this.#tagged(request, () => this.#project.editing.modify(() => effect.adapter.enabledField.setValue(false)))
         this.#params = null
         this.#status(request, {state: "applied", result: {ref: plan.ref, label: `${effect.label} (switched off)`}})
@@ -545,6 +585,7 @@ export class Adapter implements Terminable {
         let value: unknown
         let corrections: Correction[] = []
         let limited: string | null = null
+        const fadesIn: Array<{ parameter: AutomatableParameterFieldAdapter, to: number }> = []
         try {
             this.#tagged(request, () => this.#project.editing.modify(() => {
                 const loop = this.#loopNow()
@@ -553,6 +594,7 @@ export class Adapter implements Terminable {
                 const bpm = this.#project.timelineBox.bpm.getValue()
                 const effects = this.#effectCount()
                 const overlaps = this.#overlaps()
+                const hadEffects = new Set(this.#effectBoxes())
                 value = runScript(plan.code, this.#env)
                 if (this.guarding) {
                     corrections = this.#guard()
@@ -570,6 +612,17 @@ export class Adapter implements Terminable {
                     const overlap = this.#overlapProblem(overlaps)
                     if (overlap !== null) {throw new Error(overlap)}
                 }
+                // Effects the script added (an effect preset, a chain) come in at nothing and fade up (no jumps).
+                if (this.#project.engine.isPlaying.getValue()) {
+                    const recording = this.#project.engine.isRecording.getValue()
+                    this.#effectBoxes().filter(box => !hadEffects.has(box)).forEach(box => {
+                        const amount = this.#amountOf(box)
+                        if (amount === null) {return}
+                        fadesIn.push({parameter: amount, to: numeric(amount.getValue())})
+                        const silent = amount.valueMapping.y(0)
+                        if (recording) {amount.field.setValue(silent as never)} else {amount.setValue(silent as never)}
+                    })
+                }
             }))
         } catch (error) {
             return this.#status(request, {state: "failed", reason: "invalid_args", detail: errorText(error)})
@@ -583,6 +636,7 @@ export class Adapter implements Terminable {
             this.#project.editing.undo()
             return this.#status(request, {state: "dropped", reason: "held", detail: "it changed a control you're holding"})
         }
+        fadesIn.forEach(({parameter, to}) => void this.#fade(request, parameter, numeric(parameter.valueMapping.y(0)), to, EffectFadeBeats))
         this.#lastAgentEdit = {label: plan.description, steps: this.#historySteps}
         this.#jamming ||= this.#project.engine.isPlaying.getValue()
         this.#status(request, {state: "applied",
@@ -594,7 +648,18 @@ export class Adapter implements Terminable {
 
     // Inside the script's edit: every field it wrote, brought into openDAW's declared range (Guard.ts), named as a
     // person reads it (the box and the field's path).
+    // An effect's amount, to fade it in and out with no jump: its wet (reverbs, delay) or mix (compressor, crusher,
+    // waveshaper...); null for one without (an EQ, a gate), which switches in and out as it is.
+    #amountOf(box: Box): AutomatableParameterFieldAdapter | null {
+        const field = primitives(box.fields()).find(field => ["wet", "mix"].includes(String(field.fieldName)))
+        return field === undefined ? null : this.#project.parameterFieldAdapters.opt(field.address).unwrapOrNull()
+    }
+
     // Every audio effect in the project, to see whether an edit added one.
+    #effectBoxes(): Box[] {
+        return this.#units().flatMap(unit => unit.box.audioEffects.pointerHub.incoming().map(({box}) => box))
+    }
+
     #effectCount(): number {
         return this.#units().reduce((sum, unit) => sum + unit.box.audioEffects.pointerHub.incoming().length, 0)
     }
@@ -859,17 +924,43 @@ export class Adapter implements Terminable {
     // cuts this one's region where it starts (RegionClipResolver), as a recorded take would.
     async #automate(request: Apply, param: Param, to: number, beats: number): Promise<void> {
         const {parameter} = param
-        const {engine, editing, boxGraph, boxAdapters} = this.#project
+        const {engine} = this.#project
         const key = parameter.address.toString()
         const lead = LeadMs * engine.bpm.getValue() * PPQN.Quarter / 60000
         const at = Math.ceil((engine.position.getValue() + lead) / PPQN.SemiQuaver) * PPQN.SemiQuaver
         const duration = beats > 0 ? beats * PPQN.Quarter : PPQN.SemiQuaver
         const from = numeric(this.valueAt(parameter, at))
+        if (parameter.optTracks().isEmpty()) {return this.#status(request, {state: "failed", reason: "not_allowed", detail: `${param.label} can't have an automation lane`})}
+        this.#ramping.set(key, request.id)
+        const written = this.#writeLane(request, parameter, at, duration, from, to, beats > 0)
+        if (!written) {
+            this.#ramping.delete(key)
+            return this.#status(request, {state: "failed", reason: "opendaw_error", detail: "the automation lane couldn't be written"})
+        }
+        this.#jamming = true
+        this.#report(param, from, to, request)
+        if (beats > 0) {this.#status(request, {state: "running", landsAt: this.#pos(at)})}
+        const mine = (): boolean => this.#ramping.get(key) === request.id
+        const end = at + duration
+        while (mine() && this.#onTimeline() && engine.position.getValue() < end) {await this.#clock.tick()}
+        if (mine()) {this.#ramping.delete(key)}
+        const lane = `in the timeline (automation, ${this.#pos(at)}${beats > 0 ? ` to ${this.#pos(end)}` : ""})`
+        if (!mine() && this.#ramping.has(key)) {
+            return this.#status(request, {state: "applied", detail: `${lane}; a later change of this control takes over from where it starts`,
+                result: {ref: param.ref, label: param.label, from, to}})
+        }
+        this.#status(request, {state: "applied", detail: lane, result: {ref: param.ref, label: param.label, from, to}})
+    }
+
+    // One value region on a parameter's lane (made if it has none), from `at` for `duration`: from → to, linear or a step.
+    // back: a step to this value at the end (a parked effect's amount, set back once it's switched off).
+    #writeLane(request: Apply, parameter: AutomatableParameterFieldAdapter, at: ppqn, duration: ppqn, from: number, to: number,
+               linear: boolean, back?: number): boolean {
+        const {editing, boxGraph, boxAdapters} = this.#project
         const unit = (value: number): number => parameter.valueMapping.x((isSwitch(parameter) ? value !== 0 : value) as never)
         const tracks = parameter.optTracks()
-        if (tracks.isEmpty()) {return this.#status(request, {state: "failed", reason: "not_allowed", detail: `${param.label} can't have an automation lane`})}
-        this.#ramping.set(key, request.id)
-        const written = this.#tagged(request, () => editing.modify(() => {
+        if (tracks.isEmpty()) {return false}
+        return this.#tagged(request, () => editing.modify(() => {
             const owner = tracks.unwrap()
             const track = owner.controls(parameter.field).unwrapOrElse(() =>
                 boxAdapters.adapterFor(owner.create(TrackType.Value, parameter.field), TrackBoxAdapter))
@@ -893,33 +984,31 @@ export class Adapter implements Terminable {
                 })
                 InterpolationFieldAdapter.write(event.interpolation, linear ? Interpolation.Linear : Interpolation.None)
             }
-            if (beats > 0) {
+            if (linear) {
                 point(0, from, 0, true)
                 point(duration, to, 0, false)
+                if (back !== undefined) {point(duration, back, 1, false)}
             } else {
                 point(0, from, 0, false)
                 point(0, to, 1, false)
                 point(duration, to, 0, false)
             }
             return true
-        }).unwrapOrNull())
-        if (written !== true) {
-            this.#ramping.delete(key)
-            return this.#status(request, {state: "failed", reason: "opendaw_error", detail: "the automation lane couldn't be written"})
+        }).unwrapOrNull()) === true
+    }
+
+    // An effect fading in or out through its amount (wet or mix) over `beats`, where it plays: into its lane in a
+    // loop-off jam, else live, as a knob turned. Nothing to fade when stopped.
+    async #fade(request: Apply, parameter: AutomatableParameterFieldAdapter, from: number, to: number, beats: number): Promise<void> {
+        const {engine} = this.#project
+        if (!engine.isPlaying.getValue()) {return}
+        if (this.#onTimeline()) {
+            const lead = LeadMs * engine.bpm.getValue() * PPQN.Quarter / 60000
+            const at = Math.ceil((engine.position.getValue() + lead) / PPQN.SemiQuaver) * PPQN.SemiQuaver
+            this.#writeLane(request, parameter, at, beats * PPQN.Quarter, from, to, true)
+            return
         }
-        this.#jamming = true
-        this.#report(param, from, to, request)
-        if (beats > 0) {this.#status(request, {state: "running", landsAt: this.#pos(at)})}
-        const mine = (): boolean => this.#ramping.get(key) === request.id
-        const end = at + duration
-        while (mine() && this.#onTimeline() && engine.position.getValue() < end) {await this.#clock.tick()}
-        if (mine()) {this.#ramping.delete(key)}
-        const lane = `in the timeline (automation, ${this.#pos(at)}${beats > 0 ? ` to ${this.#pos(end)}` : ""})`
-        if (!mine() && this.#ramping.has(key)) {
-            return this.#status(request, {state: "applied", detail: `${lane}; a later change of this control takes over from where it starts`,
-                result: {ref: param.ref, label: param.label, from, to}})
-        }
-        this.#status(request, {state: "applied", detail: lane, result: {ref: param.ref, label: param.label, from, to}})
+        await this.#ramp(request, parameter, from, to, beats)
     }
 
     // A change written into a lane changes no field, so it's reported here, as the agent's.

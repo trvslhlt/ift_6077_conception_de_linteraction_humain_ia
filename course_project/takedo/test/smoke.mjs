@@ -352,6 +352,23 @@ try {
         JSON.stringify({off: offMaster.state, delayed: delayed.state, delayedDetail: delayed.detail, corrected: delayed.result?.corrected, capped: capped?.state,
             cappedDetail: capped?.detail, feedback, masterFx}))
 
+    // ---------- no jumps (2026-11-25): a set glides; an effect fades in through its wet, and out before it's parked ----------
+    const wetOf = ref => page.evaluate(ref => window.takedo.adapter.snapshot().tracks.flatMap(track => track.effects)
+        .find(effect => effect.ref === ref)?.params.find(param => param.ref.endsWith(".wet"))?.value ?? null, ref)
+    const setStart = Date.now()
+    const glided = await apply({op: "set", ref: `${keys}.mix.volume`, to: -9})
+    const setMs = Date.now() - setStart
+    const fadedIn = await apply({op: "add_effect", track: keys, device: "Reverb", factory: "Reverb", settings: [{param: "wet", value: -10}]})
+    const wetAtFirst = await wetOf(fadedIn.result?.ref)
+    await page.waitForTimeout(1500)
+    const wetAfter = await wetOf(fadedIn.result?.ref)
+    const parkedFx = await apply({op: "remove_effect", ref: fadedIn.result?.ref})
+    const wetKept = await wetOf(fadedIn.result?.ref)
+    check("no jumps: a set glides, an added reverb fades in through its wet, a parked one fades out first (its setting kept)",
+        glided.state === "applied" && setMs >= 100 && fadedIn.state === "applied" && wetAtFirst !== null && wetAtFirst < -20
+            && Math.abs(wetAfter + 10) < 0.5 && parkedFx.state === "applied" && /faded out/.test(parkedFx.result?.label ?? "") && Math.abs(wetKept + 10) < 0.5,
+        JSON.stringify({set: glided.state, setMs, added: fadedIn.state, wetAtFirst, wetAfter, parked: parkedFx.state, label: parkedFx.result?.label, wetKept}))
+
     // ---------- loop off: an edit changes only what's still to play (the take replays as performed) ----------
     // A part looping 1 bar over 64 bars from bar 1, the loop off: an agent rewriting its notes splits it where the
     // playhead is (the bars played keep the old notes), and a tempo step lands on the tempo track.
