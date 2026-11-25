@@ -10,7 +10,7 @@ TYPES_DIR := .opendaw
 export PORT
 COMPOSE := docker compose --profile test
 
-.PHONY: help builder build up down restart logs status open shell test scenario catalog check knowledge knowledge-bench knowledge-import types usage clean
+.PHONY: help builder build up down restart logs status open shell test scenario catalog check knowledge knowledge-bench triage-bench knowledge-import types usage clean
 
 help: ## List targets
 	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
@@ -84,6 +84,9 @@ knowledge: ## Check the knowledge base offline: every entry against the catalog,
 # PICKERS=jev and/or claude also asks the models which entry each message needs (costs money; keys from .env).
 knowledge-bench: ## Which producer messages the knowledge base serves (knowledge/bench/; PICKERS="route claude" to run the pickers)
 	cd backend && node $(if $(PICKERS),--env-file=../.env) src/knowledge.bench.ts $(PICKERS)
+
+triage-bench: ## Jev in front of the Team Lead: path, part and move on knowledge/bench/triage.mjs's labelled messages (costs Jev cents)
+	cd backend && node --env-file=../.env src/triage.bench.ts
 
 # The datasets are downloaded by hand into DATASETS (pins and URLs in knowledge/README.md); the DX7 import needs none.
 DATASETS ?= $(CURDIR)/.datasets
