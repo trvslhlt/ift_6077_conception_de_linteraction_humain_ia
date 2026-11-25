@@ -312,6 +312,16 @@ describe("kits", {skip: samples.size === 0 ? "no samples/ (make samples)" : fals
         compiles((made as { code: string }).code)
         assert.match(String(withSamples.soundfont({sound: "GeneralUser GS/Kazoo Deluxe"}, snapshot)), /no sound/)
     })
+    it("writes a part onto an existing notes track, and refuses tracks that aren't there or aren't notes", () => {
+        const made = knowledge.part({track: "t2", notes: {notes: [[0, 60, 4, 0.6]], loop_bars: 2, from_bar: 3, bars: 8}}, snapshot)
+        assert.ok(typeof made !== "string" && made.code.includes("return kb.pattern(args)") && made.code.includes('"track":"t2"')
+            && made.says === "Keys on Keys, bars 3–10", String(made))
+        compiles((made as { code: string }).code)
+        assert.match(String(knowledge.part({track: "t9", notes: {notes: [[0, 60, 4, 0.6]]}}, snapshot)), /no track t9/)
+        const audio = {...snapshot, tracks: [track("t5", "Loop", "Tape", {kind: "audio"})]}
+        assert.match(String(knowledge.part({track: "t5", notes: {notes: [[0, 60, 4, 0.6]]}}, audio)), /audio track/)
+        assert.match(String(knowledge.part({track: "t2", notes: {}}, snapshot)), /no notes to write/)
+    })
     it("makes an openDAW factory preset a new track on its synth, and puts an effect preset on a track", () => {
         assert.ok(samples.searchSounds("house bass", 5).some(sound => sound.id === "openDAW/House Bass" && sound.device === "Neon"))
         const made = withSamples.soundfont({name: "Bass", sound: "openDAW/House Bass", notes: {notes: [[0, 40, 1, 0.9]], loop_bars: 1, from_bar: 1, bars: 4}}, snapshot)

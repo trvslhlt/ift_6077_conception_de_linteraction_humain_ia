@@ -286,6 +286,8 @@ export type Knowledge = {
     // A new track playing a soundfont's preset (a sampled instrument: "GeneralUser GS/Finger Bass"), optionally with notes.
     soundfont(input: Record<string, unknown>, snapshot: Snapshot): { code: string, says: string } | string
     effectPreset(input: Record<string, unknown>, snapshot: Snapshot): { code: string, says: string } | string
+    // A new part on an existing notes track from the bar given, replacing what was there: notes as written.
+    part(input: Record<string, unknown>, snapshot: Snapshot): { code: string, says: string } | string
     readonly samples: Samples | null
     draft(entry: Record<string, unknown>, by: string): string
     voices(): Record<string, string[]>
@@ -615,6 +617,20 @@ export const loadKnowledge = (dir: string, catalog: Catalog, warn: (text: string
         return {code: helper("soundfont", {name, uuid: sound.uuid, file_name: sound.soundfont, preset: sound.index, preset_name: sound.preset,
                 volume_db: volumeOf(input.volume_db), notes})!, says}
     }
+    // A new part on an existing track (its notes as written, looping every loop_bars), replacing what was in those bars:
+    // a track made empty (a sound entry with no notes) gets its part, and a part can be rewritten from a bar on.
+    const partPlan = (input: Record<string, unknown>, snapshot: Snapshot): { code: string, says: string } | string => {
+        if (kbScript === null) {return "the knowledge base's page helpers (scripts/kb.js) are missing"}
+        const track = trackOf(snapshot, input.track) ?? snapshot.tracks.find(candidate => candidate.name === input.track) ?? null
+        if (track === null) {return `no track ${String(input.track)}`}
+        if (track.kind !== "notes") {return `${track.name} is an ${track.kind} track, not a notes one`}
+        const name = typeof input.name === "string" && input.name !== "" ? input.name : track.name
+        const notes = melodicNotes(input, snapshot, null, name)
+        if (notes === null) {return "no notes to write (give notes or chords)"}
+        if (typeof notes === "string") {return notes}
+        return {code: helper("pattern", {track: track.ref, notes})!,
+            says: `${name} on ${track.name}, bars ${String(notes.from_bar)}–${Number(notes.from_bar) + Number(notes.bars) - 1}`}
+    }
     // One of openDAW's effect presets at the end of a track's effects.
     const effectPresetPlan = (input: Record<string, unknown>, snapshot: Snapshot): { code: string, says: string } | string => {
         if (kbScript === null) {return "the knowledge base's page helpers (scripts/kb.js) are missing"}
@@ -834,6 +850,7 @@ export const loadKnowledge = (dir: string, catalog: Catalog, warn: (text: string
         sampler: (input, snapshot) => samplerPlan(input, snapshot, null),
         soundfont: (input, snapshot) => soundfontPlan(input, snapshot, null),
         effectPreset: (input, snapshot) => effectPresetPlan(input, snapshot),
+        part: (input, snapshot) => partPlan(input, snapshot),
         samples,
         voices: () => Object.fromEntries([...cartridges].map(([name, voices]) => [name, voices.map(entry => entry.name)])),
         // An agent's entry, kept as a draft until a person reviews it. Returns what happened, for the model.

@@ -10,6 +10,7 @@ import type {Catalog} from "./catalog.ts"
 import {type Knowledge, shortlist} from "./knowledge.ts"
 import {analyse} from "./analysis.ts"
 import {hitOf, morphNotes, targetHitOf, tile} from "./generate.ts"
+import {chordHits, type ChordSpec} from "./compose.ts"
 import {Kinds, type Kind} from "./notebook.ts"
 import {Limits, type LlmMember, type Member, performStep, projectFor, type Task} from "./members.ts"
 
@@ -146,6 +147,7 @@ const KindNotes: Record<PieceKind, string> = {
 - evolve_notes: a part's notes changing over several bars (a groove becoming another, a part thinning out or filling in), not a script per stage. Name where it's going (a knowledge pattern, or the notes written once) and how many stages; code works out each stage and rewrites the region's notes in place, so a looping region changes as it plays.
 - A region's notes play on every pass of its loop: rewriting them changes every repeat from when it lands.
 - An 808 bass (trap, drill, modern hip hop) is make_sampler: a long TR-808 kick played as notes (sound/808-bass), roots in the key around the kick, long notes with gaps.
+- Chords (pads, keys, strings, comping): write the progression, not the notes: make_instrument's chords, write_part's chords (a part on a track that exists, e.g. one a sound entry made empty) and evolve_notes's to_chords take chord names or numerals, a voicing, a register and a rhythm, and code writes the notes in key, voice-led. Write notes yourself for melodies and bass lines.
 - Pitches: write them in the key in facts, and keep each part in its role (a part in the bass register stays the bass). Note names here follow openDAW, where C3 is MIDI 60 (not C4): write pitches by the MIDI numbers facts gives.
 ${KeySlot}
 - A new named track with a bar of notes: const {audioUnitBox, trackBox, instrumentBox} = api.createInstrument(lib.adapters.InstrumentFactories.Vaporisateur); instrumentBox.label.setValue("Lead"); const region = api.createNoteRegion({trackBox, position: 0, duration: bar, name: "Lead"}); api.createNoteEvent({owner: region, position: 0, duration: lib.dsp.PPQN.Quarter, pitch: 60, velocity: 0.8});
@@ -154,6 +156,7 @@ ${KeySlot}
 - An instrument's settings: ref("t2").inputAdapter.unwrap().namedParameter (e.g. Cubed: cutoff, resonance, envMod, decay, accent; Vaporisateur: cutoff, resonance, attack, decay, sustain, release, …); set them with .setValue(v). A drum machine (Playfield) has none: its sounds are samples by pad.
 - A style's drum sound (trap, house, techno, boom-bap, 80s) is a new kit, not new notes on the old one: apply_knowledge a kit entry (sound/kit-trap-808, kit-house-909, kit-boombap-mpc60, kit-boombap-sp12, kit-synthpop-linndrum) with the style's pattern and from_bar, or make_kit with samples you pick (samples finds them across 70 drum machines); then park (mute) the old drums at the bar the kit starts, so the two never play together.
 - An 808 bass (trap, drill, modern hip hop) is make_sampler: a long TR-808 kick played as notes (sound/808-bass), roots in the key around the kick, long notes with gaps.
+- A track a sound entry made with no notes gets its part with write_part: chords (pads, keys, strings) as a progression, code writes the notes.
 - Vaporisateur's namedParameter: oscillators[0] and oscillators[1], each {waveform (0 sine, 1 triangle, 2 saw, 3 square), volume (dB; -Infinity is off), octave (-3..3), tune (cents)}; unisonCount is 1, 3 or 5 only; unisonDetune in cents (1..1200); unisonStereo 0..1; cutoff (Hz), resonance, filterOrder (1..4), attack, decay, sustain, release. A supersaw: both oscillators saw at 0 dB, the second tuned +7 ct, unisonCount 5, unisonDetune 25, unisonStereo 0.8.
 - A new named track with a bar of notes: const {audioUnitBox, trackBox, instrumentBox} = api.createInstrument(lib.adapters.InstrumentFactories.Vaporisateur); instrumentBox.label.setValue("Lead"); const region = api.createNoteRegion({trackBox, position: 0, duration: bar, name: "Lead"}); api.createNoteEvent({owner: region, position: 0, duration: lib.dsp.PPQN.Quarter, pitch: 60, velocity: 0.8});
 - A track made in this script has no adapter yet (ref and audioUnits.adapters() don't find it until the edit ends): set its level with audioUnitBox.volume.setValue(dB) and its instrument's settings on instrumentBox's fields (instrumentBox.cutoff.setValue(2200)), with the names namedParameter shows on a track of that instrument. Every field has a range (the box schema's constraints; a parameter's valueMapping); a value outside it can crash the audio engine, so TakeDo brings it back in and the result lists what it corrected.
@@ -222,6 +225,15 @@ const anyRef = (tool: Anthropic.Tool): Anthropic.Tool => {
 const withEveryTool = (snapshot: Snapshot): Snapshot => ({...snapshot, master: {...snapshot.master, effects: [
     ...snapshot.master.effects, {key: "any", name: "any", enabled: true, ref: "master.fx0",
         params: [{ref: "master.fx0.any", name: "any", value: 0, display: "0", min: 0, max: 1, stepped: false}]}]}})
+
+// Chords written by code (compose.ts, tonal): the worker names the progression, voicing, register and rhythm, code writes
+// the notes, in key and voice-led (2026-11-25: a worker's job was ~3,000 output tokens, most of them note lists).
+const ChordsArg = z.object({
+    progression: z.string().describe("Chord names with their lengths in beats: \"Em9:4 Cmaj7:4 Am7:4 B7sus4:4\" (slash chords too: \"C/E:2\"), or Roman numerals in the key: \"i9:4 VImaj7:4 iv7:4 V7sus4:4\" (case is major or minor); \"\" for none"),
+    voicing: z.enum(["close", "open", "spread", "shell"]).describe("close: tight; open: drop-2, wider; spread: the root low under the rest (pads, strings); shell: root, 3rd and 7th (jazz comping)"),
+    register: z.enum(["low", "mid", "high"]).describe("Where the voices sit: low (MIDI 40–62), mid (52–76: keys), high (64–88)"),
+    rhythm: z.string().describe("\"hold\" (each chord for its length), or one bar of sixteenths, x a hit, X an accent, . a rest, repeated over each chord: \"x...x...x...x...\" (quarters), \"..x...x...x...x.\" (offbeats), \"x..x..x.x...x...\"")
+}).describe("Or the part as chords, notes written by code: in key, each chord led to the nearest voicing of the last. progression \"\" to give notes instead")
 
 // A new track's name says its role and sound, as a producer labels a track (2026-11-25, the producer: "I don't know what
 // 'Cubed' means, but I know what 'acid bass' is"); it's also what Jev reads to tell the parts apart.
@@ -415,12 +427,22 @@ export class Utility implements Member {
             tool("evolve_notes", "Change a notes region's notes, in place, over several stages toward a target: notes both share glide (timing, length, velocity), new ones come in loudest first, old ones go quietest first; the last stage is the target exactly. One edit per stage, each on its own bar.", {
                 region: z.string().describe("The notes region's ref (r3), from the project's regions"),
                 to_pattern: z.string().describe("A knowledge pattern entry to arrive at (\"pattern/boombap-1\"), repeated to fill the region's loop; \"\" to give to_notes"),
-                to_notes: z.array(z.tuple([z.string(), z.number(), z.number(), z.number()])).describe("The notes to arrive at, as the project shows a region's: [position in the region \"1.1.1:0\", MIDI pitch, length in sixteenths, velocity 0..127]; [] with to_pattern"),
+                to_notes: z.array(z.tuple([z.string(), z.number(), z.number(), z.number()])).describe("The notes to arrive at, as the project shows a region's: [position in the region \"1.1.1:0\", MIDI pitch, length in sixteenths, velocity 0..127]; [] with to_pattern or to_chords"),
+                to_chords: ChordsArg,
                 key: z.string().describe("For a chord pattern: the key (\"A minor\"); \"\" for the project's"),
                 stages: z.number().int().describe("How many steps to get there, 1 to 16"),
                 at_bar: z.number().int().describe("Bars of playing after the producer's message the first stage lands on (1: the next bar line); 0 for as soon as possible"),
                 every_bars: z.number().int().describe("Bars between stages, 1 or more")},
                 handler((current, input) => this.#evolve(current, input))),
+            tool("write_part", "Write a part onto an existing notes track (one made with no notes, or one whose part you're replacing from a bar on): chords by code, or notes as written, looping. Replaces what the track had in those bars; the track's sound stays.", {
+                track: z.string().describe("The track's ref (t4)"),
+                notes: z.array(z.tuple([z.number(), z.number(), z.number(), z.number()])).describe("[beat from 0, MIDI pitch, length in beats, velocity 0..1]; [] with chords"),
+                chords: ChordsArg,
+                loop_bars: z.number().int().describe("How many bars the notes loop over; 0 for 1 (with chords: the progression's length)"),
+                from_bar: z.number().int().describe("The timeline bar the part's region starts on (with the loop off: the next bar line after the edit lands, never a bar already played); 0 to cover the bars the other parts cover"),
+                bars: z.number().int().describe("How many bars the region runs (with the loop off: to the song's end); 0 for the default"),
+                at_bar: z.number().int().describe("Bars of playing after the producer's message the edit lands on (1: the next bar line); 0 for as soon as possible")},
+                handler((current, input) => this.#writePart(current, input))),
             ...(knowledge.samples === null || (knowledge.samples.size === 0 && knowledge.samples.sounds.length === 0) ? [] : this.#sampleTools(handler))
         ]
     }
@@ -453,9 +475,11 @@ export class Utility implements Member {
                 ...(Number(input.tune) ? {tune: Number(input.tune)} : {}), ...(Number(input.release) > 0 ? {release: Number(input.release)} : {}),
                 notes: notes.length > 0 ? placed(input, {notes, loop_bars: Number(input.loop_bars) || 1}) : undefined}
         }
-        const make = (kind: "kit" | "sampler" | "soundfont") => async (current: Current, input: Record<string, unknown>): Promise<string> => {
+        const make = (kind: "kit" | "sampler" | "soundfont") => async (current: Current, given: Record<string, unknown>): Promise<string> => {
             const snapshot = await current.context.snapshot()
             if (snapshot === null) {return "Not done: no project is open."}
+            const input = this.#withChords(current.context, given, snapshot.timeline.signature[0])
+            if (typeof input === "string") {return `Not done: ${input}.`}
             const made = knowledge[kind](shape(kind, input), snapshot)
             if (typeof made === "string") {return `Not done: ${made}.`}
             current.context.card({agent: this.agent, name: this.name, doing: kind === "kit" ? "building a drum kit…" : kind === "soundfont" ? "bringing in an instrument…" : "setting up a sampler…"})
@@ -491,8 +515,9 @@ export class Utility implements Member {
                 root_key: z.number().int().describe("The MIDI note the sample sounds at as recorded (60 if unknown or unpitched)"),
                 tune: z.number().describe("Fine tuning, cents, -1200..1200; 0 for none"),
                 release: z.number().describe("Release after a note ends, seconds (0.001..8); 0 for the default 0.1 (an 808 bass: 0.2–0.5)"),
-                notes: z.array(z.tuple([z.number(), z.number(), z.number(), z.number()])).describe("[beat from 0, MIDI pitch, length in beats, velocity 0..1]; [] for none"),
-                loop_bars: z.number().int().describe("How many bars the notes loop over; 0 for 1"),
+                notes: z.array(z.tuple([z.number(), z.number(), z.number(), z.number()])).describe("[beat from 0, MIDI pitch, length in beats, velocity 0..1]; [] for none or with chords"),
+                chords: ChordsArg,
+                loop_bars: z.number().int().describe("How many bars the notes loop over; 0 for 1 (with chords: the progression's length)"),
                 volume_db: z.number().describe("The track's volume, dB; 0 for unity"),
                 ...Placement},
                 handler(make("sampler"))),
@@ -512,8 +537,9 @@ export class Utility implements Member {
                 tool("make_instrument", "A new track playing a sound from sounds (a soundfont preset on openDAW's Soundfont device, or an openDAW factory preset on its synth), optionally with notes from the start. Set its sound once; its notes play as written (keep a bass in the bass register).", {
                     name: z.string().describe(TrackName),
                     sound: z.string().describe("A sound id from sounds (\"GeneralUser GS/Finger Bass\")"),
-                    notes: z.array(z.tuple([z.number(), z.number(), z.number(), z.number()])).describe("[beat from 0, MIDI pitch, length in beats, velocity 0..1]; [] for none"),
-                    loop_bars: z.number().int().describe("How many bars the notes loop over; 0 for 1"),
+                    notes: z.array(z.tuple([z.number(), z.number(), z.number(), z.number()])).describe("[beat from 0, MIDI pitch, length in beats, velocity 0..1]; [] for none or with chords"),
+                    chords: ChordsArg,
+                    loop_bars: z.number().int().describe("How many bars the notes loop over; 0 for 1 (with chords: the progression's length)"),
                     volume_db: z.number().describe("The track's volume, dB; 0 for unity"),
                     ...Placement},
                     handler(make("soundfont"))),
@@ -534,6 +560,36 @@ export class Utility implements Member {
     // A part's notes changed in stages by code (generate.ts): the model names the target and the pacing, not the notes of
     // every stage. Each stage is a script rewriting the region in place (kb.replaceNotes), staged on its bar like the
     // worker's own.
+    // The project's key as the facts recorded it ("E minor"), or "".
+    #factsKey(context: Coordinator): string {
+        const facts = context.notebook?.get("facts") ?? null
+        const recorded = facts === null ? null : (JSON.parse(facts.value)?.key?.said as string | undefined) ?? null
+        return recorded !== null && !recorded.startsWith("unknown") ? recorded : ""
+    }
+
+    // A make_* tool's chords, written into its notes (and its loop, the progression's length) by code.
+    #withChords(context: Coordinator, input: Record<string, unknown>, beatsPerBar: number): Record<string, unknown> | string {
+        const chords = input.chords as ChordSpec | undefined
+        if (chords === undefined || chords.progression.trim() === "") {return input}
+        const written = chordHits({...chords, key: this.#factsKey(context) || undefined}, beatsPerBar)
+        if (typeof written === "string") {return written}
+        context.card({agent: this.agent, name: this.name, doing: `chords by code: ${chords.progression}`})
+        return {...input, notes: written.hits, loop_bars: Number(input.loop_bars) || written.beats / beatsPerBar}
+    }
+
+    // A part onto an existing track (knowledge.part, kb.pattern), its chords written by code.
+    async #writePart(current: Current, given: Record<string, unknown>): Promise<string> {
+        const snapshot = await current.context.snapshot()
+        if (snapshot === null) {return "Not done: no project is open."}
+        const input = this.#withChords(current.context, given, snapshot.timeline.signature[0])
+        if (typeof input === "string") {return `Not done: ${input}.`}
+        const notes = (input.notes ?? []) as unknown[]
+        const made = this.#knowledge!.part({track: input.track, notes: {notes, loop_bars: Number(input.loop_bars) || 1,
+            from_bar: Number(input.from_bar) || 0, bars: Number(input.bars) || 0}}, snapshot)
+        if (typeof made === "string") {return `Not done: ${made}.`}
+        return this.#run(current, made.says, made.code, Number(input.at_bar) || 0)
+    }
+
     async #evolve(current: Current, input: Record<string, unknown>): Promise<string> {
         const {context} = current
         const knowledge = this.#knowledge!
@@ -555,15 +611,21 @@ export class Utility implements Member {
         const says: string[] = []
         const patternKey = String(input.to_pattern ?? "")
         if (patternKey !== "") {
-            const facts = context.notebook?.get("facts") ?? null
-            const recorded = facts === null ? null : (JSON.parse(facts.value)?.key?.said as string | undefined) ?? null
-            const key = String(input.key ?? "") || (recorded !== null && !recorded.startsWith("unknown") ? recorded : "")
+            const key = String(input.key ?? "") || this.#factsKey(context)
             const pattern = knowledge.patternHits(patternKey, track, key === "" ? {} : {key}, beatsPerBar)
             if (typeof pattern === "string") {return `Not done: ${pattern}.`}
             to = tile(pattern.hits, pattern.beats, loopBeats)
             says.push(...pattern.says)
         }
-        if (to.length === 0) {return "Not done: give the target, as to_pattern or to_notes."}
+        const chords = input.to_chords as ChordSpec | undefined
+        if (chords !== undefined && chords.progression.trim() !== "") {
+            const written = chordHits({...chords, key: chords.key || this.#factsKey(context) || undefined}, beatsPerBar)
+            if (typeof written === "string") {return `Not done: ${written}.`}
+            to = tile(written.hits, written.beats, loopBeats)
+            says.push(`chords ${chords.progression}`)
+            context.card({agent: this.agent, name: this.name, doing: `chords by code: ${chords.progression}`})
+        }
+        if (to.length === 0) {return "Not done: give the target, as to_pattern, to_notes or to_chords."}
         const count = Math.max(1, Math.min(16, Math.round(Number(input.stages) || 1)))
         const every = Math.max(1, Math.round(Number(input.every_bars) || 1))
         const atBar = Number(input.at_bar) || 0
