@@ -7,7 +7,8 @@ import type {Actor, Note, Plan, Snapshot, Status, When} from "../../shared/proto
 import {type Action, type Anchor, commitAnchor, type Direction, type Piece, type PieceKind, PieceKinds, type Step as BoardStep} from "./board.ts"
 import type {Coordinator} from "./coordinator.ts"
 import type {Catalog} from "./catalog.ts"
-import {drumMap, type Knowledge, shortlist} from "./knowledge.ts"
+import {drumMap, DrumRoles, type Knowledge, shortlist} from "./knowledge.ts"
+import {type Tweak, Tweaks, vary} from "./variants.ts"
 import {analyse} from "./analysis.ts"
 import {hitOf, morphNotes, targetHitOf, tile} from "./generate.ts"
 import {chordHits, type ChordSpec, drumHits, melodyHits, type MelodySpec, type MiniSpec, rangeOf} from "./compose.ts"
@@ -142,6 +143,7 @@ Rules:
 const KindNotes: Record<PieceKind, string> = {
     drums: `- evolve_notes: a part's notes changing over several bars (a groove becoming another, a part thinning out or filling in), not a script per stage. Name where it's going (a knowledge pattern, or the notes written once) and how many stages; code works out each stage and rewrites the region's notes in place, so a looping region changes as it plays.
 - A region's notes play on every pass of its loop: rewriting them changes every repeat from when it lands.
+- A change to a part's own notes (busier, sparser, ghost notes, more or less swing, half or double time, a fill, harder or softer) is evolve_notes's tweak with an amount, made by code from the notes there; write a new groove only for a new style.
 - Grooves as one line of mini-notation, code writes the hits: make_kit's drums, write_part's drums, evolve_notes's to_drums (\"[bd ~ ~ bd ~ ~ bd ~, ~ sd ~ sd, hh*8]\"; sd:0.4 a ghost note, <sd cp> a different one each bar with bars 2).
 - A style's drum sound (trap, house, techno, boom-bap, 80s) is a new kit, not new notes on the old one: apply_knowledge a kit entry (sound/kit-trap-808, kit-house-909, kit-boombap-mpc60, kit-boombap-sp12, kit-synthpop-linndrum) with the style's pattern and from_bar, or make_kit with samples you pick (samples finds them across 70 drum machines); then park (mute) the old drums at the bar the kit starts, so the two never play together.`,
     notes: `- A new part's sound (2026-11-25, the producer: sounds outside the drums were grating and not genre appropriate): pick a sampled instrument first: the knowledge base's \"Sampled instruments\" entries name a genre's usual ones (bass, keys, guitar, strings, pads, brass, leads) with their registers; sounds finds the rest of 300 (GeneralUser GS and openDAW's). make_instrument makes the track with its notes. Set a synth (Vaporisateur, Tubular) by hand only for a sound no sample has or when the producer asks for a synth, and then start from a knowledge sound entry. Play a sampled instrument in its register.
@@ -149,6 +151,7 @@ const KindNotes: Record<PieceKind, string> = {
 - A region's notes play on every pass of its loop: rewriting them changes every repeat from when it lands.
 - An 808 bass (trap, drill, modern hip hop) is make_sampler: a long TR-808 kick played as notes (sound/808-bass), roots in the key around the kick, long notes with gaps.
 - Chords (pads, keys, strings, comping): write the progression, not the notes: make_instrument's chords, write_part's chords (a part on a track that exists, e.g. one a sound entry made empty) and evolve_notes's to_chords take chord names or numerals, a voicing, a register and a rhythm, and code writes the notes in key, voice-led.
+- A change to a part's own notes (busier, simpler, an octave up or down, shorter or longer notes, harder or softer) is evolve_notes's tweak with an amount, made by code from the notes there.
 - Bass lines, riffs and melodies: one line of mini-notation in scale degrees (melody, to_melody: \"0 ~ 0 [2 4] ~ 4 _ 3\", 0 the key's tonic), and code writes the notes in key; notes by hand only for what it can't say.
 - Pitches: write them in the key in facts, and keep each part in its role (a part in the bass register stays the bass). Note names here follow openDAW, where C3 is MIDI 60 (not C4): write pitches by the MIDI numbers facts gives.
 ${KeySlot}
@@ -445,6 +448,8 @@ export class Utility implements Member {
                 to_chords: ChordsArg,
                 to_melody: MelodyArg,
                 to_drums: DrumsArg,
+                tweak: z.enum(["none", ...Object.keys(Tweaks)] as [string, ...string[]]).describe(`Or a tweak of the notes already there, made by code: ${Object.values(Tweaks).join("; ")}; "none" for a target`),
+                amount: z.number().int().describe("For a tweak: 0 subtle, 1 clear, 2 big, 3 all the way"),
                 key: z.string().describe("For a chord pattern: the key (\"A minor\"); \"\" for the project's"),
                 stages: z.number().int().describe("How many steps to get there, 1 to 16"),
                 at_bar: z.number().int().describe("Bars of playing after the producer's message the first stage lands on (1: the next bar line); 0 for as soon as possible"),
@@ -692,7 +697,20 @@ export class Utility implements Member {
             says.push(`drums ${drums.pattern}`, ...mapped.says)
             context.card({agent: this.agent, name: this.name, doing: `drums by code: ${drums.pattern}`})
         }
-        if (to.length === 0) {return "Not done: give the target, as to_pattern, to_notes, to_chords, to_melody or to_drums."}
+        const tweak = String(input.tweak ?? "none")
+        if (tweak !== "none" && tweak in Tweaks) {
+            const pads = track.device?.content !== undefined && "pads" in track.device.content ? track.device.content.pads : null
+            const roleOf = pads === null ? undefined : (pitch: number): string | null => {
+                const pad = pads.find(candidate => candidate.note === pitch)
+                return pad === undefined ? null : Object.keys(DrumRoles).find(role => DrumRoles[role].names.test(pad.name)) ?? null
+            }
+            const varied = vary(tweak as Tweak, {hits: from, beats: loopBeats, beatsPerBar, roleOf}, Number(input.amount) || 0)
+            if (typeof varied === "string") {return `Not done: ${varied}.`}
+            to = varied
+            says.push(`${tweak} (${Number(input.amount) || 0})`)
+            context.card({agent: this.agent, name: this.name, doing: `${tweak.replace("_", " ")} by code`})
+        }
+        if (to.length === 0) {return "Not done: give the target, as to_pattern, to_notes, to_chords, to_melody or to_drums, or a tweak."}
         const count = Math.max(1, Math.min(16, Math.round(Number(input.stages) || 1)))
         const every = Math.max(1, Math.round(Number(input.every_bars) || 1))
         const atBar = Number(input.at_bar) || 0

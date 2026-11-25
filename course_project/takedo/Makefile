@@ -10,7 +10,7 @@ TYPES_DIR := .opendaw
 export PORT
 COMPOSE := docker compose --profile test
 
-.PHONY: help builder build up down restart logs status open shell test scenario catalog check knowledge knowledge-bench triage-bench knowledge-import types usage clean
+.PHONY: help builder build up down restart logs status open shell test scenario catalog check knowledge knowledge-bench triage-bench tweak-bench knowledge-import types usage clean
 
 help: ## List targets
 	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
@@ -79,7 +79,7 @@ check: ## Type-check the backend and shared code (needs `npm ci` in backend/ onc
 	cd backend && npx tsc --noEmit
 
 knowledge: ## Check the knowledge base offline: every entry against the catalog, the music helpers, expansion, the knowledge route (needs `npm ci` in backend/ once)
-	cd backend && node --test src/knowledge.test.ts src/router.test.ts src/reply.test.ts src/staging.test.ts src/generate.test.ts src/notebook.test.ts src/takes.test.ts src/ledger.test.ts src/blend.test.ts src/fastpath.test.ts src/compose.test.ts
+	cd backend && node --test src/knowledge.test.ts src/router.test.ts src/reply.test.ts src/staging.test.ts src/generate.test.ts src/notebook.test.ts src/takes.test.ts src/ledger.test.ts src/blend.test.ts src/fastpath.test.ts src/compose.test.ts src/variants.test.ts
 
 # PICKERS=jev and/or claude also asks the models which entry each message needs (costs money; keys from .env).
 knowledge-bench: ## Which producer messages the knowledge base serves (knowledge/bench/; PICKERS="route claude" to run the pickers)
@@ -87,6 +87,9 @@ knowledge-bench: ## Which producer messages the knowledge base serves (knowledge
 
 triage-bench: ## Jev in front of the Team Lead: path, part and move on knowledge/bench/triage.mjs's labelled messages (costs Jev cents)
 	cd backend && node --env-file=../.env src/triage.bench.ts
+
+tweak-bench: ## Jev naming a musical tweak of one part (variants.ts) on knowledge/bench/tweaks.mjs's labelled messages (costs Jev cents)
+	cd backend && node --env-file=../.env src/tweaks.bench.ts
 
 # The datasets are downloaded by hand into DATASETS (pins and URLs in knowledge/README.md); the DX7 import needs none.
 DATASETS ?= $(CURDIR)/.datasets
