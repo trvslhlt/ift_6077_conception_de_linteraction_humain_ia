@@ -40,7 +40,7 @@ export type Track = {
     midiEffects: Device[], effects: Device[]
     mix: { volume: number, pan: number, mute: boolean, solo: boolean }  // volume in dB, pan -1..1
     bars: { from: number, to: number } | null       // the bars its regions cover, if any
-    lanes: string[]                                 // refs of its mix parameters that have an automation lane
+    lanes: string[]                                 // refs of its parameters (mix, effects) that have an automation lane
     regions: Region[]
 }
 // position: the playhead in pulses. played: pulses played since the page began following this project, counting each

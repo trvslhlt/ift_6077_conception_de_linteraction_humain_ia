@@ -210,9 +210,9 @@ try {
     await page.evaluate(() =>
         document.dispatchEvent(new CustomEvent("parameter-hold", {detail: {parameter: window.__drumsVolume, held: false}})))
 
-    // ---------- recording: the producer's moves are recorded as automation; an agent's ramp isn't, for now ----------
-    // (2026-11-25: openDAW recorded every tick of an agent's ramp, and a long loop-off take hung its engine; the page now
-    // writes ramps past the recorder while recording. Writing them as a few automation points is the next cycle.)
+    // ---------- recording: the producer's moves are recorded as automation, and so is an agent's ramp ----------
+    // (2026-11-25: openDAW recorded every tick of an agent's ramp, and a long loop-off take hung its engine; with the loop
+    // off, the page now writes an agent's ramp into the lane itself, as two points, past the recorder.)
     await page.evaluate(async () => {
         const project = window.takedo.service.projectProfileService.getValue().unwrap().project
         project.startRecording(false)
@@ -247,8 +247,8 @@ try {
         if (!project.engine.isPlaying.getValue()) {window.opendaw.engine.play()}
     })
     const keysLanes = (await track("Keys")).lanes
-    check("while recording, an agent's ramp lands but isn't recorded (yet); the producer's moves are",
-        recorded.state === "applied" && Math.abs(keysRamped - (keysBefore - 4)) < 0.01 && agentLanes.length === 0 && keysLanes.length === 1,
+    check("while recording, an agent's ramp lands in the lane (two points, past the recorder); the producer's moves are recorded too",
+        recorded.state === "applied" && Math.abs(keysRamped - (keysBefore - 4)) < 0.01 && agentLanes.length === 1 && keysLanes.length === 1,
         `ramped ${keysBefore} → ${keysRamped}, lanes after the agent ${JSON.stringify(agentLanes)}, after the producer ${JSON.stringify(keysLanes)}`)
     const afterTake = await apply({op: "ramp", ref: `${keys}.mix.volume`, to: 0, beats: 2})
     check("after the take, its lane is left alone (no live write over automation)",
@@ -403,6 +403,30 @@ try {
     check("a script that lays a region over another on the same track is refused (openDAW would cut or delete them on export)",
         overlapped.state === "failed" && /overlap/.test(overlapped.detail ?? ""),
         JSON.stringify({state: overlapped.state, detail: overlapped.detail?.slice(0, 200)}))
+    // Loop off: an agent's set and ramp go into the timeline as automation where they land, not into the mixer (2026-11-25:
+    // an export after a jam played parked parts muted from bar 1 and a faded master silent throughout).
+    const pastTrack = (await track("Past")).ref
+    const [parked, laneFade] = await Promise.all([apply({op: "set", ref: `${pastTrack}.mix.mute`, to: 1}),
+        apply({op: "ramp", ref: `${pastTrack}.mix.volume`, to: -20, beats: 4})])
+    const lanes = await page.evaluate(ref => {
+        const {project} = window.takedo.service.projectProfileService.getValue().unwrap()
+        const unit = project.rootBoxAdapter.audioUnits.adapters().find(unit => unit.label === "Past")
+        const {mute, volume} = unit.namedParameter
+        const valueAt = (parameter, position) => window.takedo.adapter.valueAt(parameter, position)
+        const lane = parameter => parameter.track.mapOr(track => track.regions.collection.asArray().map(region => [region.position, region.complete]), [])
+        const [[muteAt], [rampAt, rampEnd]] = [lane(mute)[0] ?? [], lane(volume)[0] ?? []]
+        const snapshot = window.takedo.adapter.snapshot().tracks.find(track => track.ref === ref)
+        return {fields: {mute: mute.getValue(), volume: volume.getValue()}, muteRegions: lane(mute).length, volumeRegions: lane(volume).length,
+            before: {mute: valueAt(mute, muteAt - 1), volume: valueAt(volume, rampAt - 1)}, after: {mute: valueAt(mute, muteAt + 960), volume: valueAt(volume, rampEnd)},
+            snapshot: {mix: snapshot.mix, lanes: snapshot.lanes}}
+    }, pastTrack)
+    check("loop off: an agent's park (mute) and ramp go into automation lanes where they land; the mixer's own settings stay, the bars before keep their sound",
+        parked.state === "applied" && laneFade.state === "applied" && lanes.muteRegions === 1 && lanes.volumeRegions === 1
+            && lanes.fields.mute === false && lanes.before.mute === false && lanes.after.mute === true
+            && Math.abs(lanes.after.volume + 20) < 0.1 && Math.abs(lanes.before.volume - lanes.fields.volume) < 0.1
+            && lanes.snapshot.mix.mute === true && lanes.snapshot.lanes.length === 2,
+        JSON.stringify({parked: parked.state, parkedDetail: parked.detail, faded: laneFade.state, fadedDetail: laneFade.detail, ...lanes}))
+    await apply({op: "set", ref: `${pastTrack}.mix.mute`, to: 0})
     const stepped = await apply({op: "script", description: "tempo step to 100", code: `api.setBpm(100)`})
     await page.waitForTimeout(500)
     const tempo = await page.evaluate(() => window.takedo.adapter.snapshot().timeline)

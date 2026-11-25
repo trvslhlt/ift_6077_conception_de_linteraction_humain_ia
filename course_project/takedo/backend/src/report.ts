@@ -258,6 +258,11 @@ if (before === undefined || after === undefined) {
         `${gone.length + goneEffects.length > 0 ? `: ${[...gone, ...goneEffects].join(", ")}` : ""}`)
     if (added.length > 0) {out.push(`- New tracks: ${added.map(track => `${track.name} (${track.device?.name ?? track.instrument ?? "?"})`).join(", ")}`)}
     check(failed.length === 0, `${failed.length} edits not done${failed.length > 0 ? `: ${failed.map(entry => entry.detail ?? entry.reason ?? entry.state).join("; ")}` : ""}`)
+    // Loop off (2026-11-25): an agent's set or ramp is written into the parameter's automation lane where it lands, so an
+    // export replays the parks and fades in their place; with the loop on, it's a mixer setting for the whole loop.
+    const values = requests.filter(entry => entry.from !== "user" && ["set", "ramp"].includes(entry.plan.op) && final.get(entry.id)?.state === "applied")
+    const timed = values.filter(entry => (final.get(entry.id)?.detail ?? "").startsWith("in the timeline"))
+    if (values.length > 0) {out.push(`- Value changes (set, ramp) written into the timeline as automation: ${timed.length} of ${values.length} (the rest are mixer settings: the loop was on or playback stopped)`)}
     out.push(`- At most ${bunched} edits landed in one bar`)
     const label = (entry: Entry): string => entry.plan.description ?? `${entry.plan.op} ${entry.plan.ref ?? entry.plan.device ?? ""}`.trim()
     check(outOfOrder.length === 0, `${outOfOrder.length} pairs of a part's steps landed in the opposite order to their bars` +
@@ -364,8 +369,8 @@ if (before === undefined || after === undefined) {
 }
 
 // Recording (2026-11-24, a non-looping jam): what the agents did while openDAW recorded. Their value changes (set,
-// ramp) are written into automation lanes, so playing the take back replays them; scripts and effects added change
-// the project in place (notes, tempo, devices), so the take replays only their final state.
+// ramp) are written into automation lanes by the page (past the recorder), so playing the take back replays them;
+// scripts and effects added change the project in place (notes, tempo, devices), so the take replays only their final state.
 const takes: Array<{ start: number, stop: number }> = []
 ;(run.recording ?? []).forEach((mark: { start?: number, stop?: number }) => {
     if (mark.start !== undefined) {takes.push({start: mark.start, stop: Infinity})}
@@ -380,9 +385,9 @@ if (takes.length > 0 && run.before !== undefined && run.after !== undefined) {
     const added = run.after.tracks.flatMap(track => track.lanes.filter(lane => !(lanesBefore.get(track.ref) ?? []).includes(lane))
         .map(lane => `${track.name} ${lane.split(".").pop()}`))
     out.push("", "## Recording", "",
-        `- Only each edit's final state plays back from the take, not when it happened (the next cycle: no overwriting).`,
+        `- Value changes play back from the take where they landed (automation); scripts and effects only as they end up.`,
         `- ${takes.length} take${takes.length === 1 ? "" : "s"}, ${Math.round(takes.reduce((sum, {start, stop}) => sum + (Math.min(stop, Date.now()) - start), 0) / 1000)} s recorded`,
-        `- Agent edits landed while recording: ${during.length}; values (set, ramp: not recorded as automation yet, page/Adapter.ts #ramp) ${count(["set", "ramp"])}, ` +
+        `- Agent edits landed while recording: ${during.length}; values (set, ramp: written as automation, page/Adapter.ts #automate) ${count(["set", "ramp"])}, ` +
         `in place (scripts, effects added or removed) ${count(["script", "add_effect", "remove_effect"])}`,
         `- Automation lanes made: ${added.length === 0 ? "none" : added.join(", ")}`)
 }

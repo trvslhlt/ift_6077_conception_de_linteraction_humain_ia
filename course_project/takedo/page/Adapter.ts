@@ -1,12 +1,15 @@
 import {Terminable, Terminator, UUID} from "@opendaw/lib-std"
-import {PPQN, ppqn} from "@opendaw/lib-dsp"
+import {Interpolation, PPQN, ppqn} from "@opendaw/lib-dsp"
 import {Address, Box, PrimitiveUpdate, Update} from "@opendaw/lib-box"
 import {
     AudioRegionBoxAdapter, AudioUnitBoxAdapter, AutomatableParameterFieldAdapter, DeviceBoxAdapter, Devices,
-    EffectDeviceBoxAdapter, NoteRegionBoxAdapter, PlayfieldDeviceBoxAdapter, RegionOverlap, TempoRange, TrackBoxAdapter
+    ColorCodes, EffectDeviceBoxAdapter, InterpolationFieldAdapter, NoteRegionBoxAdapter, PlayfieldDeviceBoxAdapter, RegionOverlap,
+    TempoRange, TrackBoxAdapter, TrackType, ValueRegionBoxAdapter
 } from "@opendaw/studio-adapters"
-import {AudioRegionBox, MaximizerDeviceBox, NoteEventBox, NoteRegionBox, TrackBox, ValueEventBox, ValueEventCollectionBox} from "@opendaw/studio-boxes"
-import {EffectFactories, type EffectFactory, type Project} from "@opendaw/studio-core"
+import {
+    AudioRegionBox, MaximizerDeviceBox, NoteEventBox, NoteRegionBox, TrackBox, ValueEventBox, ValueEventCollectionBox, ValueRegionBox
+} from "@opendaw/studio-boxes"
+import {EffectFactories, type EffectFactory, type Project, RegionClipResolver} from "@opendaw/studio-core"
 import type {
     Actor, AddEffectPlan, Apply, BackendToPage, Change, Content, Detail, Device, FailReason, Note, ParamState, Playback, Region,
     RemoveEffectPlan, ScriptPlan, Snapshot, Status, Track
@@ -24,12 +27,12 @@ import type {Connection} from "./Connection"
 // One Adapter per open project.
 //
 // Scope so far: snapshots read tracks, devices (effects with their parameters), regions and notes. Edits: set or ramp
-// a track's or the master's mix controls and any audio effect parameter; add or remove an audio effect. A ramp is
-// applied the way a knob drag is (unmarked writes each clock tick, then one mark), so it is one undo step and needs no
-// automation lane. While the producer records, openDAW records these writes as automation by itself, so a take keeps
-// the agents' changes (STRATEGY.md, "Changes over time"). A parameter that has a lane is refused outside recording:
-// writing its value during playback would switch the lane off until stop. Value changes are reported; added and
-// removed effects aren't yet.
+// a track's or the master's mix controls and any audio effect parameter; add or remove an audio effect. Playing with
+// the loop off (a jam, recorded or not), a set or ramp is written into the parameter's automation lane where it lands
+// (#automate), so the song, and an export of it, keeps each change in its place. Otherwise (loop on, or stopped) it's
+// the mixer's setting: a ramp is applied the way a knob drag is (unmarked writes each clock tick, then one mark), one
+// undo step, and a parameter that has a lane is refused, since writing it would switch the lane off until stop. Value
+// changes are reported; added and removed effects aren't yet.
 
 const StallSeconds = 3            // a playhead stuck this long while playing: the engine has stalled
 const EngineSettleMs = 3000      // an engine start this soon after the adapter is the project opening, not a restart
@@ -58,8 +61,8 @@ const content = (device: DeviceBoxAdapter): { content?: Content } =>
 const isSwitch = (parameter: AutomatableParameterFieldAdapter): boolean => typeof parameter.field.initValue === "boolean"
 const isStepped = (parameter: AutomatableParameterFieldAdapter): boolean =>
     isSwitch(parameter) || !parameter.valueMapping.floating()
-const print = (parameter: AutomatableParameterFieldAdapter): string => {
-    const {value, unit} = parameter.stringMapping.x(parameter.getValue())
+const print = (parameter: AutomatableParameterFieldAdapter, playing: unknown = parameter.getValue()): string => {
+    const {value, unit} = parameter.stringMapping.x(playing as never)
     return unit === "" ? value : `${value} ${unit}`
 }
 const effectFactory = (name: string): EffectFactory | null =>
@@ -304,7 +307,6 @@ export class Adapter implements Terminable {
         let end = 0
         const tracks: Track[] = this.#units().filter(unit => !unit.isOutput).map(unit => {
             const ref = this.#trackRef(unit)
-            const volume = `${ref}.mix.volume`
             const regionAdapters = unit.tracks.values().flatMap(track => track.regions.collection.asArray())
                 .filter(region => region.type !== "value-region")
             regionAdapters.forEach(region => end = Math.max(end, region.complete))
@@ -315,14 +317,14 @@ export class Adapter implements Terminable {
                 midiEffects: unit.midiEffects.mapOr(effects => effects.adapters().map(describe), []),
                 effects: this.#effectsOf(unit),
                 mix: {
-                    volume: unit.namedParameter.volume.getValue(), pan: unit.namedParameter.panning.getValue(),
-                    mute: unit.namedParameter.mute.getValue(), solo: unit.namedParameter.solo.getValue()
+                    volume: this.#now(unit.namedParameter.volume), pan: this.#now(unit.namedParameter.panning),
+                    mute: this.#now(unit.namedParameter.mute) !== 0, solo: this.#now(unit.namedParameter.solo) !== 0
                 },
                 bars: regionAdapters.length === 0 ? null : {
                     from: Math.floor(Math.min(...regionAdapters.map(region => region.position)) / bar) + 1,
                     to: Math.ceil(Math.max(...regionAdapters.map(region => region.complete)) / bar)
                 },
-                lanes: unit.namedParameter.volume.track.nonEmpty() ? [volume] : [],
+                lanes: this.#allParams().filter(param => param.ref.startsWith(`${ref}.`) && param.parameter.track.nonEmpty()).map(param => param.ref),
                 regions: regionAdapters.map(region => this.#region(region, bar, detail))
             }
         })
@@ -337,7 +339,7 @@ export class Adapter implements Terminable {
             timeline: {bpm: this.#tempoAutomated() ? Math.round(engine.bpm.getValue() * 10) / 10 : timelineBox.bpm.getValue(),
                 tempoAutomated: this.#tempoAutomated(), signature: [nominator, denominator], length: this.#pos(end)},
             tracks,
-            master: {volume: master?.namedParameter.volume.getValue() ?? 0, effects: master ? this.#effectsOf(master) : []}
+            master: {volume: master === undefined ? 0 : this.#now(master.namedParameter.volume), effects: master ? this.#effectsOf(master) : []}
         }
     }
 
@@ -348,8 +350,31 @@ export class Adapter implements Terminable {
         }))
     }
 
+    // The value playing now: its lane's where it has one (an agent's change in a loop-off jam is written there), else the field.
+    #now(parameter: AutomatableParameterFieldAdapter): number {
+        return numeric(this.valueAt(parameter, this.#project.engine.position.getValue()))
+    }
+
+    // A parameter's value at a position, as openDAW's engine plays it (TrackBoxAdapter.valueAt, which only runs in the
+    // audio thread): a lane's first value before its first region, a region's own inside it, its last after it.
+    valueAt(parameter: AutomatableParameterFieldAdapter, position: ppqn): unknown {
+        const fallback = parameter.getUnitValue()
+        const unit = parameter.track.mapOr(track => {
+            if (!track.enabled.getValue()) {return fallback}
+            const regions = track.regions.collection
+            const region = regions.lowerEqual(position, region => !region.mute)
+            if (region === null) {
+                const first = regions.optAt(0)
+                return first instanceof ValueRegionBoxAdapter ? first.incomingValue(fallback) : fallback
+            }
+            if (!(region instanceof ValueRegionBoxAdapter)) {return fallback}
+            return position < region.complete ? region.valueAt(position, fallback) : region.outgoingValue(fallback)
+        }, fallback)
+        return parameter.valueMapping.y(unit)
+    }
+
     #state({ref, parameter}: Param): ParamState {
-        return {ref, name: parameter.name, value: numeric(parameter.getValue()), display: print(parameter),
+        return {ref, name: parameter.name, value: this.#now(parameter), display: print(parameter, this.valueAt(parameter, this.#project.engine.position.getValue())),
             min: numeric(parameter.valueMapping.y(0)), max: numeric(parameter.valueMapping.y(1)),
             stepped: isStepped(parameter)}
     }
@@ -415,11 +440,11 @@ export class Adapter implements Terminable {
         if (param === null) {return this.#status(request, {state: "failed", reason: "unknown_ref", detail: plan.ref})}
         const {parameter} = param
         if (!Number.isFinite(plan.to)) {return this.#status(request, {state: "failed", reason: "invalid_args", detail: `to: ${plan.to}`})}
-        // While openDAW records, a write is recorded over the lane (only the recorded span is replaced), so it's allowed.
-        if (parameter.track.nonEmpty() && !this.#project.engine.isRecording.getValue()) {
-            return this.#status(request, {state: "failed", reason: "not_allowed",
-                detail: "this parameter has an automation lane; writing it would switch the lane off until stop"})
-        }
+        // A lane gets the change itself in a loop-off jam (#automate). Otherwise, while openDAW records, a write is recorded
+        // over the lane (only the recorded span is replaced), so it's allowed; else it would switch the lane off until stop.
+        const laneRefused = (): boolean => parameter.track.nonEmpty() && !this.#project.engine.isRecording.getValue() && !this.#onTimeline()
+        const laneDetail = "this parameter has an automation lane and the loop is on or playback stopped; writing it would switch the lane off until stop"
+        if (laneRefused()) {return this.#status(request, {state: "failed", reason: "not_allowed", detail: laneDetail})}
         const switched = isSwitch(parameter)
         const ranged = switched ? (plan.to !== 0 ? 1 : 0)
             : isStepped(parameter) ? Math.round(parameter.valueMapping.clamp(plan.to)) : parameter.valueMapping.clamp(plan.to)
@@ -442,6 +467,8 @@ export class Adapter implements Terminable {
         }
         if (!(await this.#land(request))) {return}
         if (held()) {return this.#status(request, {state: "dropped", reason: "held"})}
+        if (this.#onTimeline()) {return this.#automate(request, param, to, plan.op === "ramp" && !isStepped(parameter) ? plan.beats : 0)}
+        if (laneRefused()) {return this.#status(request, {state: "failed", reason: "not_allowed", detail: laneDetail})}
         const from = numeric(parameter.getValue())
         const beats = plan.op === "ramp" && !isStepped(parameter) && this.#project.engine.isPlaying.getValue() ? plan.beats : 0
         if (beats > 0) {this.#status(request, {state: "running", landsAt: this.#pos()})}
@@ -816,6 +843,92 @@ export class Adapter implements Terminable {
         } finally {
             this.#applying = null
         }
+    }
+
+    // Playing with the loop off (a jam, recorded or not): the song runs on, so a change belongs at its place in the timeline.
+    #onTimeline(): boolean {
+        return this.#project.engine.isPlaying.getValue() && !this.#project.timelineBox.loopArea.enabled.getValue()
+    }
+
+    // An agent's set or ramp in a loop-off jam, written into the parameter's automation lane where it lands (2026-11-25:
+    // parks and fades were mixer settings only, so an export played the final mix for the whole song: parts muted from
+    // bar 1, a master faded to -60 dB). A small value region per change, just ahead of the playhead: a step (the value
+    // playing, then the new one) or a ramp (two points, linear). openDAW holds a lane's first value before its first
+    // region and each region's last value after it, so the song before the change plays as it did. Written as boxes,
+    // past openDAW's recorder (whose per-tick regions hung the engine, see #ramp), and a later change on the same lane
+    // cuts this one's region where it starts (RegionClipResolver), as a recorded take would.
+    async #automate(request: Apply, param: Param, to: number, beats: number): Promise<void> {
+        const {parameter} = param
+        const {engine, editing, boxGraph, boxAdapters} = this.#project
+        const key = parameter.address.toString()
+        const lead = LeadMs * engine.bpm.getValue() * PPQN.Quarter / 60000
+        const at = Math.ceil((engine.position.getValue() + lead) / PPQN.SemiQuaver) * PPQN.SemiQuaver
+        const duration = beats > 0 ? beats * PPQN.Quarter : PPQN.SemiQuaver
+        const from = numeric(this.valueAt(parameter, at))
+        const unit = (value: number): number => parameter.valueMapping.x((isSwitch(parameter) ? value !== 0 : value) as never)
+        const tracks = parameter.optTracks()
+        if (tracks.isEmpty()) {return this.#status(request, {state: "failed", reason: "not_allowed", detail: `${param.label} can't have an automation lane`})}
+        this.#ramping.set(key, request.id)
+        const written = this.#tagged(request, () => editing.modify(() => {
+            const owner = tracks.unwrap()
+            const track = owner.controls(parameter.field).unwrapOrElse(() =>
+                boxAdapters.adapterFor(owner.create(TrackType.Value, parameter.field), TrackBoxAdapter))
+            RegionClipResolver.fromRange(track, at, at + duration)()
+            const collection = ValueEventCollectionBox.create(boxGraph, UUID.generate())
+            ValueRegionBox.create(boxGraph, UUID.generate(), box => {
+                box.position.setValue(at)
+                box.duration.setValue(duration)
+                box.loopDuration.setValue(duration)
+                box.hue.setValue(ColorCodes.forTrackType(TrackType.Value))
+                box.label.setValue(request.from === "agent:team_lead" ? "Team Lead" : "TakeDo")
+                box.events.refer(collection.owners)
+                box.regions.refer(track.box.regions)
+            })
+            const point = (position: ppqn, value: number, index: number, linear: boolean): void => {
+                const event = ValueEventBox.create(boxGraph, UUID.generate(), box => {
+                    box.events.refer(collection.events)
+                    box.position.setValue(position)
+                    box.index.setValue(index)
+                    box.value.setValue(unit(value))
+                })
+                InterpolationFieldAdapter.write(event.interpolation, linear ? Interpolation.Linear : Interpolation.None)
+            }
+            if (beats > 0) {
+                point(0, from, 0, true)
+                point(duration, to, 0, false)
+            } else {
+                point(0, from, 0, false)
+                point(0, to, 1, false)
+                point(duration, to, 0, false)
+            }
+            return true
+        }).unwrapOrNull())
+        if (written !== true) {
+            this.#ramping.delete(key)
+            return this.#status(request, {state: "failed", reason: "opendaw_error", detail: "the automation lane couldn't be written"})
+        }
+        this.#jamming = true
+        this.#report(param, from, to, request)
+        if (beats > 0) {this.#status(request, {state: "running", landsAt: this.#pos(at)})}
+        const mine = (): boolean => this.#ramping.get(key) === request.id
+        const end = at + duration
+        while (mine() && this.#onTimeline() && engine.position.getValue() < end) {await this.#clock.tick()}
+        if (mine()) {this.#ramping.delete(key)}
+        const lane = `in the timeline (automation, ${this.#pos(at)}${beats > 0 ? ` to ${this.#pos(end)}` : ""})`
+        if (!mine() && this.#ramping.has(key)) {
+            return this.#status(request, {state: "applied", detail: `${lane}; a later change of this control takes over from where it starts`,
+                result: {ref: param.ref, label: param.label, from, to}})
+        }
+        this.#status(request, {state: "applied", detail: lane, result: {ref: param.ref, label: param.label, from, to}})
+    }
+
+    // A change written into a lane changes no field, so it's reported here, as the agent's.
+    #report(param: Param, from: number, to: number, request: Apply): void {
+        this.#seq++
+        this.#connection.send({type: "change", event: {
+            seq: this.#seq, t: Date.now(), pos: this.#pos(), playing: this.#project.engine.isPlaying.getValue(),
+            actor: request.from, via: "edit", request: request.id,
+            changes: [{kind: "value", ref: param.ref, label: param.label, from, to}]}})
     }
 
     // Like a knob drag: one mark before, unmarked writes each clock tick, one mark after, so the ramp is one undo step.
