@@ -48,7 +48,7 @@ export type Planned =
 export type IndexLine = { key: string, summary: string, tags: string[], draft?: true, group?: string, label?: string }
 
 const FixedOps = ["add_effect", "set_param", "remove_effect", "volume", "pan", "mute"] as const
-const Ops = [...FixedOps, "instrument", "dx7", "kit", "sampler", "pattern", "tempo", "script", "entry"]
+const Ops = [...FixedOps, "instrument", "dx7", "kit", "sampler", "soundfont", "pattern", "tempo", "script", "entry"]
 const ParamTypes = ["track", "amount", "number", "key", "text"]
 const DefaultAmount = 1                             // "a clear, moderate change", on Jev's 0..3 amount scale
 const MaxDepth = 6
@@ -283,6 +283,8 @@ export type Knowledge = {
     // keys, optionally with notes; the edit, or why not. Input as the kit and sampler ops take it.
     kit(input: Record<string, unknown>, snapshot: Snapshot): { code: string, says: string } | string
     sampler(input: Record<string, unknown>, snapshot: Snapshot): { code: string, says: string } | string
+    // A new track playing a soundfont's preset (a sampled instrument: "GeneralUser GS/Finger Bass"), optionally with notes.
+    soundfont(input: Record<string, unknown>, snapshot: Snapshot): { code: string, says: string } | string
     readonly samples: Samples | null
     draft(entry: Record<string, unknown>, by: string): string
     voices(): Record<string, string[]>
@@ -435,6 +437,10 @@ export const loadKnowledge = (dir: string, catalog: Catalog, warn: (text: string
                     }
                 })
             }
+            if (step.op === "soundfont" && samples !== null && samples.sounds.length > 0 && typeof input.sound === "string"
+                && !input.sound.startsWith("$") && samples.sound(input.sound) === null) {
+                problems.push(`${where}: no sound ${input.sound}`)
+            }
             if (step.op === "sampler" && samples !== null && samples.size > 0 && typeof input.sample === "string"
                 && !input.sample.startsWith("$") && samples.find(input.sample) === null) {
                 problems.push(`${where}: no sample ${input.sample}`)
@@ -581,6 +587,28 @@ export const loadKnowledge = (dir: string, catalog: Catalog, warn: (text: string
             says: `${name}: a new kit track (${resolved.map(pad => pad.name).join(", ")})${notes === null ? ""
                 : `, ${String(notes.name)} from bar ${String(notes.from_bar)}`}`}
     }
+    // Notes as written ([beat, pitch, beats, velocity 0..1], looping every loop_bars) or a pattern entry's; null for none.
+    const melodicNotes = (input: Record<string, unknown>, snapshot: Snapshot, owner: Entry | null, name: string): Record<string, unknown> | null | string => {
+        if (isRecord(input.notes) && Array.isArray(input.notes.notes)) {
+            const given = input.notes, loopBars = typeof given.loop_bars === "number" && given.loop_bars > 0 ? given.loop_bars : 1
+            const span = defaultSpan(snapshot, null, loopBars)
+            return {from_bar: typeof given.from_bar === "number" && given.from_bar > 0 ? given.from_bar : span.from,
+                bars: typeof given.bars === "number" && given.bars > 0 ? given.bars : span.bars, loop_bars: loopBars, name, notes: given.notes}
+        }
+        return wantsNotes(input, owner) ? notesOf(input.notes, null, owner, snapshot) : null
+    }
+    const soundfontPlan = (input: Record<string, unknown>, snapshot: Snapshot, owner: Entry | null): { code: string, says: string } | string => {
+        if (kbScript === null) {return "the knowledge base's page helpers (scripts/kb.js) are missing"}
+        if (samples === null || samples.sounds.length === 0) {return "no soundfonts here (make samples)"}
+        const sound = samples.sound(String(input.sound))
+        if (sound === null) {return `no sound ${String(input.sound)} (find them with sounds; ids look like "GeneralUser GS/Finger Bass")`}
+        const name = typeof input.name === "string" && input.name !== "" ? input.name : typeof input.default_name === "string" ? input.default_name : sound.preset
+        const notes = melodicNotes(input, snapshot, owner, name)
+        if (typeof notes === "string") {return notes}
+        return {code: helper("soundfont", {name, uuid: sound.uuid, file_name: sound.soundfont, preset: sound.index, preset_name: sound.preset,
+                volume_db: volumeOf(input.volume_db), notes})!,
+            says: `${name}: a new track playing ${sound.id}${notes === null ? "" : `, from bar ${String(notes.from_bar)}`}`}
+    }
     const samplerPlan = (input: Record<string, unknown>, snapshot: Snapshot, owner: Entry | null): { code: string, says: string } | string => {
         if (kbScript === null) {return "the knowledge base's page helpers (scripts/kb.js) are missing"}
         if (samples === null || samples.size === 0) {return "no sample collections here (make samples)"}
@@ -697,8 +725,8 @@ export const loadKnowledge = (dir: string, catalog: Catalog, warn: (text: string
                 }
                 continue
             }
-            if (step.op === "kit" || step.op === "sampler") {
-                const made = (step.op === "kit" ? kitPlan : samplerPlan)(input, snapshot, entry)
+            if (step.op === "kit" || step.op === "sampler" || step.op === "soundfont") {
+                const made = (step.op === "kit" ? kitPlan : step.op === "sampler" ? samplerPlan : soundfontPlan)(input, snapshot, entry)
                 if (typeof made === "string") {return `${entry.key}: ${made}`}
                 planned.push({at: stepAt, kind: "script", ...made})
                 continue
@@ -786,6 +814,7 @@ export const loadKnowledge = (dir: string, catalog: Catalog, warn: (text: string
             return kitPlan({...input, notes: rest}, snapshot, {key: "pattern/written", pattern} as Entry)
         },
         sampler: (input, snapshot) => samplerPlan(input, snapshot, null),
+        soundfont: (input, snapshot) => soundfontPlan(input, snapshot, null),
         samples,
         voices: () => Object.fromEntries([...cartridges].map(([name, voices]) => [name, voices.map(entry => entry.name)])),
         // An agent's entry, kept as a draft until a person reviews it. Returns what happened, for the model.

@@ -21,7 +21,8 @@
     "pattern/lofi-vamp-vi-iv",
     "sound/tubular-rhodes",
     "sound/sine-sub-vaporisateur",
-    "production/lofi"
+    "production/lofi",
+    "sound/bass-upright"
   ],
   "checked": {
     "how": "written",

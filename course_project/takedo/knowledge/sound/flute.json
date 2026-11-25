@@ -1,0 +1,50 @@
+{
+  "key": "sound/flute",
+  "kind": "sound",
+  "summary": "Flute: lofi, trap and jazz melodies, airy",
+  "tags": [
+    "flute",
+    "woodwind",
+    "lofi",
+    "trap",
+    "jazz",
+    "melody",
+    "airy",
+    "lead"
+  ],
+  "devices": [
+    "Soundfont"
+  ],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (sound palette)",
+    "date": "2026-11-25",
+    "opendaw": "652e6ca"
+  },
+  "group": "Sampled instruments (soundfonts, make_instrument)",
+  "label": "flute",
+  "body": [
+    "A sparse melody on top; trap uses short flute loops. Pan flute: GeneralUser GS/Pan Flute.",
+    "Register: MIDI 60-96 (openDAW names C3 = 60); outside it, it sounds wrong. Sound: GeneralUser GS/Flute, a sampled instrument: make_instrument (sound \"GeneralUser GS/Flute\") makes the track with its notes in one edit; apply makes it empty."
+  ],
+  "apply": {
+    "params": {
+      "name": {
+        "type": "text",
+        "optional": true
+      }
+    },
+    "steps": [
+      {
+        "op": "soundfont",
+        "input": {
+          "name": "$name",
+          "default_name": "Flute",
+          "sound": "GeneralUser GS/Flute",
+          "volume_db": -7
+        }
+      }
+    ]
+  }
+}

@@ -95,18 +95,20 @@ index fb76103..fea1429 100644
      Workers
  } from "@opendaw/studio-core"
  import {OpenPresetAPI, OpenSampleAPI, OpenSoundfontAPI, WclapCatalog} from "@/opendaw-api"
-+import {loadTakedoSample, takedoSampleList} from "@/takedo/Samples"
++import {loadTakedoSample, loadTakedoSoundfont, takedoSampleList, takedoSoundfontList} from "@/takedo/Samples"
  import {testFeatures} from "@/features.ts"
  import {MissingFeature} from "@/ui/MissingFeature.tsx"
  import {UpdateMessage} from "@/ui/UpdateMessage.tsx"
-@@ -112,14 +113,16 @@ export const boot = async ({workersUrl, workletsUrl, wasmProcessorUrl, wasmOffli
+@@ -112,16 +113,20 @@ export const boot = async ({workersUrl, workletsUrl, wasmProcessorUrl, wasmOffli
      }
      const audioDevices = await AudioOutputDevice.create(context)
      FactoryCatalog.install({
 -        samples: () => OpenSampleAPI.get().all(),
 +        // TakeDo: its own collections (samples/) listed beside openDAW's.
 +        samples: () => Promise.all([OpenSampleAPI.get().all(), takedoSampleList()]).then(([own, takedo]) => [...own, ...takedo]),
-         soundfonts: () => OpenSoundfontAPI.get().all(),
+-        soundfonts: () => OpenSoundfontAPI.get().all(),
++        soundfonts: () => Promise.all([OpenSoundfontAPI.get().all().catch(() => []), takedoSoundfontList()])
++            .then(([own, takedo]) => [...own, ...takedo.filter(font => !own.some(other => other.uuid === font.uuid))]),
          presets: () => OpenPresetAPI.get().list()
      })
      WclapCatalog.get().tree().finally()
@@ -117,4 +119,8 @@ index fb76103..fea1429 100644
 +            (await loadTakedoSample(uuid, progress)) ?? OpenSampleAPI.get().load(uuid, progress)
      })
      const chainedSoundfontProvider = new ChainedSoundfontProvider({
++        // TakeDo: its soundfonts (GeneralUser GS, and copies of openDAW's) from samples/ too.
          fetch: async (uuid: UUID.Bytes, progress: Progress.Handler): Promise<[ArrayBuffer, SoundfontMetaData]> =>
+-            OpenSoundfontAPI.get().load(uuid, progress)
++            (await loadTakedoSoundfont(uuid, progress)) ?? OpenSoundfontAPI.get().load(uuid, progress)
+     })

@@ -26,7 +26,11 @@
     "sound/tubular-drawbars",
     "sound/tubular-analog-pad",
     "sound/sine-sub-vaporisateur",
-    "production/clean-modern"
+    "production/clean-modern",
+    "sound/lead-saw",
+    "sound/keys-organ",
+    "sound/keys-grand-piano",
+    "sound/bass-synth"
   ],
   "checked": {
     "how": "written",

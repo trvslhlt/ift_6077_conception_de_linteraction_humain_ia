@@ -30,6 +30,7 @@ import type {Connection} from "./Connection"
 // writing its value during playback would switch the lane off until stop. Value changes are reported; added and
 // removed effects aren't yet.
 
+const StallSeconds = 3            // a playhead stuck this long while playing: the engine has stalled
 const EngineSettleMs = 3000      // an engine start this soon after the adapter is the project opening, not a restart
 const LeadMs = 200              // edits land at least this far ahead of the playhead (STRATEGY.md, "Timing")
 const GestureFoldMs = 300       // value changes on a ref with no further change for this long form one change event
@@ -130,6 +131,29 @@ export class Adapter implements Terminable {
         this.#lastPosition = project.engine.position.getValue()
         this.#terminator.own(project.engine.position.subscribe(owner => this.#follow(owner.getValue())))
         this.#watchEngine(project)
+        this.#watchHealth(project)
+    }
+
+    // Every second: a playhead that hasn't moved for StallSeconds while playing, or openDAW's "Audio-Engine Error"
+    // dialog, is told to the backend once (and again when it plays on), so a session log says when and after what.
+    #watchHealth(project: Project): void {
+        let last = project.engine.position.getValue(), stuck = 0, state: "ok" | "stalled" | "crashed" = "ok"
+        const send = (next: "stalled" | "crashed" | "recovered", detail: string) => {
+            state = next === "recovered" ? "ok" : next
+            this.#connection.send({type: "engine_health", state: next, detail})
+        }
+        const timer = setInterval(() => {
+            const dialog = [...document.querySelectorAll<HTMLElement>("dialog, [role=dialog]")]
+                .find(element => element.innerText?.startsWith("Audio-Engine Error"))
+            const position = project.engine.position.getValue(), playing = project.engine.isPlaying.getValue()
+            stuck = playing && position === last ? stuck + 1 : 0
+            last = position
+            const cpu = `CPU load ${Math.round(project.engine.cpuLoad.getValue() * 100)}%`
+            if (dialog !== undefined && state !== "crashed") {send("crashed", `${dialog.innerText.slice(0, 300)} (${cpu})`)}
+            else if (dialog === undefined && stuck >= StallSeconds && state === "ok") {send("stalled", `playhead stuck at ${this.#pos(position)} while playing for ${stuck} s (${cpu})`)}
+            else if (dialog === undefined && state !== "ok" && playing && stuck === 0) {send("recovered", `playing again at ${this.#pos(position)}`)}
+        }, 1000)
+        this.#terminator.own({terminate: () => clearInterval(timer)})
     }
 
     // After an audio engine error openDAW asks to restart it, then starts a new engine on the same project; a value
@@ -158,7 +182,10 @@ export class Adapter implements Terminable {
     #follow(position: ppqn): void {
         const last = this.#lastPosition
         this.#lastPosition = position
-        if (!this.#project.engine.isPlaying.getValue()) {return}
+        if (!this.#project.engine.isPlaying.getValue()) {
+            this.#jamming = false
+            return
+        }
         this.#played += this.#advance(last, position)
         this.#keepGoing(position)
     }
@@ -166,11 +193,14 @@ export class Adapter implements Terminable {
     // A jam keeps going (2026-11-24): recording with the loop off, the song mustn't end under the producer (a 16-bar
     // project stopped at bar 17 and the take with it). A few bars before a part ends (a track's last region, not muted),
     // it plays on for KeepGoingBars more, its content repeating, and the timeline grows with it: added ahead of the
-    // playhead, nothing that has played changes. Not while just playing: a finished song with the loop off ends as it is.
+    // playhead, nothing that has played changes. Also while playing once an agent has changed the song since play
+    // started (2026-11-25: a melody added in an unrecorded loop-off jam ran ten bars and stopped); not while just
+    // playing a finished song with the loop off, which ends as it is.
     #extending = false
+    #jamming = false
     #keepGoing(position: ppqn): void {
         const {engine, timelineBox} = this.#project
-        if (this.#extending || timelineBox.loopArea.enabled.getValue() || !engine.isRecording.getValue()) {return}
+        if (this.#extending || timelineBox.loopArea.enabled.getValue() || !(engine.isRecording.getValue() || this.#jamming)) {return}
         const bar = this.#bar()
         // Parts only: an automation region being recorded is the recorder's to grow (2026-11-25: lengthening one fought
         // the recorder, which set it back each frame).
@@ -454,6 +484,7 @@ export class Adapter implements Terminable {
         const effect = this.#effects(unit).find(effect => effect.adapter === adapter)
         const device = this.#effectsOf(unit).find(device => device.ref === effect?.ref)
         this.#lastAgentEdit = {label: `${factory.defaultName} on ${unit.label}`, steps: this.#historySteps}
+        this.#jamming ||= this.#project.engine.isPlaying.getValue()
         this.#status(request, {state: "applied",
             result: {ref: effect?.ref ?? plan.track, label: effect?.label ?? factory.defaultName, device}})
     }
@@ -509,6 +540,7 @@ export class Adapter implements Terminable {
             return this.#status(request, {state: "dropped", reason: "held", detail: "it changed a control you're holding"})
         }
         this.#lastAgentEdit = {label: plan.description, steps: this.#historySteps}
+        this.#jamming ||= this.#project.engine.isPlaying.getValue()
         this.#status(request, {state: "applied",
             result: {ref: "project", label: plan.description, value: serialize(value), updates,
                 touched: touchedBetween(before, this.snapshot("full")),

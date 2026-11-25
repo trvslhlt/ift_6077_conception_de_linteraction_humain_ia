@@ -1,0 +1,50 @@
+{
+  "key": "sound/lead-saw",
+  "kind": "sound",
+  "summary": "Saw lead synth: synthwave, EDM, electro melodies",
+  "tags": [
+    "lead",
+    "saw",
+    "synthwave",
+    "edm",
+    "electro",
+    "trance",
+    "80s",
+    "synth"
+  ],
+  "devices": [
+    "Soundfont"
+  ],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (sound palette)",
+    "date": "2026-11-25",
+    "opendaw": "652e6ca"
+  },
+  "group": "Sampled instruments (soundfonts, make_instrument)",
+  "label": "saw lead",
+  "body": [
+    "Melodies and hooks. Square lead (chiptune, 80s): GeneralUser GS/Square Lead; fat: GeneralUser GS/Polysynth.",
+    "Register: MIDI 55-91 (openDAW names C3 = 60); outside it, it sounds wrong. Sound: GeneralUser GS/Saw Lead, a sampled instrument: make_instrument (sound \"GeneralUser GS/Saw Lead\") makes the track with its notes in one edit; apply makes it empty."
+  ],
+  "apply": {
+    "params": {
+      "name": {
+        "type": "text",
+        "optional": true
+      }
+    },
+    "steps": [
+      {
+        "op": "soundfont",
+        "input": {
+          "name": "$name",
+          "default_name": "Lead",
+          "sound": "GeneralUser GS/Saw Lead",
+          "volume_db": -8
+        }
+      }
+    ]
+  }
+}

@@ -67,6 +67,7 @@ export class Coordinator {
     #opening: string | undefined = undefined   // the page's id for this opening of the project (protocol.ts)
     readonly #notebooks: string
     #takes: Takes = new Takes(null)        // the open project's takes (takes.ts)
+    readonly #recentChanges: Array<{ t: number, pos: string, actor: string, label: string, from: unknown, to: unknown }> = []
     readonly #blending = new Map<string, Set<string>>()   // per dial: the requests its last move sent (#blend)
     #ledger: Ledger = new Ledger(null)      // the open project's activity ledger (ledger.ts)
     #notebook: Notebook | null = null       // the open project's
@@ -189,6 +190,17 @@ export class Coordinator {
                 this.#looks.get(message.id)?.({ok: message.ok, value: message.value})
                 this.#looks.delete(message.id)
                 return
+            case "engine_health": {
+                // With what came just before: the last changes, by hand or by agents (the session's riding of a tremolo).
+                const recent = this.#recentChanges.slice(-12)
+                this.#log.write("engine", {health: message.state, detail: message.detail, recent})
+                if (message.state === "recovered") {return}
+                const text = message.state === "crashed" ? "The audio engine crashed (openDAW is asking to restart it)."
+                    : "The audio engine has stalled: the playhead stopped while playing."
+                this.say("agent:team_lead", `${text} The last changes before it: ${recent.slice(-4).map(change => `${change.label} ${change.from} → ${change.to} (${change.actor.replace("agent:", "")})`).join("; ") || "none"}.`)
+                this.#captain.notice(`${text} ${message.detail}`)
+                return
+            }
             case "engine": {
                 this.#log.write("engine", {undone: message.undone})
                 const text = message.undone === null
@@ -730,6 +742,9 @@ export class Coordinator {
     #change(event: ChangeEvent): void {
         this.#log.seen(event.seq)
         this.#log.write("change", event)
+        event.changes.forEach(({label, from, to}) => this.#recentChanges.push({t: event.t, pos: event.pos, actor: event.actor, label,
+            from: typeof from === "number" ? Number(from.toFixed(3)) : from, to: typeof to === "number" ? Number(to.toFixed(3)) : to}))
+        this.#recentChanges.splice(0, Math.max(0, this.#recentChanges.length - 40))
         if (event.actor !== "user") {return}
         event.changes.forEach(({ref, label, from, to}) => this.#handChanges.push({t: event.t, pos: event.pos, ref, label, from, to}))
     }

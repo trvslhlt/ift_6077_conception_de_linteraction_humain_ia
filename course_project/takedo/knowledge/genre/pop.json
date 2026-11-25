@@ -20,7 +20,11 @@
     "pattern/prog-pop-common-2",
     "genre/synth-pop",
     "genre/rock",
-    "production/clean-modern"
+    "production/clean-modern",
+    "sound/strings-slow",
+    "sound/keys-grand-piano",
+    "sound/guitar-clean",
+    "sound/bass-finger"
   ],
   "checked": {
     "how": "written",

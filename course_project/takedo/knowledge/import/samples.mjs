@@ -5,7 +5,7 @@
 // hh closed hat, oh open hat, cp clap, rim, cr crash, ...), length and sample rate (from the WAV header).
 // Usage: node knowledge/import/samples.mjs <samples dir>
 import {createHash} from "node:crypto"
-import {openSync, readSync, closeSync, readdirSync, statSync, writeFileSync} from "node:fs"
+import {openSync, readSync, closeSync, readdirSync, readFileSync, statSync, writeFileSync} from "node:fs"
 import {join, relative, sep} from "node:path"
 
 const root = process.argv[2] ?? "samples"
@@ -39,7 +39,7 @@ const header = path => {
 }
 
 const walk = dir => readdirSync(dir, {withFileTypes: true}).flatMap(entry =>
-    entry.isDirectory() ? walk(join(dir, entry.name)) : /\.wav$/i.test(entry.name) ? [join(dir, entry.name)] : [])
+    entry.isDirectory() ? (entry.name === "soundfonts" ? [] : walk(join(dir, entry.name))) : /\.wav$/i.test(entry.name) ? [join(dir, entry.name)] : [])
 
 const samples = walk(root).sort().flatMap(path => {
     const file = relative(root, path).split(sep).join("/")
@@ -51,5 +51,36 @@ const samples = walk(root).sort().flatMap(path => {
     return [{uuid: uuidOf(file), file, collection, machine: machine ?? null, role: code === null ? null : Roles[code] ?? code,
         name: `${machine ?? collection} ${code ?? ""} ${name}`.replace(/\s+/g, " ").trim(), ...meta}]
 })
-writeFileSync(join(root, "manifest.json"), JSON.stringify({made: new Date().toISOString(), samples}))
-console.log(`${samples.length} samples in ${join(root, "manifest.json")}`)
+// Soundfonts (soundfonts.mjs fetched them): a preset list per file, in the order openDAW indexes them (its soundfont2
+// library: the phdr chunk's headers in file order, without the closing "EOP"), with each preset's bank and program.
+const presetsOf = path => {
+    const buffer = readFileSync(path)
+    const find = (from, to, id) => {
+        for (let offset = from; offset + 8 <= to;) {
+            const chunk = buffer.toString("ascii", offset, offset + 4), size = buffer.readUInt32LE(offset + 4)
+            if (chunk === id) {return {start: offset + 8, end: offset + 8 + size}}
+            if (chunk === "LIST" && buffer.toString("ascii", offset + 8, offset + 12) === "pdta" && id === "phdr") {
+                return find(offset + 12, offset + 8 + size, id)
+            }
+            offset += 8 + size + (size & 1)
+        }
+        return null
+    }
+    const phdr = find(12, buffer.length, "phdr")
+    if (phdr === null) {return []}
+    const presets = []
+    for (let offset = phdr.start; offset + 38 <= phdr.end; offset += 38) {
+        const name = buffer.toString("latin1", offset, offset + 20).replace(/\0.*$/s, "").trim()
+        presets.push({name, program: buffer.readUInt16LE(offset + 20), bank: buffer.readUInt16LE(offset + 22)})
+    }
+    return presets.filter(preset => preset.name !== "EOP").map((preset, index) => ({index, ...preset}))
+}
+const {soundfonts: sources} = JSON.parse(readFileSync(new URL("./soundfonts.json", import.meta.url), "utf8"))
+const soundfonts = sources.flatMap(source => {
+    const path = join(root, "soundfonts", source.file)
+    try {statSync(path)} catch {return []}
+    return [{uuid: source.uuid ?? uuidOf(`soundfonts/${source.file}`), file: `soundfonts/${source.file}`, name: source.name,
+        about: source.about, size: statSync(path).size, presets: presetsOf(path)}]
+})
+writeFileSync(join(root, "manifest.json"), JSON.stringify({made: new Date().toISOString(), samples, soundfonts}))
+console.log(`${samples.length} samples and ${soundfonts.length} soundfonts (${soundfonts.reduce((sum, font) => sum + font.presets.length, 0)} presets) in ${join(root, "manifest.json")}`)

@@ -293,6 +293,30 @@ try {
             && kit.bass?.rootKey === 31 && kit.bass.tune === -35 && kit.bass.file,
         JSON.stringify({kit: madeKit.state, kitDetail: madeKit.detail, bass: madeBass.state, bassDetail: madeBass.detail, ...kit}))
 
+    // ---------- a sampled instrument: a soundfont preset from samples/soundfonts loads at the manifest's index ----------
+    const fonts = await page.evaluate(async () => (await (await fetch("/sample-collections/manifest.json")).json()).soundfonts)
+    const general = fonts.find(font => font.name === "GeneralUser GS")
+    const finger = general?.presets.find(preset => preset.name === "Finger Bass")
+    const madeFont = general === undefined || finger === undefined ? {state: "no soundfont in the manifest"} : await apply({op: "script",
+        description: "a finger bass from TakeDo's soundfonts",
+        code: `const args = ${JSON.stringify({name: "Finger", uuid: general.uuid, file_name: general.name, preset: finger.index,
+            preset_name: finger.name, volume_db: -6, notes: {...notes, name: "finger", notes: [[0, 33, 1, 0.8]]}})};\n${helpers}\nreturn kb.soundfont(args)`})
+    const font = madeFont.state !== "applied" ? null : await page.evaluate(async uuid => {
+        const {project} = window.takedo.service.projectProfileService.getValue().unwrap()
+        const {lib} = window.takedo.adapter.env
+        const loader = project.soundfontManager.getOrCreate(lib.std.UUID.parse(uuid))
+        const device = project.rootBoxAdapter.audioUnits.adapters().find(unit => unit.label === "Finger")?.inputAdapter.unwrap()
+        const start = Date.now()
+        while ((loader.state.type !== "loaded" || device?.preset.isEmpty()) && loader.state.type !== "error" && Date.now() - start < 30000) {
+            await new Promise(resolve => setTimeout(resolve, 200))
+        }
+        return {state: loader.state.type, preset: device?.preset.match({none: () => null, some: preset => preset.header.name}) ?? null,
+            index: device?.presetIndex ?? null}
+    }, general.uuid)
+    check("a soundfont preset of TakeDo's (samples/soundfonts), made by kb.soundfont, loads at the manifest's index",
+        madeFont.state === "applied" && font?.state === "loaded" && font.preset === "Finger Bass" && font.index === finger.index,
+        JSON.stringify({made: madeFont.state, detail: madeFont.detail, ...font}))
+
     // ---------- loop off: an edit changes only what's still to play (the take replays as performed) ----------
     // A part looping 1 bar over 64 bars from bar 1, the loop off: an agent rewriting its notes splits it where the
     // playhead is (the bars played keep the old notes), and a tempo step lands on the tempo track.

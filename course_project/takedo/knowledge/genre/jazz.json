@@ -23,7 +23,12 @@
     "genre/neo-soul",
     "sound/tubular-rhodes",
     "sound/tubular-vibes",
-    "chain/small-room"
+    "chain/small-room",
+    "sound/bass-upright",
+    "sound/sax-alto",
+    "sound/keys-vibes",
+    "sound/keys-upright-piano",
+    "sound/keys-rhodes"
   ],
   "checked": {
     "how": "written",

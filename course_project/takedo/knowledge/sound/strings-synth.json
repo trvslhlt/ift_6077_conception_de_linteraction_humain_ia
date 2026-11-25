@@ -1,0 +1,49 @@
+{
+  "key": "sound/strings-synth",
+  "kind": "sound",
+  "summary": "Synth strings: disco, 80s, synthwave",
+  "tags": [
+    "strings",
+    "synth strings",
+    "disco",
+    "80s",
+    "synthwave",
+    "synth-pop",
+    "pad"
+  ],
+  "devices": [
+    "Soundfont"
+  ],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (sound palette)",
+    "date": "2026-11-25",
+    "opendaw": "652e6ca"
+  },
+  "group": "Sampled instruments (soundfonts, make_instrument)",
+  "label": "synth strings",
+  "body": [
+    "Disco string stabs and swells, synthwave pads.",
+    "Register: MIDI 40-88 (openDAW names C3 = 60); outside it, it sounds wrong. Sound: GeneralUser GS/Synth Strings 1, a sampled instrument: make_instrument (sound \"GeneralUser GS/Synth Strings 1\") makes the track with its notes in one edit; apply makes it empty."
+  ],
+  "apply": {
+    "params": {
+      "name": {
+        "type": "text",
+        "optional": true
+      }
+    },
+    "steps": [
+      {
+        "op": "soundfont",
+        "input": {
+          "name": "$name",
+          "default_name": "Synth Strings",
+          "sound": "GeneralUser GS/Synth Strings 1",
+          "volume_db": -7
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,68 @@
+{
+ "//": "The soundfonts `make samples` fetches into samples/soundfonts/ (knowledge/import/soundfonts.mjs), pinned by commit or by openDAW's asset UUID and size. openDAW's keep their UUIDs, so a project that uses one gets it back from samples/ too; ours get a name-based one.",
+ "soundfonts": [
+  {
+   "file": "GeneralUser-GS.sf2",
+   "name": "GeneralUser GS",
+   "size": 32319396,
+   "url": "https://raw.githubusercontent.com/mrbumpy409/GeneralUser-GS/97049183643d5fc5a9322a69c5b09efb667c6c3a/GeneralUser-GS.sf2",
+   "about": "S. Christian Collins' General MIDI bank (v2.0.3): pianos, EPs, organs, basses, strings, brass, pads, leads, kits"
+  },
+  {
+   "file": "opendaw/Concert Harp.sf2",
+   "name": "Concert Harp",
+   "uuid": "cb5f6b48-cff7-4fd4-9bf8-d302272f7641",
+   "size": 18810604,
+   "url": "https://assets.opendaw.studio/soundfonts/cb5f6b48-cff7-4fd4-9bf8-d302272f7641",
+   "about": "openDAW's own (https://freepats.zenvoid.org/OrchestralStrings/harp.html)"
+  },
+  {
+   "file": "opendaw/Drawbar organ emulation.sf2",
+   "name": "Drawbar organ emulation",
+   "uuid": "200b7d76-2fb1-44d7-9bee-34760a768319",
+   "size": 6505320,
+   "url": "https://assets.opendaw.studio/soundfonts/200b7d76-2fb1-44d7-9bee-34760a768319",
+   "about": "openDAW's own (https://freepats.zenvoid.org/Organ/electric-organ.html)"
+  },
+  {
+   "file": "opendaw/FSS Steel String Guitar.sf2",
+   "name": "FSS Steel String Guitar",
+   "uuid": "5dd52f72-41b0-4956-89d2-41da0c582e3e",
+   "size": 5349124,
+   "url": "https://assets.opendaw.studio/soundfonts/5dd52f72-41b0-4956-89d2-41da0c582e3e",
+   "about": "openDAW's own (https://freepats.zenvoid.org/Guitar/steel-acoustic-guitar.html)"
+  },
+  {
+   "file": "opendaw/HS TB-303.sf2",
+   "name": "HS TB-303",
+   "uuid": "e36d464d-80d3-4769-b93b-971948cef7f6",
+   "size": 1117834,
+   "url": "https://assets.opendaw.studio/soundfonts/e36d464d-80d3-4769-b93b-971948cef7f6",
+   "about": "openDAW's own (https://musical-artifacts.com/artifacts/241/)"
+  },
+  {
+   "file": "opendaw/Spanish classical guitar.sf2",
+   "name": "Spanish classical guitar",
+   "uuid": "0d4c08ea-8c1c-4924-b382-9084b0c8778f",
+   "size": 19822546,
+   "url": "https://assets.opendaw.studio/soundfonts/0d4c08ea-8c1c-4924-b382-9084b0c8778f",
+   "about": "openDAW's own (https://freepats.zenvoid.org/Guitar/acoustic-guitar.html)"
+  },
+  {
+   "file": "opendaw/Upright Piano KW.sf2",
+   "name": "Upright Piano KW",
+   "uuid": "d9f51577-2096-4671-9067-27ca2e12b329",
+   "size": 57377848,
+   "url": "https://assets.opendaw.studio/soundfonts/d9f51577-2096-4671-9067-27ca2e12b329",
+   "about": "openDAW's own (https://freepats.zenvoid.org/Piano/acoustic-grand-piano.html)"
+  },
+  {
+   "file": "opendaw/Xylophone.sf2",
+   "name": "Xylophone",
+   "uuid": "d831fab1-9aa2-4e90-8e82-dc91126ab5b5",
+   "size": 4244686,
+   "url": "https://assets.opendaw.studio/soundfonts/d831fab1-9aa2-4e90-8e82-dc91126ab5b5",
+   "about": "openDAW's own (https://freepats.zenvoid.org/ChromaticPercussion/xylophone.html)"
+  }
+ ]
+}

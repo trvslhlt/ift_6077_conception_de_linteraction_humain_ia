@@ -24,7 +24,12 @@
     "genre/neo-soul",
     "sound/tubular-clav",
     "sound/tubular-slap-bass",
-    "sound/tubular-brass-sect"
+    "sound/tubular-brass-sect",
+    "sound/keys-clav",
+    "sound/keys-organ",
+    "sound/brass-section",
+    "sound/bass-finger",
+    "sound/keys-rhodes"
   ],
   "checked": {
     "how": "written",

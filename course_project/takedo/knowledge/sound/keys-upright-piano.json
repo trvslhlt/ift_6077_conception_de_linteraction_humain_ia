@@ -1,0 +1,50 @@
+{
+  "key": "sound/keys-upright-piano",
+  "kind": "sound",
+  "summary": "Upright piano (sampled): intimate, a little worn, lofi and indie",
+  "tags": [
+    "piano",
+    "keys",
+    "upright",
+    "lofi",
+    "lo-fi",
+    "indie",
+    "intimate",
+    "jazz"
+  ],
+  "devices": [
+    "Soundfont"
+  ],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (sound palette)",
+    "date": "2026-11-25",
+    "opendaw": "652e6ca"
+  },
+  "group": "Sampled instruments (soundfonts, make_instrument)",
+  "label": "upright piano",
+  "body": [
+    "Close and soft: lofi chords, sparse melodies. Pairs with production/lofi.",
+    "Register: MIDI 36-96 (openDAW names C3 = 60); outside it, it sounds wrong. Sound: Upright Piano KW/Upright Piano KW, a sampled instrument: make_instrument (sound \"Upright Piano KW/Upright Piano KW\") makes the track with its notes in one edit; apply makes it empty."
+  ],
+  "apply": {
+    "params": {
+      "name": {
+        "type": "text",
+        "optional": true
+      }
+    },
+    "steps": [
+      {
+        "op": "soundfont",
+        "input": {
+          "name": "$name",
+          "default_name": "Upright Piano",
+          "sound": "Upright Piano KW/Upright Piano KW",
+          "volume_db": -4
+        }
+      }
+    ]
+  }
+}

@@ -25,7 +25,12 @@
     "sound/tubular-rhodes",
     "sound/tubular-soft-rhds",
     "sound/sine-sub-vaporisateur",
-    "chain/small-room"
+    "chain/small-room",
+    "sound/keys-rhodes",
+    "sound/bass-finger",
+    "sound/guitar-clean",
+    "sound/sax-alto",
+    "sound/pad-warm"
   ],
   "checked": {
     "how": "written",

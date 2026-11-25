@@ -26,7 +26,11 @@
     "sound/sine-sub-vaporisateur",
     "sound/tubular-glass-bell",
     "sound/tubular-celesta",
-    "sound/tubular-choir"
+    "sound/tubular-choir",
+    "sound/bells-celesta",
+    "sound/strings-slow",
+    "sound/flute",
+    "sound/choir-oohs"
   ],
   "checked": {
     "how": "written",

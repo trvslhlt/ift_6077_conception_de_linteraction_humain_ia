@@ -5,7 +5,7 @@
 // any time. They're listed in openDAW's sample browser too. Fixed UUIDs (knowledge/import/samples.mjs).
 import {UUID} from "@opendaw/lib-std"
 import {type AudioData, WavFile} from "@opendaw/lib-dsp"
-import type {Sample} from "@opendaw/studio-adapters"
+import type {Sample, Soundfont, SoundfontMetaData} from "@opendaw/studio-adapters"
 
 export type TakeDoSample = {
     uuid: string, file: string, collection: string, machine: string | null, role: string | null, name: string,
@@ -13,15 +13,19 @@ export type TakeDoSample = {
 }
 
 const Root = "/sample-collections"
-let manifest: Promise<ReadonlyArray<TakeDoSample>> | null = null
+export type TakeDoSoundfont = { uuid: string, file: string, name: string, about: string, size: number }
 
-export const takedoSamples = (): Promise<ReadonlyArray<TakeDoSample>> => {
+let manifest: Promise<{ samples: ReadonlyArray<TakeDoSample>, soundfonts: ReadonlyArray<TakeDoSoundfont> }> | null = null
+const loaded = () => {
     manifest ??= fetch(`${Root}/manifest.json`)
-        .then(response => response.ok ? response.json() : {samples: []})
-        .then(json => (json.samples ?? []) as ReadonlyArray<TakeDoSample>)
-        .catch(() => [])
+        .then(response => response.ok ? response.json() : {})
+        .then(json => ({samples: json.samples ?? [], soundfonts: json.soundfonts ?? []}))
+        .catch(() => ({samples: [], soundfonts: []}))
     return manifest
 }
+
+export const takedoSamples = async (): Promise<ReadonlyArray<TakeDoSample>> => (await loaded()).samples
+const fileUrl = (file: string) => `${Root}/${file.split("/").map(encodeURIComponent).join("/")}`
 
 const asSample = (sample: TakeDoSample): Sample => ({
     uuid: sample.uuid as Sample["uuid"], name: sample.name, bpm: 0, duration: sample.duration,
@@ -36,9 +40,28 @@ export const loadTakedoSample = async (uuid: UUID.Bytes, progress: (value: numbe
     const id = UUID.toString(uuid)
     const sample = (await takedoSamples()).find(candidate => candidate.uuid === id)
     if (sample === undefined) {return null}
-    const response = await fetch(`${Root}/${sample.file.split("/").map(encodeURIComponent).join("/")}`)
+    const response = await fetch(fileUrl(sample.file))
     if (!response.ok) {throw new Error(`TakeDo sample ${sample.file}: ${response.status} (run make samples)`)}
     const audio = WavFile.decodeFloats(await response.arrayBuffer())
     progress(1)
     return [audio, {...asSample(sample), duration: audio.numberOfFrames / audio.sampleRate, sample_rate: audio.sampleRate}]
+}
+
+// Soundfonts (GeneralUser GS, and copies of openDAW's own under their UUIDs), the same way: listed in openDAW's
+// soundfont browser, and loaded from samples/ before openDAW's servers are asked.
+const asSoundfont = (font: TakeDoSoundfont): Soundfont => ({uuid: font.uuid as Soundfont["uuid"], name: font.name, size: font.size,
+    url: fileUrl(font.file), license: font.about, origin: "import"})
+
+export const takedoSoundfontList = async (): Promise<ReadonlyArray<Soundfont>> => (await loaded()).soundfonts.map(asSoundfont)
+
+export const loadTakedoSoundfont = async (uuid: UUID.Bytes, progress: (value: number) => void): Promise<[ArrayBuffer, SoundfontMetaData] | null> => {
+    const id = UUID.toString(uuid)
+    const font = (await loaded()).soundfonts.find(candidate => candidate.uuid === id)
+    if (font === undefined) {return null}
+    const response = await fetch(fileUrl(font.file))
+    if (!response.ok) {return null}
+    const buffer = await response.arrayBuffer()
+    progress(1)
+    const {uuid: _uuid, ...meta} = asSoundfont(font)
+    return [buffer, meta]
 }

@@ -1,0 +1,49 @@
+{
+  "key": "sound/keys-vibes",
+  "kind": "sound",
+  "summary": "Vibraphone: soft mallets, jazz, lofi, bossa",
+  "tags": [
+    "vibraphone",
+    "vibes",
+    "mallet",
+    "jazz",
+    "lofi",
+    "bossa nova",
+    "chill"
+  ],
+  "devices": [
+    "Soundfont"
+  ],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (sound palette)",
+    "date": "2026-11-25",
+    "opendaw": "652e6ca"
+  },
+  "group": "Sampled instruments (soundfonts, make_instrument)",
+  "label": "vibraphone",
+  "body": [
+    "Sparse melodies and chord tones, let it ring.",
+    "Register: MIDI 53-89 (openDAW names C3 = 60); outside it, it sounds wrong. Sound: GeneralUser GS/Vibraphone, a sampled instrument: make_instrument (sound \"GeneralUser GS/Vibraphone\") makes the track with its notes in one edit; apply makes it empty."
+  ],
+  "apply": {
+    "params": {
+      "name": {
+        "type": "text",
+        "optional": true
+      }
+    },
+    "steps": [
+      {
+        "op": "soundfont",
+        "input": {
+          "name": "$name",
+          "default_name": "Vibes",
+          "sound": "GeneralUser GS/Vibraphone",
+          "volume_db": -6
+        }
+      }
+    ]
+  }
+}

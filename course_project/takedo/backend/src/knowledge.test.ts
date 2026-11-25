@@ -303,6 +303,15 @@ describe("kits", {skip: samples.size === 0 ? "no samples/ (make samples)" : fals
         assert.match(String(withSamples.kit({pads: [{role: "kick", sample: "RolandTR808/bd/NOPE"}]}, snapshot)), /no sample RolandTR808\/bd\/NOPE/)
         assert.match(String(withSamples.kit({pads: [{role: "kick", sample: "RolandTR808/bd/BD0010"}], notes: {hits: [[0, "tuba", 1]], beats: 4}}, snapshot)), /unknown drum role tuba/)
     })
+    it("finds sampled instruments by name and makes one a new Soundfont track at its preset", () => {
+        assert.ok(samples.searchSounds("fingered bass", 5).some(sound => sound.id === "GeneralUser GS/Finger Bass"))
+        const sound = samples.sound("GeneralUser GS/Finger Bass")!
+        assert.equal(sound.program, 33)
+        const made = withSamples.soundfont({name: "Bass", sound: "GeneralUser GS/Finger Bass", notes: {notes: [[0, 40, 1, 0.9]], loop_bars: 1, from_bar: 3, bars: 8}}, snapshot)
+        assert.ok(typeof made !== "string" && made.code.includes(`"preset":${sound.index}`) && made.code.includes('"from_bar":3'), String(made))
+        compiles((made as { code: string }).code)
+        assert.match(String(withSamples.soundfont({sound: "GeneralUser GS/Kazoo Deluxe"}, snapshot)), /no sound/)
+    })
     it("makes the 808 bass a Nano at G1, with notes as written", () => {
         const planned = withSamples.expand("sound/808-bass", {}, snapshot)
         assert.ok(Array.isArray(planned) && planned[0].kind === "script" && planned[0].code.includes('"root_key":31'), String(planned))

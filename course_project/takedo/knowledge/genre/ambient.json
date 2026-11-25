@@ -22,7 +22,12 @@
     "sound/tubular-bell-pad",
     "sound/tubular-glass-bell",
     "sound/tubular-choir",
-    "chain/dub-echo"
+    "chain/dub-echo",
+    "sound/pluck-kalimba",
+    "sound/pad-warm",
+    "sound/keys-vibes",
+    "sound/keys-rhodes",
+    "sound/choir-oohs"
   ],
   "checked": {
     "how": "written",

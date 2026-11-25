@@ -136,6 +136,9 @@ export type PageToBackend =
     | { type: "change", event: ChangeEvent }
     | { type: "looked", id: number, ok: boolean, value: string }   // a look's result (JSON, truncated) or its error
     | { type: "engine", undone: string | null }          // the audio engine crashed and is restarting; undone: the agent edit taken back
+    // The page's watchdog (2026-11-25: an engine break in a live session left no trace): the playhead stopped while
+    // playing, or openDAW's crash dialog showed; detail: what the page saw (the dialog's text, CPU load).
+    | { type: "engine_health", state: "stalled" | "crashed" | "recovered", detail: string }
 
 export type BackendToPage =
     | { type: "welcome", session: string, protocol: number, startedAt: string }

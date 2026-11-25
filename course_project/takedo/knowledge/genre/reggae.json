@@ -22,7 +22,10 @@
     "genre/dub",
     "production/dub",
     "sound/tubular-drawbars",
-    "chain/dub-echo"
+    "chain/dub-echo",
+    "sound/keys-organ",
+    "sound/guitar-clean",
+    "sound/bass-finger"
   ],
   "checked": {
     "how": "written",

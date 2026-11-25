@@ -20,7 +20,10 @@
     "pattern/prog-dub-common-1",
     "production/dub",
     "genre/reggae",
-    "chain/dub-echo"
+    "chain/dub-echo",
+    "sound/keys-organ",
+    "sound/guitar-clean",
+    "sound/bass-finger"
   ],
   "checked": {
     "how": "written",

@@ -1,0 +1,49 @@
+{
+  "key": "sound/pluck-kalimba",
+  "kind": "sound",
+  "summary": "Kalimba: soft plucked tines, afrobeat, chill, lofi, ambient",
+  "tags": [
+    "kalimba",
+    "pluck",
+    "afrobeat",
+    "chill",
+    "lofi",
+    "ambient",
+    "world"
+  ],
+  "devices": [
+    "Soundfont"
+  ],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (sound palette)",
+    "date": "2026-11-25",
+    "opendaw": "652e6ca"
+  },
+  "group": "Sampled instruments (soundfonts, make_instrument)",
+  "label": "kalimba",
+  "body": [
+    "Repeating patterns of a few notes.",
+    "Register: MIDI 55-91 (openDAW names C3 = 60); outside it, it sounds wrong. Sound: GeneralUser GS/Kalimba, a sampled instrument: make_instrument (sound \"GeneralUser GS/Kalimba\") makes the track with its notes in one edit; apply makes it empty."
+  ],
+  "apply": {
+    "params": {
+      "name": {
+        "type": "text",
+        "optional": true
+      }
+    },
+    "steps": [
+      {
+        "op": "soundfont",
+        "input": {
+          "name": "$name",
+          "default_name": "Kalimba",
+          "sound": "GeneralUser GS/Kalimba",
+          "volume_db": -6
+        }
+      }
+    ]
+  }
+}

@@ -24,7 +24,9 @@
     "genre/house",
     "chain/dub-echo",
     "sound/tubular-brass-sect",
-    "sound/sine-sub-vaporisateur"
+    "sound/sine-sub-vaporisateur",
+    "sound/bells-celesta",
+    "sound/bass-acid-303"
   ],
   "checked": {
     "how": "written",

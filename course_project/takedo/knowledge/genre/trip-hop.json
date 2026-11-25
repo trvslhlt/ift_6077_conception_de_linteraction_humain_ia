@@ -24,7 +24,10 @@
     "sound/tubular-strings",
     "sound/tubular-rhodes",
     "chain/tape-dust",
-    "chain/dub-echo"
+    "chain/dub-echo",
+    "sound/strings-slow",
+    "sound/choir-oohs",
+    "sound/bells-celesta"
   ],
   "checked": {
     "how": "written",

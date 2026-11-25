@@ -20,7 +20,12 @@
     "pattern/gmd-rock-beat-1",
     "pattern/gmd-rock-indie-beat-1",
     "pattern/fill-snare-run",
-    "genre/pop"
+    "genre/pop",
+    "sound/guitar-overdrive",
+    "sound/keys-upright-piano",
+    "sound/keys-organ",
+    "sound/guitar-nylon",
+    "sound/guitar-clean"
   ],
   "checked": {
     "how": "written",

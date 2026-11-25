@@ -36,7 +36,7 @@ try {
         await page.getByTestId("takedo-toggle").click()
         await page.waitForFunction(() => document.querySelector("[data-testid=takedo-status]")?.dataset.status === "open")
     }
-    const result = await page.evaluate(async ([seconds, bundled, edits, loop, rampMs, effectPlans]) => {
+    const result = await page.evaluate(async ([seconds, bundled, edits, loop, rampMs, effectPlans, noRecord, drags]) => {
         const {service} = window.takedo
         const {project} = service.projectProfileService.getValue().unwrap()
         const {timelineBox, engine} = project
@@ -55,7 +55,7 @@ try {
         const regions = () => project.rootBoxAdapter.audioUnits.adapters().flatMap(unit => unit.tracks.values().flatMap(track => track.regions.collection.asArray()))
         const ends = () => regions().map(region => Math.round(region.complete / bar * 100) / 100)
         const samples = [{label: "set up", ends: ends(), length: timelineBox.durationInPulses.getValue() / bar}]
-        project.startRecording(false)
+        if (!noRecord) {project.startRecording(false)}
         const start = performance.now()
         while (!engine.isRecording.getValue() && performance.now() - start < 10000) {await new Promise(resolve => setTimeout(resolve, 50))}
         // EDITS=notes|tempo|both: from bar 16 on, every 2 bars, a stage's edit as the agents make it: every note of the
@@ -111,6 +111,23 @@ try {
                 })
                 return `ramping ${units.length} volumes to ${target}`
             }
+            // EDITS=ride: from bar 4, a hand riding one knob without letting go (2026-11-25: a producer riding a tremolo's
+            // symmetry while recording broke the engine): the first part's volume, a write every RAMP_MS, a slow wobble.
+            if (edits === "ride") {
+                if (added || engine.position.getValue() < 3 * bar) {return null}
+                added = true
+                const parameter = project.rootBoxAdapter.audioUnits.adapters()[0].namedParameter.volume
+                const start = performance.now()
+                const step = () => {
+                    const t = (performance.now() - start) / 1000
+                    project.editing.modify(() => parameter.setValue(-12 + 6 * Math.sin(t * 2) + Math.random()), false)
+                    // DRAGS=1: let go every half second, as separate gestures (one undo step each).
+                    if (drags && Math.floor(t * 2) !== Math.floor((t - rampMs / 1000) * 2)) {project.editing.mark()}
+                    setTimeout(step, rampMs)
+                }
+                step()
+                return "riding the first part's volume"
+            }
             // EDITS=reverb: a Dattorro Reverb on every unit once past bar 14, then its decay and wet moved every 2 bars.
             if (edits === "reverb") {
                 if (engine.position.getValue() < 14 * bar) {return null}
@@ -156,7 +173,8 @@ try {
                 length: timelineBox.durationInPulses.getValue() / bar, ends: ends(), ctx: Number(service.audioContext.currentTime.toFixed(1)), edited})
         }
         return samples
-    }, [SECONDS, PROJECT !== "", process.env.EDITS ?? "", process.env.LOOP === "1", Number(process.env.RAMP_MS ?? 20), probeEffects])
+    }, [SECONDS, PROJECT !== "", process.env.EDITS ?? "", process.env.LOOP === "1", Number(process.env.RAMP_MS ?? 20), probeEffects,
+        process.env.NOREC === "1", process.env.DRAGS === "1"])
     result.forEach(sample => console.log(JSON.stringify(sample)))
 } finally {
     await browser.close()

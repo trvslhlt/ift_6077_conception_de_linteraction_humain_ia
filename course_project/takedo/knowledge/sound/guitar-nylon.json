@@ -1,0 +1,49 @@
+{
+  "key": "sound/guitar-nylon",
+  "kind": "sound",
+  "summary": "Nylon-string guitar: bossa nova, latin, lofi",
+  "tags": [
+    "guitar",
+    "nylon",
+    "classical guitar",
+    "bossa nova",
+    "latin",
+    "lofi",
+    "acoustic"
+  ],
+  "devices": [
+    "Soundfont"
+  ],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (sound palette)",
+    "date": "2026-11-25",
+    "opendaw": "652e6ca"
+  },
+  "group": "Sampled instruments (soundfonts, make_instrument)",
+  "label": "nylon guitar",
+  "body": [
+    "Bossa nova comping (chords on the syncopated pattern), lofi samples. A finer one: Spanish classical guitar/Classical guitar.",
+    "Register: MIDI 40-84 (openDAW names C3 = 60); outside it, it sounds wrong. Sound: GeneralUser GS/Nylon Guitar, a sampled instrument: make_instrument (sound \"GeneralUser GS/Nylon Guitar\") makes the track with its notes in one edit; apply makes it empty."
+  ],
+  "apply": {
+    "params": {
+      "name": {
+        "type": "text",
+        "optional": true
+      }
+    },
+    "steps": [
+      {
+        "op": "soundfont",
+        "input": {
+          "name": "$name",
+          "default_name": "Nylon Guitar",
+          "sound": "GeneralUser GS/Nylon Guitar",
+          "volume_db": -5
+        }
+      }
+    ]
+  }
+}

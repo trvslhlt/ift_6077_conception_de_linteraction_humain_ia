@@ -27,7 +27,12 @@
     "pattern/prog-lofi-hip-hop-characteristic-1",
     "sound/tubular-soft-rhds",
     "sound/tubular-rhodes",
-    "chain/tape-dust"
+    "chain/tape-dust",
+    "sound/keys-rhodes",
+    "sound/pluck-kalimba",
+    "sound/pad-warm",
+    "sound/keys-vibes",
+    "sound/keys-upright-piano"
   ],
   "checked": {
     "how": "written",

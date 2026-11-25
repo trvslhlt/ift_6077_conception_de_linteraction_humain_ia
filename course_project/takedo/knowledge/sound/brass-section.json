@@ -1,0 +1,50 @@
+{
+  "key": "sound/brass-section",
+  "kind": "sound",
+  "summary": "Brass section: funk and disco hits, soul, big band",
+  "tags": [
+    "brass",
+    "horns",
+    "funk",
+    "disco",
+    "soul",
+    "big band",
+    "latin",
+    "stabs"
+  ],
+  "devices": [
+    "Soundfont"
+  ],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (sound palette)",
+    "date": "2026-11-25",
+    "opendaw": "652e6ca"
+  },
+  "group": "Sampled instruments (soundfonts, make_instrument)",
+  "label": "brass section",
+  "body": [
+    "Short stabs on accents, unison riffs. 80s synth brass: GeneralUser GS/Synth Brass 1.",
+    "Register: MIDI 48-84 (openDAW names C3 = 60); outside it, it sounds wrong. Sound: GeneralUser GS/Brass Section, a sampled instrument: make_instrument (sound \"GeneralUser GS/Brass Section\") makes the track with its notes in one edit; apply makes it empty."
+  ],
+  "apply": {
+    "params": {
+      "name": {
+        "type": "text",
+        "optional": true
+      }
+    },
+    "steps": [
+      {
+        "op": "soundfont",
+        "input": {
+          "name": "$name",
+          "default_name": "Brass",
+          "sound": "GeneralUser GS/Brass Section",
+          "volume_db": -7
+        }
+      }
+    ]
+  }
+}

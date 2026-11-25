@@ -142,14 +142,16 @@ const KindNotes: Record<PieceKind, string> = {
     drums: `- evolve_notes: a part's notes changing over several bars (a groove becoming another, a part thinning out or filling in), not a script per stage. Name where it's going (a knowledge pattern, or the notes written once) and how many stages; code works out each stage and rewrites the region's notes in place, so a looping region changes as it plays.
 - A region's notes play on every pass of its loop: rewriting them changes every repeat from when it lands.
 - A style's drum sound (trap, house, techno, boom-bap, 80s) is a new kit, not new notes on the old one: apply_knowledge a kit entry (sound/kit-trap-808, kit-house-909, kit-boombap-mpc60, kit-boombap-sp12, kit-synthpop-linndrum) with the style's pattern and from_bar, or make_kit with samples you pick (samples finds them across 70 drum machines); then park (mute) the old drums at the bar the kit starts, so the two never play together.`,
-    notes: `- evolve_notes: a part's notes changing over several bars (a groove becoming another, a part thinning out or filling in), not a script per stage. Name where it's going (a knowledge pattern, or the notes written once) and how many stages; code works out each stage and rewrites the region's notes in place, so a looping region changes as it plays.
+    notes: `- A new part's sound (2026-11-25, the producer: sounds outside the drums were grating and not genre appropriate): pick a sampled instrument first: the knowledge base's \"Sampled instruments\" entries name a genre's usual ones (bass, keys, guitar, strings, pads, brass, leads) with their registers; sounds finds the rest of 300 (GeneralUser GS and openDAW's). make_instrument makes the track with its notes. Set a synth (Vaporisateur, Tubular) by hand only for a sound no sample has or when the producer asks for a synth, and then start from a knowledge sound entry. Play a sampled instrument in its register.
+- evolve_notes: a part's notes changing over several bars (a groove becoming another, a part thinning out or filling in), not a script per stage. Name where it's going (a knowledge pattern, or the notes written once) and how many stages; code works out each stage and rewrites the region's notes in place, so a looping region changes as it plays.
 - A region's notes play on every pass of its loop: rewriting them changes every repeat from when it lands.
 - An 808 bass (trap, drill, modern hip hop) is make_sampler: a long TR-808 kick played as notes (sound/808-bass), roots in the key around the kick, long notes with gaps.
 - Pitches: write them in the key in facts, and keep each part in its role (a part in the bass register stays the bass). Note names here follow openDAW, where C3 is MIDI 60 (not C4): write pitches by the MIDI numbers facts gives.
 ${KeySlot}
 - A new named track with a bar of notes: const {audioUnitBox, trackBox, instrumentBox} = api.createInstrument(lib.adapters.InstrumentFactories.Vaporisateur); instrumentBox.label.setValue("Lead"); const region = api.createNoteRegion({trackBox, position: 0, duration: bar, name: "Lead"}); api.createNoteEvent({owner: region, position: 0, duration: lib.dsp.PPQN.Quarter, pitch: 60, velocity: 0.8});
 - A track made in this script has no adapter yet (ref and audioUnits.adapters() don't find it until the edit ends): set its level with audioUnitBox.volume.setValue(dB) and its instrument's settings on instrumentBox's fields (instrumentBox.cutoff.setValue(2200)), with the names namedParameter shows on a track of that instrument. Every field has a range (the box schema's constraints; a parameter's valueMapping); a value outside it can crash the audio engine, so TakeDo brings it back in and the result lists what it corrected.`,
-    sound: `- An instrument's settings: ref("t2").inputAdapter.unwrap().namedParameter (e.g. Cubed: cutoff, resonance, envMod, decay, accent; Vaporisateur: cutoff, resonance, attack, decay, sustain, release, …); set them with .setValue(v). A drum machine (Playfield) has none: its sounds are samples by pad.
+    sound: `- A new part's sound (2026-11-25, the producer: sounds outside the drums were grating and not genre appropriate): pick a sampled instrument first: the knowledge base's \"Sampled instruments\" entries name a genre's usual ones (bass, keys, guitar, strings, pads, brass, leads) with their registers; sounds finds the rest of 300 (GeneralUser GS and openDAW's). make_instrument makes the track with its notes. Set a synth (Vaporisateur, Tubular) by hand only for a sound no sample has or when the producer asks for a synth, and then start from a knowledge sound entry. Play a sampled instrument in its register.
+- An instrument's settings: ref("t2").inputAdapter.unwrap().namedParameter (e.g. Cubed: cutoff, resonance, envMod, decay, accent; Vaporisateur: cutoff, resonance, attack, decay, sustain, release, …); set them with .setValue(v). A drum machine (Playfield) has none: its sounds are samples by pad.
 - A style's drum sound (trap, house, techno, boom-bap, 80s) is a new kit, not new notes on the old one: apply_knowledge a kit entry (sound/kit-trap-808, kit-house-909, kit-boombap-mpc60, kit-boombap-sp12, kit-synthpop-linndrum) with the style's pattern and from_bar, or make_kit with samples you pick (samples finds them across 70 drum machines); then park (mute) the old drums at the bar the kit starts, so the two never play together.
 - An 808 bass (trap, drill, modern hip hop) is make_sampler: a long TR-808 kick played as notes (sound/808-bass), roots in the key around the kick, long notes with gaps.
 - Vaporisateur's namedParameter: oscillators[0] and oscillators[1], each {waveform (0 sine, 1 triangle, 2 saw, 3 square), volume (dB; -Infinity is off), octave (-3..3), tune (cents)}; unisonCount is 1, 3 or 5 only; unisonDetune in cents (1..1200); unisonStereo 0..1; cutoff (Hz), resonance, filterOrder (1..4), attack, decay, sustain, release. A supersaw: both oscillators saw at 0 dB, the second tuned +7 ct, unisonCount 5, unisonDetune 25, unisonStereo 0.8.
@@ -414,7 +416,7 @@ export class Utility implements Member {
                 at_bar: z.number().int().describe("Bars of playing after the producer's message the first stage lands on (1: the next bar line); 0 for as soon as possible"),
                 every_bars: z.number().int().describe("Bars between stages, 1 or more")},
                 handler((current, input) => this.#evolve(current, input))),
-            ...(knowledge.samples === null || knowledge.samples.size === 0 ? [] : this.#sampleTools(handler))
+            ...(knowledge.samples === null || (knowledge.samples.size === 0 && knowledge.samples.sounds.length === 0) ? [] : this.#sampleTools(handler))
         ]
     }
 
@@ -430,8 +432,12 @@ export class Utility implements Member {
         const placed = (input: Record<string, unknown>, notes: Record<string, unknown>): Record<string, unknown> =>
             ({...notes, from_bar: Number(input.from_bar) || 0, bars: Number(input.bars) || 0})
         // The tool's input as the kit and sampler ops take it (knowledge.ts).
-        const shape = (kind: "kit" | "sampler", input: Record<string, unknown>): Record<string, unknown> => {
+        const shape = (kind: "kit" | "sampler" | "soundfont", input: Record<string, unknown>): Record<string, unknown> => {
             const common = {name: input.name, volume_db: Number(input.volume_db) || 0}
+            if (kind === "soundfont") {
+                const notes = (input.notes ?? []) as unknown[]
+                return {...common, sound: input.sound, notes: notes.length > 0 ? placed(input, {notes, loop_bars: Number(input.loop_bars) || 1}) : undefined}
+            }
             if (kind === "kit") {
                 const pattern = String(input.pattern ?? ""), hits = (input.hits ?? []) as unknown[]
                 return {...common, pads: input.pads,
@@ -442,12 +448,12 @@ export class Utility implements Member {
                 ...(Number(input.tune) ? {tune: Number(input.tune)} : {}), ...(Number(input.release) > 0 ? {release: Number(input.release)} : {}),
                 notes: notes.length > 0 ? placed(input, {notes, loop_bars: Number(input.loop_bars) || 1}) : undefined}
         }
-        const make = (kind: "kit" | "sampler") => async (current: Current, input: Record<string, unknown>): Promise<string> => {
+        const make = (kind: "kit" | "sampler" | "soundfont") => async (current: Current, input: Record<string, unknown>): Promise<string> => {
             const snapshot = await current.context.snapshot()
             if (snapshot === null) {return "Not done: no project is open."}
             const made = knowledge[kind](shape(kind, input), snapshot)
             if (typeof made === "string") {return `Not done: ${made}.`}
-            current.context.card({agent: this.agent, name: this.name, doing: kind === "kit" ? "building a drum kit…" : "setting up a sampler…"})
+            current.context.card({agent: this.agent, name: this.name, doing: kind === "kit" ? "building a drum kit…" : kind === "soundfont" ? "bringing in an instrument…" : "setting up a sampler…"})
             return this.#run(current, made.says, made.code, Number(input.at_bar) || 0)
         }
         return [
@@ -484,7 +490,27 @@ export class Utility implements Member {
                 loop_bars: z.number().int().describe("How many bars the notes loop over; 0 for 1"),
                 volume_db: z.number().describe("The track's volume, dB; 0 for unity"),
                 ...Placement},
-                handler(make("sampler")))
+                handler(make("sampler"))),
+            ...(samples.sounds.length === 0 ? [] : [
+                tool("sounds", "Find sampled instruments (soundfont presets: GeneralUser GS's 287 General MIDI sounds, and openDAW's upright piano, guitars, harp, organ, xylophone, TB-303) by words in their names. Real played samples, usually a better start for a genre's bass, keys, strings, brass, guitar or pad than a synth set by hand.", {
+                    words: z.string().describe("Words in the name (\"fingered bass\", \"electric piano\", \"strings\", \"pad\"); \"\" lists the soundfonts")},
+                    handler((_current, input) => {
+                        const words = String(input.words ?? "").trim()
+                        if (words === "") {
+                            return [...new Map(samples.sounds.map(sound => [sound.soundfont, samples.sounds.filter(other => other.soundfont === sound.soundfont).length])).entries()]
+                                .map(([font, count]) => `${font}: ${count} sounds`).join("\n")
+                        }
+                        const found = samples.searchSounds(words, 40)
+                        return found.length === 0 ? "Nothing matches; try fewer or other words." : found.map(sound => sound.id).join("\n")
+                    }), {annotations: {readOnlyHint: true}}),
+                tool("make_instrument", "A new track playing a sampled instrument (openDAW's Soundfont device on a preset from sounds), optionally with notes from the start. Set its sound once; its notes play as written (keep a bass in the bass register).", {
+                    name: z.string().describe("The track's name (\"Bass\")"),
+                    sound: z.string().describe("A sound id from sounds (\"GeneralUser GS/Finger Bass\")"),
+                    notes: z.array(z.tuple([z.number(), z.number(), z.number(), z.number()])).describe("[beat from 0, MIDI pitch, length in beats, velocity 0..1]; [] for none"),
+                    loop_bars: z.number().int().describe("How many bars the notes loop over; 0 for 1"),
+                    volume_db: z.number().describe("The track's volume, dB; 0 for unity"),
+                    ...Placement},
+                    handler(make("soundfont")))])
         ]
     }
 

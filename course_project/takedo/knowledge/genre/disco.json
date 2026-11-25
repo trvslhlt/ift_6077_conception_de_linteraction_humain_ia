@@ -24,7 +24,12 @@
     "sound/tubular-slap-bass",
     "sound/tubular-strings",
     "sound/tubular-brass-sect",
-    "sound/tubular-clav"
+    "sound/tubular-clav",
+    "sound/keys-clav",
+    "sound/guitar-clean",
+    "sound/brass-section",
+    "sound/bass-slap",
+    "sound/bass-finger"
   ],
   "checked": {
     "how": "written",

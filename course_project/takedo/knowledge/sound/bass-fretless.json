@@ -1,0 +1,49 @@
+{
+  "key": "sound/bass-fretless",
+  "kind": "sound",
+  "summary": "Fretless bass: singing, smooth slides, neo-soul and fusion",
+  "tags": [
+    "bass",
+    "fretless",
+    "neo-soul",
+    "jazz",
+    "fusion",
+    "ambient",
+    "smooth"
+  ],
+  "devices": [
+    "Soundfont"
+  ],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (sound palette)",
+    "date": "2026-11-25",
+    "opendaw": "652e6ca"
+  },
+  "group": "Sampled instruments (soundfonts, make_instrument)",
+  "label": "fretless bass",
+  "body": [
+    "Long notes with slides; melodic fills between phrases.",
+    "Register: MIDI 28-55 (openDAW names C3 = 60); outside it, it sounds wrong. Sound: GeneralUser GS/Fretless Bass, a sampled instrument: make_instrument (sound \"GeneralUser GS/Fretless Bass\") makes the track with its notes in one edit; apply makes it empty."
+  ],
+  "apply": {
+    "params": {
+      "name": {
+        "type": "text",
+        "optional": true
+      }
+    },
+    "steps": [
+      {
+        "op": "soundfont",
+        "input": {
+          "name": "$name",
+          "default_name": "Fretless Bass",
+          "sound": "GeneralUser GS/Fretless Bass",
+          "volume_db": -3
+        }
+      }
+    ]
+  }
+}

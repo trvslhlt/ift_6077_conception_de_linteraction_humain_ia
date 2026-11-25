@@ -1,0 +1,51 @@
+{
+  "key": "sound/bells-celesta",
+  "kind": "sound",
+  "summary": "Celesta and music-box bells: trap and lofi melodies, dreamy and dark",
+  "tags": [
+    "bells",
+    "celesta",
+    "music box",
+    "trap",
+    "lofi",
+    "dreamy",
+    "dark",
+    "melody",
+    "pluck"
+  ],
+  "devices": [
+    "Soundfont"
+  ],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (sound palette)",
+    "date": "2026-11-25",
+    "opendaw": "652e6ca"
+  },
+  "group": "Sampled instruments (soundfonts, make_instrument)",
+  "label": "celesta",
+  "body": [
+    "The short dark melody of trap (minor, sparse, high), or a lofi music-box line. Also: GeneralUser GS/Music Box, GeneralUser GS/Glockenspiel.",
+    "Register: MIDI 60-96 (openDAW names C3 = 60); outside it, it sounds wrong. Sound: GeneralUser GS/Celeste, a sampled instrument: make_instrument (sound \"GeneralUser GS/Celeste\") makes the track with its notes in one edit; apply makes it empty."
+  ],
+  "apply": {
+    "params": {
+      "name": {
+        "type": "text",
+        "optional": true
+      }
+    },
+    "steps": [
+      {
+        "op": "soundfont",
+        "input": {
+          "name": "$name",
+          "default_name": "Bells",
+          "sound": "GeneralUser GS/Celeste",
+          "volume_db": -8
+        }
+      }
+    ]
+  }
+}

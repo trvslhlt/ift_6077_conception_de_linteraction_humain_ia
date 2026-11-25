@@ -1,0 +1,48 @@
+{
+  "key": "sound/guitar-overdrive",
+  "kind": "sound",
+  "summary": "Overdriven electric guitar: rock, blues, indie",
+  "tags": [
+    "guitar",
+    "overdrive",
+    "distortion",
+    "rock",
+    "blues",
+    "indie"
+  ],
+  "devices": [
+    "Soundfont"
+  ],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (sound palette)",
+    "date": "2026-11-25",
+    "opendaw": "652e6ca"
+  },
+  "group": "Sampled instruments (soundfonts, make_instrument)",
+  "label": "overdriven guitar",
+  "body": [
+    "Power chords (root and fifth) and riffs. Heavier: GeneralUser GS/Distortion Guitar.",
+    "Register: MIDI 40-84 (openDAW names C3 = 60); outside it, it sounds wrong. Sound: GeneralUser GS/Overdrive Guitar, a sampled instrument: make_instrument (sound \"GeneralUser GS/Overdrive Guitar\") makes the track with its notes in one edit; apply makes it empty."
+  ],
+  "apply": {
+    "params": {
+      "name": {
+        "type": "text",
+        "optional": true
+      }
+    },
+    "steps": [
+      {
+        "op": "soundfont",
+        "input": {
+          "name": "$name",
+          "default_name": "Guitar",
+          "sound": "GeneralUser GS/Overdrive Guitar",
+          "volume_db": -7
+        }
+      }
+    ]
+  }
+}

@@ -21,7 +21,12 @@
     "sound/tubular-drawbars",
     "sound/tubular-pipe-organ",
     "sound/tubular-choir",
-    "genre/neo-soul"
+    "genre/neo-soul",
+    "sound/keys-organ",
+    "sound/choir-oohs",
+    "sound/bass-finger",
+    "sound/keys-rhodes",
+    "sound/keys-grand-piano"
   ],
   "checked": {
     "how": "written",

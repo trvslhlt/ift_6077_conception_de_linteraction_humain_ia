@@ -1,0 +1,52 @@
+{
+  "key": "sound/keys-organ",
+  "kind": "sound",
+  "summary": "Tonewheel (Hammond-style) organ: gospel, reggae, funk, soul, house",
+  "tags": [
+    "organ",
+    "hammond",
+    "b3",
+    "gospel",
+    "reggae",
+    "funk",
+    "soul",
+    "house",
+    "rock",
+    "keys"
+  ],
+  "devices": [
+    "Soundfont"
+  ],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (sound palette)",
+    "date": "2026-11-25",
+    "opendaw": "652e6ca"
+  },
+  "group": "Sampled instruments (soundfonts, make_instrument)",
+  "label": "organ",
+  "body": [
+    "Gospel and soul chords; the reggae organ bubble (short off-beat chords); house organ stabs. Rock: GeneralUser GS/Rock Organ.",
+    "Register: MIDI 36-84 (openDAW names C3 = 60); outside it, it sounds wrong. Sound: GeneralUser GS/Tonewheel Organ, a sampled instrument: make_instrument (sound \"GeneralUser GS/Tonewheel Organ\") makes the track with its notes in one edit; apply makes it empty."
+  ],
+  "apply": {
+    "params": {
+      "name": {
+        "type": "text",
+        "optional": true
+      }
+    },
+    "steps": [
+      {
+        "op": "soundfont",
+        "input": {
+          "name": "$name",
+          "default_name": "Organ",
+          "sound": "GeneralUser GS/Tonewheel Organ",
+          "volume_db": -6
+        }
+      }
+    ]
+  }
+}

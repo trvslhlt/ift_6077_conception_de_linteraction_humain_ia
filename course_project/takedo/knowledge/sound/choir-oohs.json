@@ -1,0 +1,51 @@
+{
+  "key": "sound/choir-oohs",
+  "kind": "sound",
+  "summary": "Choir oohs: soft voices, gospel, trap, ambient, cinematic",
+  "tags": [
+    "choir",
+    "voices",
+    "vocal",
+    "oohs",
+    "gospel",
+    "trap",
+    "ambient",
+    "cinematic",
+    "pad"
+  ],
+  "devices": [
+    "Soundfont"
+  ],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (sound palette)",
+    "date": "2026-11-25",
+    "opendaw": "652e6ca"
+  },
+  "group": "Sampled instruments (soundfonts, make_instrument)",
+  "label": "choir oohs",
+  "body": [
+    "Long chords; trap uses a dark choir under the bells. Bigger: GeneralUser GS/Concert Choir.",
+    "Register: MIDI 48-79 (openDAW names C3 = 60); outside it, it sounds wrong. Sound: GeneralUser GS/Voice Oohs, a sampled instrument: make_instrument (sound \"GeneralUser GS/Voice Oohs\") makes the track with its notes in one edit; apply makes it empty."
+  ],
+  "apply": {
+    "params": {
+      "name": {
+        "type": "text",
+        "optional": true
+      }
+    },
+    "steps": [
+      {
+        "op": "soundfont",
+        "input": {
+          "name": "$name",
+          "default_name": "Choir",
+          "sound": "GeneralUser GS/Voice Oohs",
+          "volume_db": -8
+        }
+      }
+    ]
+  }
+}

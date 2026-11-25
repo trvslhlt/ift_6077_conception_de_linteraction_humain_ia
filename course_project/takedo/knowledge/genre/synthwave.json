@@ -24,7 +24,12 @@
     "sound/tubular-analog-pad",
     "sound/tubular-synth-bass",
     "sound/tubular-square-ld",
-    "sound/tubular-brass-sect"
+    "sound/tubular-brass-sect",
+    "sound/strings-synth",
+    "sound/lead-saw",
+    "sound/bass-synth",
+    "sound/keys-fm-ep",
+    "sound/bass-slap"
   ],
   "checked": {
     "how": "written",

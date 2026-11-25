@@ -22,7 +22,11 @@
     "genre/jazz",
     "sound/tubular-nylon-gtr",
     "sound/tubular-flute",
-    "sound/tubular-rhodes"
+    "sound/tubular-rhodes",
+    "sound/guitar-nylon",
+    "sound/keys-vibes",
+    "sound/brass-section",
+    "sound/bass-upright"
   ],
   "checked": {
     "how": "written",

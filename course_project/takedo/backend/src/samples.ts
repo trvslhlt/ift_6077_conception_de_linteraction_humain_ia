@@ -8,8 +8,15 @@ export type Sample = {
     id: string, uuid: string, file: string, machine: string | null, role: string | null, name: string,
     duration: number, sample_rate: number
 }
+// A soundfont's preset: a sampled instrument (GeneralUser GS's 287 General MIDI sounds, openDAW's own). Named
+// "<soundfont>/<preset>" ("GeneralUser GS/Fingered Bass"); index is openDAW's preset index.
+export type Sound = { id: string, soundfont: string, uuid: string, file: string, preset: string, index: number, bank: number, program: number }
 export type Samples = {
     readonly size: number
+    readonly sounds: ReadonlyArray<Sound>
+    sound(id: string): Sound | null
+    // Sounds whose name has all these words ("fingered bass", "electric piano"); General MIDI's bank 0 first.
+    searchSounds(words: string, limit: number): Sound[]
     find(id: string): Sample | null
     // Samples matching all of: a machine (any part of its name), a role (kick, snare, closed hat, ...), words in the id.
     search(query: { machine?: string, role?: string, words?: string }, limit: number): Sample[]
@@ -24,13 +31,27 @@ const idOf = (file: string, machine: string | null): string => {
 
 export const loadSamples = (dir: string): Samples => {
     const path = join(dir, "manifest.json")
-    const list: Sample[] = existsSync(path)
-        ? (JSON.parse(readFileSync(path, "utf8")).samples as Array<Omit<Sample, "id">>).map(sample => ({...sample, id: idOf(sample.file, sample.machine)}))
-        : []
+    const manifest = existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) as {
+        samples: Array<Omit<Sample, "id">>,
+        soundfonts?: Array<{ uuid: string, file: string, name: string, presets: Array<{ index: number, name: string, bank: number, program: number }> }>
+    } : {samples: [], soundfonts: []}
+    const list: Sample[] = manifest.samples.map(sample => ({...sample, id: idOf(sample.file, sample.machine)}))
+    const sounds: Sound[] = (manifest.soundfonts ?? []).flatMap(font => font.presets.map(preset => ({id: `${font.name}/${preset.name}`,
+        soundfont: font.name, uuid: font.uuid, file: font.file, preset: preset.name, index: preset.index, bank: preset.bank, program: preset.program})))
+    const soundsById = new Map(sounds.map(sound => [sound.id.toLowerCase(), sound]))
     const byId = new Map(list.map(sample => [sample.id.toLowerCase(), sample]))
     const has = (text: string | null, part: string): boolean => (text ?? "").toLowerCase().includes(part.toLowerCase())
     return {
         get size() {return list.length},
+        sounds,
+        sound: id => soundsById.get(id.toLowerCase()) ?? sounds.find(sound => sound.preset.toLowerCase() === id.toLowerCase() && sound.bank === 0) ?? null,
+        searchSounds: (words, limit) => {
+            const terms = words.toLowerCase().split(/\s+/).filter(term => term.length > 0)
+            // A term matches a word it contains or starts with ("fingered" finds "Finger", "pianos" finds "Piano").
+            const matches = (id: string, term: string) => id.includes(term) || id.split(/[\s/&-]+/).some(word => word.length >= 4 && term.startsWith(word))
+            return sounds.filter(sound => terms.every(term => matches(sound.id.toLowerCase(), term)))
+                .sort((a, b) => Number(a.bank !== 0) - Number(b.bank !== 0)).slice(0, limit)
+        },
         find: id => byId.get(id.toLowerCase()) ?? null,
         search: ({machine, role, words}, limit) => {
             const terms = (words ?? "").toLowerCase().split(/\s+/).filter(term => term.length > 0)

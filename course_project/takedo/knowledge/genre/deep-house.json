@@ -24,7 +24,12 @@
     "sound/tubular-rhodes",
     "sound/warm-pad-vaporisateur",
     "sound/sine-sub-vaporisateur",
-    "chain/small-room"
+    "chain/small-room",
+    "sound/pad-warm",
+    "sound/bass-synth",
+    "sound/pluck-kalimba",
+    "sound/keys-vibes",
+    "sound/keys-rhodes"
   ],
   "checked": {
     "how": "written",

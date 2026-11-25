@@ -1,0 +1,52 @@
+{
+  "key": "sound/bass-synth",
+  "kind": "sound",
+  "summary": "Analog-style synth bass: punchy, house, synth-pop and synthwave",
+  "tags": [
+    "bass",
+    "synth bass",
+    "house",
+    "deep house",
+    "synth-pop",
+    "synthwave",
+    "disco",
+    "80s",
+    "electronic",
+    "analog"
+  ],
+  "devices": [
+    "Soundfont"
+  ],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (sound palette)",
+    "date": "2026-11-25",
+    "opendaw": "652e6ca"
+  },
+  "group": "Sampled instruments (soundfonts, make_instrument)",
+  "label": "synth bass",
+  "body": [
+    "Off-beat house bass, pumping 8ths in synthwave, octave disco lines. Darker: GeneralUser GS/Synth Bass 2; techno: GeneralUser GS/Techno Bass.",
+    "Register: MIDI 28-48 (openDAW names C3 = 60); outside it, it sounds wrong. Sound: GeneralUser GS/Synth Bass 1, a sampled instrument: make_instrument (sound \"GeneralUser GS/Synth Bass 1\") makes the track with its notes in one edit; apply makes it empty."
+  ],
+  "apply": {
+    "params": {
+      "name": {
+        "type": "text",
+        "optional": true
+      }
+    },
+    "steps": [
+      {
+        "op": "soundfont",
+        "input": {
+          "name": "$name",
+          "default_name": "Synth Bass",
+          "sound": "GeneralUser GS/Synth Bass 1",
+          "volume_db": -4
+        }
+      }
+    ]
+  }
+}

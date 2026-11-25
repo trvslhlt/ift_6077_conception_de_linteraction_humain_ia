@@ -152,6 +152,17 @@ const kb = (() => {
                 ...(missing.length > 0 ? {not_found: missing} : {}),
                 ...(args.notes ? {notes: writeNotes(product.trackBox, null, args.notes)} : {})}
         },
+        // A new track on openDAW's Soundfont device playing one preset (index as openDAW lists the file's presets), the
+        // file one of TakeDo's (the studio reloads it from /sample-collections) or openDAW's own.
+        soundfont(args) {
+            const id = lib.std.UUID.parse(args.uuid)
+            const file = project.boxGraph.findBox(id).unwrapOrElse(() => project.boxGraph.createBox("SoundfontFileBox", id, box => box.fileName.setValue(args.file_name)))
+            const product = api.createInstrument(lib.adapters.InstrumentFactories.Soundfont, {name: args.name, attachment: file})
+            product.instrumentBox.presetIndex.setValue(args.preset)
+            if (args.volume_db !== null && args.volume_db !== undefined) {product.audioUnitBox.volume.setValue(args.volume_db)}
+            return {track: "new", name: product.instrumentBox.label.getValue(), sound: args.preset_name,
+                ...(args.notes ? {notes: writeNotes(product.trackBox, null, args.notes)} : {})}
+        },
         tempo(args) {
             api.setBpm(args.bpm)
             return {bpm: project.timelineBox.bpm.getValue()}

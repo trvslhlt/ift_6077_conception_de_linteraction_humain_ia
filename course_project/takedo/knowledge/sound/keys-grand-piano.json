@@ -1,0 +1,51 @@
+{
+  "key": "sound/keys-grand-piano",
+  "kind": "sound",
+  "summary": "Grand piano: full, clear, ballads, pop, jazz, gospel",
+  "tags": [
+    "piano",
+    "keys",
+    "acoustic",
+    "pop",
+    "jazz",
+    "gospel",
+    "ballad",
+    "classical",
+    "house"
+  ],
+  "devices": [
+    "Soundfont"
+  ],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (sound palette)",
+    "date": "2026-11-25",
+    "opendaw": "652e6ca"
+  },
+  "group": "Sampled instruments (soundfonts, make_instrument)",
+  "label": "grand piano",
+  "body": [
+    "Chords in the middle (MIDI 48-72), bass notes in the left hand only if there's no bass part. House piano: stabs on the off-beats. Warmer and closer: sound/keys-upright-piano.",
+    "Register: MIDI 36-96 (openDAW names C3 = 60); outside it, it sounds wrong. Sound: GeneralUser GS/Grand Piano, a sampled instrument: make_instrument (sound \"GeneralUser GS/Grand Piano\") makes the track with its notes in one edit; apply makes it empty."
+  ],
+  "apply": {
+    "params": {
+      "name": {
+        "type": "text",
+        "optional": true
+      }
+    },
+    "steps": [
+      {
+        "op": "soundfont",
+        "input": {
+          "name": "$name",
+          "default_name": "Piano",
+          "sound": "GeneralUser GS/Grand Piano",
+          "volume_db": -4
+        }
+      }
+    ]
+  }
+}
