@@ -9,3 +9,5 @@ sessions/
 node_modules
 .datasets/
 knowledge/bench/results/
+# Sample collections fetched by `make samples` (pinned sources, refetched at any time; not in git)
+samples/

@@ -567,3 +567,15 @@ These are for the detailed design, whatever the shape:
   scenarios/remove.json: pad muted, bass delay switched off, both kept. Unexplained: in that session the synth's mute
   and solo stopped responding while the project said unmuted; suspected openDAW's strip after scripts that threw on
   that synth mid-edit (a reload would tell).
+
+- 2026-11-25, sound collections, piece 1: TakeDo's own samples, reinstallable at any time. openDAW's factory sounds
+  live on its servers (assets.opendaw.studio) and are fetched on first use into the browser's OPFS; a project names a
+  sample only by UUID. Ours: `make samples` fetches geikha/tidal-drum-machines (73 drum machines, 2774 WAVs, ~250 MB)
+  at a pinned commit into takedo/samples/ (not in git), and knowledge/import/samples.mjs writes samples/manifest.json
+  with a fixed name-based UUID per file, its machine, role (kick, snare, closed hat, ...), length and rate. The studio
+  serves samples/ at /sample-collections (not under /takedo: Vite's proxy for the backend owns that prefix), and
+  opendaw.patch puts page/Samples.ts first in openDAW's sample provider chain (and lists ours in its sample browser):
+  any project using one of our samples reloads it from samples/ whenever the browser hasn't got it. Every WAV format
+  in the collection decodes with openDAW's own decoder. Smoke test: a TR-808 kit (createInstrument(Playfield) with an
+  attachment of our UUIDs) loads in a fresh browser. Next: agents build kits and swap pads; kits per style in the
+  knowledge base; the trap recipe pointing at them.

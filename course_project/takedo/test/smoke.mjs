@@ -254,6 +254,26 @@ try {
     check("after the take, its lane is left alone (no live write over automation)",
         afterTake.state === "failed" && /automation/.test(afterTake.detail ?? ""), JSON.stringify(afterTake))
 
+    // ---------- TakeDo's own samples: a kit from samples/ loads through openDAW's sample chain (reinstallable) ----------
+    const kit = await page.evaluate(async () => {
+        const {project} = window.takedo.service.projectProfileService.getValue().unwrap()
+        const {lib} = window.takedo.adapter.env
+        const {samples} = await (await fetch("/sample-collections/manifest.json")).json()
+        const picks = ["kick", "snare", "closed hat", "open hat", "clap"]
+            .map(role => samples.find(sample => sample.machine === "RolandTR808" && sample.role === role))
+        project.editing.modify(() => project.api.createInstrument(lib.adapters.InstrumentFactories.Playfield, {name: "Kit 808",
+            attachment: picks.map((sample, index) => ({note: 60 + index, uuid: lib.std.UUID.parse(sample.uuid), name: sample.name,
+                durationInSeconds: sample.duration, exclude: false}))}))
+        const states = () => picks.map(sample => project.sampleManager.getOrCreate(lib.std.UUID.parse(sample.uuid)).state.type)
+        const start = Date.now()
+        while (states().some(state => state !== "loaded" && state !== "error") && Date.now() - start < 15000) {
+            await new Promise(resolve => setTimeout(resolve, 100))
+        }
+        return {states: states(), names: picks.map(sample => sample.name)}
+    })
+    check("a kit of TakeDo's samples (TR-808 from samples/) loads into a Playfield", kit.states.every(state => state === "loaded"),
+        JSON.stringify(kit))
+
     // ---------- loop off: an edit changes only what's still to play (the take replays as performed) ----------
     // A part looping 1 bar over 64 bars from bar 1, the loop off: an agent rewriting its notes splits it where the
     // playhead is (the bars played keep the old notes), and a tempo step lands on the tempo track.

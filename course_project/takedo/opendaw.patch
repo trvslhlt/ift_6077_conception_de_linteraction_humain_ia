@@ -87,3 +87,34 @@ index 8e0e82c..e8d1f26 100644
              },
              hmr: {
                  overlay: false
+diff --git a/packages/app/studio/src/boot.ts b/packages/app/studio/src/boot.ts
+index fb76103..fea1429 100644
+--- a/packages/app/studio/src/boot.ts
++++ b/packages/app/studio/src/boot.ts
+@@ -27,6 +27,7 @@ import {
+     Workers
+ } from "@opendaw/studio-core"
+ import {OpenPresetAPI, OpenSampleAPI, OpenSoundfontAPI, WclapCatalog} from "@/opendaw-api"
++import {loadTakedoSample, takedoSampleList} from "@/takedo/Samples"
+ import {testFeatures} from "@/features.ts"
+ import {MissingFeature} from "@/ui/MissingFeature.tsx"
+ import {UpdateMessage} from "@/ui/UpdateMessage.tsx"
+@@ -112,14 +113,16 @@ export const boot = async ({workersUrl, workletsUrl, wasmProcessorUrl, wasmOffli
+     }
+     const audioDevices = await AudioOutputDevice.create(context)
+     FactoryCatalog.install({
+-        samples: () => OpenSampleAPI.get().all(),
++        // TakeDo: its own collections (samples/) listed beside openDAW's.
++        samples: () => Promise.all([OpenSampleAPI.get().all(), takedoSampleList()]).then(([own, takedo]) => [...own, ...takedo]),
+         soundfonts: () => OpenSoundfontAPI.get().all(),
+         presets: () => OpenPresetAPI.get().list()
+     })
+     WclapCatalog.get().tree().finally()
+     const chainedSampleProvider = new ChainedSampleProvider({
++        // TakeDo: a sample of its own comes from the studio's samples/ (so it's reinstallable at any time), others as before.
+         fetch: async (uuid: UUID.Bytes, progress: Progress.Handler): Promise<[AudioData, SampleMetaData]> =>
+-            OpenSampleAPI.get().load(uuid, progress)
++            (await loadTakedoSample(uuid, progress)) ?? OpenSampleAPI.get().load(uuid, progress)
+     })
+     const chainedSoundfontProvider = new ChainedSoundfontProvider({
+         fetch: async (uuid: UUID.Bytes, progress: Progress.Handler): Promise<[ArrayBuffer, SoundfontMetaData]> =>

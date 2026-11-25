@@ -17,7 +17,7 @@ help: ## List targets
 
 include $(REPO_ROOT)/docker/builder.mk
 
-build: builder ## Build the studio, backend and test images (openDAW itself comes from the shared cache)
+build: builder samples ## Build the studio, backend and test images (openDAW itself comes from the shared cache)
 	$(COMPOSE) build
 	@docker image prune -f --filter label=com.docker.compose.project=$(PROJECT) >/dev/null
 
@@ -123,3 +123,14 @@ jam-probe: build $(TYPES_DIR)/packages ## Does a recorded loop-off jam keep goin
 	$(COMPOSE) up -d --wait studio backend
 	$(COMPOSE) build smoke
 	$(COMPOSE) run --rm -e SECONDS=$(or $(SECONDS),40) -e PROJECT=$(PROJECT) -e PANEL=$(PANEL) -e EDITS=$(EDITS) -e LOOP=$(LOOP) -e RAMP_MS=$(or $(RAMP_MS),20) -v $(CURDIR)/scenarios:/scenarios smoke node jam-probe.mjs
+
+# Drum machine samples (geikha/tidal-drum-machines, 73 machines, ~170 MB), pinned by commit. Refetched at any time:
+# the studio serves samples/ and openDAW reloads a sample from there whenever the browser has lost its copy.
+DRUM_MACHINES_COMMIT := 6577395a4d05031728ced2ec3e5637fa89d8be48
+samples: samples/tidal-drum-machines/.commit-$(DRUM_MACHINES_COMMIT) ## Fetch the sample collections (pinned) into samples/
+	node knowledge/import/samples.mjs samples
+samples/tidal-drum-machines/.commit-$(DRUM_MACHINES_COMMIT):
+	rm -rf samples/tidal-drum-machines && mkdir -p samples/tidal-drum-machines
+	curl -fsSL https://codeload.github.com/geikha/tidal-drum-machines/tar.gz/$(DRUM_MACHINES_COMMIT) \
+		| tar -xz -C samples/tidal-drum-machines --strip-components=2 tidal-drum-machines-$(DRUM_MACHINES_COMMIT)/machines
+	touch $@

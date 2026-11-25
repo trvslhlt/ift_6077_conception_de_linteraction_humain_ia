@@ -18,6 +18,8 @@ services:
       # Our code, live, at the paths opendaw.patch and the page's imports use.
       - ./page:/src/packages/app/studio/src/takedo:ro
       - ./shared:/src/packages/app/studio/src/takedo_shared:ro
+      # TakeDo's sample collections (`make samples`), served at /sample-collections (not /takedo...: that prefix is the backend proxy); page/Samples.ts reloads them from here.
+      - ./samples:/src/packages/app/studio/public/sample-collections:ro
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
       interval: 30s
