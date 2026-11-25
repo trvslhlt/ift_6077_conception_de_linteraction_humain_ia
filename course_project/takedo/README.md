@@ -245,3 +245,8 @@ Known gaps in what's built:
   Deferred: in 534 logged sessions real refusals are rare (most of the 260 failures are the smoke test triggering each
   guard on purpose). Later, an export-prep pass (tidy the many small automation regions, label parked parts, check the
   arrangement end to end) could use judgment, off the live path.
+- **Jev in front of the workers (tried 2026-11-25, reverted):** before a worker's first turn, Jev picked the knowledge
+  entry best fitting its piece from its shortlist, given to the worker in full so it needn't read it. In jam-norec it
+  changed nothing measurable: workers read the knowledge base in 2 of 6 jobs with or without the pick, and the run took
+  as long (90 s of worker time against 80 and 98 s). A worker's time goes into writing notes, which Jev can't do; Jev
+  pays off in front of the Team Lead (the mix and effect paths, `fastpath.ts`), where a whole model turn is skipped.
