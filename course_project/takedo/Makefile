@@ -67,7 +67,7 @@ scenario: build $(TYPES_DIR)/packages ## Play scenarios/$(SCENARIO).json to Take
 	$(COMPOSE) up -d --wait --force-recreate backend studio
 	( while :; do if [ -f scenarios/.restart ]; then rm -f scenarios/.restart; $(COMPOSE) kill backend; \
 		$(COMPOSE) up -d --wait backend; fi; sleep 0.5; done ) & watcher=$$!; \
-		$(COMPOSE) run --rm -e COUNT_FRAMES=$(COUNT_FRAMES) -v $(CURDIR)/scenarios:/scenarios smoke node scenario.mjs /scenarios/$(SCENARIO).json; \
+		$(COMPOSE) run --rm -e COUNT_FRAMES=$(COUNT_FRAMES) -e QUERY_LOADING=$(QUERY_LOADING) -v $(CURDIR)/scenarios:/scenarios smoke node scenario.mjs /scenarios/$(SCENARIO).json; \
 		status=$$?; kill $$watcher; exit $$status
 	cd backend && node src/report.ts "$$(ls -td ../scenarios/runs/*_$(SCENARIO) | head -1)"
 
@@ -118,3 +118,8 @@ loop-probe: build $(TYPES_DIR)/packages ## Does widening the loop while playing 
 	$(COMPOSE) up -d --wait studio backend
 	$(COMPOSE) build smoke
 	$(COMPOSE) run --rm -e TRACKS=$(or $(TRACKS),3) smoke node loop-probe.mjs
+
+jam-probe: build $(TYPES_DIR)/packages ## Does a recorded loop-off jam keep going past the song's end? (no models)
+	$(COMPOSE) up -d --wait studio backend
+	$(COMPOSE) build smoke
+	$(COMPOSE) run --rm -e SECONDS=$(or $(SECONDS),40) -e PROJECT=$(PROJECT) -e PANEL=$(PANEL) -e EDITS=$(EDITS) -e LOOP=$(LOOP) -e RAMP_MS=$(or $(RAMP_MS),20) -v $(CURDIR)/scenarios:/scenarios smoke node jam-probe.mjs

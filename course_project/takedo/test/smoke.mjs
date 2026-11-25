@@ -210,7 +210,9 @@ try {
     await page.evaluate(() =>
         document.dispatchEvent(new CustomEvent("parameter-hold", {detail: {parameter: window.__drumsVolume, held: false}})))
 
-    // ---------- recording: openDAW records the agents' live value changes as automation by itself ----------
+    // ---------- recording: the producer's moves are recorded as automation; an agent's ramp isn't, for now ----------
+    // (2026-11-25: openDAW recorded every tick of an agent's ramp, and a long loop-off take hung its engine; the page now
+    // writes ramps past the recorder while recording. Writing them as a few automation points is the next cycle.)
     await page.evaluate(async () => {
         const project = window.takedo.service.projectProfileService.getValue().unwrap().project
         project.startRecording(false)
@@ -221,8 +223,19 @@ try {
             await new Promise(resolve => setTimeout(resolve, 20))
         }
     })
-    const recorded = await apply({op: "ramp", ref: `${keys}.mix.volume`, to: (await volume("Keys")) - 4, beats: 2})
+    const keysBefore = await volume("Keys")
+    const recorded = await apply({op: "ramp", ref: `${keys}.mix.volume`, to: keysBefore - 4, beats: 2})
     await page.waitForTimeout(1500)
+    const agentLanes = (await track("Keys")).lanes
+    const keysRamped = await volume("Keys")
+    // The producer rides the same fader during the take, as a knob would: openDAW records that.
+    await page.evaluate(async ref => {
+        for (let step = 0; step <= 10; step++) {
+            window.takedo.adapter.setAsProducer(ref, -8 + step * 0.4)
+            await new Promise(resolve => setTimeout(resolve, 30))
+        }
+    }, `${keys}.mix.volume`)
+    await page.waitForTimeout(500)
     await page.evaluate(async () => {
         const project = window.takedo.service.projectProfileService.getValue().unwrap().project
         project.stopRecording()
@@ -234,8 +247,9 @@ try {
         if (!project.engine.isPlaying.getValue()) {window.opendaw.engine.play()}
     })
     const keysLanes = (await track("Keys")).lanes
-    check("while recording, an agent's change is recorded as automation", recorded.state === "applied" && keysLanes.length === 1,
-        `lanes ${JSON.stringify(keysLanes)}`)
+    check("while recording, an agent's ramp lands but isn't recorded (yet); the producer's moves are",
+        recorded.state === "applied" && Math.abs(keysRamped - (keysBefore - 4)) < 0.01 && agentLanes.length === 0 && keysLanes.length === 1,
+        `ramped ${keysBefore} → ${keysRamped}, lanes after the agent ${JSON.stringify(agentLanes)}, after the producer ${JSON.stringify(keysLanes)}`)
     const afterTake = await apply({op: "ramp", ref: `${keys}.mix.volume`, to: 0, beats: 2})
     check("after the take, its lane is left alone (no live write over automation)",
         afterTake.state === "failed" && /automation/.test(afterTake.detail ?? ""), JSON.stringify(afterTake))

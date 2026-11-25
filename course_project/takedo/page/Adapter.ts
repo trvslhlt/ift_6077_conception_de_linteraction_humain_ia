@@ -64,6 +64,10 @@ const errorText = (error: unknown): string =>
     error instanceof Error ? `${error.name}: ${error.message}` : String(error)
 type Pending = { change: Change, actor: Actor, request?: string, timer: ReturnType<typeof setTimeout> }
 
+// A recorded jam with the loop off keeps going (#keepGoing): this many bars before the song's end, it grows by this many.
+const KeepAheadBars = 4
+const KeepGoingBars = 16
+
 export class Adapter implements Terminable {
     readonly #terminator = new Terminator()
     readonly #project: Project
@@ -144,6 +148,34 @@ export class Adapter implements Terminable {
         this.#lastPosition = position
         if (!this.#project.engine.isPlaying.getValue()) {return}
         this.#played += this.#advance(last, position)
+        this.#keepGoing(position)
+    }
+
+    // A jam keeps going (2026-11-24): recording with the loop off, the song mustn't end under the producer (a 16-bar
+    // project stopped at bar 17 and the take with it). A few bars before the end, the parts that run to the end play on
+    // for KeepGoingBars more, their content continuing as it was, and the timeline grows with them: added ahead of the
+    // playhead, nothing that has played changes. Not while just playing: a finished song with the loop off ends as it is.
+    #extending = false
+    #keepGoing(position: ppqn): void {
+        const {engine, timelineBox} = this.#project
+        if (this.#extending || timelineBox.loopArea.enabled.getValue() || !engine.isRecording.getValue()) {return}
+        const bar = this.#bar()
+        const regions = this.#units().flatMap(unit => unit.tracks.values().flatMap(track => track.regions.collection.asArray()))
+        const end = regions.reduce((most, region) => Math.max(most, region.complete), 0)
+        if (end === 0 || position < end - KeepAheadBars * bar) {return}
+        this.#extending = true
+        setTimeout(() => {
+            try {
+                const grow = KeepGoingBars * bar
+                this.#project.editing.modify(() => {
+                    regions.filter(region => region.complete >= end - bar / 2 && !region.mute)
+                        .forEach(region => region.box.duration.setValue(region.duration + grow))
+                    timelineBox.durationInPulses.setValue(Math.max(timelineBox.durationInPulses.getValue(), end + grow))
+                })
+            } finally {
+                this.#extending = false
+            }
+        }, 0)
     }
 
     // Pulses played from one reading of the playhead to the next. Going back counts as the loop's wrap only when it
@@ -528,23 +560,29 @@ export class Adapter implements Terminable {
         const key = parameter.address.toString()
         this.#ramping.set(key, request.id)
         const mine = (): boolean => this.#ramping.get(key) === request.id
+        // While recording, the field is written past openDAW's parameter adapter, so the ramp isn't recorded as automation
+        // (2026-11-25: openDAW records every write, one per tick; a loop-off recording's growing automation region hung
+        // its engine ~10 bars after the first ramp, `make jam-probe EDITS=ramp`; at one write per 200 ms the agents'
+        // parallel long ramps still hung it by bar 25). The take keeps the value as it ends up, not the ramp's shape.
         const write = (value: number): void => {
             this.#applying = {actor: request.from, request: request.id}
+            const written = isSwitch(parameter) ? value !== 0 : value
             try {
-                editing.modify(() => parameter.setValue(isSwitch(parameter) ? value !== 0 : value), false)
+                editing.modify(() => engine.isRecording.getValue() ? parameter.field.setValue(written) : parameter.setValue(written), false)
             } finally {
                 this.#applying = null
             }
         }
         editing.mark()
-        const startMs = performance.now()
+        const now = (): number => performance.now()
+        const startMs = now()
         const durationMs = beats * 60000 / engine.bpm.getValue()
         while (durationMs > 0) {
             if (!mine()) {
                 editing.mark()
                 return false
             }
-            const progress = Math.min(1, (performance.now() - startMs) / durationMs)
+            const progress = Math.min(1, (now() - startMs) / durationMs)
             write(from + (to - from) * progress)
             if (progress >= 1 || this.#held.has(key)) {break}
             await this.#clock.tick()

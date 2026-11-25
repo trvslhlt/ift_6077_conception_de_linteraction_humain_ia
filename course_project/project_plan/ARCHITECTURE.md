@@ -516,3 +516,17 @@ These are for the detailed design, whatever the shape:
   the tempo back, parked the chords and switched the reverb off, kept the busier drums from the later message, and the
   Team Lead's piece for the drums' notes read "back to a tight, clean, straight 808 groove ... keeping the busier
   hi-hat and ghost-snare activity the producer asked for".
+
+- 2026-11-25, a recorded jam with the loop off, cycle 1: the song keeps going. Recording with the loop off, a few bars
+  before the parts end the page lengthens the ones that reach the end by 16 bars (Adapter #keepGoing), so the take
+  doesn't run into silence; nothing that has played changes. scenarios/jam.json (loop off, record, three messages,
+  stop): 153 s recorded, 32 edits, none bunched, playhead 99% of the clock. Two engine hangs found on the way, both with
+  the playhead frozen while the audio clock ran (test/jam-probe.mjs, `make jam-probe`, no models, narrows by halves):
+  (1) the scenario runner's 2 s `queryLoadingComplete` stalled long loop-off takes (3 of 3 with it, 0 of 3 without; now
+  opt-in, QUERY_LOADING=1), likely the earlier "headless stall" too; (2) openDAW records every parameter write while
+  recording (RecordAutomation: a write opens a region that grows every frame until stop, re-sent to the engine each
+  time), and an agent's ramp writes every tick: a loop-off take hung ~10 bars after the first ramp. Throttling isn't
+  enough (a write more than 100 ms after the last is also a held step, so two points). So while recording, ramps write
+  the field past the recorder: the take keeps each value as it ends up. The producer's own moves are still recorded
+  (smoke test). Next, cycle 2, no overwriting: a ramp written as two linear automation points at its bars, a stage as
+  a new region from its bar, so the take holds what was performed.

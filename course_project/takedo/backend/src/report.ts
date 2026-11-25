@@ -57,7 +57,8 @@ if (run.problems.length > 0) {out.push("", "**Problems:**", ...run.problems.map(
 // ---------- the conversation ----------
 out.push("", "## Conversation", "")
 for (const message of run.messages) {
-    out.push(message.set !== undefined ? `**Producer**, by hand: ${message.text}` : message.control === true ? `**Producer** moves a control: ${message.text}` : `**Producer:** ${message.text}`, "")
+    out.push(message.set !== undefined ? `**Producer**, by hand: ${message.text}` : message.control === true ? `**Producer** moves a control: ${message.text}`
+        : message.transport === true ? `**Producer**, transport: ${message.text}` : `**Producer:** ${message.text}`, "")
     if (message.restartAfterMs !== undefined) {out.push(`_(backend killed ${seconds(message.restartAfterMs)} after this message)_`, "")}
     for (const line of message.replies) {
         const shown = (line.shown ?? line.from).replace(/^agent:/, "").replace(/_/g, " ")
@@ -321,6 +322,30 @@ if (before === undefined || after === undefined) {
     }
     const long = run.messages.flatMap(message => message.replies).filter(line => sentences(line.text) > MaxReplySentences)
     check(long.length === 0, `${long.length} replies longer than ${MaxReplySentences} sentences`)
+}
+
+// Recording (2026-11-24, a non-looping jam): what the agents did while openDAW recorded. Their value changes (set,
+// ramp) are written into automation lanes, so playing the take back replays them; scripts and effects added change
+// the project in place (notes, tempo, devices), so the take replays only their final state.
+const takes: Array<{ start: number, stop: number }> = []
+;(run.recording ?? []).forEach((mark: { start?: number, stop?: number }) => {
+    if (mark.start !== undefined) {takes.push({start: mark.start, stop: Infinity})}
+    if (mark.stop !== undefined && takes.length > 0) {takes[takes.length - 1].stop = mark.stop}
+})
+if (takes.length > 0 && run.before !== undefined && run.after !== undefined) {
+    const recording = (t: number) => takes.some(({start, stop}) => t >= start && t <= stop)
+    const during = requests.filter(entry => entry.from !== "user" && final.get(entry.id)?.state === "applied" && recording(landedAt.get(entry.id) ?? 0))
+    const count = (ops: string[]) => during.filter(entry => ops.includes(entry.plan.op)).length
+    const lanes = (snapshot: Snapshot) => new Map(snapshot.tracks.map(track => [track.ref, track.lanes]))
+    const lanesBefore = lanes(run.before)
+    const added = run.after.tracks.flatMap(track => track.lanes.filter(lane => !(lanesBefore.get(track.ref) ?? []).includes(lane))
+        .map(lane => `${track.name} ${lane.split(".").pop()}`))
+    out.push("", "## Recording", "",
+        `- Only each edit's final state plays back from the take, not when it happened (the next cycle: no overwriting).`,
+        `- ${takes.length} take${takes.length === 1 ? "" : "s"}, ${Math.round(takes.reduce((sum, {start, stop}) => sum + (Math.min(stop, Date.now()) - start), 0) / 1000)} s recorded`,
+        `- Agent edits landed while recording: ${during.length}; values (set, ramp: not recorded as automation yet, page/Adapter.ts #ramp) ${count(["set", "ramp"])}, ` +
+        `in place (scripts, effects added or removed) ${count(["script", "add_effect", "remove_effect"])}`,
+        `- Automation lanes made: ${added.length === 0 ? "none" : added.join(", ")}`)
 }
 
 // Ownership (ledger.ts): what each direction's landed edits changed, each dial's directions, and what more than one

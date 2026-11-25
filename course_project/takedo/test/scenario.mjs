@@ -8,6 +8,8 @@
 // A message with "no_settle": true moves on as soon as it's answered, without waiting for its edits to land.
 // or change a parameter in openDAW as the producer would, with no reply expected: {"set": "t1.mix.volume", "value": -20}.
 // {"wait_ms": 30000} just lets the project play (a probe with no agents: only set and wait steps).
+// The producer's transport (2026-11-24, a non-looping jam): {"loop": false} turns the loop off (true: back on, as it
+// was), {"record": "start"} starts openDAW recording, {"record": "stop"} stops it (and plays on, if it stopped).
 import {chromium} from "playwright"
 import {mkdirSync, readFileSync, writeFileSync} from "node:fs"
 import {basename, dirname, join} from "node:path"
@@ -87,18 +89,29 @@ try {
     }, process.env.COUNT_FRAMES !== "0")
     run.samples = []
     sampler = setInterval(() => {
-        page.evaluate(async () => {
+        page.evaluate(async queryLoading => {
             const service = window.takedo?.service, engine = service?.engine
             // Whether the engine says everything (samples, instruments) has loaded; null if it doesn't answer in 0.5 s.
-            const loaded = await Promise.race([engine?.queryLoadingComplete?.() ?? Promise.resolve(null),
+            // Only with QUERY_LOADING=1: asked every 2 s, it stalled the engine (2026-11-25: 3 of 3 loop-off recorded runs
+            // froze by bar 28 with it, 3 of 3 ran on without it; likely the earlier "environmental" freezes too).
+            const loaded = !queryLoading ? null : await Promise.race([engine?.queryLoadingComplete?.() ?? Promise.resolve(null),
                 new Promise(resolve => setTimeout(() => resolve(null), 500))])
+            // openDAW's dialog after the audio engine traps (it waits for "Restart Engine"; headless, nobody clicks).
+            const crash = [...document.querySelectorAll("dialog, [role=dialog], div")]
+                .find(element => element.childElementCount < 12 && element.innerText?.startsWith("Audio-Engine Error"))?.innerText ?? null
             const lag = window.__lag.max, frames = window.__frames
             window.__lag.max = 0
             if (window.__frames !== null) {window.__frames = 0}
             return {played: window.takedo.adapter?.playback().played ?? null, ctx: service?.audioContext?.currentTime ?? null,
                 state: service?.audioContext?.state ?? null, cpu: engine?.cpuLoad?.getValue?.() ?? null, lag: Math.round(lag),
-                frames, visible: document.visibilityState, engine: window.opendaw?.engine?.position?.() ?? null, loaded}
-        }).then(sample => run.samples.push({t: Date.now(), ...sample}), () => {})
+                frames, visible: document.visibilityState, engine: window.opendaw?.engine?.position?.() ?? null, playing: window.opendaw?.engine?.isPlaying?.() ?? null,
+                recording: service?.engine?.isRecording?.getValue?.() ?? null, loaded, crash}
+        }, process.env.QUERY_LOADING === "1").then(sample => {
+            run.samples.push({t: Date.now(), ...sample})
+            if (sample.crash !== null && !problems.some(problem => problem.startsWith("engine crashed"))) {
+                problems.push(`engine crashed: ${sample.crash.replace(/\s+/g, " ")}`)
+            }
+        }, () => {})
     }, 2000)
     for (const step of scenario.messages) {
         // restart_replies: agent lines to wait for after a restart (2: "picking it back up" and the reply; 1 when the
@@ -111,6 +124,38 @@ try {
         let replies = 1
         if (step.wait_ms !== undefined) {
             await page.waitForTimeout(step.wait_ms)
+            continue
+        }
+        if (step.loop !== undefined) {
+            await page.evaluate(on => {
+                const {project} = window.takedo.service.projectProfileService.getValue().unwrap()
+                project.editing.modify(() => project.timelineBox.loopArea.enabled.setValue(on))
+            }, step.loop)
+            text = `(the producer turned the loop ${step.loop ? "on" : "off"})`
+            run.messages.push({text, transport: true, replyMs: 0, settledMs: 0, settled: true, replies: []})
+            console.log(`> ${text}`)
+            continue
+        }
+        if (step.record !== undefined) {
+            const started = Date.now()
+            await page.evaluate(async start => {
+                const {project} = window.takedo.service.projectProfileService.getValue().unwrap()
+                if (start) {project.startRecording(false)} else {project.stopRecording()}
+                const deadline = Date.now() + 10000
+                while (project.engine.isRecording.getValue() !== start) {
+                    if (Date.now() > deadline) {throw new Error(`recording never ${start ? "started" : "stopped"}: the engine's state stopped updating`)}
+                    await new Promise(resolve => setTimeout(resolve, 20))
+                }
+                // Stopping a recording stops openDAW's transport; the scenario plays on, as before it recorded.
+                if (!start && !project.engine.isPlaying.getValue()) {
+                    window.opendaw.engine.play()
+                    while (!project.engine.isPlaying.getValue() && Date.now() < deadline + 5000) {await new Promise(resolve => setTimeout(resolve, 20))}
+                }
+            }, step.record === "start")
+            text = `(the producer ${step.record === "start" ? "started" : "stopped"} recording)`
+            run.recording = [...run.recording ?? [], {[step.record]: started}]
+            run.messages.push({text, transport: true, replyMs: 0, settledMs: 0, settled: true, replies: []})
+            console.log(`> ${text}`)
             continue
         }
         if (step.set !== undefined) {
@@ -182,6 +227,8 @@ try {
     run.console = consoleLines
     const out = join(dirname(file), "runs", `${run.started.replace(/[:.]/g, "-")}_${name}`)
     mkdirSync(out, {recursive: true})
+    // What the page showed when the run went wrong (a dialog, a stopped transport).
+    if (problems.length > 0) {await page.screenshot({path: join(out, "problem.png")}).catch(() => {})}
     writeFileSync(join(out, "run.json"), JSON.stringify(run, null, 1))
     console.log(`run written to ${out}`)
     await browser.close()
