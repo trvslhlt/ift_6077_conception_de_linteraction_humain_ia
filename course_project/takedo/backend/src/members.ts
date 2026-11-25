@@ -1,6 +1,6 @@
 import type {Activity} from "./ledger.ts"
 import type Anthropic from "@anthropic-ai/sdk"
-import {type Actor, type Device, type Plan, type Snapshot, type Status, target, type When} from "../../shared/protocol.ts"
+import {type Actor, type Decided, type Device, type Plan, type Snapshot, type Status, target, type When} from "../../shared/protocol.ts"
 import type {Catalog} from "./catalog.ts"
 import type {Coordinator} from "./coordinator.ts"
 import type {Hints} from "./router.ts"
@@ -39,7 +39,7 @@ export type Member = {
 // board: the board's step it carries out (board.ts), linked to its request.
 // activity: the direction (and piece) it belongs to, for the ledger (ledger.ts).
 export type Step = { plan: Plan, when: When, says: string, then?: (added: Device, now: Snapshot, anchored: boolean) => Step[], board?: string,
-    activity?: Activity }
+    activity?: Activity, decided?: Decided }
 
 const MinDb = -60, MaxDb = 6
 const db = (value: number): string => value <= MinDb ? "-inf dB" : `${value > 0 ? "+" : ""}${value.toFixed(1)} dB`
@@ -76,7 +76,7 @@ export const performStep = async (context: Coordinator, agent: Actor, step: Step
             update => {
                 landsAt = update.landsAt ?? landsAt
                 onStatus(update)
-            }, step.board, step.activity)
+            }, step.board, step.activity, step.decided)
         return [`${describe(step, status, landsAt)}${slid > 0 ? ` (${slid} bar${slid > 1 ? "s" : ""} later than planned)` : ""}`,
             ...await followUp(context, agent, step, status, reason)].join("; ")
     } finally {

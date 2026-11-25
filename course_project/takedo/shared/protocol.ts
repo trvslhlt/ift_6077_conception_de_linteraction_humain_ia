@@ -76,7 +76,10 @@ export type RemoveEffectPlan = { op: "remove_effect", ref: string }
 // undo step, attributed); it may return a JSON-able value. Rolled back if it throws, undone if it touched a held control.
 export type ScriptPlan = { op: "script", code: string, description: string }
 export type Plan = RampPlan | SetPlan | AddEffectPlan | RemoveEffectPlan | ScriptPlan
-export type Apply = { id: string, from: Actor, plan: Plan, when: When, seq: number, reason?: string }
+// Who decided an edit (2026-11-25, the activity view's icons): a model's turn, Jev (a fast judgment, code filling it
+// in), or code alone (a rule: a dial's blend, a recall). Every edit is carried out by code; this is what chose it.
+export type Decided = { by: "model" | "jev" | "code", ms?: number }
+export type Apply = { id: string, from: Actor, plan: Plan, when: When, seq: number, reason?: string, decided?: Decided }
 
 // What a plan changes, for claims: a parameter, an effect, or a track's effect chain (adding to it).
 export const target = (plan: Plan): string =>

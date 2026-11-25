@@ -1,6 +1,6 @@
 import {randomUUID} from "node:crypto"
 import {
-    type Actor, type Apply, type BackendToPage, type ChangeEvent, type Control, type Detail, type MemberCard, type PageToBackend,
+    type Actor, type Apply, type Decided, type BackendToPage, type ChangeEvent, type Control, type Detail, type MemberCard, type PageToBackend,
     type Plan, type Snapshot, type Status, target, type When
 } from "../../shared/protocol.ts"
 import type {Catalog} from "./catalog.ts"
@@ -288,7 +288,8 @@ export class Coordinator {
     // step: the board's step it carries out, if any (board.ts), linked to the request. activity: the direction (and
     // piece) it belongs to, for the ledger (a board step says its own); what it changes is recorded once it lands.
     request(agent: Actor, plan: Plan, when: When, seq: number, reason: string,
-            onStatus: (status: Status) => void = () => {}, step?: string, activity?: Activity): Promise<Status> {
+            onStatus: (status: Status) => void = () => {}, step?: string, activity?: Activity,
+            decided: Decided = {by: "model"}): Promise<Status> {
         const id = randomUUID()
         if (step !== undefined) {this.board.link(step, id)}
         const staged = step === undefined ? null : this.board.step(step)
@@ -308,7 +309,7 @@ export class Coordinator {
             this.#log.write("status", status)
             return Promise.resolve(status)
         }
-        const request: Apply = {id, from: agent, plan, when, seq, reason}
+        const request: Apply = {id, from: agent, plan, when, seq, reason, decided}
         return this.#keepStart().then(() => new Promise<Status>(resolve => {
             this.#log.write("request", request)
             this.#requests.set(id, status => {
@@ -642,20 +643,20 @@ export class Coordinator {
         const track = (status: Status) => {if (status.state === "scheduled" || status.state === "queued") {sent(status.request)}}
         const from = {position: now.playback.position, played: now.playback.played}
         const at = (bar: number): When => ({at: "bar", bar, from})
-        await Promise.all(recall.first.map(({ref, to}) => performStep(this, agent, {plan: {op: "set", ref, to}, when: {at: "asap"}, says: "", activity}, reason)))
+        await Promise.all(recall.first.map(({ref, to}) => performStep(this, agent, {plan: {op: "set", ref, to}, when: {at: "asap"}, says: "", activity, decided: {by: "code"}}, reason)))
         const scripts = recall.scripts.map(async ({bar, code, says}) => {
             const claimed = this.claim(agent, ["project.script"], reason)
             if (!claimed.ok) {return `${says || "a stage"}: not done, ${claimed.holder.replace("agent:", "")} is running a script`}
             try {
                 const status = await this.request(agent, {op: "script", code, description: `${label}, bar ${bar} of ${RecallBars}`}, at(bar), now.at.seq, reason,
-                    track, undefined, activity)
+                    track, undefined, activity, {by: "code"})
                 return status.state === "applied" ? says : `${says || `bar ${bar}`}: not done (${status.reason}: ${status.detail ?? ""})`
             } finally {
                 this.release(agent, ["project.script"])
             }
         })
         const values = recall.values.map(({ref, to, beats, bar, says}) =>
-            performStep(this, agent, {plan: beats > 0 ? {op: "ramp", ref, to, beats} : {op: "set", ref, to}, when: at(bar), says, activity}, reason, track))
+            performStep(this, agent, {plan: beats > 0 ? {op: "ramp", ref, to, beats} : {op: "set", ref, to}, when: at(bar), says, activity, decided: {by: "code"}}, reason, track))
         const all = Promise.all([...scripts, ...values]).then(results => {
             const failed = results.filter(result => /not done/.test(result))
             this.#log.write("take", {recalled: label, scripts: recall.scripts.length, values: recall.values.length, failed})
@@ -702,7 +703,7 @@ export class Coordinator {
         if (fast === null) {return false}
         const agent: Actor = "agent:team_lead"
         this.say(agent, fast.says)
-        void performStep(this, agent, fast.step, message).then(result => {
+        void performStep(this, agent, {...fast.step, decided: {by: "jev", ms: judged.ms}}, message).then(result => {
             if (/not done/.test(result)) {this.say(agent, `That didn't land: ${result.replace(/^.*?: not done/, "not done")}.`)}
         })
         return true

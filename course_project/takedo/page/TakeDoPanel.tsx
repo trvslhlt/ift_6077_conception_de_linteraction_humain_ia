@@ -326,6 +326,16 @@ export const TakeDoPanel = ({lifecycle, service, visible}: Construct): HTMLEleme
             case "failed": return [`not done: ${status.detail ?? status.reason ?? "failed"}`, "#e08080"]
         }
     }
+    // Who decided each edit (protocol.ts, Decided): 🐢 a model's turn, 🐇 Jev (a judgment in about 100 ms, code filling
+    // it in), ⚡ code alone (a rule). Every edit is carried out by code; the icon is what chose it.
+    const decidedBy = ({request}: Activity): [string, string] => {
+        const decided = request.decided ?? {by: "model"}
+        switch (decided.by) {
+            case "jev": return ["🐇", `Jev decided this${decided.ms !== undefined ? ` (${decided.ms} ms)` : ""}, code did it`]
+            case "code": return ["⚡", "code decided this, no model"]
+            default: return ["🐢", "a model (an agent's turn) decided this"]
+        }
+    }
     const showActivity = (activity: Activity): void => {
         const agent = shown(activity.request.from)
         if (cards.querySelector(`[data-agent="${agent}"]`) === null) {
@@ -333,7 +343,9 @@ export const TakeDoPanel = ({lifecycle, service, visible}: Construct): HTMLEleme
         }
         const [text, color] = stateText(activity)
         const row: HTMLElement = (
-            <li data-request={activity.request.id} data-state={activity.status.state} data-agent={agent}>
+            <li data-request={activity.request.id} data-state={activity.status.state} data-agent={agent}
+                data-decided={activity.request.decided?.by ?? "model"}>
+                <span title={decidedBy(activity)[1]} style={{cursor: "default"}}>{decidedBy(activity)[0]}</span>{" "}
                 <span style={{color, fontWeight: "bold"}}>●</span> <span style={{opacity: "0.7"}}>{speaker(agent)}</span>
                 {" · "}{activity.label}: <span style={{color}}>{text}</span>
             </li>

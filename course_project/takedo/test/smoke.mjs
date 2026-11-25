@@ -564,6 +564,12 @@ try {
         JSON.stringify({states: ordered.map(result => result.state), gaps}))
     const activityRows = await page.locator("[data-testid='takedo-activity'] li[data-agent='agent:utility']").count()
     check("the activity lists the agents' edits and where they are", activityRows > 0, `${activityRows} rows`)
+    // Each row says who decided it: 🐢 a model, 🐇 Jev, ⚡ code (2026-11-25).
+    const icons = await page.locator("[data-testid='takedo-activity'] li").evaluateAll(rows => rows.map(row =>
+        ({decided: row.dataset.decided, icon: row.querySelector("span[title]")?.textContent ?? null})))
+    check("each activity row shows who decided it (🐢 model, 🐇 Jev, ⚡ code)",
+        icons.length > 0 && icons.every(({decided, icon}) => ({model: "🐢", jev: "🐇", code: "⚡"})[decided] === icon),
+        JSON.stringify([...new Set(icons.map(({decided, icon}) => `${decided} ${icon}`))]))
 
     // A script writing values outside openDAW's ranges (resonance 0 made a Vaporisateur write NaN and crashed the
     // engine, 2026-11-07) gets them corrected inside its edit, and the engine keeps playing.
