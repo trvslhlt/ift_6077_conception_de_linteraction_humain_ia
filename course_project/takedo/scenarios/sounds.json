@@ -1,0 +1,5 @@
+{"//": "The sound plan (2026-11-25): new melodic parts in a genre should come from sampled instruments (soundfonts, make_instrument) that fit it, not grating synth patches: a neo-soul turn wants a Rhodes and a finger or upright bass; then a part asked for by name.",
+ "project": "01_good_base.odb", "messages": [
+  {"text": "turn this into a neo-soul groove: new keys and a new bass, warm and played"},
+  {"wait_ms": 20000},
+  {"text": "add some soft strings underneath"}]}
