@@ -492,7 +492,7 @@ export class Utility implements Member {
                 ...Placement},
                 handler(make("sampler"))),
             ...(samples.sounds.length === 0 ? [] : [
-                tool("sounds", "Find instrument sounds by words in their names and descriptions: sampled instruments (soundfont presets: GeneralUser GS's 287 General MIDI sounds, and openDAW's upright piano, guitars, harp, organ, xylophone, TB-303) and openDAW's factory synth presets (\"openDAW/...\": FM Rhodes, organs, pads, house and square basses, brass, plucks, on Tubular, Neon, Vaporisateur, Nano). Usually a better start for a genre's bass, keys, strings, brass, guitar or pad than a synth set by hand.", {
+                tool("sounds", "Find instrument sounds by words in their names and descriptions: sampled instruments (soundfont presets: GeneralUser GS's 287 General MIDI sounds, and openDAW's upright piano, guitars, harp, organ, xylophone, TB-303) and openDAW's factory synth presets (\"openDAW/...\": FM Rhodes, organs, pads, house and square basses, brass, plucks, on Tubular, Neon, Vaporisateur). Usually a better start for a genre's bass, keys, strings, brass, guitar or pad than a synth set by hand.", {
                     words: z.string().describe("Words in the name (\"fingered bass\", \"electric piano\", \"strings\", \"pad\"); \"\" lists the soundfonts")},
                     handler((_current, input) => {
                         const words = String(input.words ?? "").trim()

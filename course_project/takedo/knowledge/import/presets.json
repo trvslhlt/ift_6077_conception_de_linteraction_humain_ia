@@ -1,5 +1,5 @@
 {
- "//": "openDAW's factory presets (assets.opendaw.studio/presets, 2026-11-25), pinned by hash: instruments and audio effects on devices TakeDo allows (no Apparat/Werkstatt scripts; Playfield kits left out, TakeDo has its own). make samples fetches them into samples/presets/ (presets.mjs).",
+ "//": "openDAW's factory presets (assets.opendaw.studio/presets, 2026-11-25), pinned by hash: instruments and audio effects on devices TakeDo allows (no Apparat/Werkstatt scripts; Playfield kits left out, TakeDo has its own; Nano presets left out, their samples load from openDAW's servers). make samples fetches them into samples/presets/ (presets.mjs).",
  "source": "https://assets.opendaw.studio/presets",
  "presets": [
   {
@@ -120,15 +120,6 @@
    "sha256": "caeda601c32a5c93897f2de2c7071bcb46cb5a95a53df7a883b1b88c868f082b"
   },
   {
-   "uuid": "38cf8def-5c6a-45c1-ad55-80b269ecc717",
-   "name": "Toy Piano",
-   "category": "instrument",
-   "device": "Nano",
-   "about": "A sample based Toy Piano",
-   "size": 1916,
-   "sha256": "7e6f94a988c0448de3ffe7780a3c9eac7e65495af819f5a4e56e0761843b2688"
-  },
-  {
    "uuid": "2eae52b4-296b-4090-bed0-3795f98089be",
    "name": "Bounce Blobs",
    "category": "instrument",
@@ -217,15 +208,6 @@
    "about": "Upright Piano",
    "size": 1916,
    "sha256": "0cd0c1da25c123184a421caf4f8a3fd9135c0d2077ce242c9ed4c79e48e5b8df"
-  },
-  {
-   "uuid": "5afe353b-4723-42c8-aebe-03e2ae5ec3de",
-   "name": "Rhode",
-   "category": "instrument",
-   "device": "Nano",
-   "about": "Sample based Rhode piano",
-   "size": 1900,
-   "sha256": "467efdb92cd1989873983e07d3c943734f199bf962104ea44674ae73d6fd5fcc"
   },
   {
    "uuid": "16b13127-6580-4f35-a7e9-18fd3a5b5d3f",
