@@ -1,0 +1,46 @@
+{
+  "style": "funk",
+  "about": "funk: a dry, tight live kit locked on the one with ghost notes and busy 8th/16th hats, a syncopated finger bass that leads, clavinet stabbing dominant-9th vamps like a rhythm guitar, short brass-section stabs on top; 95-115 BPM, dry and in the pocket",
+  "tempo": [
+    95,
+    115
+  ],
+  "parts": {
+    "drums": {
+      "sound": "GeneralUser GS/Room Kit",
+      "groove": "pattern/gmd-funk-beat-1",
+      "level_db": -8
+    },
+    "bass": {
+      "sound": "GeneralUser GS/Finger Bass",
+      "range": [
+        28,
+        52
+      ],
+      "level_db": -9
+    },
+    "chords": {
+      "sound": "GeneralUser GS/Clavinet",
+      "range": [
+        55,
+        74
+      ],
+      "velocity": 0.7,
+      "level_db": -14,
+      "add": {
+        "major": "I9:8 IV9:8",
+        "minor": "i7:8 IV7:8"
+      }
+    },
+    "lead": {
+      "sound": "GeneralUser GS/Brass Section",
+      "range": [
+        58,
+        82
+      ],
+      "velocity": 0.8,
+      "level_db": -14
+    }
+  },
+  "master": "dry, warm and analog: little reverb, punchy drums and bass up front, no lofi roll-off and no heavy limiting"
+}

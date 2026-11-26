@@ -1,16 +1,20 @@
 {
   "key": "genre/techno",
   "kind": "genre",
-  "summary": "Techno: 125–140 BPM, relentless kick, 16th hats, almost no harmony: one stab or drone, change by automation",
+  "summary": "Techno (Berlin, Detroit, peak-time): 128-138 BPM, a relentless 909 kick with rumble, 16th hats, off-beat open hats and an 8th ride, a rolling or acid 303 bass, almost no harmony (one stab, a Detroit string chord), change by automation; knowledge/style/techno.json is its template",
   "tags": [
     "techno",
+    "berlin techno",
+    "detroit techno",
+    "peak time",
     "minimal",
     "industrial",
-    "berlin",
-    "detroit",
-    "club",
+    "acid",
+    "rave",
+    "warehouse",
     "dark",
-    "hypnotic"
+    "hypnotic",
+    "driving"
   ],
   "devices": [
     "Playfield",
@@ -31,20 +35,23 @@
   ],
   "checked": {
     "how": "written",
-    "by": "claude (genre write-ups)",
-    "date": "2026-11-12",
+    "by": "claude (recipe from the web, 2026-11-26)",
+    "date": "2026-11-26",
     "opendaw": "652e6ca"
   },
   "tempo": [
-    125,
-    140
+    128,
+    138
   ],
   "body": [
-    "Drums: kick on every beat, closed hats in 16ths, open hat off-beats, clap or rim on 2 and 4; percussion loops of odd lengths.",
-    "Harmony: one minor chord or a single stab repeated, sometimes i–VII; melody is rare. Detroit techno has more chords, Berlin/minimal less.",
-    "Movement comes from slow automation: filter cutoff, delay feedback, reverb sends; parts enter every 16 or 32 bars.",
-    "Bass: a rumble (the kick through a dark reverb) or a short off-beat sub.",
-    "Apply: pattern/four-on-the-floor on the drums, then pattern/prog-techno-characteristic-1 on the keys four bars later. It leaves tempo and sounds to you: move the tempo toward 125–140 gradually, and swap sounds from the links."
+    "Tempo 128-138 BPM: peak-time about 125-135, raw and deep 130-140 (hard techno faster still).",
+    "Drums: TR-909 (or harder, shorter kicks): the kick on every beat is the track's centre, with a rumble under it (the kick through a dark reverb, high-cut below 200 Hz); closed hats in 16ths skipping the kick, open hats on the off-beats, a 909 ride in 8ths dipping on 1 and 3; no house clap on 2 and 4, rather a rim, syncopated snares and clap rolls in builds.",
+    "Bass: a sine sub on the off-beat after the kick (the 'oompa'), a rolling saw or square 16th line resting on each beat, or a TB-303 acid line with the cutoff and resonance moving; low (about E0-E1), sidechained to the kick.",
+    "Harmony: barely any: one minor chord or a single stab repeated, i-VII at most; Detroit techno adds string chords and pads, Berlin and minimal less. Movement comes from slow filter, delay and reverb automation; parts enter every 16 or 32 bars.",
+    "Lead: rare; a one- or two-note riff, a bell or vocal snippet, plucks and arps, dark and often atonal, through delay and reverb.",
+    "Texture/master: dark, dense, hypnotic and gritty; the low end mono, the kick loudest, highs controlled; a little analog drive is fine.",
+    "Sources (2026-11-26): MusicRadar 'The definitive guide to producing techno' and 'Create a rumbling techno kick'; EDMProd 'How to make techno'.",
+    "Apply: pattern/four-on-the-floor on the drums, then pattern/prog-techno-characteristic-1 on the keys four bars later. For a whole style change the Team Lead's restyle uses knowledge/style/techno.json instead."
   ],
   "apply": {
     "params": {

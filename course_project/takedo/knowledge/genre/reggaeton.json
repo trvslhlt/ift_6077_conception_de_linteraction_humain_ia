@@ -1,0 +1,95 @@
+{
+  "key": "genre/reggaeton",
+  "kind": "genre",
+  "summary": "Reggaeton: 88-100 BPM dembow (a steady four-on-the-floor kick under a 3-3-2 snare and rim), tight drum-machine sounds with maracas/güira and timbales, a short sub/808 bass on the roots, minor three- or four-chord loops (i-VI-III-VII), a plucked, guitar or marimba hook; knowledge/style/reggaeton.json is its template",
+  "tags": [
+    "reggaeton",
+    "dembow",
+    "perreo",
+    "latin",
+    "latin trap",
+    "urbano",
+    "bad bunny",
+    "daddy yankee",
+    "puerto rico",
+    "latin pop"
+  ],
+  "devices": [
+    "Playfield",
+    "Tubular",
+    "Vaporisateur"
+  ],
+  "links": [
+    "pattern/gmd-latin-reggaeton-beat-1",
+    "pattern/minor-i-vi-iii-vii",
+    "pattern/prog-latin-common-1",
+    "genre/trap",
+    "sound/808-bass",
+    "sound/kit-trap-808",
+    "sound/guitar-nylon",
+    "sound/tubular-nylon-gtr",
+    "sound/tubular-marimba",
+    "sound/strings-synth",
+    "sound/pluck-kalimba"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (recipe from the web, 2026-11-26)",
+    "date": "2026-11-26",
+    "opendaw": "652e6ca"
+  },
+  "tempo": [
+    88,
+    100
+  ],
+  "body": [
+    "Tempo 88-100 BPM, modern hits 92-96 (90 to start; some newer tracks 100-110). Dominican dembow is a faster cousin at 115-130.",
+    "Drums: the dembow, a 2-beat cell repeated: kick on every quarter, snare or rim on the 4th and 7th 16ths of each half bar (steps 4, 7, 12, 15: the 3-3-2 against the kick), hats in 8ths or quarters; the kick tight and short and mid-forward, the snare boxy (200-400 Hz), bright and cutting, often layered with a clap; maracas or güira, congas or bongos, timbale fills at phrase ends; extra ghost 16th snares for movement.",
+    "Bass: a deep sine sub or short 808 on the chord roots, landing with the kick, mostly staccato (shorter than trap's), the occasional slide; high-pass the kick and sub against each other.",
+    "Harmony: simple and usually minor: three or four chords looping (i-VI-III-VII, or a two-chord vamp), a synth pad or synth strings held low under the beat, often filtered.",
+    "Lead: a short 2-4 bar motif repeated: a plucked synth, nylon or flamenco guitar, marimba or a piano stab; harpsichord, sitar or classical guitar with heavy delay in intros. Leave room for the vocal.",
+    "Texture/master: loud and uncluttered: dry, punchy drums with the snare cutting through, kick and sub loud but controlled, percussion crisp and wide; wet delays and reverbs only in intros and breakdowns.",
+    "Sources (2026-11-26): Native Instruments 'How to make reggaeton'; MusicRadar '22 essential reggaeton production tips to help you sound like Bad Bunny'; Violet Recording 'How to make reggaeton beats'; Wikipedia 'Dembow beat'.",
+    "Apply: pattern/gmd-latin-reggaeton-beat-1 on the drums, then pattern/minor-i-vi-iii-vii on the keys four bars later. For a whole style change the Team Lead's restyle uses knowledge/style/reggaeton.json instead."
+  ],
+  "apply": {
+    "params": {
+      "drums": {
+        "type": "track",
+        "optional": true,
+        "about": "the drum track (a kit); leave out if there isn't one"
+      },
+      "keys": {
+        "type": "track",
+        "optional": true,
+        "about": "a chordal part (keys, pad); leave out if there isn't one"
+      },
+      "key": {
+        "type": "key",
+        "optional": true,
+        "about": "the project's key; leave out to estimate it from the notes"
+      }
+    },
+    "steps": [
+      {
+        "op": "entry",
+        "key": "pattern/gmd-latin-reggaeton-beat-1",
+        "args": {
+          "track": "$drums"
+        },
+        "when": "drums",
+        "at": 0
+      },
+      {
+        "op": "entry",
+        "key": "pattern/minor-i-vi-iii-vii",
+        "args": {
+          "track": "$keys",
+          "key": "$key"
+        },
+        "when": "keys",
+        "at": 4
+      }
+    ]
+  }
+}

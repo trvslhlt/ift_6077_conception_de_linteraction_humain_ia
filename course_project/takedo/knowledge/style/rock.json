@@ -1,0 +1,46 @@
+{
+  "style": "rock",
+  "about": "rock: a big acoustic power kit on a straight backbeat, a picked bass driving root 8ths with the kick, distorted guitar power chords, an overdriven guitar lead; 100-140 BPM, loud and energetic",
+  "tempo": [
+    100,
+    140
+  ],
+  "parts": {
+    "drums": {
+      "sound": "GeneralUser GS/Power Kit",
+      "groove": "pattern/gmd-rock-beat-1",
+      "level_db": -8
+    },
+    "bass": {
+      "sound": "GeneralUser GS/Pick Bass",
+      "range": [
+        28,
+        48
+      ],
+      "level_db": -9
+    },
+    "chords": {
+      "sound": "GeneralUser GS/Distortion Guitar",
+      "range": [
+        45,
+        69
+      ],
+      "velocity": 0.8,
+      "level_db": -14,
+      "add": {
+        "major": "I:4 bVII:4 IV:4 I:4",
+        "minor": "i:4 VII:4 VI:4 VII:4"
+      }
+    },
+    "lead": {
+      "sound": "GeneralUser GS/Overdrive Guitar",
+      "range": [
+        60,
+        84
+      ],
+      "velocity": 0.75,
+      "level_db": -15
+    }
+  },
+  "master": "loud and punchy: saturated guitars and drums, solid low mids, glued with bus compression; driven, not lofi"
+}

@@ -1,14 +1,19 @@
 {
   "key": "genre/funk",
   "kind": "genre",
-  "summary": "Funk: 90–115 BPM 16th-note grooves on the one, dorian vamps, slap bass, clav and brass stabs",
+  "summary": "Funk: 95-115 BPM, a dry live kit locked on the one with ghost notes, a syncopated bass that leads, one- or two-chord dominant 9th vamps stabbed on clavinet like a rhythm guitar, short horn stabs; knowledge/style/funk.json is its template",
   "tags": [
     "funk",
     "funky",
     "groove",
+    "on the one",
     "70s",
     "soul",
-    "james brown"
+    "james brown",
+    "parliament",
+    "slap bass",
+    "clav",
+    "horns"
   ],
   "devices": [
     "Playfield",
@@ -35,20 +40,23 @@
   ],
   "checked": {
     "how": "written",
-    "by": "claude (genre write-ups)",
-    "date": "2026-11-12",
+    "by": "claude (recipe from the web, 2026-11-26)",
+    "date": "2026-11-26",
     "opendaw": "652e6ca"
   },
   "tempo": [
-    90,
+    95,
     115
   ],
   "body": [
-    "Drums: busy 16th hats, ghost notes on the snare, the kick locking with the bass; everything lands hard on the one.",
-    "Harmony: one- or two-chord vamps (i7–IV7 dorian, dominant 9ths); stabs and riffs more than progressions.",
-    "Bass: syncopated 16ths, octaves, slap; it is a lead instrument.",
-    "Clav or guitar comping in 16ths; short brass stabs.",
-    "Apply: pattern/gmd-funk-beat-1 on the drums, then pattern/dorian-i-IV on the keys four bars later. It leaves tempo and sounds to you: move the tempo toward 90–115 gradually, and swap sounds from the links."
+    "Tempo 95-115 BPM (90-110 for the slow, heavy grooves; around 100 is typical), straight 16ths.",
+    "Drums: a live kit, tuned high and kept dry (little or no reverb on kick, snare or hats); 8th or 16th hats, ghost notes on the snare, the kick locking with the bass; everything lands hard on the one; few fills.",
+    "Bass: the centrepiece: a syncopated finger or slap line with octaves, 16th ghost notes and slides into the one, leaving space after it; it plays against the kick and leads the groove.",
+    "Harmony: one chord for a long time or a two-chord vamp: dominant 7ths and 9ths (E9, E7#9), or i7-IV7 dorian; on clavinet played like a rhythm guitar (short, sharp, percussive 16th figures), Rhodes in sparse three-note voicings, organ; short stabs, never held pads.",
+    "Lead: horns (trumpets and saxes) in unison stabs of an 8th or less, often anticipating the beat; a short repeated vocal or synth phrase.",
+    "Texture/master: dry, warm, analog and live; bass and drums up front; space between the parts, nothing washed in reverb.",
+    "Sources (2026-11-26): MusicRadar 'How to funk-up your keyboard parts in 5 easy steps' and 'David Garibaldi: 12 tips for funk drumming'; Splice 'Genre focus series: funk'; UJAM 'How to use slap bass like 90s funk legends'; Keyboard Magazine 'Funk up your keyboard parts'.",
+    "Apply: pattern/gmd-funk-beat-1 on the drums, then pattern/dorian-i-IV on the keys four bars later. For a whole style change the Team Lead's restyle uses knowledge/style/funk.json instead."
   ],
   "apply": {
     "params": {

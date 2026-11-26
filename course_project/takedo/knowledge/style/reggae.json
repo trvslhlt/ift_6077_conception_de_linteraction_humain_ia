@@ -1,0 +1,50 @@
+{
+  "style": "reggae",
+  "about": "roots reggae: a one-drop on a dry room kit (kick and rim together on 3, swung hats), a deep round bass loud and melodic with space between the notes, a clean guitar skanking short chords on the off-beats, a reedy harmonica line as the melodica; 65-85 BPM, laid back, warm, with echo",
+  "tempo": [
+    65,
+    85
+  ],
+  "parts": {
+    "drums": {
+      "sound": "GeneralUser GS/Room Kit",
+      "groove": "pattern/one-drop",
+      "level_db": -9
+    },
+    "bass": {
+      "sound": "GeneralUser GS/Finger Bass",
+      "range": [
+        28,
+        45
+      ],
+      "tone": {
+        "low_cut": 30,
+        "high_cut": 800
+      },
+      "level_db": -8
+    },
+    "chords": {
+      "sound": "GeneralUser GS/Clean Guitar",
+      "range": [
+        52,
+        72
+      ],
+      "velocity": 0.6,
+      "level_db": -15,
+      "add": {
+        "major": "I:8 IV:8",
+        "minor": "i:8 iv:8"
+      }
+    },
+    "lead": {
+      "sound": "GeneralUser GS/Harmonica",
+      "range": [
+        60,
+        79
+      ],
+      "velocity": 0.6,
+      "level_db": -15
+    }
+  },
+  "master": "warm and bass-heavy, top end soft; spring reverb and tape echo on the rim and skank, never bright or squashed"
+}

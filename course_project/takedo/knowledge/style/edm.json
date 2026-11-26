@@ -1,0 +1,79 @@
+{
+  "style": "edm",
+  "about": "festival EDM (big room and progressive house): a hard four-on-the-floor TR-909 kick with big claps, a pumping saw bass on the roots, wide supersaw chords held through the drop, a bright layered supersaw lead playing the hook high; 126-130 BPM, euphoric and huge",
+  "tempo": [
+    126,
+    130
+  ],
+  "parts": {
+    "drums": {
+      "kit": {
+        "name": "EDM 909",
+        "pads": [
+          {
+            "role": "kick",
+            "sample": "RolandTR909/bd/Bassdrum-04"
+          },
+          {
+            "role": "clap",
+            "sample": "RolandTR909/cp/Clap"
+          },
+          {
+            "role": "snare",
+            "sample": "RolandTR909/sd/sd02"
+          },
+          {
+            "role": "closed_hat",
+            "sample": "RolandTR909/hh/hh03"
+          },
+          {
+            "role": "open_hat",
+            "sample": "RolandTR909/oh/oh02"
+          },
+          {
+            "role": "ride",
+            "sample": "RolandTR909/rd/rd02"
+          },
+          {
+            "role": "crash",
+            "sample": "RolandTR909/cr/Crash"
+          }
+        ]
+      },
+      "groove": "pattern/four-on-the-floor",
+      "level_db": -7
+    },
+    "bass": {
+      "sound": "GeneralUser GS/Synth Bass 1",
+      "range": [
+        33,
+        48
+      ],
+      "level_db": -9
+    },
+    "chords": {
+      "sound": "GeneralUser GS/Polysynth",
+      "range": [
+        52,
+        76
+      ],
+      "rhythm": "hold",
+      "velocity": 0.75,
+      "level_db": -14,
+      "add": {
+        "major": "I:4 V:4 vi:4 IV:4",
+        "minor": "i:4 III:4 VII:4 VI:4"
+      }
+    },
+    "lead": {
+      "sound": "openDAW/Stoned",
+      "range": [
+        64,
+        86
+      ],
+      "velocity": 0.9,
+      "level_db": -13
+    }
+  },
+  "master": "loud, wide and bright: everything ducking under the kick (sidechain pump), a big hall on the lead, limited hard for festival loudness"
+}

@@ -1,13 +1,17 @@
 {
   "key": "genre/pop",
   "kind": "genre",
-  "summary": "Pop: 90–130 BPM, clear backbeat, I–V–vi–IV, a strong hook, verses and choruses",
+  "summary": "Modern mainstream pop: 100-125 BPM, punchy programmed drums with a clap on 2 and 4, a synth bass on the roots, four-chord loops (I-V-vi-IV) on piano or synths, a short bright hook; knowledge/style/pop.json is its template",
   "tags": [
     "pop",
+    "modern pop",
     "mainstream",
     "radio",
     "catchy",
-    "chart"
+    "chart",
+    "top 40",
+    "dance pop",
+    "hook"
   ],
   "devices": [
     "Playfield",
@@ -29,20 +33,23 @@
   ],
   "checked": {
     "how": "written",
-    "by": "claude (genre write-ups)",
-    "date": "2026-11-12",
+    "by": "claude (recipe from the web, 2026-11-26)",
+    "date": "2026-11-26",
     "opendaw": "652e6ca"
   },
   "tempo": [
-    90,
-    130
+    100,
+    125
   ],
   "body": [
-    "Drums: steady backbeat, claps layered with the snare.",
-    "Harmony: four-chord loops (I–V–vi–IV, vi–IV–I–V); minor-key pop uses i–VI–III–VII.",
-    "A short, singable melody repeated; verses quieter than choruses.",
-    "Production in production/clean-modern.",
-    "Apply: pattern/gmd-pop-beat-1 on the drums, then pattern/pop-i-v-vi-iv on the keys four bars later. It leaves tempo and sounds to you: move the tempo toward 90–130 gradually, and swap sounds from the links."
+    "Tempo 100-125 BPM, most hits 100-120; slower drifts to ballad, faster to dance or hyperpop.",
+    "Drums: programmed and tight: a punchy kick, a snappy snare layered with (or replaced by) a clap on 2 and 4, crisp straight 8th or 16th hats; 808 and 909 sounds are common. Big long clean reverbs for shimmer, not on the kick.",
+    "Bass: a synth bass is the most common choice (else an electric bass or an 808), on the roots following the kick, sidechained to it.",
+    "Harmony: simple triads looped, four chords (I-V-vi-IV, vi-IV-I-V; minor i-VI-III-VII); a chord every 2 beats in a verse, a full bar each in the chorus for weight; piano, plucks or synth pads.",
+    "Lead: the vocal topline; as an instrument, a bright clear synth lead or pluck with a short, repeated, singable hook.",
+    "Texture/master: clean, bright, loud and wide; polished top end, controlled low end; no lofi roll-off.",
+    "Sources (2026-11-26): MusicRadar 'Songwriting basics: how to create a modern pop song using just 4 chords' and '25 pop tips'; UJAM 'How To Make Modern Pop Drums'; Soundtrap 'How To Make Pop Music'; eMastered 'How to Make a Pop Beat'.",
+    "Apply: pattern/gmd-pop-beat-1 on the drums, then pattern/pop-i-v-vi-iv on the keys four bars later. For a whole style change the Team Lead's restyle uses knowledge/style/pop.json instead."
   ],
   "apply": {
     "params": {

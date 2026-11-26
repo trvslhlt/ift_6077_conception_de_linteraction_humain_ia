@@ -1,0 +1,97 @@
+{
+  "key": "genre/rnb",
+  "kind": "genre",
+  "summary": "Contemporary R&B (trap-soul, alt R&B): 70-95 BPM, soft 808 drums with rims, shakers and swing, a deep sub bass on the roots, lush 7th and 9th chords held on Rhodes or pads, space left for the voice; knowledge/style/rnb.json is its template",
+  "tags": [
+    "r&b",
+    "rnb",
+    "r and b",
+    "contemporary r&b",
+    "trap soul",
+    "alt r&b",
+    "sza",
+    "bryson tiller",
+    "smooth",
+    "sensual",
+    "slow jam"
+  ],
+  "devices": [
+    "Playfield",
+    "Tubular",
+    "Vaporisateur"
+  ],
+  "links": [
+    "pattern/gmd-hiphop-beat-1",
+    "pattern/trap-halftime",
+    "pattern/prog-r-and-b-common-4",
+    "pattern/prog-r-and-b-characteristic-2",
+    "genre/neo-soul",
+    "genre/trap",
+    "sound/kit-trap-808",
+    "sound/808-bass",
+    "sound/keys-rhodes",
+    "sound/tubular-rhodes",
+    "sound/guitar-clean",
+    "sound/pad-warm"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (recipe from the web, 2026-11-26)",
+    "date": "2026-11-26",
+    "opendaw": "652e6ca"
+  },
+  "tempo": [
+    70,
+    95
+  ],
+  "body": [
+    "Tempo 70-95 BPM (also written at 130-160 felt half-time, the trap way); slow enough to leave room for vocal runs and ad-libs.",
+    "Drums: TR-808 sounds: a round short-tailed kick, a soft snare or clap on 2 and 4 (3 in half-time), rimshots, a maraca or shaker on the off-beats, hats with swing (60-70%) and the odd triplet or roll; ghost notes, laid back.",
+    "Bass: a deep sub (an 808 or sine-ish synth) on the chord roots, tuned to the key, long notes with glides; a short punchy kick so the two don't fight.",
+    "Harmony: extended chords, never bare triads: maj7, m7, 9ths, sus2/sus4 for a floating feel; descending IVmaj7-iii7-ii7-Imaj7, minor i9-iv9-VImaj7; held on a Rhodes/Wurli, soft pads or strings.",
+    "Lead: the voice; as an instrument, a clean electric guitar or soft keys answering it, sparse.",
+    "Texture/master: warm and smooth, deep lows and airy highs with scooped mids, gentle glue; nothing harsh.",
+    "Sources (2026-11-26): Attack Magazine 'Beat Dissected: 808 R&B' and 'Dark R&B'; Native Instruments 'R&B chord progressions'; UJAM 'The Ultimate Guide to R&B'; Output 'R&B Type Beat Guide'.",
+    "Apply: pattern/gmd-hiphop-beat-1 on the drums, then pattern/prog-r-and-b-common-4 on the keys four bars later. For a whole style change the Team Lead's restyle uses knowledge/style/rnb.json instead."
+  ],
+  "apply": {
+    "params": {
+      "drums": {
+        "type": "track",
+        "optional": true,
+        "about": "the drum track (a kit); leave out if there isn't one"
+      },
+      "keys": {
+        "type": "track",
+        "optional": true,
+        "about": "a chordal part (keys, pad); leave out if there isn't one"
+      },
+      "key": {
+        "type": "key",
+        "optional": true,
+        "about": "the project's key; leave out to estimate it from the notes"
+      }
+    },
+    "steps": [
+      {
+        "op": "entry",
+        "key": "pattern/gmd-hiphop-beat-1",
+        "args": {
+          "track": "$drums"
+        },
+        "when": "drums",
+        "at": 0
+      },
+      {
+        "op": "entry",
+        "key": "pattern/prog-r-and-b-common-4",
+        "args": {
+          "track": "$keys",
+          "key": "$key"
+        },
+        "when": "keys",
+        "at": 4
+      }
+    ]
+  }
+}

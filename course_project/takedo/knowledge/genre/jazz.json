@@ -1,14 +1,19 @@
 {
   "key": "genre/jazz",
   "kind": "genre",
-  "summary": "Jazz: swung 8ths on the ride, ii–V–I changes with 7th chords, walking bass, Rhodes, piano or vibes",
+  "summary": "Jazz (small-combo swing): 100-160 BPM, a swung ride with the hi-hat on 2 and 4, an upright bass walking quarter notes through ii-V-I changes, a piano comping rootless 7th/9th voicings, a vibraphone or horn on the melody; knowledge/style/jazz.json is its template",
   "tags": [
     "jazz",
     "swing",
-    "bebop",
     "jazzy",
+    "bebop",
+    "combo",
+    "jazz trio",
+    "walking bass",
     "lounge",
-    "club"
+    "club",
+    "standards",
+    "cool jazz"
   ],
   "devices": [
     "Playfield",
@@ -16,7 +21,7 @@
     "Vaporisateur"
   ],
   "links": [
-    "pattern/gmd-jazz-swing-beat-1",
+    "pattern/gmd-jazz-beat-1",
     "pattern/jazz-ii-v-i",
     "pattern/prog-jazz-characteristic-2",
     "genre/bossa-nova",
@@ -32,20 +37,23 @@
   ],
   "checked": {
     "how": "written",
-    "by": "claude (genre write-ups)",
-    "date": "2026-11-12",
+    "by": "claude (recipe from the web, 2026-11-26)",
+    "date": "2026-11-26",
     "opendaw": "652e6ca"
   },
   "tempo": [
-    90,
-    200
+    100,
+    160
   ],
   "body": [
-    "Drums: swing ride (ding, ding-a-ding), hi-hat on 2 and 4, brushes or light snare comping.",
-    "Harmony: 7th chords everywhere; ii–V–I, turnarounds (I–vi–ii–V), tritone substitutions.",
-    "Bass: walking quarter notes through the changes.",
-    "Space: a small room, played softly; 'jazzier chords' usually means extending triads to 7ths and 9ths and adding ii–V movement.",
-    "Apply: pattern/gmd-jazz-swing-beat-1 on the drums, then pattern/jazz-ii-v-i on the keys four bars later. It leaves tempo and sounds to you: move the tempo toward 90–200 gradually, and swap sounds from the links."
+    "Tempo: medium swing 110-160 BPM (cool jazz 110-160, hard bop 120-200, bebop faster); swing ratio about 60-67%, never grid-straight.",
+    "Drums: the ride carries the time (ding, ding-a-ding, swung), the hi-hat closed with the foot on 2 and 4, the snare only comping and the kick feathered or sparse; brushes for ballads; soft, natural, a jazz kit, not punchy or processed.",
+    "Bass: an upright (acoustic) bass walking quarter notes through the changes, chord tones on the beats and chromatic approach notes, the root on each new chord; a 2-feel (half notes) for a calmer section; louder in the mix than in pop, never high-passed hard.",
+    "Harmony: 7th, 9th and 13th chords, never plain triads; ii-V-I, I-vi-ii-V turnarounds, tritone substitutions; a grand piano comping in the middle register in short, varied rhythms, rootless voicings (3rd and 7th, the bass has the root).",
+    "Lead: the head on a horn (alto or tenor sax, trumpet, muted trumpet) or a vibraphone, call-and-response phrasing; the template uses the vibraphone, clear and soft.",
+    "Texture/master: transparent and acoustic: a small room, light compression at most (2-4 dB on the bus), dynamics kept (about -18 to -14 LUFS); no saturation, sidechain or bright EQ.",
+    "Sources (2026-11-26): MusicProductionWiki 'How to make jazz music'; MusicRadar 'How to program a basic jazz comp rhythm using a software drum kit'; Learn Jazz Standards 'Ultimate Jazz Comping 101'; Marshall University 'Rhythm section roles in standard swing'.",
+    "Apply: pattern/gmd-jazz-beat-1 on the drums, then pattern/jazz-ii-v-i on the keys four bars later. For a whole style change the Team Lead's restyle uses knowledge/style/jazz.json instead."
   ],
   "apply": {
     "params": {
@@ -68,7 +76,7 @@
     "steps": [
       {
         "op": "entry",
-        "key": "pattern/gmd-jazz-swing-beat-1",
+        "key": "pattern/gmd-jazz-beat-1",
         "args": {
           "track": "$drums"
         },

@@ -1,0 +1,47 @@
+{
+  "style": "jazz",
+  "about": "small-combo swing jazz: a soft swung ride and snare on a jazz kit, an upright bass walking low, a grand piano comping 7th and 9th chords in the middle, a vibraphone carrying the melody on top; 100-160 BPM, warm, dry and dynamic, played softly",
+  "tempo": [
+    100,
+    160
+  ],
+  "parts": {
+    "drums": {
+      "sound": "GeneralUser GS/Jazz Kit",
+      "groove": "pattern/gmd-jazz-beat-1",
+      "level_db": -10
+    },
+    "bass": {
+      "sound": "GeneralUser GS/Acoustic Bass",
+      "range": [
+        28,
+        50
+      ],
+      "velocity": 0.7,
+      "level_db": -9
+    },
+    "chords": {
+      "sound": "GeneralUser GS/Grand Piano",
+      "range": [
+        50,
+        72
+      ],
+      "velocity": 0.5,
+      "level_db": -15,
+      "add": {
+        "major": "ii7:4 V7:4 Imaj7:8",
+        "minor": "iim7b5:4 V7:4 i7:8"
+      }
+    },
+    "lead": {
+      "sound": "GeneralUser GS/Vibraphone",
+      "range": [
+        60,
+        81
+      ],
+      "velocity": 0.65,
+      "level_db": -14
+    }
+  },
+  "master": "transparent and natural: a small room, light bus compression at most, full dynamics kept; nothing distorted, pumped or brightened"
+}

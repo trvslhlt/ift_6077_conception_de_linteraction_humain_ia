@@ -1,0 +1,87 @@
+{
+  "style": "synthwave",
+  "about": "synthwave (retrowave, outrun): a LinnDrum straight beat with a big snare on 2 and 4, a hollow square synth bass pulsing 8ths on the roots, analog synth strings held as a pad on a minor loop, a bright retro square lead with simple melodies; 80-118 BPM, neon 80s, wide and glossy",
+  "tempo": [
+    80,
+    118
+  ],
+  "parts": {
+    "drums": {
+      "kit": {
+        "name": "Synthwave LinnDrum",
+        "pads": [
+          {
+            "role": "kick",
+            "sample": "LinnDrum/bd/Bassdrum"
+          },
+          {
+            "role": "snare",
+            "sample": "LinnDrum/sd/0Snarderum-01"
+          },
+          {
+            "role": "clap",
+            "sample": "LinnDrum/cp/Clap"
+          },
+          {
+            "role": "closed_hat",
+            "sample": "LinnDrum/hh/Hat Closed-01"
+          },
+          {
+            "role": "open_hat",
+            "sample": "LinnDrum/oh/Hat Open"
+          },
+          {
+            "role": "crash",
+            "sample": "LinnDrum/cr/Crash"
+          },
+          {
+            "role": "tom_low",
+            "sample": "LinnDrum/lt/Tom L-01"
+          },
+          {
+            "role": "tom_mid",
+            "sample": "LinnDrum/mt/Tom M-01"
+          },
+          {
+            "role": "tom_high",
+            "sample": "LinnDrum/ht/Tom H-01"
+          }
+        ]
+      },
+      "groove": "pattern/basic-rock",
+      "level_db": -8
+    },
+    "bass": {
+      "sound": "openDAW/Square Bass",
+      "range": [
+        28,
+        48
+      ],
+      "level_db": -9
+    },
+    "chords": {
+      "sound": "GeneralUser GS/Synth Strings 1",
+      "range": [
+        50,
+        74
+      ],
+      "rhythm": "hold",
+      "velocity": 0.55,
+      "level_db": -15,
+      "add": {
+        "major": "vi:4 IV:4 I:4 V:4",
+        "minor": "i:4 VI:4 III:4 VII:4"
+      }
+    },
+    "lead": {
+      "sound": "openDAW/Retro Square",
+      "range": [
+        60,
+        84
+      ],
+      "velocity": 0.75,
+      "level_db": -14
+    }
+  },
+  "master": "wide and glossy 80s: chorus and a big gated reverb on the snare, gentle analog saturation and a little sidechain pump from the kick; bright but not harsh"
+}

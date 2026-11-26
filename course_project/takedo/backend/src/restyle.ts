@@ -84,7 +84,13 @@ export type Move = { role: TemplateRole, old: Track | null, name: string, code: 
     keep?: boolean, tone?: { low_cut: number, high_cut: number } }
 
 // What a template part's tracks are named: after its sound or kit, so a later restyle knows them ("Fretless Bass").
-export const partName = (spec: PartSpec): string | null => spec.kit?.name ?? spec.sound?.split("/").pop() ?? null
+// Drums on a sound are named for their style too ("Funk Room Kit"): styles share a kit sound with different grooves.
+export const partName = (spec: PartSpec, style?: string): string | null => {
+    const sound = spec.sound?.split("/").pop()
+    if (spec.kit !== undefined) {return spec.kit.name}
+    if (sound === undefined) {return null}
+    return spec.groove !== undefined && style !== undefined ? `${style.charAt(0).toUpperCase()}${style.slice(1)} ${sound}` : sound
+}
 const named = (track: Track, name: string | null): boolean => name !== null && (track.name === name || track.name.startsWith(`${name} `))
 
 // A part's role: the template's own part when it's named after that part's sound (a low Rhodes chord is still chords),
@@ -92,7 +98,7 @@ const named = (track: Track, name: string | null): boolean => name !== null && (
 const roleFor = (track: Track, template: Template): TemplateRole | null => {
     const own = TemplateRoles.find(role => {
         const spec = template.parts[role]
-        return spec !== undefined && named(track, partName(spec))
+        return spec !== undefined && named(track, partName(spec, template.style))
     })
     if (own !== undefined) {return own}
     const role = roleOf(track)
@@ -149,7 +155,7 @@ export const restyleMoves = (template: Template, snapshot: Snapshot, knowledge: 
     const made = (role: TemplateRole, old: Track | null, notes: { hits: Array<[number, number, number, number]> | Array<[number, string, number, number]>, beats: number }): string | null => {
         const spec = template.parts[role]!
         // Named after its sound, so a later restyle (and soundFit) knows what it plays: "Fretless Bass", "Lofi 808".
-        const base = partName(spec)!
+        const base = partName(spec, template.style)!
         const taken = snapshot.tracks.filter(other => named(other, base)).length + moves.filter(move => move.name.startsWith(base)).length
         const name = taken === 0 ? base : `${base} ${taken + 1}`
         const level = levelOf(knowledge, spec)
@@ -179,8 +185,9 @@ export const restyleMoves = (template: Template, snapshot: Snapshot, knowledge: 
                 says: `${track.name} kept on its own sound${spec.tone !== undefined ? `, low-passed to ${spec.tone.high_cut} Hz` : ""}`, ...(spec.tone !== undefined ? {tone: spec.tone} : {})})
             continue
         }
-        if ((spec.sound !== undefined && soundOf(track, catalog, knowledge.library)?.sound === spec.sound) || named(track, partName(spec))) {
-            left.push(`${track.ref} ${track.name}: already the template's ${partName(spec)}`)
+        // Drums by their name only: the same kit sound on another style's groove isn't this style's drums.
+        if ((role !== "drums" && spec.sound !== undefined && soundOf(track, catalog, knowledge.library)?.sound === spec.sound) || named(track, partName(spec, template.style))) {
+            left.push(`${track.ref} ${track.name}: already the template's ${partName(spec, template.style)}`)
             continue
         }
         if (role === "drums") {

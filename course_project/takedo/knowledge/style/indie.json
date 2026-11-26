@@ -1,0 +1,46 @@
+{
+  "style": "indie",
+  "about": "indie pop/rock: a roomy acoustic kit played simply (kick 1 and 3, snare 2 and 4, straight 8th hats), a picked bass on steady root 8ths, jangly strummed clean guitar chords, a glockenspiel hook on top; 100-140 BPM, a little raw, mid-forward",
+  "tempo": [
+    100,
+    140
+  ],
+  "parts": {
+    "drums": {
+      "sound": "GeneralUser GS/Room Kit",
+      "groove": "pattern/gmd-rock-indie-beat-1",
+      "level_db": -8
+    },
+    "bass": {
+      "sound": "GeneralUser GS/Pick Bass",
+      "range": [
+        28,
+        48
+      ],
+      "level_db": -10
+    },
+    "chords": {
+      "sound": "GeneralUser GS/Clean Guitar",
+      "range": [
+        50,
+        74
+      ],
+      "velocity": 0.65,
+      "level_db": -14,
+      "add": {
+        "major": "I:4 iii:4 vi:4 IV:4",
+        "minor": "i:4 VI:4 III:4 VII:4"
+      }
+    },
+    "lead": {
+      "sound": "GeneralUser GS/Glockenspiel",
+      "range": [
+        64,
+        84
+      ],
+      "velocity": 0.6,
+      "level_db": -16
+    }
+  },
+  "master": "natural and a little raw: mid-forward guitars, roomy drums, light compression; not hyper-polished, no heavy low-pass"
+}

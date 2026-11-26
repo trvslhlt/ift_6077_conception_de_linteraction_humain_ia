@@ -1,21 +1,57 @@
 {
   "style": "dnb",
-  "about": "drum and bass: a fast two-step electronic kit, a rubbery saw bass under it, the chords held as a pad, a soothing vibraphone line on top",
+  "about": "drum and bass (liquid): a fast two-step on sampled-break drums (kick on 1 and the and of 3, snares on 2 and 4, rolling hats and a shaker), a dark growling bass in long half-time notes, a Rhodes holding minor ninth chords, a soothing vibraphone line an octave low on top; 170-176 BPM, the drums at full speed and everything else at half",
   "tempo": [
-    165,
-    175
+    170,
+    176
   ],
   "parts": {
     "drums": {
-      "sound": "GeneralUser GS/Electronic Kit",
+      "kit": {
+        "name": "DnB MPC60",
+        "pads": [
+          {
+            "role": "kick",
+            "sample": "AkaiMPC60/bd/0 Bassdrum"
+          },
+          {
+            "role": "snare",
+            "sample": "AkaiMPC60/sd/Snare 2"
+          },
+          {
+            "role": "rim",
+            "sample": "AkaiMPC60/rim/Rim Gated"
+          },
+          {
+            "role": "closed_hat",
+            "sample": "AkaiMPC60/hh/Closed Hat"
+          },
+          {
+            "role": "open_hat",
+            "sample": "AkaiMPC60/oh/Open Hat"
+          },
+          {
+            "role": "ride",
+            "sample": "AkaiMPC60/rd/Ride"
+          },
+          {
+            "role": "crash",
+            "sample": "AkaiMPC60/cr/Crash"
+          },
+          {
+            "role": "shaker",
+            "sample": "RolandR8/sh/Cabasa1"
+          }
+        ]
+      },
       "groove": "pattern/dnb-two-step",
       "level_db": -8
     },
     "bass": {
-      "sound": "GeneralUser GS/Synth Bass 1",
+      "sound": "openDAW/Bass Roads",
       "range": [
         28,
-        48
+        45
       ],
       "level_db": -9
     },
@@ -29,8 +65,8 @@
       "velocity": 0.45,
       "level_db": -16,
       "add": {
-        "major": "vi7:8 IVmaj7:8",
-        "minor": "i9:8 VImaj7:8"
+        "major": "vi9:8 IVmaj7:8 Imaj7:8 V:8",
+        "minor": "i9:8 VII:8 VImaj7:8 VII:8"
       }
     },
     "lead": {
@@ -43,5 +79,5 @@
       "level_db": -15
     }
   },
-  "master": "clean and punchy: no lofi character (no low-pass roll-off, no saturation)"
+  "master": "clean, punchy and loud: crisp snares, a solid mono sub, no lofi character (no low-pass roll-off, no saturation)"
 }

@@ -1,0 +1,93 @@
+{
+  "key": "genre/country",
+  "kind": "genre",
+  "summary": "Modern Nashville country: 75-125 BPM, a live kit on a two-step or straight backbeat, a round bass on roots and fifths, strummed acoustic steel-string guitar, pedal steel and fiddle answering the vocal, I-IV-V with the II7; knowledge/style/country.json is its template",
+  "tags": [
+    "country",
+    "nashville",
+    "modern country",
+    "country pop",
+    "americana",
+    "twang",
+    "pedal steel",
+    "acoustic guitar",
+    "honky tonk"
+  ],
+  "devices": [
+    "Playfield",
+    "Tubular",
+    "Vaporisateur"
+  ],
+  "links": [
+    "pattern/gmd-country-beat-1",
+    "pattern/gmd-country-beat-2",
+    "pattern/prog-country-characteristic-3",
+    "pattern/prog-country-common-1",
+    "genre/rock",
+    "genre/pop",
+    "sound/guitar-clean",
+    "sound/bass-finger",
+    "sound/keys-upright-piano",
+    "sound/keys-organ"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (recipe from the web, 2026-11-26)",
+    "date": "2026-11-26",
+    "opendaw": "652e6ca"
+  },
+  "tempo": [
+    75,
+    125
+  ],
+  "body": [
+    "Tempo 75-125 BPM: ballads 70-85, mid-tempo 95-115, uptempo two-steps up to 125 and beyond.",
+    "Drums: a live acoustic kit played tastefully: kick on 1 and 3, snare (often a cross-stick in verses) on 2 and 4, the train-beat or two-step feel; modern country-pop may add programmed 808 kicks and claps.",
+    "Bass: a round electric bass on roots and fifths (root-five, a walk-up into the change), never busy.",
+    "Harmony: I-IV-V, I-V-vi-IV, and the country II7 (I-IV-II7-V7); strummed acoustic steel-string guitar as the bed, a telecaster and piano or organ on top.",
+    "Lead: pedal steel (sliding, swelling lines) and fiddle answering the vocal; in modern Nashville the steel sits lower and subtler.",
+    "Texture/master: polished but organic, vocal-forward, warm mids, natural room; no lofi or heavy distortion.",
+    "Sources (2026-11-26): Sound On Sound 'Nashville Recording'; iZotope '15 tips for mixing country music with Julian King'; Reverb 'How to get the Nashville sound in your home studio'; Splice 'Breaking down Nashville country music with Kate Malone and Devin Malone'; Produce Like A Pro 'Nashville pedal steel guitar recording'.",
+    "Apply: pattern/gmd-country-beat-1 on the drums, then pattern/prog-country-characteristic-3 on the keys four bars later. For a whole style change the Team Lead's restyle uses knowledge/style/country.json instead."
+  ],
+  "apply": {
+    "params": {
+      "drums": {
+        "type": "track",
+        "optional": true,
+        "about": "the drum track (a kit); leave out if there isn't one"
+      },
+      "keys": {
+        "type": "track",
+        "optional": true,
+        "about": "a chordal part (keys, pad); leave out if there isn't one"
+      },
+      "key": {
+        "type": "key",
+        "optional": true,
+        "about": "the project's key; leave out to estimate it from the notes"
+      }
+    },
+    "steps": [
+      {
+        "op": "entry",
+        "key": "pattern/gmd-country-beat-1",
+        "args": {
+          "track": "$drums"
+        },
+        "when": "drums",
+        "at": 0
+      },
+      {
+        "op": "entry",
+        "key": "pattern/prog-country-characteristic-3",
+        "args": {
+          "track": "$keys",
+          "key": "$key"
+        },
+        "when": "keys",
+        "at": 4
+      }
+    ]
+  }
+}

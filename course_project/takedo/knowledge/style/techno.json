@@ -1,0 +1,83 @@
+{
+  "style": "techno",
+  "about": "techno (Berlin and Detroit): a relentless TR-909 kick on every beat with 16th hats, off-beat open hats and a ride, a dark rolling TB-303 bass under it, a Detroit string chord held low in the background, a sparse one- or two-note synth riff; 128-138 BPM, dark and hypnotic",
+  "tempo": [
+    128,
+    138
+  ],
+  "parts": {
+    "drums": {
+      "kit": {
+        "name": "Techno 909",
+        "pads": [
+          {
+            "role": "kick",
+            "sample": "RolandTR909/bd/Bassdrum-02"
+          },
+          {
+            "role": "clap",
+            "sample": "RolandTR909/cp/cp01"
+          },
+          {
+            "role": "rim",
+            "sample": "RolandTR909/rim/rs01"
+          },
+          {
+            "role": "closed_hat",
+            "sample": "RolandTR909/hh/hh02"
+          },
+          {
+            "role": "open_hat",
+            "sample": "RolandTR909/oh/oh01"
+          },
+          {
+            "role": "ride",
+            "sample": "RolandTR909/rd/rd01"
+          },
+          {
+            "role": "crash",
+            "sample": "RolandTR909/cr/cr01"
+          }
+        ]
+      },
+      "groove": "pattern/four-on-the-floor",
+      "level_db": -7
+    },
+    "bass": {
+      "sound": "HS TB-303/TB-BASS 7",
+      "range": [
+        28,
+        43
+      ],
+      "level_db": -10
+    },
+    "chords": {
+      "sound": "openDAW/String Brass",
+      "range": [
+        48,
+        67
+      ],
+      "rhythm": "hold",
+      "velocity": 0.5,
+      "level_db": -17,
+      "tone": {
+        "low_cut": 150,
+        "high_cut": 6000
+      },
+      "add": {
+        "major": "vi7:8 V:8",
+        "minor": "i7:8 VII:8"
+      }
+    },
+    "lead": {
+      "sound": "openDAW/Hollow",
+      "range": [
+        60,
+        76
+      ],
+      "velocity": 0.6,
+      "level_db": -17
+    }
+  },
+  "master": "dark, dense and driving: a heavy mono low end, the kick loudest, highs controlled rather than bright, a little analog grit at most"
+}

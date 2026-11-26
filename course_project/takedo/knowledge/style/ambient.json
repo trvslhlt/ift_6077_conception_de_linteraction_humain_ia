@@ -1,0 +1,77 @@
+{
+  "style": "ambient",
+  "about": "ambient: a barely-there soft pulse on a CR-78 (kick, woodblock, hats) low-passed and far back, a low warm drone bass held under everything, a soothing dreamy pad holding long major-7th chords for bars at a time, a few sparse celeste notes on top; 60-80 BPM, slow, spacious, soaked in reverb",
+  "tempo": [
+    60,
+    80
+  ],
+  "parts": {
+    "drums": {
+      "kit": {
+        "name": "Ambient CR-78",
+        "pads": [
+          {
+            "role": "kick",
+            "sample": "RolandCompurhythm78/bd/Bassdrum"
+          },
+          {
+            "role": "rim",
+            "sample": "RolandCompurhythm78/perc/Woodblock-01"
+          },
+          {
+            "role": "closed_hat",
+            "sample": "RolandCompurhythm78/hh/Hat Closed-01"
+          },
+          {
+            "role": "open_hat",
+            "sample": "RolandCompurhythm78/oh/Hat Open-01"
+          }
+        ]
+      },
+      "groove": "pattern/gmd-pop-soft-beat-1",
+      "tone": {
+        "low_cut": 40,
+        "high_cut": 3000
+      },
+      "level_db": -18
+    },
+    "bass": {
+      "sound": "HS TB-303/TB-BASS 2",
+      "range": [
+        28,
+        43
+      ],
+      "rhythm": "hold",
+      "velocity": 0.5,
+      "tone": {
+        "low_cut": 25,
+        "high_cut": 400
+      },
+      "level_db": -12
+    },
+    "chords": {
+      "sound": "openDAW/Curved Air",
+      "range": [
+        48,
+        72
+      ],
+      "rhythm": "hold",
+      "velocity": 0.4,
+      "level_db": -14,
+      "add": {
+        "major": "Imaj7:16 IVmaj7:16",
+        "minor": "i9:16 VImaj7:16"
+      }
+    },
+    "lead": {
+      "sound": "GeneralUser GS/Celeste",
+      "range": [
+        60,
+        84
+      ],
+      "velocity": 0.45,
+      "level_db": -17
+    }
+  },
+  "master": "spacious and soft: long hall reverb and echoes, slow movement, no hard compression, no distortion, nothing punchy"
+}

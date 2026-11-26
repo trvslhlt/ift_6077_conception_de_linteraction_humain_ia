@@ -1,12 +1,21 @@
 {
   "key": "genre/boom-bap",
   "kind": "genre",
-  "summary": "Boom-bap hip hop: 80–95 BPM, swung, sampled-sounding keys on 7th chords, punchy kick and snare",
+  "summary": "Boom bap (90s East Coast hip hop): 85-95 BPM, sampled SP-1200/MPC60 drums with a hard kick and snare on 2 and 4 and MPC-swung hats, a round upright bass on the roots, jazzy 7th chords chopped from a dusty piano or Rhodes, horn phrases; knowledge/style/boombap.json is its template",
   "tags": [
-    "hip hop",
     "boom bap",
+    "boombap",
     "90s hip hop",
-    "rap"
+    "golden era",
+    "east coast",
+    "hip hop",
+    "rap",
+    "sp-1200",
+    "mpc",
+    "jazzy hip hop",
+    "dilla",
+    "premier",
+    "pete rock"
   ],
   "devices": [
     "Playfield",
@@ -26,20 +35,23 @@
   ],
   "checked": {
     "how": "written",
-    "by": "claude (from experiment G)",
-    "date": "2026-11-12",
+    "by": "claude (recipe from the web, 2026-11-26)",
+    "date": "2026-11-26",
     "opendaw": "652e6ca"
   },
   "tempo": [
-    80,
+    85,
     95
   ],
   "body": [
-    "Drums: pattern/boombap-1, swung 8th hats; kick and snare loud and dry.",
-    "Harmony: 7th and 9th chords on keys (Rhodes, a sampled piano), two-chord vamps or ii–V–I.",
-    "Bass: round, roots on the downbeat, following the kick.",
-    "With production/lofi it becomes lofi hip hop (70–90 BPM, softer, darker).",
-    "Apply: pattern/boombap-1 on the drums, then pattern/lofi-vamp-vi-iv on the keys four bars later. Tempo and sounds are left to you."
+    "Tempo 85-95 BPM, most often about 90.",
+    "Drums: sampled breaks on an E-mu SP-1200 or Akai MPC60: a hard, punchy kick and a big, snappy snare on 2 and 4, loud and dry; closed hats in 8ths or 16ths swung (MPC swing 58-66%), laid back; kicks on 1 and the off-beats, a second bar that varies. The SP-1200's 26 kHz, 12-bit grit is part of the sound; a slow-attack compressor lets the hits breathe.",
+    "Bass: round and simple, an upright or a warm electric bass on the roots (root-seventh-fifth lines), landing with the kick.",
+    "Harmony: chopped jazz and soul samples: 7th and 9th chords on piano, Rhodes or horns, two-chord vamps or ii-V, short loops re-triggered each bar rather than held pads; bit-crushed and a little dark.",
+    "Lead: there is often none beyond the sample; a horn stab or short muted-trumpet or vibes phrase answers the loop.",
+    "Texture/master: dusty and gritty but punchy and loud, the drums on top; softer and low-passed it becomes lofi (production/lofi, genre/lofi-hip-hop).",
+    "Sources (2026-11-26): Native Instruments 'What is boom bap' and 'Hip hop drums 101'; MusicRadar 'How to program an old-school hip-hop beat in your DAW' and '12 classic hip-hop production tricks'.",
+    "Apply: pattern/boombap-1 on the drums, then pattern/lofi-vamp-vi-iv on the keys four bars later. For a whole style change the Team Lead's restyle uses knowledge/style/boombap.json instead."
   ],
   "apply": {
     "params": {

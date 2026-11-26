@@ -1,0 +1,98 @@
+{
+  "key": "genre/dubstep",
+  "kind": "genre",
+  "summary": "Dubstep (UK, 140 halftime): kick on 1 and a big snare on 3 at 138-142 BPM, shuffled hats, a heavy sine or square sub with a wobbling mid bass above it, dark minor pads, sparse eerie leads, dub space; knowledge/style/dubstep.json is its template",
+  "tags": [
+    "dubstep",
+    "uk dubstep",
+    "deep dubstep",
+    "140",
+    "halftime",
+    "half-time",
+    "wobble",
+    "wobble bass",
+    "brostep",
+    "riddim",
+    "dark",
+    "heavy",
+    "bass music"
+  ],
+  "devices": [
+    "Playfield",
+    "Tubular",
+    "Vaporisateur"
+  ],
+  "links": [
+    "pattern/halftime-shuffle",
+    "pattern/trap-halftime",
+    "pattern/prog-dubstep-common-1",
+    "pattern/prog-dubstep-characteristic-1",
+    "sound/sine-sub-vaporisateur",
+    "sound/bass-square-neon",
+    "chain/dub-echo",
+    "genre/dub",
+    "genre/drum-and-bass",
+    "genre/trap",
+    "production/dub"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (recipe from the web, 2026-11-26)",
+    "date": "2026-11-26",
+    "opendaw": "652e6ca"
+  },
+  "tempo": [
+    138,
+    142
+  ],
+  "body": [
+    "Tempo 140 BPM (135-145), felt in half time at 70: the kick on 1 and the snare on 3, hats and percussion at full speed.",
+    "Drums: UK dubstep is sparse and dry, a lot of space between hits, shuffled or triplet hats and percussion; brostep is punchier, compressed and layered, with fills and rolls. A big, chunky snare (parallel compression, saturation).",
+    "Bass: the loudest part: a clean sine sub below 60-100 Hz, mono, holding the root, and a mid bass (square or saw, distorted) above it whose filter wobbles with an LFO synced at 1/4, 1/8 or 1/16; slow wobbles for UK and deep dubstep, fast and growling for brostep and riddim.",
+    "Harmony: minor and dark: i-VI, i-III-VII-VI, or one chord; held low pads with long reverb; melodic dubstep borrows the pop I-V-vi-IV.",
+    "Lead: sparse: an eerie square or bell line, a dub siren, a vocal or MC snippet; brostep adds vocal chops and hooks.",
+    "Texture/master: sub-heavy but spacious; dub reggae's long delays and reverbs on everything but the dry drums; brostep loud and full, every range occupied. No lofi roll-off.",
+    "Sources (2026-11-26): Mode Audio 'Dubstep: 5 Production Essentials'; Orphiq 'What Is Dubstep? Wobble Bass, 140 BPM, Subgenres'.",
+    "Apply: pattern/halftime-shuffle on the drums, then pattern/prog-dubstep-characteristic-1 on the keys four bars later. For a whole style change the Team Lead's restyle uses knowledge/style/dubstep.json instead."
+  ],
+  "apply": {
+    "params": {
+      "drums": {
+        "type": "track",
+        "optional": true,
+        "about": "the drum track (a kit); leave out if there isn't one"
+      },
+      "keys": {
+        "type": "track",
+        "optional": true,
+        "about": "a chordal part (keys, pad); leave out if there isn't one"
+      },
+      "key": {
+        "type": "key",
+        "optional": true,
+        "about": "the project's key; leave out to estimate it from the notes"
+      }
+    },
+    "steps": [
+      {
+        "op": "entry",
+        "key": "pattern/halftime-shuffle",
+        "args": {
+          "track": "$drums"
+        },
+        "when": "drums",
+        "at": 0
+      },
+      {
+        "op": "entry",
+        "key": "pattern/prog-dubstep-characteristic-1",
+        "args": {
+          "track": "$keys",
+          "key": "$key"
+        },
+        "when": "keys",
+        "at": 4
+      }
+    ]
+  }
+}

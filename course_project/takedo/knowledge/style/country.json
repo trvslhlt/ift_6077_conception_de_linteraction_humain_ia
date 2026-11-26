@@ -1,0 +1,50 @@
+{
+  "style": "country",
+  "about": "modern Nashville country: a live acoustic kit on a country two-step groove, a round picked bass on roots and fifths, strummed acoustic steel-string guitar chords, a pedal-steel-like slide guitar answering the vocal; 75-125 BPM, polished but organic",
+  "tempo": [
+    75,
+    125
+  ],
+  "parts": {
+    "drums": {
+      "sound": "GeneralUser GS/Room Kit",
+      "groove": "pattern/gmd-country-beat-1",
+      "level_db": -8
+    },
+    "bass": {
+      "sound": "GeneralUser GS/Pick Bass",
+      "range": [
+        28,
+        48
+      ],
+      "tone": {
+        "low_cut": 30,
+        "high_cut": 3000
+      },
+      "level_db": -10
+    },
+    "chords": {
+      "sound": "FSS Steel String Guitar/Steel String Guitar",
+      "range": [
+        50,
+        74
+      ],
+      "velocity": 0.65,
+      "level_db": -14,
+      "add": {
+        "major": "I:4 IV:4 II7:4 V7:4",
+        "minor": "i:4 VI:4 III:4 VII:4"
+      }
+    },
+    "lead": {
+      "sound": "GeneralUser GS/Hawaiian Guitar",
+      "range": [
+        60,
+        84
+      ],
+      "velocity": 0.6,
+      "level_db": -16
+    }
+  },
+  "master": "clean, warm and polished: vocal-forward mids, a natural room, no lofi roll-off or distortion"
+}

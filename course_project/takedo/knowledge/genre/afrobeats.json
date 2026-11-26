@@ -1,0 +1,99 @@
+{
+  "key": "genre/afrobeats",
+  "kind": "genre",
+  "summary": "Afrobeats (modern Nigerian/Ghanaian afropop, Wizkid, Burna Boy, Davido, Rema): 100-115 BPM, a syncopated punchy kick, a rim or clap backbeat and swung 16th shakers with congas, a warm round bass bouncing on the roots (or a log drum), 7th/9th chords on Rhodes or a highlife guitar, a marimba or pluck hook; not Fela's afrobeat (genre/afrobeat); knowledge/style/afrobeats.json is its template",
+  "tags": [
+    "afrobeats",
+    "afropop",
+    "afro pop",
+    "afro",
+    "naija",
+    "nigerian",
+    "ghanaian",
+    "wizkid",
+    "burna boy",
+    "davido",
+    "rema",
+    "afro fusion",
+    "amapiano"
+  ],
+  "devices": [
+    "Playfield",
+    "Tubular",
+    "Vaporisateur"
+  ],
+  "links": [
+    "pattern/gmd-afrobeat-beat-1",
+    "pattern/gmd-highlife-beat-1",
+    "pattern/pop-i-v-vi-iv",
+    "genre/afrobeat",
+    "genre/reggae",
+    "sound/kit-trap-808",
+    "sound/keys-rhodes",
+    "sound/tubular-rhodes",
+    "sound/tubular-marimba",
+    "sound/pluck-kalimba",
+    "sound/guitar-clean",
+    "sound/sine-sub-vaporisateur"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (recipe from the web, 2026-11-26)",
+    "date": "2026-11-26",
+    "opendaw": "652e6ca"
+  },
+  "tempo": [
+    100,
+    115
+  ],
+  "body": [
+    "Tempo 100-115 BPM (95-115 in some guides); amapiano-flavoured tracks sit at the top.",
+    "Drums: a punchy, not very sub-heavy kick, syncopated (often the 3-3-2 of the tresillo) rather than four on the floor; a rimshot or a layered clap on the backbeat, sometimes off the grid; continuous 16th shakers and hats swung 8-20%; congas, bongos, talking drum or woodblock in interlocking call-and-response. Electronic and traditional drums mixed; a small, well-chosen kit grooves better than many sounds.",
+    "Bass: melodic and bouncy, a rounded sine or warm bass (closer to a bass guitar than a trap 808) on the roots and fifths, moving with the kick; or a pitched log drum (from amapiano) bouncing between two or three notes, answering the kick, short decay.",
+    "Harmony: simple 4- or 8-bar loops, major for upbeat songs (I-V-vi-IV) or minor for emotional ones, coloured with 7ths, 9ths and sus chords; warm electric piano or bell pads held under, clean or palm-muted highlife guitar lines; everything locked to one key.",
+    "Lead: a plucked synth, marimba or kalimba hook (short and looping); sax lines on some; smooth stacked vocals carry the song.",
+    "Texture/master: clean, punchy and warm: crisp percussion (compressed together on a bus), a tight low end, tasteful reverb and delay; saturation to round it out.",
+    "Sources (2026-11-26): Violet Recording 'How to make afrobeats'; Soundtrap 'Beatmaking guide: the history of, and how to make afrobeats'; Splice 'How to make Afrobeat music: Iss 814's walkthrough'; Audeobox 'How to make afrobeats in FL Studio'.",
+    "Apply: pattern/gmd-afrobeat-beat-1 on the drums, then pattern/pop-i-v-vi-iv on the keys four bars later. For a whole style change the Team Lead's restyle uses knowledge/style/afrobeats.json instead."
+  ],
+  "apply": {
+    "params": {
+      "drums": {
+        "type": "track",
+        "optional": true,
+        "about": "the drum track (a kit); leave out if there isn't one"
+      },
+      "keys": {
+        "type": "track",
+        "optional": true,
+        "about": "a chordal part (keys, pad); leave out if there isn't one"
+      },
+      "key": {
+        "type": "key",
+        "optional": true,
+        "about": "the project's key; leave out to estimate it from the notes"
+      }
+    },
+    "steps": [
+      {
+        "op": "entry",
+        "key": "pattern/gmd-afrobeat-beat-1",
+        "args": {
+          "track": "$drums"
+        },
+        "when": "drums",
+        "at": 0
+      },
+      {
+        "op": "entry",
+        "key": "pattern/pop-i-v-vi-iv",
+        "args": {
+          "track": "$keys",
+          "key": "$key"
+        },
+        "when": "keys",
+        "at": 4
+      }
+    ]
+  }
+}

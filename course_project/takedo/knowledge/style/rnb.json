@@ -1,0 +1,83 @@
+{
+  "style": "rnb",
+  "about": "contemporary R&B (trap-soul, SZA, Bryson Tiller): a soft TR-808 kit with a rim and a shaker on a laid-back hip hop groove, a deep low-passed sub bass on the roots, a Rhodes held as a pad on lush 7th and 9th chords, a clean guitar for the melodic lines; 70-95 BPM, warm, spacious, room left for the voice",
+  "tempo": [
+    70,
+    95
+  ],
+  "parts": {
+    "drums": {
+      "kit": {
+        "name": "R&B 808",
+        "pads": [
+          {
+            "role": "kick",
+            "sample": "RolandTR808/bd/BD0050"
+          },
+          {
+            "role": "snare",
+            "sample": "RolandTR808/sd/SD0010"
+          },
+          {
+            "role": "clap",
+            "sample": "RolandTR808/cp/cp2"
+          },
+          {
+            "role": "rim",
+            "sample": "RolandTR808/rim/RS"
+          },
+          {
+            "role": "closed_hat",
+            "sample": "RolandTR808/hh/CH"
+          },
+          {
+            "role": "open_hat",
+            "sample": "RolandTR808/oh/OH25"
+          },
+          {
+            "role": "shaker",
+            "sample": "RolandTR808/sh/MA"
+          }
+        ]
+      },
+      "groove": "pattern/gmd-hiphop-beat-1",
+      "level_db": -8
+    },
+    "bass": {
+      "sound": "GeneralUser GS/Synth Bass 1",
+      "range": [
+        28,
+        43
+      ],
+      "tone": {
+        "low_cut": 25,
+        "high_cut": 400
+      },
+      "level_db": -9
+    },
+    "chords": {
+      "sound": "GeneralUser GS/Tine Electric Piano",
+      "range": [
+        50,
+        74
+      ],
+      "rhythm": "hold",
+      "velocity": 0.5,
+      "level_db": -14,
+      "add": {
+        "major": "IVmaj7:4 iii7:4 ii7:4 Imaj7:4",
+        "minor": "i9:4 iv9:4 VImaj7:4 v7:4"
+      }
+    },
+    "lead": {
+      "sound": "GeneralUser GS/Clean Guitar",
+      "range": [
+        57,
+        79
+      ],
+      "velocity": 0.55,
+      "level_db": -16
+    }
+  },
+  "master": "warm and smooth: deep sub and airy top, scooped mids, gentle glue; nothing harsh or distorted"
+}

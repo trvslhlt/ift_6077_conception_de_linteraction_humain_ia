@@ -1,0 +1,97 @@
+{
+  "key": "genre/edm",
+  "kind": "genre",
+  "summary": "Festival EDM (big room, progressive house, electro house): 126-130 BPM four-on-the-floor with big claps and snare-roll builds, a pumping saw bass, wide supersaw chords and a bright supersaw lead hook in the drop, everything sidechained; knowledge/style/edm.json is its template",
+  "tags": [
+    "edm",
+    "big room",
+    "festival",
+    "progressive house",
+    "electro house",
+    "main stage",
+    "supersaw",
+    "drop",
+    "build up",
+    "euphoric",
+    "avicii",
+    "martin garrix"
+  ],
+  "devices": [
+    "Playfield",
+    "Tubular",
+    "Vaporisateur"
+  ],
+  "links": [
+    "pattern/four-on-the-floor",
+    "pattern/prog-edm-common-1",
+    "pattern/prog-edm-characteristic-1",
+    "sound/kit-house-909",
+    "sound/lead-saw",
+    "sound/bass-synth",
+    "sound/keys-grand-piano",
+    "genre/house",
+    "genre/techno",
+    "production/clean-modern",
+    "pattern/fill-snare-run"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (recipe from the web, 2026-11-26)",
+    "date": "2026-11-26",
+    "opendaw": "652e6ca"
+  },
+  "tempo": [
+    126,
+    130
+  ],
+  "body": [
+    "Tempo 126-130 BPM, 128 the default.",
+    "Drums: a hard, short four-on-the-floor kick, big layered 909 claps (or clap and snare) on 2 and 4, off-beat open hats and a shaker; builds with snare rolls doubling in speed toward the drop, a crash on its first beat; the drop strips to kick and hook, the breakdown drops the kick.",
+    "Bass: a saw or FM bass on the chord roots, off-beat or 8ths, a sine sub under it; ducked hard by the kick (the sidechain pump is the genre's sound).",
+    "Harmony: pop progressions in minor keys: I-V-vi-IV, i-III-VII-VI ('Levels'), i-VI-VII, vi-IV-I-V; piano chords in the breakdown, wide supersaw or polysynth chords held through the drop, pumping with the sidechain.",
+    "Lead: the supersaw: stacked detuned saws (unison), bright, high-passed, with a long pre-delayed reverb; plays the hook high, layered in octaves; the breakdown's melody becomes the drop lead.",
+    "Texture/master: loud, wide and bright; everything sidechained to the kick, reverbs filtered, hard limiting for festival loudness.",
+    "Sources (2026-11-26): Native Instruments 'EDM chord progressions' and 'Progressive house'; EDMProd 'How To Make House Music' (big room sidechain); Syntorial 'Crafting the supersaw EDM lead'; LANDR 'How to make EDM'; MusicRadar '10 ways to create monstrous big room synth sounds'.",
+    "Apply: pattern/four-on-the-floor on the drums, then pattern/prog-edm-common-1 on the keys four bars later. For a whole style change the Team Lead's restyle uses knowledge/style/edm.json instead."
+  ],
+  "apply": {
+    "params": {
+      "drums": {
+        "type": "track",
+        "optional": true,
+        "about": "the drum track (a kit); leave out if there isn't one"
+      },
+      "keys": {
+        "type": "track",
+        "optional": true,
+        "about": "a chordal part (keys, pad); leave out if there isn't one"
+      },
+      "key": {
+        "type": "key",
+        "optional": true,
+        "about": "the project's key; leave out to estimate it from the notes"
+      }
+    },
+    "steps": [
+      {
+        "op": "entry",
+        "key": "pattern/four-on-the-floor",
+        "args": {
+          "track": "$drums"
+        },
+        "when": "drums",
+        "at": 0
+      },
+      {
+        "op": "entry",
+        "key": "pattern/prog-edm-common-1",
+        "args": {
+          "track": "$keys",
+          "key": "$key"
+        },
+        "when": "keys",
+        "at": 4
+      }
+    ]
+  }
+}

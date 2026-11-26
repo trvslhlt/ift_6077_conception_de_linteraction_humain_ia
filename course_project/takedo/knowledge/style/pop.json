@@ -1,0 +1,78 @@
+{
+  "style": "pop",
+  "about": "modern mainstream pop: a tight, punchy TR-808 kit (a clap on the backbeat) on a straight pop groove, a round synth bass on the roots, four-chord loops on a piano, a bright clear synth lead for the hook; 100-125 BPM, polished and wide",
+  "tempo": [
+    100,
+    125
+  ],
+  "parts": {
+    "drums": {
+      "kit": {
+        "name": "Pop 808",
+        "pads": [
+          {
+            "role": "kick",
+            "sample": "RolandTR808/bd/BD0025"
+          },
+          {
+            "role": "snare",
+            "sample": "RolandTR808/cp/cp0"
+          },
+          {
+            "role": "clap",
+            "sample": "RolandTR808/cp/cp1"
+          },
+          {
+            "role": "rim",
+            "sample": "RolandTR808/rim/RS"
+          },
+          {
+            "role": "closed_hat",
+            "sample": "RolandTR808/hh/CH"
+          },
+          {
+            "role": "open_hat",
+            "sample": "RolandTR808/oh/OH10"
+          },
+          {
+            "role": "crash",
+            "sample": "RolandTR808/cr/CY0025"
+          }
+        ]
+      },
+      "groove": "pattern/gmd-pop-beat-1",
+      "level_db": -8
+    },
+    "bass": {
+      "sound": "GeneralUser GS/Synth Bass 1",
+      "range": [
+        28,
+        48
+      ],
+      "level_db": -9
+    },
+    "chords": {
+      "sound": "GeneralUser GS/Grand Piano",
+      "range": [
+        52,
+        74
+      ],
+      "velocity": 0.6,
+      "level_db": -14,
+      "add": {
+        "major": "I:4 V:4 vi:4 IV:4",
+        "minor": "i:4 VI:4 III:4 VII:4"
+      }
+    },
+    "lead": {
+      "sound": "openDAW/Retro Square",
+      "range": [
+        62,
+        84
+      ],
+      "velocity": 0.7,
+      "level_db": -15
+    }
+  },
+  "master": "clean, bright and loud: polished top end, tight low end, no lofi roll-off or audible distortion"
+}

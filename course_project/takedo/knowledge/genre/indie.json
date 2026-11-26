@@ -1,0 +1,93 @@
+{
+  "key": "genre/indie",
+  "kind": "genre",
+  "summary": "Indie pop/rock: 100-140 BPM, a roomy acoustic kit played simply, a picked bass on steady root 8ths, jangly clean guitar chords (I-iii-vi-IV), a glockenspiel or guitar hook, a little raw; knowledge/style/indie.json is its template",
+  "tags": [
+    "indie",
+    "indie rock",
+    "indie pop",
+    "alternative",
+    "jangle",
+    "garage",
+    "lo-fi rock",
+    "bedroom pop",
+    "guitar band"
+  ],
+  "devices": [
+    "Playfield",
+    "Tubular",
+    "Vaporisateur"
+  ],
+  "links": [
+    "pattern/gmd-rock-indie-beat-1",
+    "pattern/gmd-rock-indie-beat-2",
+    "pattern/prog-indie-characteristic-3",
+    "pattern/prog-indie-common-3",
+    "genre/rock",
+    "genre/pop",
+    "sound/guitar-clean",
+    "sound/bass-finger",
+    "sound/bells-celesta",
+    "sound/guitar-overdrive"
+  ],
+  "checked": {
+    "how": "written",
+    "by": "claude (recipe from the web, 2026-11-26)",
+    "date": "2026-11-26",
+    "opendaw": "652e6ca"
+  },
+  "tempo": [
+    100,
+    140
+  ],
+  "body": [
+    "Tempo 100-140 BPM, often 110-130; indie pop a bit faster and brighter than indie rock.",
+    "Drums: a live acoustic kit, simple and consistent: kick 1 and 3, snare 2 and 4, straight 8th hats; punchy, a little dirty and roomy, energetic tom and cymbal fills; restrained reverb.",
+    "Bass: a picked electric bass on simple steady root 8ths, locked to the kick, anchoring the pocket.",
+    "Harmony: plain triads, I-V-vi-IV and the indie colours I-iii-vi-IV, I-ii-IV-vi; strummed or arpeggiated clean (jangly) or crunchy guitars in the mids.",
+    "Lead: the vocal; instrumental hooks on a glockenspiel, a clean guitar line or a simple synth.",
+    "Texture/master: natural and a bit raw, mid-forward, light compression, each instrument separated; never hyper-polished.",
+    "Sources (2026-11-26): UJAM 'The Ultimate Guide to Indie Rock'; Mixdown '10 essential indie rock music production techniques'; Splice 'How to make indie pop music: a production walkthrough with Lyncs'; iZotope '3 tips for mastering indie rock'.",
+    "Apply: pattern/gmd-rock-indie-beat-1 on the drums, then pattern/prog-indie-characteristic-3 on the keys four bars later. For a whole style change the Team Lead's restyle uses knowledge/style/indie.json instead."
+  ],
+  "apply": {
+    "params": {
+      "drums": {
+        "type": "track",
+        "optional": true,
+        "about": "the drum track (a kit); leave out if there isn't one"
+      },
+      "keys": {
+        "type": "track",
+        "optional": true,
+        "about": "a chordal part (keys, pad); leave out if there isn't one"
+      },
+      "key": {
+        "type": "key",
+        "optional": true,
+        "about": "the project's key; leave out to estimate it from the notes"
+      }
+    },
+    "steps": [
+      {
+        "op": "entry",
+        "key": "pattern/gmd-rock-indie-beat-1",
+        "args": {
+          "track": "$drums"
+        },
+        "when": "drums",
+        "at": 0
+      },
+      {
+        "op": "entry",
+        "key": "pattern/prog-indie-characteristic-3",
+        "args": {
+          "track": "$keys",
+          "key": "$key"
+        },
+        "when": "keys",
+        "at": 4
+      }
+    ]
+  }
+}

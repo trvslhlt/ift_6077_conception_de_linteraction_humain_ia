@@ -1,7 +1,7 @@
 {
   "key": "genre/ambient",
   "kind": "genre",
-  "summary": "Ambient: slow or no pulse, long sustained chords, pads, bells and space; no drums or very soft ones",
+  "summary": "Ambient: 60-80 BPM or no felt pulse, long held chords on slow-attack pads, a low sub drone, sparse bells or piano, a barely-there soft pulse or no drums, long reverb and echo; knowledge/style/ambient.json is its template",
   "tags": [
     "ambient",
     "drone",
@@ -9,7 +9,12 @@
     "chill",
     "calm",
     "space",
-    "eno"
+    "spacey",
+    "eno",
+    "dreamy",
+    "soundscape",
+    "meditative",
+    "ambient techno"
   ],
   "devices": [
     "Playfield",
@@ -32,20 +37,23 @@
   ],
   "checked": {
     "how": "written",
-    "by": "claude (genre write-ups)",
-    "date": "2026-11-12",
+    "by": "claude (recipe from the web, 2026-11-26)",
+    "date": "2026-11-26",
     "opendaw": "652e6ca"
   },
   "tempo": [
     60,
-    90
+    80
   ],
   "body": [
-    "No beat, or a very soft one; the pulse comes from slow repetition.",
-    "Harmony: long chords (2–8 bars each), major 7ths, sus chords, I–IV or I–vi; slow attacks and releases.",
-    "Sounds: pads, bells, choir, processed piano; long reverbs and echoes.",
-    "Moving toward ambient: thin out the drums first (fade or drop them), then lengthen the chords and add space.",
-    "Apply: pattern/prog-ambient-characteristic-3 on the keys. It leaves tempo and sounds to you: move the tempo toward 60–90 gradually, and swap sounds from the links."
+    "Tempo: pure ambient has no felt tempo (events sparse and irregular); with a pulse, slow: 60-90 BPM (illbient mid-80s, ambient house low 120s).",
+    "Drums: none or a barely-there pulse: soft, dry or lightly reverbed, low-passed and far back (a CR-78's light kick, woodblock and hats); moving toward ambient, thin out and fade the drums first.",
+    "Bass: a sub drone rather than a bassline: long low held notes, warm and round, low-passed, its harmonics brought out slowly.",
+    "Harmony: single chords held for bars (2-8 bars each), major 7ths, sus and add9 chords, I-IV, I-vi, i-VI; pads with slow attack and release that swell and fade into each other.",
+    "Lead: little melody: a few sparse bell, celeste, kalimba or soft piano notes with long echoes; never a pad or wash as the lead.",
+    "Texture/master: spacious and soft: long hall reverbs and delays, wide stereo, field recordings or filtered noise optional, slow automation instead of section changes; no hard compression, no distortion.",
+    "Sources (2026-11-26): Mode Audio 'Ambient: 5 Production Essentials'; MusicRadar '26 inspirational and practical ambient music production tips'; EDMProd 'How to Make Ambient Music in 7 Easy Steps'; LANDR 'How to Make Ambient Music'.",
+    "Apply: pattern/prog-ambient-characteristic-3 on the keys. For a whole style change the Team Lead's restyle uses knowledge/style/ambient.json instead."
   ],
   "apply": {
     "params": {

@@ -1,14 +1,18 @@
 {
   "key": "genre/drum-and-bass",
   "kind": "genre",
-  "summary": "Drum & bass: 165–180 BPM two-step breakbeats, heavy sub or reese bass, pads or stabs, felt at half speed",
+  "summary": "Drum & bass (liquid first): 170-176 BPM two-step on chopped breaks, a deep sub or growling reese in long half-time notes, minor 7th/9th chords on Rhodes, piano or lush pads, a soft melodic line; knowledge/style/dnb.json is its template",
   "tags": [
     "drum and bass",
     "dnb",
-    "jungle",
+    "d&b",
     "liquid",
+    "liquid dnb",
+    "jungle",
     "breakbeat",
-    "fast"
+    "rollers",
+    "fast",
+    "174"
   ],
   "devices": [
     "Playfield",
@@ -25,20 +29,23 @@
   ],
   "checked": {
     "how": "written",
-    "by": "claude (genre write-ups)",
-    "date": "2026-11-12",
+    "by": "claude (recipe from the web, 2026-11-26)",
+    "date": "2026-11-26",
     "opendaw": "652e6ca"
   },
   "tempo": [
-    165,
-    180
+    170,
+    176
   ],
   "body": [
-    "Drums: the two-step (kick 1 and the and of 3, snare 2 and 4) or chopped breaks; ghost snares and shakers keep the 16ths moving.",
-    "Bass: a deep sub or a detuned 'reese', long notes, in half-time against the drums.",
-    "Harmony: liquid DnB uses lush minor 7th/9th pads and Rhodes; jump-up and neuro have almost none.",
-    "Feel: the pads and bass at half speed, the drums at full speed.",
-    "Apply: pattern/dnb-two-step on the drums, then pattern/prog-drum-and-bass-common-1 on the keys four bars later. It leaves tempo and sounds to you: move the tempo toward 165–180 gradually, and swap sounds from the links."
+    "Tempo 170-180 BPM, most tracks at 174; felt at half speed (85-87).",
+    "Drums: the two-step (kick on 1 and the and of 3, snares on 2 and 4) from one-shots, with a pitched-up classic break (Think, Amen) layered as a high-passed top loop; 8th hats, a 16th shaker, ghost snares 6-12 dB down around the backbeats, a ghost kick before the bar line.",
+    "Bass: the sub is the foundation, low (around F0-F1), in long notes that follow the drums, a variation every other four bars and a two-beat gap at the end of 16 for the turnaround; a reese (detuned saws) or a growling mid bass on top in rollers and neuro.",
+    "Harmony: liquid uses lush minor 7th and 9th chords (i-VII-VI is the common loop) on Rhodes, soulful piano (often low-passed) and wide pads, held through the bar; jump-up and neuro have almost none.",
+    "Lead: a soft melody: piano, a vocal chop, bells or (the producer's rule, 2026-11-26) a soothing vibraphone an octave lower than a bright lead would sit.",
+    "Texture/master: clean, punchy and loud; crisp snares, a mono sub, reverb sends tying the pads together; a transparent limiter, no lofi roll-off or saturation.",
+    "Sources (2026-11-26): EDMProd 'How to make liquid drum and bass' and 'How to make drum and bass'; Native Instruments 'Drum and bass'; MusicRadar 'How to create a throbbing Reese-style sub-bass'.",
+    "Apply: pattern/dnb-two-step on the drums, then pattern/prog-drum-and-bass-common-1 on the keys four bars later. For a whole style change the Team Lead's restyle uses knowledge/style/dnb.json instead."
   ],
   "apply": {
     "params": {

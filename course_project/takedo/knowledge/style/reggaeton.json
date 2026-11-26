@@ -1,0 +1,79 @@
+{
+  "style": "reggaeton",
+  "about": "reggaeton: the dembow (a steady kick with the 3-3-2 snare and rim against it) on tight TR-808 drums with maracas, a short sub bass on the roots under the kicks, a minor i-VI-III-VII loop held on synth strings, a nylon guitar hook on top; 88-100 BPM, loud, dry and danceable",
+  "tempo": [
+    88,
+    100
+  ],
+  "parts": {
+    "drums": {
+      "kit": {
+        "name": "Reggaeton 808",
+        "pads": [
+          {
+            "role": "kick",
+            "sample": "RolandTR808/bd/BD2510"
+          },
+          {
+            "role": "snare",
+            "sample": "RolandTR808/sd/SD7575"
+          },
+          {
+            "role": "rim",
+            "sample": "RolandTR808/rim/RS"
+          },
+          {
+            "role": "clap",
+            "sample": "RolandTR808/cp/cp1"
+          },
+          {
+            "role": "closed_hat",
+            "sample": "RolandTR808/hh/CH"
+          },
+          {
+            "role": "shaker",
+            "sample": "RolandTR808/sh/MA"
+          },
+          {
+            "role": "perc",
+            "sample": "RolandTR808/perc/HC25"
+          }
+        ]
+      },
+      "groove": "pattern/gmd-latin-reggaeton-beat-1",
+      "level_db": -8
+    },
+    "bass": {
+      "sound": "HS TB-303/TB303 SQR-1",
+      "range": [
+        28,
+        43
+      ],
+      "level_db": -9
+    },
+    "chords": {
+      "sound": "GeneralUser GS/Synth Strings 1",
+      "range": [
+        52,
+        72
+      ],
+      "rhythm": "hold",
+      "velocity": 0.5,
+      "level_db": -16,
+      "add": {
+        "major": "vi:4 IV:4 I:4 V:4",
+        "minor": "i:4 VI:4 III:4 VII:4"
+      }
+    },
+    "lead": {
+      "sound": "GeneralUser GS/Nylon Guitar",
+      "range": [
+        55,
+        79
+      ],
+      "velocity": 0.7,
+      "level_db": -14
+    }
+  },
+  "master": "loud and clean: kick and sub up front but tight, the snare cutting through, percussion crisp; no lofi roll-off"
+}

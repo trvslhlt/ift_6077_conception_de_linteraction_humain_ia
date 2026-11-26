@@ -1,14 +1,19 @@
 {
   "key": "genre/reggae",
   "kind": "genre",
-  "summary": "Reggae: 60–90 BPM one drop, off-beat skank chords, organ bubble, deep melodic bass",
+  "summary": "Roots reggae: 65-85 BPM one drop (kick and rim together on 3, swung hats), a deep round melodic bass as the loudest part, off-beat skank chords on guitar with an organ bubble, two-chord vamps, echo and spring reverb; knowledge/style/reggae.json is its template",
   "tags": [
     "reggae",
     "roots",
+    "roots reggae",
     "one drop",
-    "jamaica",
     "skank",
-    "rocksteady"
+    "jamaica",
+    "rocksteady",
+    "riddim",
+    "dub",
+    "rockers",
+    "steppers"
   ],
   "devices": [
     "Playfield",
@@ -29,20 +34,23 @@
   ],
   "checked": {
     "how": "written",
-    "by": "claude (genre write-ups)",
-    "date": "2026-11-12",
+    "by": "claude (recipe from the web, 2026-11-26)",
+    "date": "2026-11-26",
     "opendaw": "652e6ca"
   },
   "tempo": [
-    60,
-    90
+    65,
+    85
   ],
   "body": [
-    "Drums: one drop (kick and rim on 3 only), hats swung; steppers for more drive.",
-    "Chords: short stabs on every off-beat (the skank) on guitar or piano; organ 'bubble' in 8ths. A chord pattern written as held chords should be shortened to off-beat stabs.",
-    "Bass: deep, round, melodic and loud; space between notes.",
-    "Harmony: two-chord vamps, i–iv or I–IV.",
-    "Apply: pattern/one-drop on the drums, then pattern/prog-reggae-characteristic-1 on the keys four bars later. It leaves tempo and sounds to you: move the tempo toward 60–90 gradually, and swap sounds from the links."
+    "Tempo: 60-90 BPM, usually 70-80; laid back, the pocket slightly behind the beat.",
+    "Drums: the one drop: nothing on 1, kick and rim (sidestick) together on 3, hi-hats in swung 8ths with an open hat into the next bar; a rim or snare fill only at the end of 4 or 8 bars, crash rare; rockers adds kicks on 1 and 3, steppers a kick on every beat; a dry live kit through a spring reverb.",
+    "Bass: deep, round, low-passed (treble and upper mids rolled off), loud and melodic: the loudest part, locked with the kick, on the strong beats with syncopated pickups and space between notes; a P-bass played with the fingers.",
+    "Harmony: two- or four-chord vamps, i-iv, I-IV, I-ii, I-IV-V; the skank: short chord stabs on every off-beat ('and'), on a clean guitar (or piano), often echoed; an organ bubble (shuffled 16ths around the off-beat) under it; a held chord pattern should be shortened to off-beat stabs.",
+    "Lead: a sparse melodica, organ or horn line (Augustus Pablo, Jackie Mittoo), mixed low; the template uses a harmonica as the melodica.",
+    "Texture/master: warm and bass-heavy, top end soft; tape or spring echo on the rim and skank, dub throws optional; never bright or squashed.",
+    "Sources (2026-11-26): MusicRadar 'How to program a typical one drop reggae beat and add fills'; Wayne and Wax 'Feel It In The One-Drop: A Roots Riddims Tutorial'; SoundFingers 'In the dub studio: 10 essential reggae music production tips'; Sound On Sound 'Dub mixing'.",
+    "Apply: pattern/one-drop on the drums, then pattern/prog-reggae-characteristic-1 on the keys four bars later. For a whole style change the Team Lead's restyle uses knowledge/style/reggae.json instead."
   ],
   "apply": {
     "params": {

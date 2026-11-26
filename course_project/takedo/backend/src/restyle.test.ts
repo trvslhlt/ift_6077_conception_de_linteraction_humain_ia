@@ -78,7 +78,22 @@ describe("style templates", () => {
         assert.equal(made.moves.length, 0, made.moves.map(move => `${move.old?.name} → ${move.says}`).join("; ") + made.left.join("; "))
         assert.equal(made.left.filter(line => /already the template|already toned/.test(line)).length, 3, made.left.join("; "))
     })
-    it("keeps the producer's rules: a style's and every style's, a repeat once; a part an approved fix changed", () => {
+    it("moves drums on a kit sound another style shares onto this style's groove, named for the style", () => {
+        const country = restyleMoves(templates.get("country")!, base, knowledge, catalog, false)
+        if (typeof country === "string") {assert.fail(country)}
+        const drums = country.moves.find(move => move.role === "drums")!
+        assert.equal(drums.name, "Country Room Kit")
+        const after = structuredClone(base)
+        after.tracks[0] = {...after.tracks[0], name: "Country Room Kit", instrument: "Soundfont", device: {key: "Soundfont", name: "Room Kit", enabled: true}}
+        const funk = restyleMoves(templates.get("funk")!, after, knowledge, catalog, false)
+        if (typeof funk === "string") {assert.fail(funk)}
+        assert.equal(funk.moves.find(move => move.role === "drums")?.name, "Funk Room Kit", funk.left.join("; "))
+        after.tracks[0].name = "Funk Room Kit"
+        const again = restyleMoves(templates.get("funk")!, after, knowledge, catalog, false)
+        if (typeof again === "string") {assert.fail(again)}
+        assert.equal(again.moves.find(move => move.role === "drums"), undefined)
+    })
+    it("keeps the producer's rules:a style's and every style's, a repeat once; a part an approved fix changed", () => {
         const dir = mkdtempSync(join(tmpdir(), "rules-")), path = join(dir, "rules.json")
         addRule(path, {style: "lofi", role: "chords", text: "keys held", said: "not sustained", date: "2026-11-26"})
         addRule(path, {style: null, role: "lead", text: "no wash as a lead", said: "never a lead", date: "2026-11-26"})

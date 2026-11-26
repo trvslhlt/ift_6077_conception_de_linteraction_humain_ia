@@ -1,0 +1,79 @@
+{
+  "style": "afrobeats",
+  "about": "afrobeats (modern Nigerian/Ghanaian afropop): a syncopated punchy kick, a rim click on the backbeat and 16th shakers on soft TR-808 sounds with a conga, a warm round bass bouncing on the roots, warm Rhodes chords with 7ths and 9ths held under, a marimba hook on top; 100-115 BPM, bright, bouncy and warm",
+  "tempo": [
+    100,
+    115
+  ],
+  "parts": {
+    "drums": {
+      "kit": {
+        "name": "Afrobeats 808",
+        "pads": [
+          {
+            "role": "kick",
+            "sample": "RolandTR808/bd/BD2525"
+          },
+          {
+            "role": "snare",
+            "sample": "RolandTR808/rim/RS"
+          },
+          {
+            "role": "clap",
+            "sample": "RolandTR808/cp/cp2"
+          },
+          {
+            "role": "closed_hat",
+            "sample": "RolandTR808/sh/MA"
+          },
+          {
+            "role": "open_hat",
+            "sample": "RolandTR808/oh/OH10"
+          },
+          {
+            "role": "perc",
+            "sample": "RolandTR808/perc/HC25"
+          },
+          {
+            "role": "shaker",
+            "sample": "RolandTR808/sh/Cabasa"
+          }
+        ]
+      },
+      "groove": "pattern/gmd-afrobeat-beat-1",
+      "level_db": -8
+    },
+    "bass": {
+      "sound": "HS TB-303/TB-BASS 2",
+      "range": [
+        31,
+        50
+      ],
+      "level_db": -10
+    },
+    "chords": {
+      "sound": "openDAW/Rhodes",
+      "range": [
+        52,
+        74
+      ],
+      "rhythm": "hold",
+      "velocity": 0.5,
+      "level_db": -15,
+      "add": {
+        "major": "Imaj7:4 V:4 vi7:4 IVmaj7:4",
+        "minor": "i7:4 iv7:4 VImaj7:4 VII:4"
+      }
+    },
+    "lead": {
+      "sound": "GeneralUser GS/Marimba",
+      "range": [
+        60,
+        84
+      ],
+      "velocity": 0.7,
+      "level_db": -14
+    }
+  },
+  "master": "clean, warm and punchy: crisp percussion, a tight low end, no distortion and no lofi roll-off"
+}

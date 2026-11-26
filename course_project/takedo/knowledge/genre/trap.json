@@ -1,15 +1,20 @@
 {
   "key": "genre/trap",
   "kind": "genre",
-  "summary": "Trap: 130–160 BPM felt half-time, rolling 16th/32nd hats, booming 808 bass, dark minor melodies on bells or plucks",
+  "summary": "Trap: 130-160 BPM felt half-time, TR-808 drums with rolling 16th/32nd/triplet hats and a snare or clap on 3, a long sub 808 bass as the loudest thing, dark minor chords and a sparse bell melody; knowledge/style/trap.json is its template",
   "tags": [
     "trap",
+    "trap beat",
+    "808",
+    "808s",
     "hip hop",
     "rap",
-    "808",
     "half-time",
+    "hi-hat rolls",
     "dark",
-    "modern"
+    "atlanta",
+    "modern hip hop",
+    "metro boomin"
   ],
   "devices": [
     "Playfield",
@@ -34,8 +39,8 @@
   ],
   "checked": {
     "how": "written",
-    "by": "claude (genre write-ups)",
-    "date": "2026-11-12",
+    "by": "claude (recipe from the web, 2026-11-26)",
+    "date": "2026-11-26",
     "opendaw": "652e6ca"
   },
   "tempo": [
@@ -43,11 +48,14 @@
     160
   ],
   "body": [
-    "Drums: snare or clap on 3 (half-time), kick syncopated with the 808, hats in 16ths with 32nd and triplet rolls (pattern/trap-2bar). The sound is the TR-808: a new kit track from sound/kit-trap-808 (old drums parked), not the old kit with a new pattern.",
-    "Bass: the 808 is a long, low boom following the kick, the loudest thing: sound/808-bass (a long TR-808 kick on a sampler, make_sampler), or a sine sub as a fallback.",
-    "Harmony: minor, often just i–VI or i–iv–v; a short melody on bells, plucks, a choir or strings, dark and sparse.",
-    "Space: little reverb on drums, more on the melody.",
-    "Apply: pattern/trap-halftime on the drums, then pattern/prog-trap-characteristic-1 on the keys four bars later. It leaves tempo and sounds to you: move the tempo toward 130–160 gradually, and swap sounds from the links."
+    "Tempo 130-160 BPM (140 is a good start; some go up to 200), felt half-time: the snare lands on 3, so it reads as 65-80.",
+    "Drums: TR-808 sounds. A punchy kick, syncopated and lining up with the 808 bass; snare and clap together on 3; closed hats in straight 16ths with 32nd and 1/6 or 1/12 triplet rolls (the middle hits softer), changing every couple of bars; an open hat now and then. Straight, not swung; little reverb on the drums.",
+    "Bass: the 808, a long sub boom (decay well past 300 ms) on the roots in E1-E2, following the kick, with gaps; semitone moves sound sinister. It is the loudest thing.",
+    "Harmony: minor, two to four chords (i-VI, i-VI-iv-v), dark, held low on strings, a choir or a pad.",
+    "Lead: a short, sparse, dark melody on bells (celesta, glockenspiel), plucks, piano or flute, with more reverb than the drums.",
+    "Texture/master: sparse, punchy and weighty, loud; the sub carries on big systems and the 808's harmonics on phones; light saturation on drums, a clean top.",
+    "Sources (2026-11-26): Native Instruments 'How to make a trap beat'; Mode Audio 'Trap: 5 Production Essentials'; MusicRadar 'The beginner's guide to: trap' and '10 tricks every trap producer should know'; EDMProd 'How To Make Trap Music'.",
+    "Apply: pattern/trap-halftime on the drums, then pattern/prog-trap-characteristic-1 on the keys four bars later. For a whole style change the Team Lead's restyle uses knowledge/style/trap.json instead."
   ],
   "apply": {
     "params": {

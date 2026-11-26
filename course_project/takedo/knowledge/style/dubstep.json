@@ -1,0 +1,87 @@
+{
+  "style": "dubstep",
+  "about": "dubstep (UK, 140 halftime): sparse dry drums with the kick on 1 and a big snare on 3 under shuffled hats, a heavy square sub bass that is the loudest thing in the mix, a dark minor pad held low, an eerie square lead used sparingly; 138-142 BPM felt at 70, dark and spacious",
+  "tempo": [
+    138,
+    142
+  ],
+  "parts": {
+    "drums": {
+      "kit": {
+        "name": "Dubstep 909",
+        "pads": [
+          {
+            "role": "kick",
+            "sample": "RolandTR909/bd/Bassdrum-02"
+          },
+          {
+            "role": "snare",
+            "sample": "RolandTR909/sd/sd05"
+          },
+          {
+            "role": "clap",
+            "sample": "RolandTR909/cp/cp02"
+          },
+          {
+            "role": "rim",
+            "sample": "RolandTR909/rim/rs02"
+          },
+          {
+            "role": "closed_hat",
+            "sample": "RolandTR909/hh/hh01"
+          },
+          {
+            "role": "open_hat",
+            "sample": "RolandTR909/oh/oh01"
+          },
+          {
+            "role": "ride",
+            "sample": "RolandTR909/rd/Ride"
+          },
+          {
+            "role": "shaker",
+            "sample": "RolandTR808/sh/MA"
+          }
+        ]
+      },
+      "groove": "pattern/halftime-shuffle",
+      "level_db": -7
+    },
+    "bass": {
+      "sound": "HS TB-303/TB303 SQR-2",
+      "range": [
+        28,
+        43
+      ],
+      "level_db": -8
+    },
+    "chords": {
+      "sound": "openDAW/Oberheim B3",
+      "range": [
+        48,
+        67
+      ],
+      "rhythm": "hold",
+      "velocity": 0.5,
+      "level_db": -17,
+      "tone": {
+        "low_cut": 120,
+        "high_cut": 5000
+      },
+      "add": {
+        "major": "vi:8 IV:8",
+        "minor": "i:8 VI:8"
+      }
+    },
+    "lead": {
+      "sound": "openDAW/Retro Square",
+      "range": [
+        60,
+        79
+      ],
+      "velocity": 0.7,
+      "level_db": -15
+    }
+  },
+  "master": "sub-heavy and dark with room to breathe: a mono sub under 60 Hz, dry drums against long dub-style reverb and delay on the rest, no lofi roll-off"
+}

@@ -1,13 +1,17 @@
 {
   "key": "genre/rock",
   "kind": "genre",
-  "summary": "Rock: 100–140 BPM backbeat drums, power chords and bVII, driving 8th-note bass",
+  "summary": "Rock: 100-140 BPM, a big acoustic kit on a straight backbeat, a picked bass on root 8ths locked to the kick, distorted guitar power chords with the bVII, an overdriven guitar lead; knowledge/style/rock.json is its template",
   "tags": [
     "rock",
-    "indie",
+    "classic rock",
     "alternative",
+    "hard rock",
     "band",
-    "guitar"
+    "guitar",
+    "power chords",
+    "distorted",
+    "loud"
   ],
   "devices": [
     "Playfield",
@@ -30,8 +34,8 @@
   ],
   "checked": {
     "how": "written",
-    "by": "claude (genre write-ups)",
-    "date": "2026-11-12",
+    "by": "claude (recipe from the web, 2026-11-26)",
+    "date": "2026-11-26",
     "opendaw": "652e6ca"
   },
   "tempo": [
@@ -39,11 +43,14 @@
     140
   ],
   "body": [
-    "Drums: kick 1 and 3, snare 2 and 4, 8th hats or ride; fills at phrase ends.",
-    "Harmony: I–IV–V with the mixolydian bVII; power chords.",
-    "Bass: root 8ths following the kick.",
-    "TakeDo has no guitar instrument: an overdriven synth or organ stands in.",
-    "Apply: pattern/basic-rock on the drums, then pattern/prog-rock-characteristic-1 on the keys four bars later. It leaves tempo and sounds to you: move the tempo toward 100–140 gradually, and swap sounds from the links."
+    "Tempo 100-140 BPM, mid-tempo classic rock about 120; punk goes past 160, ballads below 90.",
+    "Drums: a live acoustic kit, big and punchy: kick on 1 and 3, snare on 2 and 4, straight 8th hats or ride; tom and crash fills at phrase ends.",
+    "Bass: a picked electric bass on driving root 8ths, locked to the kick; the bass guitar, not a sub, carries the low end, with some grit.",
+    "Harmony: I-IV-V with the mixolydian bVII (I-bVII-IV); minor i-VII-VI; distorted power chords, often doubled and panned wide; keys E, A, D.",
+    "Lead: an overdriven electric guitar for riffs and solos.",
+    "Texture/master: loud, saturated and energetic; solid low mids, bus compression for glue; driven, never lofi.",
+    "Sources (2026-11-26): Violet Recording 'How to Make Rock Music'; iZotope '6 tips for mixing good ol' fashioned rock and roll'; Mastering The Mix 'How to Mix Big, Punchy Rock Drums'; Drumeo 'A Drummer's Guide to Rock'.",
+    "Apply: pattern/basic-rock on the drums, then pattern/prog-rock-characteristic-1 on the keys four bars later. For a whole style change the Team Lead's restyle uses knowledge/style/rock.json instead."
   ],
   "apply": {
     "params": {

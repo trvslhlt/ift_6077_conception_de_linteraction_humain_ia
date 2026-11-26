@@ -1,14 +1,18 @@
 {
   "key": "genre/synthwave",
   "kind": "genre",
-  "summary": "Synthwave: 80–118 BPM 80s retro, gated snare on 2 and 4, analog pads and arpeggios, minor i–VI–VII",
+  "summary": "Synthwave (retrowave, outrun): 80-118 BPM 80s retro, a LinnDrum-style straight beat with a gated-reverb snare on 2 and 4, a resonant synth bass pulsing 8ths on the roots, detuned analog pads on a minor four-chord loop, a bright square or saw lead; knowledge/style/synthwave.json is its template",
   "tags": [
     "synthwave",
     "retrowave",
     "outrun",
     "80s",
     "retro",
-    "neon"
+    "neon",
+    "darksynth",
+    "stranger things",
+    "dreamwave",
+    "chillwave"
   ],
   "devices": [
     "Playfield",
@@ -37,8 +41,8 @@
   ],
   "checked": {
     "how": "written",
-    "by": "claude (genre write-ups)",
-    "date": "2026-11-12",
+    "by": "claude (recipe from the web, 2026-11-26)",
+    "date": "2026-11-26",
     "opendaw": "652e6ca"
   },
   "tempo": [
@@ -46,11 +50,14 @@
     118
   ],
   "body": [
-    "Drums: straight rock beat on a drum machine, big gated-reverb snare on 2 and 4.",
-    "Bass: 8th-note pulses on the root (an arpeggiated synth bass).",
-    "Harmony: minor, i–VI–VII or i–v–VI–VII; analog pads, brassy stabs, arpeggios.",
-    "Production in production/synthwave.",
-    "Apply: pattern/basic-rock on the drums, then pattern/prog-synthwave-common-1 on the keys four bars later. It leaves tempo and sounds to you: move the tempo toward 80–118 gradually, and swap sounds from the links."
+    "Tempo: 80-118 BPM for the classic groove, about 100 typical; 128-140 for faster outrun.",
+    "Drums: an 80s drum machine (LinnDrum, Roland TR-505/707, the 808's cowbell), a straight rock beat (kick on 1 and 3, snare or clap on 2 and 4, 8th hats), almost no velocity variation; the snare through a big reverb then a gate (gated reverb), a room reverb and parallel compression on the drum bus; tom fills at phrase ends.",
+    "Bass: an analog synth bass (square or saw, detuned, a resonant low-pass with a filter envelope) repeating the chord root in 8ths or 16ths, sidechained to the kick so it pumps.",
+    "Harmony: minor keys (brooding, soundtrack) over major (cheesier synth-pop): i-VI-VII, i-VI-III-VII, vi-IV-I-V; four chords looping over four bars, held on warm detuned analog pads or synth strings, brassy stabs and an arpeggio high and low in the mix.",
+    "Lead: a bright square or saw lead (or a brassy poly), monophonic, a few notes, vibrato and glide, plenty of reverb and delay; never a wash or pad as the lead.",
+    "Texture/master: wide and glossy: chorus on pads, bass and lead, gated reverb, gentle saturation, a little sidechain pump; bright but not harsh.",
+    "Sources (2026-11-26): Mode Audio 'Synthwave: 5 Production Essentials'; EDMProd 'How to Make Synthwave'; Native Instruments 'Synthwave'; MusicRadar '11 quick-fire tips for creating Stranger Things-style synthwave'.",
+    "Apply: pattern/basic-rock on the drums, then pattern/prog-synthwave-common-1 on the keys four bars later. For a whole style change the Team Lead's restyle uses knowledge/style/synthwave.json instead."
   ],
   "apply": {
     "params": {

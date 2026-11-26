@@ -1,0 +1,8 @@
+{
+  "//": "A style with a new template (2026-11-26: twenty researched templates): the producer names the style by a word not in the old genre list, so the Team Lead must find the template from style_templates.",
+  "project": "01_good_base.odb",
+  "messages": [
+    {"text": "turn this into a latin reggaeton track, gradually over 8 bars"},
+    {"text": "keep going"}
+  ]
+}

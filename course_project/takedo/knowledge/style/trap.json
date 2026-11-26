@@ -1,0 +1,75 @@
+{
+  "style": "trap",
+  "about": "trap: half-time TR-808 drums (snare and clap on 3, rolling 16th hats with 32nd and triplet rolls), a long sub 808 bass on the roots as the loudest thing, dark minor chords held low on slow strings, a sparse celesta bell melody on top; 130-160 BPM, dark and punchy",
+  "tempo": [
+    130,
+    160
+  ],
+  "parts": {
+    "drums": {
+      "kit": {
+        "name": "Trap 808",
+        "pads": [
+          {
+            "role": "kick",
+            "sample": "RolandTR808/bd/BD5025"
+          },
+          {
+            "role": "snare",
+            "sample": "RolandTR808/sd/SD5075"
+          },
+          {
+            "role": "clap",
+            "sample": "RolandTR808/cp/cp0"
+          },
+          {
+            "role": "closed_hat",
+            "sample": "RolandTR808/hh/CH"
+          },
+          {
+            "role": "open_hat",
+            "sample": "RolandTR808/oh/OH25"
+          },
+          {
+            "role": "rim",
+            "sample": "RolandTR808/rim/RS"
+          }
+        ]
+      },
+      "groove": "pattern/trap-2bar",
+      "level_db": -8
+    },
+    "bass": {
+      "sound": "HS TB-303/TB303 SQR-1",
+      "range": [
+        28,
+        40
+      ],
+      "level_db": -8
+    },
+    "chords": {
+      "sound": "GeneralUser GS/Slow Strings",
+      "range": [
+        48,
+        70
+      ],
+      "rhythm": "hold",
+      "velocity": 0.5,
+      "level_db": -16,
+      "add": {
+        "major": "vi:8 IV:8",
+        "minor": "i:4 VI:4 iv:4 v:4"
+      }
+    },
+    "lead": {
+      "sound": "GeneralUser GS/Celeste",
+      "range": [
+        64,
+        84
+      ],
+      "velocity": 0.7,
+      "level_db": -14
+    }
+  },
+  "master": "loud and punchy with the 808 sub dominating the low end, a clean top, light saturation on the drums; no lofi roll-off"
+}
