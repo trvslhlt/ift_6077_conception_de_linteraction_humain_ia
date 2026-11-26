@@ -66,6 +66,14 @@ const Words: Array<[RegExp, string]> = [
     [/lead|stoned/i, "synthwave techno | bright"],
 ]
 
+// A sound's guess from words alone (a track's name, "Dusty Rhodes Chords"); generic: also the catch-all rows for any
+// bass or pad, which say nothing about a synth whose character is fixed. Null when no words match.
+const Generic = new Set([9, 10])
+export const guessWords = (text: string, generic = true): Guess | null => {
+    const found = Words.find(([words], index) => (generic || !Generic.has(index)) && words.test(text))
+    return found === undefined ? null : guess(found[1])
+}
+
 export const guessSound = (sound: Sound): Guess => {
     if (sound.source === "soundfont" && sound.soundfont === "GeneralUser GS") {
         if (sound.bank >= 120) {
@@ -117,6 +125,6 @@ export const genresOf = (tags: string[]): Genre[] => [...new Set(tags.flatMap(ta
 // The styles a piece of text names ("evolve this into a lofi girl beat", "boom-bap drums").
 export const genresIn = (text: string): Genre[] => {
     const plain = text.toLowerCase().replace(/lo[- ]?fi/g, "lofi").replace(/boom[- ]?bap/g, "boombap").replace(/drum (and|&|n) bass|d&b/g, "dnb")
-        .replace(/synth[- ]?wave|synth[- ]?pop/g, "synthwave")
+        .replace(/synth[- ]?wave|synth[- ]?pop/g, "synthwave").replace(/hip[- ]?hop/g, "hiphop")
     return genresOf(plain.split(/[^a-z0-9&]+/))
 }

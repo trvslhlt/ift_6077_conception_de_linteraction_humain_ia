@@ -2,13 +2,14 @@ import {existsSync} from "node:fs"
 import {createSdkMcpServer, getSessionInfo, query, type Query, tool} from "@anthropic-ai/claude-agent-sdk"
 import type {CallToolResult} from "@modelcontextprotocol/sdk/types.js"
 import {z} from "zod"
-import type {Actor, Control, Plan, Snapshot} from "../../shared/protocol.ts"
+import type {Actor, Control, Genre, Plan, Snapshot} from "../../shared/protocol.ts"
 import {type Anchor, type Direction, type Job, type Piece, type PieceKind, PieceKinds, type Step} from "./board.ts"
 import type {Coordinator} from "./coordinator.ts"
 import {performStep, projectFor} from "./members.ts"
 import {type AgentState, Kinds, type Kind} from "./notebook.ts"
 import {asChatLine, Inbox, replyProblem} from "./utility.ts"
 import {Styles} from "./mixProfiles.ts"
+import {genresIn} from "./soundStyles.ts"
 
 // The captain (ARCHITECTURE.md, "The team's structure", decided 2026-11-22): the Team Lead the producer talks with. It
 // works out what each message means for the work and hands pieces to workers (the utility in a fresh session per
@@ -52,7 +53,7 @@ Rules:
 - Except the transport, which is the producer's: no piece plays, stops, records or moves the playhead, even when asked; tell the producer what to press instead. A new loop includes where the playhead is now.
 - Nothing is deleted: "remove", "take out" or "lose" a part or effect means park it (the part muted with its instrument and effects switched off; an effect switched off), so a dial or a later request can bring it back and a recording keeps it. Say it's out, not deleted.
 - A new part or a sound change: the workers have sampled instruments (basses, pianos, Rhodes, organs, guitars, strings, brass, pads, leads) as well as synths; say the sound you want in the goal ("a warm finger bass", "a dusty upright piano") so they pick one that fits the genre.
-- A style's sound is new parts, not the old ones rewritten: the team has drum kits made of classic drum machines' samples (TR-808 for trap, TR-909 for house and techno, MPC60 and SP-12 for boom-bap, LinnDrum for 80s pop) and an 808 bass. The producer's own sounds come first (2026-11-26, the producer: they had kept drum kits, and a kit recipe came in sounding like a video game): workers find the kits, samples and instruments they kept for a style, so name the style in a piece's goal and leave the sound to the worker; name a machine only when the producer did. For a style change, the drums piece is "a new <style> kit, the producer's own first, playing a <style> groove from one bar, the old drums parked at that bar" (tracks: the old drums, so it can park them; steps 1: a kit comes in at once, on a phrase's first bar), and for trap or drill the bass piece is "a new 808 bass playing the old bass's line, the old bass parked at that bar". Only when the producer asks to keep the sound (the same kit, "just the groove") does the old part change in place.
+- A style's sound is new parts, not the old ones rewritten: the team has drum kits made of classic drum machines' samples (TR-808 for trap, TR-909 for house and techno, MPC60 and SP-12 for boom-bap, LinnDrum for 80s pop) and an 808 bass. The producer's own sounds come first (2026-11-26, the producer: they had kept drum kits, and a kit recipe came in sounding like a video game): workers find the kits, samples and instruments they kept for a style, so name the style in a piece's goal and leave the sound to the worker; name a machine only when the producer did. For a style change, the drums piece is "a new <style> kit, the producer's own first, playing a <style> groove from one bar, the old drums parked at that bar" (tracks: the old drums, so it can park them; steps 1: a kit comes in at once, on a phrase's first bar), and every pitched part whose sound isn't for the style gets the same (2026-11-26, the producer: a lofi session kept the 303 acid bass to the end, a filter "warming" it): code lists them in sounds_not_for_the_style, and each one's piece is "a new <style> <role> sound (a warm finger bass, an electric piano), the producer's own first, playing tN's notes, tN parked" (kind sound; tracks: that part, so it can park it; for a slow direction the new part fades in as the old fades out over the change's bars). A filter or effect on the old sound doesn't change what it is. For trap or drill the bass is an 808. Only when the producer asks to keep the sound (the same kit, "just the groove") does the old part change in place.
 - A style change restyles the song, it doesn't replace it (2026-11-25, the producer: moving to a new style should keep melodies and note timings recognizable, or it feels like a tempo blend into another song). The style comes from the sound (kits, instruments), the feel (the drums' groove, swing, how notes are played), the chords' colour and the mix (effects, sends, pan); the music carries over. Say so in the keep of each piece on a pitched part that's there: "tN's notes and rhythm, in the new sound" for a bass line, riff, lead or melody (a new instrument taking it over plays those notes, moved by octaves into its register); "tN's chord roots and changes, recoloured for <style>" for chords (sevenths, ninths, the style's voicing and rhythm). The drums take the style's groove. The key, scale and time signature stay as they are, unless the producer asks or the direction needs it (a jazzy turn may need another scale; say so in your reply). The tempo stays where it is if the style's range allows, otherwise it goes only as far as the range's nearest end; a slower style over a fast tempo is a half-time feel (the drums' backbeat on 3, the tempo kept), never the tempo halved, which slows every part's notes. A part the style needs that isn't there yet is new. This is guidance, not a rule: what the producer asks for wins ("a new melody", "different chords").
 - A new part (chords, a pad, a lead) gets a new track of its own: tracks ["new"], never an existing part's track; the worker makes the track as it writes the part.
 - A style direction adds what the style needs as well as changing what's there: "lush" or "fuller" means parts and space added across the whole loop (a chord bed or pad heard from its first bar, reverb); thinning and softening every part at once empties the track.
@@ -83,6 +84,7 @@ export class Captain {
     #sessionId: string | null = null
     #resumed = false
     #okTurns = 0
+    #style: Genre | null = null
     #current: Current | null = null
     #queue: Promise<void> = Promise.resolve()
     #unheard: string[] = []
@@ -177,6 +179,9 @@ export class Captain {
             context.event("agent_session", {session: this.#sessionId, resumed: stored !== null, agent: this.agent})
         }
         const producers = turn.kind === "producer_message" || turn.kind === "control_moved"
+        // The style the producer is taking the song to: the last one a message of theirs named ("keep going" goes on with it).
+        if (turn.kind === "producer_message") {this.#style = genresIn(turn.text)[0] ?? this.#style}
+        const against = producers && this.#style !== null ? context.soundsAgainst(this.#style, snapshot) : []
         const pending = {message: `${turn.kind}: ${turn.text}`, t: Date.now()}
         if (this.#sessionId !== null) {context.notebook?.setAgentState({session: this.#sessionId, pending})}
         // The producer's turns start a direction; the team's own news continue the one it's about.
@@ -203,6 +208,7 @@ export class Captain {
             ...(running.length > 0 ? {jobs_running: running.map(job => `${job.id}: ${job.piece}`)} : {}),
             ...(context.takeLines().length > 0 ? {takes: context.takeLines()} : {}),
             project: projectFor(snapshot, false),
+            ...(against.length > 0 ? {sounds_not_for_the_style: against} : {}),
             notebook: context.notebook?.list() ?? []
         }))
         try {

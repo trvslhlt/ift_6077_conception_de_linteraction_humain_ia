@@ -143,6 +143,13 @@ export class Library {
         return {...doubted(guessSound(sound), entry), confirmed: false}
     }
 
+    // The library sound a track is named after (its name or its device's: "Finger Bass"), the producer's kept one first.
+    named(names: string[]): Sound | null {
+        const wanted = names.map(name => name.trim().toLowerCase()).filter(name => name !== "")
+        const found = this.#samples.sounds.filter(sound => wanted.includes(sound.preset.toLowerCase()))
+        return found.find(sound => this.entry(sound.id)?.verdict === "kept") ?? found[0] ?? null
+    }
+
     // How agents rank a sound for a role and a style (null: any): kept and good for both first, then unheard ones that
     // are, then those not for the style, then other roles; never a rejected one. The order key (lower is better) or null.
     rank(sound: Sound, role: SoundRole | null, style: Genre | null = null): number | null {

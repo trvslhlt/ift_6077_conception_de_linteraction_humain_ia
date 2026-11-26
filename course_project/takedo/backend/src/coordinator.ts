@@ -1,7 +1,7 @@
 import {randomUUID} from "node:crypto"
 import {
     type Actor, type Apply, type Decided, type BackendToPage, type ChangeEvent, type Control, type Detail, type MemberCard, type PageToBackend,
-    type Plan, type Snapshot, type DrumPiece, type DrumTuning, type SoundRole, type SoundTuning, type Status, target, type When
+    type Plan, type Snapshot, type DrumPiece, type DrumTuning, type Genre, type SoundRole, type SoundTuning, type Status, target, type When
 } from "../../shared/protocol.ts"
 import type {Catalog} from "./catalog.ts"
 import type {Gateway, ModelLog} from "./gateway.ts"
@@ -23,6 +23,7 @@ import {type Line, triage, triageState} from "./triage.ts"
 import {fastEffect, fastMix, SurePath, fastTweak} from "./fastpath.ts"
 import {Profiles, Styles, styleSteps} from "./mixProfiles.ts"
 import {auditionPhrase, drumAudition, padRole} from "./library.ts"
+import {soundsAgainst} from "./soundFit.ts"
 
 // The backend half of the bus (TAKEDO_API.md, "Overview"), one per connected page: claims, plans, chat, routing.
 // Talks to the page's adapter for state (snapshot queries) and to apply plans.
@@ -818,6 +819,11 @@ export class Coordinator {
         const made = knowledge.kit({name: `Audition: ${id.split("/").pop()}`, pads: [{role: padRole(piece), sample: sample.id, tuning}, ...around],
             notes: {hits: groove.hits, beats: groove.beats, bars: 16, from_bar: 0}}, snapshot)
         this.#send(typeof made === "string" ? {type: "audition", id, error: made} : {type: "audition", id, code: made.code})
+    }
+
+    // The parts playing whose sound isn't for a style (soundFit.ts), for the Team Lead's style turns.
+    soundsAgainst(style: Genre, snapshot: Snapshot): string[] {
+        return soundsAgainst(style, snapshot, this.#catalog, this.#knowledge?.library ?? null)
     }
 
     // A style's mix (mixProfiles.ts): applied by code once the direction's parts have landed (no job running, nothing
