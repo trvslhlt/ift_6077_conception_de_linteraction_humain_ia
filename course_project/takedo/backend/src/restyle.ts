@@ -1,4 +1,4 @@
-import {existsSync, readdirSync, readFileSync} from "node:fs"
+import {existsSync, readdirSync, readFileSync, writeFileSync} from "node:fs"
 import {join} from "node:path"
 import type {Snapshot, Track} from "../../shared/protocol.ts"
 import {analyse} from "./analysis.ts"
@@ -27,10 +27,40 @@ export type PartSpec = {
     velocity?: number                           // 0..1: every note at it (a soft attack)
     groove?: string                             // drums: a pattern entry
     add?: { major: string, minor: string }      // chords: the progression written when the song has no chords
+    tone?: { low_cut: number, high_cut: number } // a high- and low-pass on the part (Hz; 20 and 20000 for none)
+    heard?: boolean                             // its level and tone came from the producer's approval: they win over a kept sound's tuning
 }
-export type Rule = { text: string, said: string, date: string }
 export type Template = { style: string, about: string, tempo: [number, number], parts: Partial<Record<TemplateRole, PartSpec>>,
-    master: string, rules: Rule[] }
+    master: string }
+
+// The producer's rules, learned from their corrections in sessions (2026-11-26, the producer: apply them at once, but
+// only corrections, never the experimental, exploratory combinations): knowledge/rules.json, for one style or every one
+// (style null), about one role or the whole song (role null), with their words and the date.
+export type Rule = { style: string | null, role: TemplateRole | null, text: string, said: string, date: string }
+export const loadRules = (path: string): Rule[] =>
+    existsSync(path) ? (JSON.parse(readFileSync(path, "utf8")) as { rules: Rule[] }).rules : []
+export const rulesFor = (path: string, styles: ReadonlyArray<string>): Rule[] =>
+    loadRules(path).filter(rule => rule.style === null || styles.includes(rule.style))
+// replacing: rules this one refines (learned earlier in the same session), removed.
+export const addRule = (path: string, rule: Rule, replacing: ReadonlyArray<Rule> = []): void => {
+    const same = (a: Rule, b: Rule) => a.style === b.style && a.role === b.role && a.text === b.text
+    const rules = loadRules(path).filter(other => !same(other, rule) && !replacing.some(old => same(old, other)))
+    writeFileSync(path, `${JSON.stringify({rules: [...rules, rule]}, null, 2)}\n`)
+}
+export const ruleLine = (rule: Rule): string =>
+    `${rule.text} (${rule.style ?? "every style"}${rule.role !== null ? `, ${rule.role}` : ""}; the producer, ${rule.date}: "${rule.said}")`
+
+// A template part changed by the producer's approval of a fix ("much better"): the fields given, written at once.
+export const learnPart = (dir: string, style: string, role: TemplateRole, change: Partial<PartSpec>): string | null => {
+    const path = join(dir, `${style}.json`)
+    if (!existsSync(path)) {return `no template for ${style}`}
+    const template = JSON.parse(readFileSync(path, "utf8")) as Template
+    template.parts[role] = {...(template.parts[role] ?? {sound: change.sound ?? "", level_db: -12}), ...change,
+        ...(change.level_db !== undefined || change.tone !== undefined ? {heard: true} : {})}
+    if (template.parts[role]!.sound === "") {return `a new ${role} part needs its sound`}
+    writeFileSync(path, `${JSON.stringify(template, null, 2)}\n`)
+    return null
+}
 
 export const loadTemplates = (dir: string): Map<string, Template> => {
     const templates = new Map<string, Template>()
@@ -95,7 +125,7 @@ const partNotes = (track: Track, snapshot: Snapshot): { hits: Hit[], beats: numb
 // The level a sound ends at: the producer's own (a kept sound's tuning), else the template's.
 const levelOf = (knowledge: Knowledge, spec: PartSpec): number => {
     const entry = knowledge.library?.entry(spec.sound)
-    return entry?.verdict === "kept" ? entry.tuning.level_db : spec.level_db
+    return entry?.verdict === "kept" && spec.heard !== true ? entry.tuning.level_db : spec.level_db
 }
 
 // The moves a template makes on the project as it is (a full snapshot, with notes), and what it leaves alone.
@@ -112,7 +142,7 @@ export const restyleMoves = (template: Template, snapshot: Snapshot, knowledge: 
         const name = taken === 0 ? preset : `${preset} ${taken + 1}`
         const level = levelOf(knowledge, spec)
         const handover = role === "drums" || !fading || old === null
-        const plan = knowledge.soundfont({sound: spec.sound, name, ...(handover ? {} : {start_db: -60}),
+        const plan = knowledge.soundfont({sound: spec.sound, name, start_db: handover ? level : -60, ...(spec.tone !== undefined ? {tone: spec.tone} : {}),
             notes: {notes: notes.hits, loop_bars: Math.max(1, Math.ceil(notes.beats / bpb))}}, snapshot)
         if (typeof plan === "string") {return `${role}: ${plan}`}
         moves.push({role, old, name, code: plan.code, says: plan.says, level_db: level, handover})
@@ -162,12 +192,12 @@ export const restyleMoves = (template: Template, snapshot: Snapshot, knowledge: 
 }
 
 // The template as the Team Lead and workers read it: its parts, master and the producer's rules.
-export const templateText = (template: Template): string => [
+export const templateText = (template: Template, rules: ReadonlyArray<Rule>): string => [
     `${template.style}: ${template.about}. Tempo ${template.tempo[0]}–${template.tempo[1]} BPM.`,
     ...TemplateRoles.flatMap(role => {
         const spec = template.parts[role]
         return spec === undefined ? [] : [`${role}: ${spec.sound}${spec.groove ? `, groove ${spec.groove}` : ""}${spec.range ? `, notes ${spec.range[0]}–${spec.range[1]}` : ""}${spec.rhythm === "hold" ? ", chords held" : ""}`]
     }),
     `master: ${template.master}`,
-    ...template.rules.map(rule => `the producer's rule (${rule.date}): ${rule.text}`)
+    ...rules.map(rule => `the producer's rule: ${ruleLine(rule)}`)
 ].join("\n")

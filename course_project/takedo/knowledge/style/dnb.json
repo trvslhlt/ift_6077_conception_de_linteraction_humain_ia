@@ -1,17 +1,47 @@
 {
   "style": "dnb",
   "about": "drum and bass: a fast two-step electronic kit, a rubbery saw bass under it, the chords held as a pad, a soothing vibraphone line on top",
-  "tempo": [165, 175],
+  "tempo": [
+    165,
+    175
+  ],
   "parts": {
-    "drums": {"sound": "GeneralUser GS/Electronic Kit", "groove": "pattern/dnb-two-step", "level_db": -8},
-    "bass": {"sound": "GeneralUser GS/Synth Bass 1", "range": [28, 48], "level_db": -9},
-    "chords": {"sound": "openDAW/Rhodes", "range": [50, 74], "rhythm": "hold", "velocity": 0.45, "level_db": -16,
-      "add": {"major": "vi7:8 IVmaj7:8", "minor": "i9:8 VImaj7:8"}},
-    "lead": {"sound": "GeneralUser GS/Vibraphone", "range": [55, 72], "velocity": 0.6, "level_db": -15}
+    "drums": {
+      "sound": "GeneralUser GS/Electronic Kit",
+      "groove": "pattern/dnb-two-step",
+      "level_db": -8
+    },
+    "bass": {
+      "sound": "GeneralUser GS/Synth Bass 1",
+      "range": [
+        28,
+        48
+      ],
+      "level_db": -9
+    },
+    "chords": {
+      "sound": "openDAW/Rhodes",
+      "range": [
+        50,
+        74
+      ],
+      "rhythm": "hold",
+      "velocity": 0.45,
+      "level_db": -16,
+      "add": {
+        "major": "vi7:8 IVmaj7:8",
+        "minor": "i9:8 VImaj7:8"
+      }
+    },
+    "lead": {
+      "sound": "GeneralUser GS/Vibraphone",
+      "range": [
+        55,
+        72
+      ],
+      "velocity": 0.6,
+      "level_db": -15
+    }
   },
-  "master": "clean and punchy: no lofi character (no low-pass roll-off, no saturation)",
-  "rules": [
-    {"text": "A wash or pad sound is never a lead or arpeggio; a lead is clear with a defined attack", "said": "that wash arp sound should never be used as a lead", "date": "2026-11-26"},
-    {"text": "The melody is soothing (a vibraphone), an octave lower than a bright lead would sit", "said": "switch that walking melody instrument for something more soothing / vibraphone down 1 octave", "date": "2026-11-26"}
-  ]
+  "master": "clean and punchy: no lofi character (no low-pass roll-off, no saturation)"
 }

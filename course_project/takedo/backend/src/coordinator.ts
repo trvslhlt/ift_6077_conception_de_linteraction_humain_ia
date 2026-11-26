@@ -25,7 +25,7 @@ import {Profiles, Styles, styleSteps} from "./mixProfiles.ts"
 import {auditionPhrase, drumAudition, padRole} from "./library.ts"
 import {soundsAgainst} from "./soundFit.ts"
 import {join} from "node:path"
-import {loadTemplates, type Move, restyleMoves, type Template, templateText} from "./restyle.ts"
+import {addRule, learnPart, loadTemplates, type Move, type PartSpec, restyleMoves, type Rule, rulesFor, type Template, type TemplateRole, templateText} from "./restyle.ts"
 
 // The backend half of the bus (TAKEDO_API.md, "Overview"), one per connected page: claims, plans, chat, routing.
 // Talks to the page's adapter for state (snapshot queries) and to apply plans.
@@ -66,6 +66,9 @@ export const placed = (control: Control): string => {
 }
 const Terminal: ReadonlyArray<Status["state"]> = ["applied", "dropped", "failed"]
 
+// The knowledge base's folder (main.ts reads it the same way): style templates and the producer's rules live there.
+const KnowledgeDir = process.env.KNOWLEDGE_DIR ?? "../knowledge"
+
 export class Coordinator {
     readonly #send: (message: BackendToPage) => void
     readonly #gateway: Gateway
@@ -87,6 +90,7 @@ export class Coordinator {
     readonly #reports: Array<{ kind: "job_finished" | "job_failed" | "job_failed_later", text: string, direction?: Direction }> = []
     #reporting = false
     readonly #knowledge: Knowledge | null
+    readonly #learned: Rule[] = []                                  // rules learned in this session (learn)
     readonly #history: Array<{ from: string, text: string }> = []   // the chat so far, for messages that refer back
     #nextQuery = 0
     #project: string | null = null
@@ -437,6 +441,14 @@ export class Coordinator {
     event(type: LogType, data: object): void {this.#log.write(type, data)}
 
     modelLog(): ModelLog {return entry => this.#log.write("model", entry)}
+
+    // Whether the producer said these words in this session (a learned rule quotes them; parts joined by " / ").
+    producerSaid(words: string): boolean {
+        const plain = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()
+        const said = this.#history.filter(line => line.from === "user").map(line => plain(line.text))
+        const parts = words.split(/\s*(?:\/|→)\s*/).map(plain).filter(part => part !== "")
+        return parts.length > 0 && parts.every(part => said.some(line => line.includes(part)))
+    }
 
     // Agents' lines as the producer sees them (the utility as the Team Lead).
     #remember(from: Actor, text: string): void {
@@ -830,7 +842,30 @@ export class Coordinator {
 
     // Style templates (restyle.ts), read again each time, so a rule learned in this session applies at once.
     templates(): Map<string, Template> {
-        return loadTemplates(join(process.env.KNOWLEDGE_DIR ?? "../knowledge", "style"))
+        return loadTemplates(join(KnowledgeDir, "style"))
+    }
+
+    // The producer's rules for these styles and every style (restyle.ts), read again each time.
+    rules(styles: ReadonlyArray<string>): Rule[] {
+        return rulesFor(join(KnowledgeDir, "rules.json"), styles)
+    }
+
+    // A correction learned (the Team Lead's learn): the rule kept at once, and a template's part changed when a fix the
+    // producer approved changed it. The event goes in the session log.
+    learn(rule: Rule, part: Partial<PartSpec> | null): string {
+        if (part !== null) {
+            if (rule.style === null || rule.role === null) {return "Not learned: a part change needs its style and role."}
+            if (part.sound !== undefined && this.#knowledge?.samples?.sound(part.sound) === null) {return `Not learned: no sound ${part.sound} (ids as the sounds tool gives them).`}
+            const problem = learnPart(join(KnowledgeDir, "style"), rule.style, rule.role as TemplateRole, part)
+            if (problem !== null) {return `Not learned: ${problem}.`}
+        }
+        // A fix's approval refines the rule its correction made earlier in this session: one rule per style and part.
+        const earlier = this.#learned.filter(other => other.style === rule.style && other.role === rule.role)
+        const kept = earlier.length === 0 ? rule : {...rule, said: [...earlier.map(other => other.said), rule.said].join(" / ")}
+        addRule(join(KnowledgeDir, "rules.json"), kept, earlier)
+        this.#learned.push(kept)
+        this.#log.write("board", {event: "learned", rule, part})
+        return `Learned, from now on: ${kept.text}${part !== null ? ` (the ${rule.style} template's ${rule.role} changed: ${JSON.stringify(part)})` : ""}.`
     }
 
     // A style direction by its template (restyle.ts): the parts by code, each new one handed over (drums) or crossfaded
@@ -850,19 +885,19 @@ export class Coordinator {
         const [low, high] = template.tempo, bpm = snapshot.timeline.bpm
         const tempo = bpm < low ? low : bpm > high ? high : null
         if (made.moves.length === 0 && tempo === null) {
-            return `Everything is the ${style} template already: ${made.left.join("; ")}. Nothing assigned.\nThe template:\n${templateText(template)}`
+            return `Everything is the ${style} template already: ${made.left.join("; ")}. Nothing assigned.\nThe template:\n${templateText(template, this.rules([style]))}`
         }
         const pieces: Piece[] = [
             ...(tempo === null ? [] : [{kind: "tempo" as const, tracks: [], goal: `The tempo glides from ${Math.round(bpm)} to ${tempo} BPM.`,
                 from_bar: 0, to_bar: overBars, steps: overBars > 0 ? 4 : 1, keep: ""}]),
             {kind: "effects", tracks: ["master"], goal: `The master for ${style}: ${template.master}.`, from_bar: 0, to_bar: overBars,
-                steps: overBars > 0 ? 4 : 1, keep: template.rules.map(rule => rule.text).join("; ")}
+                steps: overBars > 0 ? 4 : 1, keep: this.rules([style]).filter(rule => rule.role === null).map(rule => rule.text).join("; ")}
         ]
         const assigned = pieces.map(piece => this.assign(direction, anchor, piece))
         const mix = Profiles[style] === undefined ? "" : this.styleMix(direction, style)
         return [`The ${style} template, by code: ${made.moves.map(move => `${move.old === null ? "new" : `${move.old.ref} ${move.old.name} →`} ${move.says}`).join("; ") || "no part to change"}.`,
             ...(made.left.length > 0 ? [`Left as they are: ${made.left.join("; ")}.`] : []),
-            ...assigned, mix, `The template:\n${templateText(template)}`].filter(line => line !== "").join("\n")
+            ...assigned, mix, `The template:\n${templateText(template, this.rules([style]))}`].filter(line => line !== "").join("\n")
     }
 
     // One template part: its new track made, then (crossfading) faded up while its old part fades down, the old parked.

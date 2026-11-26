@@ -7,6 +7,8 @@ import {type Actor, type DrumPiece, type Note, type Plan, type Snapshot, type Ge
 import type {Sample, Sound} from "./samples.ts"
 import {pieceOf} from "./library.ts"
 import {genresIn, genresOf} from "./soundStyles.ts"
+import {ruleLine, rulesFor} from "./restyle.ts"
+import {join as joinPath} from "node:path"
 import {type Action, type Anchor, type Direction, type Piece, type PieceKind, PieceKinds, type Step as BoardStep} from "./board.ts"
 import type {Coordinator} from "./coordinator.ts"
 import type {Catalog} from "./catalog.ts"
@@ -444,6 +446,13 @@ export class Utility implements Member {
         return {producers_sounds: {style: styles.join(", "),
             about: "The producer's own sounds kept for this style, by role: use these before any knowledge entry's sound or kit. A whole kit (drums) is a track from make_instrument whose drums write_part writes (General MIDI drum notes); drum samples go into make_kit.",
             ...(Object.keys(sounds).length > 0 ? {instruments: sounds} : {}), ...(Object.keys(drumSamples).length > 0 ? {drum_samples: drumSamples} : {})}}
+    }
+
+    // The producer's corrections kept from sessions (restyle.ts, knowledge/rules.json): every style's, and the piece's style's.
+    #producersRules(piece: Piece, message: string): Record<string, unknown> {
+        const rules = rulesFor(joinPath(process.env.KNOWLEDGE_DIR ?? "../knowledge", "rules.json"), genresIn(`${piece.goal} ${message}`))
+        return rules.length === 0 ? {} : {producers_rules: {about: "The producer's corrections from earlier sessions: they hold over any knowledge entry or habit.",
+            rules: rules.map(ruleLine)}}
     }
 
     #knowledgeFor(piece: Piece, message: string): Record<string, unknown> {
@@ -1074,6 +1083,7 @@ export class Utility implements Member {
             notebook: context.notebook?.list() ?? [],
             ...this.#knowledgeFor(job.task, job.message),
             ...this.#producersSounds(job.task, job.message),
+            ...this.#producersRules(job.task, job.message),
             devices: this.#devices,
             ...(EffectKinds.includes(job.task.kind) ? Object.assign({}, ...this.#team.map(member => member.context(snapshot))) : {})
         }))

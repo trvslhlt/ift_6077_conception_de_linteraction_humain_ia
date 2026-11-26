@@ -1,11 +1,12 @@
 import {strict as assert} from "node:assert"
-import {readFileSync} from "node:fs"
+import {copyFileSync, mkdtempSync, readFileSync} from "node:fs"
+import {tmpdir} from "node:os"
 import {join} from "node:path"
 import {describe, it} from "node:test"
 import type {Snapshot} from "../../shared/protocol.ts"
 import {loadCatalog} from "./catalog.ts"
 import {loadKnowledge} from "./knowledge.ts"
-import {held, intoRange, loadTemplates, restyleMoves, TemplateRoles} from "./restyle.ts"
+import {addRule, held, intoRange, learnPart, loadRules, loadTemplates, restyleMoves, rulesFor, TemplateRoles} from "./restyle.ts"
 import {loadSamples} from "./samples.ts"
 
 // Style templates (restyle.ts) on the lofi scenario's starting project (01_good_base: a TR-808 loop and a Cubed acid line,
@@ -72,5 +73,39 @@ describe("style templates", () => {
         if (typeof made === "string") {assert.fail(made)}
         assert.equal(made.moves.length, 0, made.moves.map(move => `${move.old?.name} → ${move.says}`).join("; ") + made.left.join("; "))
         assert.equal(made.left.filter(line => /already the template/.test(line)).length, 3)
+    })
+    it("keeps the producer's rules: a style's and every style's, a repeat once; a part an approved fix changed", () => {
+        const dir = mkdtempSync(join(tmpdir(), "rules-")), path = join(dir, "rules.json")
+        addRule(path, {style: "lofi", role: "chords", text: "keys held", said: "not sustained", date: "2026-11-26"})
+        addRule(path, {style: null, role: "lead", text: "no wash as a lead", said: "never a lead", date: "2026-11-26"})
+        addRule(path, {style: "lofi", role: "chords", text: "keys held", said: "not sustained", date: "2026-11-27"})
+        addRule(path, {style: "dnb", role: null, text: "clean master", said: "too muddy", date: "2026-11-26"})
+        assert.equal(loadRules(path).length, 3)
+        assert.deepEqual(rulesFor(path, ["lofi"]).map(rule => rule.text), ["no wash as a lead", "keys held"])
+        assert.deepEqual(rulesFor(path, []).map(rule => rule.text), ["no wash as a lead"])
+        copyFileSync(join(Takedo, "knowledge", "style", "lofi.json"), join(dir, "lofi.json"))
+        assert.equal(learnPart(dir, "lofi", "chords", {sound: "GeneralUser GS/Tine Electric Piano", range: [55, 76]}), null)
+        const changed = loadTemplates(dir).get("lofi")!.parts.chords!
+        assert.equal(changed.sound, "GeneralUser GS/Tine Electric Piano")
+        assert.deepEqual(changed.range, [55, 76])
+        assert.equal(changed.rhythm, "hold")
+        assert.match(String(learnPart(dir, "house", "bass", {sound: "x"})), /no template/)
+        // An approval's rule replaces its correction's; a level or tone it learned wins over a kept sound's tuning.
+        const correction = {style: "lofi", role: "bass" as const, text: "bass not boomy", said: "too boomy", date: "2026-11-26"}
+        addRule(path, correction)
+        addRule(path, {...correction, text: "bass soft, rolled off below 100 Hz", said: "much better"}, [correction])
+        assert.deepEqual(rulesFor(path, ["lofi"]).filter(rule => rule.role === "bass").map(rule => rule.text), ["bass soft, rolled off below 100 Hz"])
+        assert.equal(learnPart(dir, "lofi", "bass", {level_db: -18, tone: {low_cut: 100, high_cut: 20000}}), null)
+        const bass = loadTemplates(dir).get("lofi")!
+        assert.equal(bass.parts.bass!.heard, true)
+        const made = restyleMoves(bass, base, knowledge, catalog, false)
+        if (typeof made === "string") {assert.fail(made)}
+        const move = made.moves.find(one => one.role === "bass")!
+        assert.equal(move.level_db, -18)
+        assert.match(move.code, /"volume_db":-18/)
+        assert.match(move.code, /"highPass\/frequency":100/)
+    })
+    it("the knowledge base's rules file reads", () => {
+        assert.ok(loadRules(join(Takedo, "knowledge", "rules.json")).length >= 3)
     })
 })

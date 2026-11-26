@@ -1,0 +1,32 @@
+{
+  "rules": [
+    {
+      "style": "lofi",
+      "role": "chords",
+      "text": "The keys are a Rhodes held as a pad: each chord held through its bar, soft attack, never short or choppy hits",
+      "said": "the keys are way too bright and have too much attack for lofi / they are now choppy hits, not sustained / use a rhodes pad instead → much better",
+      "date": "2026-11-26"
+    },
+    {
+      "style": "lofi",
+      "role": null,
+      "text": "No Waveshaper or other distortion on the master",
+      "said": "(the producer's review: the waveshaper on the master was part of what made lofi worse)",
+      "date": "2026-11-26"
+    },
+    {
+      "style": null,
+      "role": "lead",
+      "text": "A wash or pad sound is never a lead or arpeggio; a lead is clear with a defined attack",
+      "said": "that wash arp sound should never be used as a lead",
+      "date": "2026-11-26"
+    },
+    {
+      "style": "dnb",
+      "role": "lead",
+      "text": "The melody is soothing (a vibraphone), an octave lower than a bright lead would sit",
+      "said": "switch that walking melody instrument for something more soothing / vibraphone down 1 octave",
+      "date": "2026-11-26"
+    }
+  ]
+}

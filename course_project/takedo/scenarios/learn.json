@@ -1,0 +1,10 @@
+{
+  "//": "Learning from corrections (2026-11-26, the producer: apply learned corrections at once, but only corrections, never exploratory requests). A correction and an approval should be learned; the exploratory request after them should not.",
+  "project": "01_good_base.odb",
+  "messages": [
+    {"text": "evolve this into a lofi girl beat"},
+    {"text": "the bass is way too loud and boomy for lofi"},
+    {"text": "much better"},
+    {"text": "try adding a soft vibraphone melody on top"}
+  ]
+}

@@ -704,7 +704,10 @@ export const loadKnowledge = (dir: string, catalog: Catalog, warn: (text: string
                 [beat, Math.max(0, Math.min(127, pitch + 12 * tuning.octave)), length, velocity])}
         // start_db: a level to come in at, before a fade up (restyle.ts's crossfades).
         const volume = volumeOf(input.start_db) ?? (tuning !== null ? tuning.level_db : volumeOf(input.volume_db))
-        const effects = tuning === null ? [] : tuningEffects(tuning)
+        // tone: a high- and low-pass given (restyle.ts: a template part's, learned from the producer), over the tuning's.
+        const tone = isRecord(input.tone) && typeof input.tone.low_cut === "number" && typeof input.tone.high_cut === "number"
+            ? {low_cut: input.tone.low_cut, high_cut: input.tone.high_cut} : null
+        const effects = tuning === null && tone === null ? [] : tuningEffects({...(tuning ?? DefaultTuning), ...(tone !== null ? {tone} : {})})
         const says = `${name}: a new track playing ${sound.id}${tuning !== null && given === null ? " (the producer's tuning)" : ""}${notes === null ? "" : `, ${startText(notes)}`}`
         if (sound.source === "preset") {
             if (catalog.device(sound.device ?? "")?.allowed === false) {return `${sound.id} is for ${sound.device}, which isn't allowed`}
