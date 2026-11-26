@@ -215,7 +215,7 @@ export class Coordinator {
                 // With what came just before: the last changes, by hand or by agents (the session's riding of a tremolo).
                 const recent = this.#recentChanges.slice(-12)
                 this.#log.write("engine", {health: message.state, detail: message.detail, recent})
-                if (message.state === "recovered") {return}
+                if (message.state === "recovered" || message.state === "page_error") {return}
                 const text = message.state === "crashed" ? "The audio engine crashed (openDAW is asking to restart it)."
                     : "The audio engine has stalled: the playhead stopped while playing."
                 this.say("agent:team_lead", `${text} The last changes before it: ${recent.slice(-4).map(change => `${change.label} ${change.from} → ${change.to} (${change.actor.replace("agent:", "")})`).join("; ") || "none"}.`)

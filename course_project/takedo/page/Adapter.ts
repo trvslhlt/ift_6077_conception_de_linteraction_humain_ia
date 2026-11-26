@@ -145,10 +145,21 @@ export class Adapter implements Terminable {
     // dialog, is told to the backend once (and again when it plays on), so a session log says when and after what.
     #watchHealth(project: Project): void {
         let last = project.engine.position.getValue(), stuck = 0, state: "ok" | "stalled" | "crashed" = "ok"
+        let lastError = ""
         const send = (next: "stalled" | "crashed" | "recovered", detail: string) => {
             state = next === "recovered" ? "ok" : next
-            this.#connection.send({type: "engine_health", state: next, detail})
+            this.#connection.send({type: "engine_health", state: next, detail: next === "stalled" && lastError !== "" ? `${detail}; the last page error: ${lastError}` : detail})
         }
+        // Uncaught page errors, with their stacks (2026-11-25: stalls with no engine error, the playhead frozen while
+        // the audio context ran: openDAW reads the engine's state in a frame callback, and a throw there leaves it unread).
+        const onError = (event: ErrorEvent | PromiseRejectionEvent) => {
+            const error = event instanceof ErrorEvent ? event.error ?? event.message : event.reason
+            lastError = (error instanceof Error ? `${error.message} ${error.stack ?? ""}` : String(error)).slice(0, 800)
+            this.#connection.send({type: "engine_health", state: "page_error", detail: lastError})
+        }
+        window.addEventListener("error", onError)
+        window.addEventListener("unhandledrejection", onError)
+        this.#terminator.own({terminate: () => {window.removeEventListener("error", onError); window.removeEventListener("unhandledrejection", onError)}})
         const timer = setInterval(() => {
             const dialog = [...document.querySelectorAll<HTMLElement>("dialog, [role=dialog]")]
                 .find(element => element.innerText?.startsWith("Audio-Engine Error"))

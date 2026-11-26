@@ -34,8 +34,14 @@ const problems = []
 page.on("pageerror", error => problems.push(`pageerror: ${error.message}`))
 // The page's warnings and errors, timed (a stall's cause may show here).
 const consoleLines = []
+// Uncaught page errors aren't console messages: an exception thrown in openDAW's frame loop (the suspected stalls).
+page.on("pageerror", error => {
+    if (consoleLines.length < 300) {consoleLines.push({t: Date.now(), type: "pageerror", text: `${error.message} ${error.stack ?? ""}`.slice(0, 800)})}
+})
 page.on("console", message => {
-    if (["warning", "error"].includes(message.type()) && consoleLines.length < 300) {consoleLines.push({t: Date.now(), type: message.type(), text: message.text().slice(0, 300)})}
+    // Debug lines too when they look like an error: openDAW's engine logs its traps with console.debug.
+    const kept = ["warning", "error"].includes(message.type()) || (message.type() === "debug" && /error|panic|trap|unreachable/i.test(message.text()))
+    if (kept && consoleLines.length < 300) {consoleLines.push({t: Date.now(), type: message.type(), text: message.text().slice(0, 300)})}
 })
 
 const agentLines = () => page.evaluate(() => [...document.querySelectorAll("[data-testid=takedo-chat] li")]
