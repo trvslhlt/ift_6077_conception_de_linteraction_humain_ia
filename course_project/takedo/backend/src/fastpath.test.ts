@@ -20,7 +20,7 @@ const snapshot: Snapshot = {
 }
 const judged = (part: string, move: Triage["move"], extra: Partial<Triage> = {}): Triage => ({
     path: "mix", pathP: 0.95, part, partP: 0.95, move, moveP: 0.95, effect: "other", effectP: 0, action: "add", actionP: 0,
-    tweak: "none", tweakP: 0, amount: 1, when: "unspecified", ms: 90, ...extra
+    tweak: "none", tweakP: 0, amount: 1, when: "unspecified", member: "mix_engineer", memberP: 0.9, control: "none", controlP: 0.9, ms: 90, ...extra
 })
 
 describe("the effect fast path", () => {

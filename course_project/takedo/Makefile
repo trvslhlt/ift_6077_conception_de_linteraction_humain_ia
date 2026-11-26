@@ -10,7 +10,7 @@ TYPES_DIR := .opendaw
 export PORT
 COMPOSE := docker compose --profile test
 
-.PHONY: help builder build up down restart logs status open shell test scenario catalog check knowledge knowledge-bench triage-bench tweak-bench knowledge-import types usage clean sounds-probe state-probe
+.PHONY: help builder build up down restart logs status open shell test scenario catalog check knowledge knowledge-bench triage-bench members-bench tweak-bench knowledge-import types usage clean sounds-probe state-probe
 
 help: ## List targets
 	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
@@ -93,6 +93,9 @@ knowledge-bench: ## Which producer messages the knowledge base serves (knowledge
 
 triage-bench: ## Jev in front of the Team Lead: path, part and move on knowledge/bench/triage.mjs's labelled messages (costs Jev cents)
 	cd backend && node --env-file=../.env src/triage.bench.ts
+
+members-bench: ## Jev naming the team member a direction lands with and the control it merits, on knowledge/bench/members.mjs (costs Jev cents)
+	cd backend && node --env-file=../.env src/members.bench.ts
 
 tweak-bench: ## Jev naming a musical tweak of one part (variants.ts) on knowledge/bench/tweaks.mjs's labelled messages (costs Jev cents)
 	cd backend && node --env-file=../.env src/tweaks.bench.ts

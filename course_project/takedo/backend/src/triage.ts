@@ -37,6 +37,37 @@ export const When = {
     now: "right away, on the next beat or bar", gradual: "gradually, over a few beats or bars (a fade)",
     later: "at a later point: the next phrase, a section or a named bar", unspecified: "the message doesn't say when"
 } as const
+// Who a direction lands with (project_plan/TEAM.md's members, cut by what they do to the music) and the kind of control
+// it merits (2026-11-26, the producer: directions land with specific members, and members offer different types of
+// controls for tuning them; not a control for every direction, and a limited number). Judged on
+// knowledge/bench/members.mjs (`make members-bench`).
+export const Members = {
+    composer: "The composer: which notes play. A new part, melody, counter-line, chords or drum pattern; busier or sparser, " +
+        "simpler, ghost notes, a line's octave or rhythm, the chords changed.",
+    performer: "The performer: how the notes already there are played, the notes themselves kept. Swing, timing (laid back, " +
+        "pushed, tighter, looser, more human), dynamics and accents (softer, harder), articulation (staccato, legato).",
+    sound_designer: "The sound designer: what one part sounds like. Its instrument or sound swapped, its tone (warmer, " +
+        "brighter, darker, rounder, more analog), effects that are part of its character (distortion, crusher, chorus).",
+    mix_engineer: "The mix engineer: how the parts sit together. Levels, pan, mutes, space (reverb, delay, sends), " +
+        "ducking and sidechain, width, headroom and limiting, the master's sound.",
+    conductor: "The conductor: time and form. The tempo, energy over time (build up, break down, a drop), parts " +
+        "dropping out and coming back at bars, fills on cue, how long the song runs.",
+    team: "Several members at once: a style or genre change, or a broad direction about the whole song (bigger, more " +
+        "detailed, make the crowd go wild).",
+    none: "Not a direction for the music: a question, a report that something is broken, missing or inaudible, an " +
+        "approval or thanks, chat."
+} as const
+export const Controls = {
+    dial: "A dial: a new direction that is a matter of degree the producer will want to keep riding (how much swing, how " +
+        "wet, how far into the style, how much energy, how slow), or a knob they asked for.",
+    choice: "A choice: something new made where taste decides between a few alternatives (a new melody, part or chords; " +
+        "a new sound when they didn't name one).",
+    switch: "A switch: a part or effect they want to drop out and bring back in by hand.",
+    button: "A button: a one-shot they want to trigger on cue (a fill, a drop).",
+    none: "No control: a correction of something that sounds wrong now (too harsh, too bright, too loud, closer to sine), " +
+        "an exact or fully specified request (a named instrument, an octave, a bar, a value), a plain level, pan or fade " +
+        "move, a question, or a report that something is broken or inaudible."
+} as const
 const Amounts = ["A subtle touch that is barely noticeable", "A clear, moderate change", "A big, obvious change",
     "All the way: silent, or hard left or right"]
 const Premise = "The producer sent `message` to their AI music team while working on `project`, during playback; `recent` is " +
@@ -69,6 +100,8 @@ export type Triage = {
     tweak: keyof typeof Tweaks | "none", tweakP: number   // a musical tweak of the part's notes (variants.ts)
     amount: number                                // 0..3 on Amounts' scale
     when: keyof typeof When
+    member: keyof typeof Members, memberP: number
+    control: keyof typeof Controls, controlP: number
     ms: number
 }
 
@@ -94,7 +127,10 @@ export const triage = async (gateway: Gateway, log: ModelLog, state: TriageState
             {...Tweaks, none: "none of these: a new style or pattern, a new part or sound, two changes at once, the mix, effects " +
                 "or tempo, a button, knob or control to play, or not about the notes"}),
         amount: score(`${Premise}How large a change do they want?`, Amounts),
-        when: choice(`${Premise}When should the change happen?`, When)
+        when: choice(`${Premise}When should the change happen?`, When),
+        member: choice(`${Premise}Which member of the team does it land with?`, Members),
+        control: choice(`${Premise}What control, if any, should the team offer the producer for tuning this direction afterwards? ` +
+            "If the message asks for a control (a knob, a switch, a button), that one.", Controls)
     }, log)
     const p = (answer: { choice: string, probabilities: Record<string, number> }) => answer.probabilities[answer.choice] ?? 0
     return {
@@ -105,6 +141,8 @@ export const triage = async (gateway: Gateway, log: ModelLog, state: TriageState
         action: answers.action.choice as Triage["action"], actionP: p(answers.action),
         tweak: answers.tweak.choice as Triage["tweak"], tweakP: p(answers.tweak),
         amount: answers.amount.score, when: answers.when.choice as Triage["when"],
+        member: answers.member.choice as Triage["member"], memberP: p(answers.member),
+        control: answers.control.choice as Triage["control"], controlP: p(answers.control),
         ms: Math.round(performance.now() - start)
     }
 }
