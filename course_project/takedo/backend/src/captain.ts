@@ -184,7 +184,8 @@ export class Captain {
         const producers = turn.kind === "producer_message" || turn.kind === "control_moved"
         // The style the producer is taking the song to: the last one a message of theirs named ("keep going" goes on with it).
         if (turn.kind === "producer_message") {this.#style = genresIn(turn.text)[0] ?? this.#style}
-        const against = producers && this.#style !== null ? context.soundsAgainst(this.#style, snapshot) : []
+        // A style with a template says each part's sound itself (it may keep the song's own bass).
+        const against = producers && this.#style !== null && !context.templates().has(this.#style) ? context.soundsAgainst(this.#style, snapshot) : []
         const pending = {message: `${turn.kind}: ${turn.text}`, t: Date.now()}
         if (this.#sessionId !== null) {context.notebook?.setAgentState({session: this.#sessionId, pending})}
         // The producer's turns start a direction; the team's own news continue the one it's about.
@@ -417,9 +418,9 @@ export class Captain {
                 handler((current, input) => current.context.setTransition(this.agent, `c:${String(input.name)}`, String(input.track), input.transition as "handover" | "crossfade"))),
             tool("recall_take", "Bring the project back to a take (takes: versions kept under a dial's positions), gliding over the next 4 bars: notes, mix, effects and tempo as they were then; parts added since fade out.", {
                 take: z.string().describe("A take's id (\"k2\")")}, handler((current, input) => current.context.recallTake(this.agent, String(input.take), current.turn.text, current.direction.id))),
-            tool("restyle", "Take the song to a style by its template, all at once, by code: every part of a role the template has (drums, bass, chords, lead) moves onto the template's sound, register and rhythm, carrying its notes; chords the style needs are written if the song has none; tempo and the master go to workers with exact goals; the style's mix after. Answers with what it does and the template. For a style with a template, this is the whole direction: don't assign those parts yourself.", {
+            tool("restyle", "Take the song to a style by its template, all at once, by code: every part of a role the template has (drums, bass, chords, lead) moves onto the template's sound, register and rhythm, carrying its notes, or stays on its own sound with the template's tone when the template keeps it; chords the style needs are written if the song has none; tempo and the master go to workers with exact goals; the style's mix after. Answers with what it does and the template. For a style with a template, this is the whole direction: don't assign those parts yourself.", {
                 style: z.string().describe("A style with a template (the turn's style_templates)"),
-                over_bars: z.number().int().min(0).max(32).describe("Bars the old parts fade out over as the new ones fade in (the drums hand over at once); 0 for at once, 8 to 16 for a slow or gradual change")},
+                over_bars: z.number().int().min(0).max(32).describe("Bars the old parts fade out over as the new ones fade in, the drums too; 0 for at once, 8 to 16 for a slow or gradual change")},
                 handler((current, input) => current.context.restyle(current.direction, current.anchor, String(input.style), Number(input.over_bars) || 0))),
             tool("learn", "Keep a correction of the producer's for every session from now on, at once: a rule (and, when they approved a fix, the template part it changed). Only for corrections: something they said was wrong (too bright, choppy, never a lead, not sustained), or their approval of your fix of one. Never for exploratory requests (a new part, an effect to try, another style, a sound to swap in as an idea) nor for the team's own faults (a silent track).", {
                 style: z.string().describe("The style the correction is about (lofi, dnb...), or \"\" when it holds for every style (\"a wash is never a lead\")"),

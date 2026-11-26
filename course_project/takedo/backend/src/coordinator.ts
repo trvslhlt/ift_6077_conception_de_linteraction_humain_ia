@@ -5,7 +5,7 @@ import {
 } from "../../shared/protocol.ts"
 import type {Catalog} from "./catalog.ts"
 import type {Gateway, ModelLog} from "./gateway.ts"
-import {createTeam, type Member, performStep, type Task} from "./members.ts"
+import {createTeam, type Member, performStep, type Step as MemberStep, type Task} from "./members.ts"
 import {type Recall, RecallBars, recallOf, type Scope, scopeOf, Takes} from "./takes.ts"
 import {blendOf} from "./blend.ts"
 import {type Activity, Ledger, touchedBy} from "./ledger.ts"
@@ -905,6 +905,7 @@ export class Coordinator {
         const agent = this.#captain.agent
         const step = (plan: Plan, says: string) => performStep(this, agent, {plan, when: {at: "next", unit: "bar"}, says,
             decided: {by: "code"}, activity: {direction: direction.id}}, `the style template: ${move.says}`)
+        if (move.code === null) {return this.#keep(direction, move, beats)}
         const made = await step({op: "script", code: move.code, description: move.says}, move.says)
         if (/not done/.test(made)) {return made}
         const now = await this.snapshot()
@@ -921,6 +922,33 @@ export class Coordinator {
         }
         if (move.old !== null) {results.push(await step({op: "set", ref: `${move.old.ref}.mix.mute`, to: 1}, `${move.old.name} parked`))}
         return results.filter(result => result !== "").join("; ")
+    }
+
+    // A part the template keeps (the song's own bass, 2026-11-26): a Revamp put on open, then its high- and low-pass and
+    // the part's level glide to the template's over the bars given (at least a bar: nothing jumps).
+    async #keep(direction: Direction, move: Move, beats: number): Promise<string> {
+        const track = move.old!
+        const over = Math.max(beats, 4)
+        const step = (plan: Plan, says: string, then?: MemberStep["then"]) => performStep(this, this.#captain.agent, {plan, when: {at: "next", unit: "bar"}, says,
+            decided: {by: "code"}, activity: {direction: direction.id}, ...(then !== undefined ? {then} : {})}, `the style template: ${move.says}`)
+        const results: Array<Promise<string>> = []
+        if (Math.abs(track.mix.volume - move.level_db) > 0.5) {
+            results.push(step({op: "ramp", ref: `${track.ref}.mix.volume`, to: move.level_db, beats: over}, `${track.name} to ${move.level_db} dB`))
+        }
+        const tone = move.tone
+        if (tone !== undefined) {
+            results.push(step({op: "add_effect", track: track.ref, device: "Revamp", factory: "Revamp", settings: [
+                {param: "highPass/enabled", value: 1}, {param: "highPass/frequency", value: 20},
+                {param: "lowPass/enabled", value: 1}, {param: "lowPass/frequency", value: 20000}]}, `${track.name}: a Revamp, open`, added => {
+                const ramp = (path: string, to: number, says: string): MemberStep[] => {
+                    const param = added.params?.find(one => one.ref === `${added.ref}.${path}`)
+                    return param === undefined ? [] : [{plan: {op: "ramp", ref: param.ref, to, beats: over}, when: {at: "next", unit: "beat"}, says}]
+                }
+                return [...ramp("lowPass/frequency", tone.high_cut, `${track.name} low-passed to ${tone.high_cut} Hz`),
+                    ...ramp("highPass/frequency", tone.low_cut, `${track.name} high-passed at ${tone.low_cut} Hz`)]
+            }))
+        }
+        return (await Promise.all(results)).join("; ")
     }
 
     // A style's mix (mixProfiles.ts): applied by code once the direction's parts have landed (no job running, nothing

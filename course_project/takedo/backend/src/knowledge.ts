@@ -650,7 +650,10 @@ export const loadKnowledge = (dir: string, catalog: Catalog, warn: (text: string
             if (typeof written === "string") {return written}
             notes = written
         }
-        return {code: helper("kit", {name, pads: resolved, volume_db: volumeOf(input.volume_db), notes})!,
+        // tone: a high- and low-pass on the whole kit (restyle.ts: a template's kit, pushed back).
+        const effects = isRecord(input.tone) && typeof input.tone.low_cut === "number" && typeof input.tone.high_cut === "number"
+            ? tuningEffects({...DefaultTuning, tone: {low_cut: input.tone.low_cut, high_cut: input.tone.high_cut}}) : []
+        return {code: helper("kit", {name, pads: resolved, volume_db: volumeOf(input.volume_db), notes, effects})!,
             says: `${name}: a new kit track (${resolved.map(pad => pad.name).join(", ")})${notes === null ? ""
                 : `, ${String(notes.name)} ${startText(notes)}`}${swapped.length > 0 ? `; the producer rejected some samples, so ${swapped.join(", ")}` : ""}`}
     }

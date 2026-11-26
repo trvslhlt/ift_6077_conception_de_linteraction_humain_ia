@@ -27,6 +27,27 @@
       "text": "The melody is soothing (a vibraphone), an octave lower than a bright lead would sit",
       "said": "switch that walking melody instrument for something more soothing / vibraphone down 1 octave",
       "date": "2026-11-26"
+    },
+    {
+      "style": null,
+      "role": "drums",
+      "text": "In a gradual change new drums fade in over the bars while the old fade out, never jumping in",
+      "said": "the lofi drums jumped in stead of fading in gradually",
+      "date": "2026-11-26"
+    },
+    {
+      "style": "lofi",
+      "role": "drums",
+      "text": "Lofi drums are TR-808 drums, soft, swung and low-passed; not a jazz kit",
+      "said": "808s would be better for lofi hip hop than the jazz kit",
+      "date": "2026-11-26"
+    },
+    {
+      "style": "lofi",
+      "role": "bass",
+      "text": "Lofi keeps the song's own bass, warmed (low-passed, round); not a sampled fretless bass",
+      "said": "whatever bass was originally used for lofi was better than fretless",
+      "date": "2026-11-26"
     }
   ]
 }

@@ -5,7 +5,7 @@ import {analyse} from "./analysis.ts"
 import type {Catalog} from "./catalog.ts"
 import {chordHits} from "./compose.ts"
 import {type Hit, hitOf} from "./generate.ts"
-import type {Knowledge} from "./knowledge.ts"
+import {expandPattern, type Knowledge} from "./knowledge.ts"
 import {roleOf} from "./mixProfiles.ts"
 import {playing} from "./blend.ts"
 import {soundOf} from "./soundFit.ts"
@@ -21,7 +21,10 @@ import {soundOf} from "./soundFit.ts"
 export const TemplateRoles = ["drums", "bass", "chords", "lead"] as const
 export type TemplateRole = typeof TemplateRoles[number]
 export type PartSpec = {
-    sound: string, level_db: number
+    sound?: string                              // a sound (soundfont or preset) its new track plays
+    kit?: { name: string, pads: Array<{ role: string, sample: string }> }   // or a drum kit of samples (a Playfield)
+    keep?: boolean                              // or the song's own part stays on its sound, only its tone and level glide
+    level_db?: number                           // the level it ends at (a keep without one stays where it is)
     range?: [number, number]                    // pitched parts: every note moved by octaves into it (chords as a whole)
     rhythm?: "hold" | "as played"               // hold: each chord rings until the next one (repeats merged)
     velocity?: number                           // 0..1: every note at it (a soft attack)
@@ -55,9 +58,12 @@ export const learnPart = (dir: string, style: string, role: TemplateRole, change
     const path = join(dir, `${style}.json`)
     if (!existsSync(path)) {return `no template for ${style}`}
     const template = JSON.parse(readFileSync(path, "utf8")) as Template
-    template.parts[role] = {...(template.parts[role] ?? {sound: change.sound ?? "", level_db: -12}), ...change,
+    // A new sound replaces a kit or keeping the song's own part.
+    const {kit: _kit, keep: _keep, ...before} = template.parts[role] ?? {}
+    template.parts[role] = {...(change.sound !== undefined ? before : template.parts[role] ?? {}), ...change,
         ...(change.level_db !== undefined || change.tone !== undefined ? {heard: true} : {})}
-    if (template.parts[role]!.sound === "") {return `a new ${role} part needs its sound`}
+    const part = template.parts[role]!
+    if (part.sound === undefined && part.kit === undefined && part.keep !== true) {return `a new ${role} part needs its sound`}
     writeFileSync(path, `${JSON.stringify(template, null, 2)}\n`)
     return null
 }
@@ -73,14 +79,20 @@ export const loadTemplates = (dir: string): Map<string, Template> => {
 }
 
 // A part of the template made on a new track: the edit, its old part (null: a new part), and the level it ends at.
-export type Move = { role: TemplateRole, old: Track | null, name: string, code: string, says: string, level_db: number, handover: boolean }
+// keep: no new track (code null): the old part itself glides to the tone and level.
+export type Move = { role: TemplateRole, old: Track | null, name: string, code: string | null, says: string, level_db: number, handover: boolean,
+    keep?: boolean, tone?: { low_cut: number, high_cut: number } }
+
+// What a template part's tracks are named: after its sound or kit, so a later restyle knows them ("Fretless Bass").
+export const partName = (spec: PartSpec): string | null => spec.kit?.name ?? spec.sound?.split("/").pop() ?? null
+const named = (track: Track, name: string | null): boolean => name !== null && (track.name === name || track.name.startsWith(`${name} `))
 
 // A part's role: the template's own part when it's named after that part's sound (a low Rhodes chord is still chords),
 // else what it plays (mixProfiles.ts).
 const roleFor = (track: Track, template: Template): TemplateRole | null => {
     const own = TemplateRoles.find(role => {
-        const preset = template.parts[role]?.sound.split("/").pop()
-        return preset !== undefined && (track.name === preset || track.name.startsWith(`${preset} `))
+        const spec = template.parts[role]
+        return spec !== undefined && named(track, partName(spec))
     })
     if (own !== undefined) {return own}
     const role = roleOf(track)
@@ -124,8 +136,8 @@ const partNotes = (track: Track, snapshot: Snapshot): { hits: Hit[], beats: numb
 
 // The level a sound ends at: the producer's own (a kept sound's tuning), else the template's.
 const levelOf = (knowledge: Knowledge, spec: PartSpec): number => {
-    const entry = knowledge.library?.entry(spec.sound)
-    return entry?.verdict === "kept" && spec.heard !== true ? entry.tuning.level_db : spec.level_db
+    const entry = spec.sound === undefined ? null : knowledge.library?.entry(spec.sound)
+    return entry?.verdict === "kept" && spec.heard !== true ? entry.tuning.level_db : spec.level_db ?? -10
 }
 
 // The moves a template makes on the project as it is (a full snapshot, with notes), and what it leaves alone.
@@ -133,17 +145,22 @@ export const restyleMoves = (template: Template, snapshot: Snapshot, knowledge: 
     : { moves: Move[], left: string[] } | string => {
     const bpb = snapshot.timeline.signature[0]
     const moves: Move[] = [], left: string[] = []
-    const made = (role: TemplateRole, old: Track | null, notes: { hits: Hit[], beats: number }): string | null => {
+    // hits: pitched notes, or for a kit [beat, role, beats, velocity] with the role in the pitch's place.
+    const made = (role: TemplateRole, old: Track | null, notes: { hits: Array<[number, number, number, number]> | Array<[number, string, number, number]>, beats: number }): string | null => {
         const spec = template.parts[role]!
-        // Named after its sound, so a later restyle (and soundFit) knows what it plays: "Fretless Bass", "Jazz Kit".
-        const preset = spec.sound.split("/").pop()!
-        const taken = snapshot.tracks.filter(other => other.name === preset || other.name.startsWith(`${preset} `)).length
-            + moves.filter(move => move.name.startsWith(preset)).length
-        const name = taken === 0 ? preset : `${preset} ${taken + 1}`
+        // Named after its sound, so a later restyle (and soundFit) knows what it plays: "Fretless Bass", "Lofi 808".
+        const base = partName(spec)!
+        const taken = snapshot.tracks.filter(other => named(other, base)).length + moves.filter(move => move.name.startsWith(base)).length
+        const name = taken === 0 ? base : `${base} ${taken + 1}`
         const level = levelOf(knowledge, spec)
-        const handover = role === "drums" || !fading || old === null
-        const plan = knowledge.soundfont({sound: spec.sound, name, start_db: handover ? level : -60, ...(spec.tone !== undefined ? {tone: spec.tone} : {}),
-            notes: {notes: notes.hits, loop_bars: Math.max(1, Math.ceil(notes.beats / bpb))}}, snapshot)
+        // Every part fades in over the bars given, the drums too (2026-11-26, the producer: the lofi drums jumped in).
+        const handover = !fading || old === null
+        const tone = spec.tone !== undefined ? {tone: spec.tone} : {}
+        const plan = spec.kit !== undefined
+            ? knowledge.kit({name, pads: spec.kit.pads, volume_db: handover ? level : -60, ...tone,
+                notes: {hits: notes.hits.map(([beat, role, , velocity]) => [beat, role, velocity]), beats: notes.beats}}, snapshot)
+            : knowledge.soundfont({sound: spec.sound, name, start_db: handover ? level : -60, ...tone,
+                notes: {notes: notes.hits, loop_bars: Math.max(1, Math.ceil(notes.beats / bpb))}}, snapshot)
         if (typeof plan === "string") {return `${role}: ${plan}`}
         moves.push({role, old, name, code: plan.code, says: plan.says, level_db: level, handover})
         return null
@@ -155,14 +172,32 @@ export const restyleMoves = (template: Template, snapshot: Snapshot, knowledge: 
         const spec = role === null ? undefined : template.parts[role]
         if (role === null || spec === undefined) {left.push(`${track.ref} ${track.name}: ${role ?? roleOf(track)} isn't in the ${template.style} template`); continue}
         covered.add(role)
-        const preset = spec.sound.split("/").pop()!
-        if (soundOf(track, catalog, knowledge.library)?.sound === spec.sound || track.name === preset || track.name.startsWith(`${preset} `)) {left.push(`${track.ref} ${track.name}: already the template's ${spec.sound}`); continue}
+        // The song's own part kept: only its tone and level glide there (once: a Revamp on it means it's done).
+        if (spec.keep === true) {
+            if (track.effects.some(effect => effect.key === "Revamp")) {left.push(`${track.ref} ${track.name}: kept, already toned`); continue}
+            moves.push({role, old: track, name: track.name, code: null, keep: true, handover: !fading, level_db: spec.level_db ?? track.mix.volume,
+                says: `${track.name} kept on its own sound${spec.tone !== undefined ? `, low-passed to ${spec.tone.high_cut} Hz` : ""}`, ...(spec.tone !== undefined ? {tone: spec.tone} : {})})
+            continue
+        }
+        if ((spec.sound !== undefined && soundOf(track, catalog, knowledge.library)?.sound === spec.sound) || named(track, partName(spec))) {
+            left.push(`${track.ref} ${track.name}: already the template's ${partName(spec)}`)
+            continue
+        }
         if (role === "drums") {
             if (spec.groove === undefined) {left.push(`${track.ref} ${track.name}: the template has no groove`); continue}
-            const kit = {...track, ref: "new", name: spec.sound, device: {key: "Soundfont", name: spec.sound, enabled: true}} as Track
-            const groove = knowledge.patternHits(spec.groove, kit, {}, bpb)
-            if (typeof groove === "string") {return `drums: ${groove}`}
-            const problem = made(role, track, {hits: groove.hits, beats: groove.beats})
+            let problem: string | null
+            if (spec.kit !== undefined) {
+                const entry = knowledge.get([spec.groove])[0]
+                const view = "pattern" in entry ? entry.pattern : undefined
+                const pattern = view === undefined ? undefined : expandPattern(view)
+                if (pattern === undefined || typeof pattern === "string" || pattern.type !== "drums") {return `drums: ${spec.groove} isn't a drum pattern`}
+                problem = made(role, track, {hits: pattern.hits.map(([beat, drum, velocity]): [number, string, number, number] => [beat, drum, 0.25, velocity]), beats: pattern.beats})
+            } else {
+                const kit = {...track, ref: "new", name: spec.sound, device: {key: "Soundfont", name: spec.sound, enabled: true}} as Track
+                const groove = knowledge.patternHits(spec.groove, kit, {}, bpb)
+                if (typeof groove === "string") {return `drums: ${groove}`}
+                problem = made(role, track, {hits: groove.hits, beats: groove.beats})
+            }
             if (problem !== null) {return problem}
             continue
         }
@@ -196,7 +231,7 @@ export const templateText = (template: Template, rules: ReadonlyArray<Rule>): st
     `${template.style}: ${template.about}. Tempo ${template.tempo[0]}–${template.tempo[1]} BPM.`,
     ...TemplateRoles.flatMap(role => {
         const spec = template.parts[role]
-        return spec === undefined ? [] : [`${role}: ${spec.sound}${spec.groove ? `, groove ${spec.groove}` : ""}${spec.range ? `, notes ${spec.range[0]}–${spec.range[1]}` : ""}${spec.rhythm === "hold" ? ", chords held" : ""}`]
+        return spec === undefined ? [] : [`${role}: ${spec.keep ? "the song's own part, kept" : spec.kit !== undefined ? `${spec.kit.name} (${spec.kit.pads.map(pad => pad.sample).join(", ")})` : spec.sound}${spec.tone ? `, low cut ${spec.tone.low_cut} Hz, high cut ${spec.tone.high_cut} Hz` : ""}${spec.groove ? `, groove ${spec.groove}` : ""}${spec.range ? `, notes ${spec.range[0]}–${spec.range[1]}` : ""}${spec.rhythm === "hold" ? ", chords held" : ""}`]
     }),
     `master: ${template.master}`,
     ...rules.map(rule => `the producer's rule: ${ruleLine(rule)}`)

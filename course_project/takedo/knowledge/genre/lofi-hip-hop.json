@@ -1,7 +1,7 @@
 {
   "key": "genre/lofi-hip-hop",
   "kind": "genre",
-  "summary": "Lofi hip hop ('lofi girl' beats): 70–90 BPM boom-bap drums, jazzy 7th-chord vamps on Rhodes, with production/lofi",
+  "summary": "Lofi hip hop ('lofi girl' beats): 60-90 BPM, sparse swung drums low-passed and pushed back, a warm round bass on the chord roots (or none), 2-4 jazzy 7th/9th chords on a held Rhodes; knowledge/style/lofi.json is its template",
   "tags": [
     "lofi hip hop",
     "lofi",
@@ -19,7 +19,7 @@
     "Vaporisateur"
   ],
   "links": [
-    "sound/kit-boombap-mpc60",
+    "sound/kit-trap-808",
     "pattern/boombap-1",
     "pattern/lofi-vamp-vi-iv",
     "genre/boom-bap",
@@ -36,20 +36,23 @@
   ],
   "checked": {
     "how": "written",
-    "by": "claude (genre write-ups)",
-    "date": "2026-11-12",
+    "by": "claude (lofi recipe from the web, after the producer's notes)",
+    "date": "2026-11-26",
     "opendaw": "652e6ca"
   },
   "tempo": [
-    70,
+    60,
     90
   ],
   "body": [
-    "Boom-bap's genre (genre/boom-bap) treated with production/lofi: the two together.",
-    "Drums: swung, quiet, a little late; hats soft. Harmony: two-chord vamps of 7ths and 9ths (vi7–IVmaj7, ii7–V7).",
-    "Sounds: soft Rhodes or a sampled piano, a round sub, maybe vinyl crackle.",
-    "Toward it gradually: drums first, then chords, then the lofi treatment, then ease the tempo down.",
-    "Apply: pattern/boombap-1 on the drums, then pattern/lofi-vamp-vi-iv on the keys four bars later, plus the production chain on the master. It leaves tempo and sounds to you: move the tempo toward 70–90 gradually, and swap sounds from the links."
+    "Tempo 60-90 BPM, usually 70-85; slower than most hip hop.",
+    "Drums: sparse, often just kick, snare (or rim) and hats; each low-passed and pushed back in the mix, soft, swung (a J Dilla lean: off-beats late, ghost notes between hits). A snappy kick with some low end, never a booming 808 tail or a big gated snare. The producer wants TR-808 drums for it (2026-11-26), softened, not a jazz kit.",
+    "Bass: many lofi tracks have none; when there is one it plays the chord roots with a gentle, warm, round patch, low-passed hard (cutoff 150 Hz to a few hundred), never boomy and never masking the kick. The producer prefers the song's own bass kept and warmed over a sampled fretless (2026-11-26).",
+    "Harmony: 2-4 chords looping, simple rhythms, jazz colours (7ths, 9ths; ii-V-I, vi7-IVmaj7), on a soft Rhodes or piano held as a pad: soft attack, chords ringing through the bar, never short choppy hits (the producer's correction, 2026-11-26).",
+    "Texture: the whole mix warm and dusty, the top rolled off; vinyl crackle or tape wobble optional; no distortion on the master.",
+    "Toward it gradually: every part crossfades over the bars, the drums too, never jumping in (the producer, 2026-11-26).",
+    "Sources (2026-11-26): Native Instruments 'How to make lofi music' and 'Lo-fi hip hop'; Mode Audio 'LoFi Hip Hop: 5 Production Essentials'; Lunacy 'How to Make Lofi Music'; Produce Like A Pro 'What is lo-fi music'.",
+    "Apply: pattern/boombap-1 on the drums, then pattern/lofi-vamp-vi-iv on the keys four bars later, plus the production chain on the master. For a whole style change the Team Lead's restyle uses knowledge/style/lofi.json instead."
   ],
   "apply": {
     "params": {

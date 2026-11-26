@@ -147,6 +147,7 @@ const kb = (() => {
                 attachment: args.pads.map(pad => ({note: pad.note, uuid: uuid(pad.uuid), name: pad.name,
                     durationInSeconds: pad.duration, exclude: pad.exclude}))})
             if (args.volume_db !== null && args.volume_db !== undefined) {product.audioUnitBox.volume.setValue(args.volume_db)}
+            if (args.effects && args.effects.length > 0) {tune(product.audioUnitBox, args.effects)}
             // The producer's tuning per pad (their drum samples): its volume, pitch in cents, how much of the sample plays,
             // and its tone as a Revamp on the pad.
             const padBoxes = product.instrumentBox.samples.pointerHub.incoming().map(pointer => pointer.box)

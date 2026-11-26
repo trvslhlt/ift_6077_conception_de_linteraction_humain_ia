@@ -26,7 +26,9 @@ describe("style templates", () => {
             for (const role of TemplateRoles) {
                 const spec = template.parts[role]
                 if (spec === undefined) {continue}
-                assert.notEqual(samples.sound(spec.sound), null, `${template.style} ${role}: no sound ${spec.sound}`)
+                assert.equal([spec.sound, spec.kit, spec.keep].filter(given => given !== undefined).length, 1, `${template.style} ${role}: a sound, a kit or keep`)
+                if (spec.sound !== undefined) {assert.notEqual(samples.sound(spec.sound), null, `${template.style} ${role}: no sound ${spec.sound}`)}
+                spec.kit?.pads.forEach(pad => assert.notEqual(samples.find(pad.sample), null, `${template.style} ${role}: no sample ${pad.sample}`))
                 if (spec.groove !== undefined) {assert.ok(knowledge.applicable().some(line => line.key === spec.groove) || knowledge.get([spec.groove])[0] !== undefined)}
             }
             assert.ok(template.tempo[0] < template.tempo[1])
@@ -40,39 +42,41 @@ describe("style templates", () => {
         const choppy: Array<[number, number, number, number]> = [[0, 60, 0.25, 0.8], [0, 64, 0.25, 0.8], [1, 60, 0.25, 0.8], [1, 64, 0.25, 0.8], [4, 62, 0.25, 0.8], [4, 65, 0.25, 0.8]]
         assert.deepEqual(held(choppy, 8), [[0, 60, 3.95, 0.8], [0, 64, 3.95, 0.8], [4, 62, 3.95, 0.8], [4, 65, 3.95, 0.8]])
     })
-    it("takes the good base to lofi: the 808 to the Jazz Kit, the acid line to the Fretless Bass, held Rhodes chords added", () => {
+    it("takes the good base to lofi: an 808 kit fading in, the song's own bass kept and warmed, held Rhodes chords added", () => {
         const made = restyleMoves(templates.get("lofi")!, base, knowledge, catalog, true)
         assert.equal(typeof made, "object", String(made))
         if (typeof made === "string") {return}
         const byRole = Object.fromEntries(made.moves.map(move => [move.role, move]))
         assert.equal(byRole.drums.old?.name, "TR-808")
-        assert.match(byRole.drums.says, /GeneralUser GS\/Jazz Kit/)
-        assert.ok(byRole.drums.handover)
+        assert.match(byRole.drums.says, /Lofi 808: a new kit track/)
+        assert.ok(!byRole.drums.handover)
+        assert.match(byRole.drums.code!, /"volume_db":-60/)
+        assert.match(byRole.drums.code!, /"lowPass\/frequency":6000/)
         assert.equal(byRole.bass.old?.name, "Cubed")
-        assert.match(byRole.bass.says, /GeneralUser GS\/Fretless Bass/)
-        assert.ok(!byRole.bass.handover)
-        assert.match(byRole.bass.code, /"start_db"|"volume_db":-60/)
+        assert.ok(byRole.bass.keep)
+        assert.equal(byRole.bass.code, null)
+        assert.deepEqual(byRole.bass.tone, {low_cut: 30, high_cut: 600})
         assert.equal(byRole.chords.old, null)
         assert.match(byRole.chords.says, /openDAW\/Rhodes/)
-        // The bass's notes in its range; the chords held (each at least a bar) and soft.
+        // The chords held (each at least a bar) and soft.
         const notesOf = (code: string) => (JSON.parse(code.split("\n")[0].replace(/^const args = /, "").replace(/;$/, "")).notes.notes) as Array<[number, number, number, number]>
-        assert.ok(notesOf(byRole.bass.code).every(([, pitch]) => pitch >= 28 && pitch <= 50))
-        assert.ok(notesOf(byRole.chords.code).every(([, pitch, beats, velocity]) => pitch >= 50 && pitch <= 74 && beats >= 3.9 && velocity === 0.45))
+        assert.ok(notesOf(byRole.chords.code!).every(([, pitch, beats, velocity]) => pitch >= 50 && pitch <= 74 && beats >= 3.9 && velocity === 0.45))
         assert.equal(made.moves.length, 3)
-        assert.deepEqual(made.moves.map(move => move.name).sort(), ["Fretless Bass", "Jazz Kit", "Rhodes"])
+        assert.deepEqual(made.moves.map(move => move.name).sort(), ["Cubed", "Lofi 808", "Rhodes"])
     })
     it("leaves alone what is the template already (keep going), a soundfont kit read as drums", () => {
         const after = structuredClone(base)
-        after.tracks.forEach(track => {track.mix.mute = true})
+        after.tracks[0].mix.mute = true
+        after.tracks[1].effects = [{key: "Revamp", name: "Revamp", enabled: true, ref: "t2.fx1"}]
         const like = (ref: string, name: string, notes: Array<[string, number, number, number]>) => ({...structuredClone(base.tracks[1]), ref, name,
             instrument: "Soundfont", device: {key: "Soundfont", name, enabled: true}, mix: {volume: -8, pan: 0, mute: false, solo: false},
             regions: [{...structuredClone(base.tracks[1].regions[0]), notes}]})
-        after.tracks.push(like("t3", "Jazz Kit", [["1.1.1", 36, 1, 100], ["1.2.1", 38, 1, 90]]), like("t4", "Fretless Bass", [["1.1.1", 40, 4, 90]]),
+        after.tracks.push(like("t3", "Lofi 808", [["1.1.1", 60, 1, 100], ["1.2.1", 61, 1, 90]]),
             like("t5", "Rhodes", [["1.1.1", 52, 16, 60], ["1.1.1", 55, 16, 60], ["1.1.1", 59, 16, 60]]))
         const made = restyleMoves(templates.get("lofi")!, after, knowledge, catalog, true)
         if (typeof made === "string") {assert.fail(made)}
         assert.equal(made.moves.length, 0, made.moves.map(move => `${move.old?.name} → ${move.says}`).join("; ") + made.left.join("; "))
-        assert.equal(made.left.filter(line => /already the template/.test(line)).length, 3)
+        assert.equal(made.left.filter(line => /already the template|already toned/.test(line)).length, 3, made.left.join("; "))
     })
     it("keeps the producer's rules: a style's and every style's, a repeat once; a part an approved fix changed", () => {
         const dir = mkdtempSync(join(tmpdir(), "rules-")), path = join(dir, "rules.json")
@@ -95,15 +99,18 @@ describe("style templates", () => {
         addRule(path, correction)
         addRule(path, {...correction, text: "bass soft, rolled off below 100 Hz", said: "much better"}, [correction])
         assert.deepEqual(rulesFor(path, ["lofi"]).filter(rule => rule.role === "bass").map(rule => rule.text), ["bass soft, rolled off below 100 Hz"])
-        assert.equal(learnPart(dir, "lofi", "bass", {level_db: -18, tone: {low_cut: 100, high_cut: 20000}}), null)
-        const bass = loadTemplates(dir).get("lofi")!
-        assert.equal(bass.parts.bass!.heard, true)
-        const made = restyleMoves(bass, base, knowledge, catalog, false)
+        assert.equal(learnPart(dir, "lofi", "chords", {level_db: -18, tone: {low_cut: 100, high_cut: 20000}}), null)
+        const learned = loadTemplates(dir).get("lofi")!
+        assert.equal(learned.parts.chords!.heard, true)
+        const made = restyleMoves(learned, base, knowledge, catalog, false)
         if (typeof made === "string") {assert.fail(made)}
-        const move = made.moves.find(one => one.role === "bass")!
+        const move = made.moves.find(one => one.role === "chords")!
         assert.equal(move.level_db, -18)
-        assert.match(move.code, /"volume_db":-18/)
-        assert.match(move.code, /"highPass\/frequency":100/)
+        assert.match(move.code!, /"volume_db":-18/)
+        assert.match(move.code!, /"highPass\/frequency":100/)
+        // A new sound replaces keeping the song's own part.
+        assert.equal(learnPart(dir, "lofi", "bass", {sound: "GeneralUser GS/Acoustic Bass"}), null)
+        assert.equal(loadTemplates(dir).get("lofi")!.parts.bass!.keep, undefined)
     })
     it("the knowledge base's rules file reads", () => {
         assert.ok(loadRules(join(Takedo, "knowledge", "rules.json")).length >= 3)
