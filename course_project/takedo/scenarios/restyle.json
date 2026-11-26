@@ -1,0 +1,7 @@
+{"//": "A style change restyles the song (2026-11-25): the producer's trap-then-lofi session replaced everything in the lofi move (a stock pattern, a new bass line, new chords, 119 to 80 BPM), so it felt like a tempo blend into another song. Now pitched parts keep their notes and timing in the new sound, chords their roots, the tempo the nearest the style allows. Loop off, as the producer plays it.",
+ "project": "01_good_base.odb", "messages": [
+  {"loop": false},
+  {"text": "make it trap"},
+  {"wait_ms": 20000},
+  {"text": "now make it lofi hip hop"},
+  {"wait_ms": 20000}]}
