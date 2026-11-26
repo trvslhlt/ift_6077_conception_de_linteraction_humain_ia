@@ -43,6 +43,7 @@ const Edge = 0.02
 // handing leftovers to one long-lived utility session), kept until it's retired (step 3).
 // Controls a member may have on its card at once (INTERACTION.md: one intent control each; a few while it's tried out).
 const SureMember = 0.8, SureControl = 0.6
+const Starter = "c:start_"   // a starter control's ref (#starterControls)
 // Tweaks that are a matter of degree, each a dial's word (fastTweak, #tweakDial); the rest (an octave, half time, a fill) aren't.
 const TweakDials: Partial<Record<string, string>> = {busier: "Busy", sparser: "Sparse", ghost_notes: "Ghost notes", swing_more: "Swing",
     straighten: "Straight", harder: "Punch", softer: "Soft", shorter: "Staccato", longer: "Legato"}
@@ -184,6 +185,7 @@ export class Coordinator {
                 this.#log.write("project", {open: message.open, name: message.name})
                 this.#moved.clear()
                 this.#sendControls()
+                if (this.#notebook !== null && this.controls().length === 0) {void this.#starterControls().catch(error => this.#log.write("tweak_dial", {starter: String(error)}))}
                 this.#maybeOverview()
                 // A message the backend was restarted in the middle of, picked back up.
                 if (this.#notebook !== null) {
@@ -507,6 +509,15 @@ export class Coordinator {
         // A panel (controls sharing a group) counts once; a control joining one of its owner's panels takes no new slot.
         const group = offered.group?.trim() || undefined
         const joining = group !== undefined && controls.some(control => control.owner === owner && control.group === group)
+        // No room: a starter control (#starterControls) gives way, its owner's first, else the oldest.
+        const cardFull = slots(controls.filter(control => control.owner === owner)) >= MaxControls
+        const full = existing === undefined && !joining && (cardFull || slots(controls) >= MaxTotalControls)
+        const starter = !full || offered.ref.startsWith(Starter) ? undefined
+            : (cardFull ? controls.find(control => control.ref.startsWith(Starter) && control.owner === owner) : controls.find(control => control.ref.startsWith(Starter)))
+        if (starter !== undefined) {
+            this.removeControl(this.#captain.agent, starter.group ?? starter.ref)
+            return this.offerControl(owner, offered)
+        }
         if (joining && controls.filter(control => control.owner === owner && control.group === group).length >= MaxGroup && existing === undefined) {
             return `Not offered: the "${group}" panel has ${MaxGroup} controls already.`
         }
@@ -969,6 +980,39 @@ export class Coordinator {
         return [`The ${style} template, by code: ${made.moves.map(move => `${move.old === null ? "new" : `${move.old.ref} ${move.old.name} →`} ${move.says}`).join("; ") || "no part to change"}.`,
             ...(made.left.length > 0 ? [`Left as they are: ${made.left.join("; ")}.`] : []),
             ...assigned, mix, `The template:\n${templateText(template, this.rules([style]))}`].filter(line => line !== "").join("\n")
+    }
+
+    // Controls the members have from the start (2026-11-26, the producer: maybe the members should already have
+    // controls based on the project when it is loaded): offered by code from what the project has, each on the card of
+    // the member who'd ride it: the conductor a switch for the drums, the performer a swing dial for them (a direction
+    // when moved), the sound designer a panel for a part's character effect, the mix engineer one for the master's
+    // effect. Starters give way when a direction's control needs the room (offerControl).
+    async #starterControls(): Promise<void> {
+        const project = this.#project
+        let snapshot: Snapshot | null = null
+        for (let tries = 0; snapshot === null && tries < 20 && this.#project === project; tries++) {
+            snapshot = await this.snapshot("full")
+            if (snapshot === null) {await new Promise(resolve => setTimeout(resolve, 1000))}
+        }
+        if (snapshot === null || this.#project !== project || this.controls().length > 0) {return}
+        const starter = (control: Omit<Control, "owner">): Omit<Control, "owner"> => ({...control, ref: control.ref.replace(/^c:/, Starter)})
+        const offer = (member: MemberName, controls: Array<Omit<Control, "owner">>) => controls.forEach(control => this.offerControl(memberActor(member), starter(control)))
+        const sounding = snapshot.tracks.filter(track => !track.mix.mute)
+        const drums = sounding.find(isDrums)
+        if (drums !== undefined) {
+            offer("conductor", [{ref: `c:${drums.ref}_in`, kind: "direct", widget: "switch", label: drums.name.slice(0, 30), low: "out", high: "in",
+                meaning: `The ${drums.name} dropped out or back in`, value: 1, bind: [{ref: `${drums.ref}.mix.mute`, from: 1, to: 0}]}])
+            offer("performer", [{ref: `c:${drums.ref}_swing`, kind: "intent", widget: "dial", label: `Swing: ${drums.name}`.slice(0, 30),
+                low: "as it plays", high: "shuffled", value: 0, meaning: `How swung the ${drums.name} plays: up from where it is asks the performer for more swing, in proportion`}])
+        }
+        const panelOf = (devices: ReadonlyArray<Device>, where: string, keys: ReadonlyArray<string>) => devices
+            .filter(device => device.enabled && keys.includes(device.key)).map(device => effectPanel(device, where))
+            .find(panel => panel.some(control => control.widget === "dial")) ?? []
+        offer("sound_designer", sounding.map(track => panelOf(track.effects, track.name, ["Crusher", "Waveshaper", "Tidal", "Revamp"])).find(panel => panel.length > 0) ?? [])
+        const master = panelOf(snapshot.master.effects, "the master", ["Revamp", "Reverb", "DattorroReverb", "Delay", "Compressor", "Crusher", "Waveshaper", "Tidal"])
+        offer("mix_engineer", master.length > 0 ? master
+            : sounding.map(track => panelOf(track.effects, track.name, ["Reverb", "DattorroReverb", "Delay"])).find(panel => panel.length > 0) ?? [])
+        this.#log.write("board", {event: "starter_controls", controls: this.controls().map(control => control.ref)})
     }
 
     // A style's controls spread over the members who made it (2026-11-26, the producer: in a big direction like a new

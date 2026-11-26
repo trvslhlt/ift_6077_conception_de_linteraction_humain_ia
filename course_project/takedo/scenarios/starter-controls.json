@@ -1,0 +1,10 @@
+{
+  "//": "Controls from the project when it's loaded (2026-11-26, the producer: maybe the members should already have controls based on the project): on opening, the conductor's switch for the drums, the performer's swing dial for them, the sound designer's panel for the drums' crusher, the mix engineer's for the bass's delay; the swing dial moved (a direction to the performer), the drums switched out and back by hand, then a direction's control taking room a starter gives up.",
+  "project": "01_good_base.odb",
+  "messages": [
+    {"control": "c:start_t1_swing", "value": 0.6},
+    {"control": "c:start_t1_in", "value": 0},
+    {"text": "bring in a lead melody"},
+    {"text": "give the bass a warmer, darker tone"}
+  ]
+}
