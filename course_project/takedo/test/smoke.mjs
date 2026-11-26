@@ -138,13 +138,15 @@ try {
     const track = name => page.evaluate(name => window.takedo.adapter.snapshot().tracks.find(track => track.name === name), name)
     await page.evaluate(() => window.opendaw.engine.play())
     const drumsBefore = await volume("Drums")
-    const before = await agentLines().count()
+    // Any of the team may answer: a plain level move is the mix engineer's, done at once (team.ts, fast path).
+    const teamLines = () => page.locator('[data-testid=takedo-chat] li[data-from^="agent:"]')
+    const before = await teamLines().count()
     const start = Date.now()
     await page.getByTestId("takedo-input").fill("the drums are too loud")
     await page.getByTestId("takedo-input").press("Enter")
-    await page.waitForFunction(count => document.querySelectorAll('[data-testid=takedo-chat] li[data-from="agent:team_lead"]').length > count,
+    await page.waitForFunction(count => document.querySelectorAll('[data-testid=takedo-chat] li[data-from^="agent:"]').length > count,
         before, {timeout: 60000})
-    const reply = await agentLines().last().textContent()
+    const reply = await teamLines().last().textContent()
     // The captain replies as it hands the piece out; the worker's edit lands after.
     await page.waitForFunction(before => window.takedo.adapter.snapshot().tracks.find(track => track.name === "Drums").mix.volume < before - 0.5,
         drumsBefore, {timeout: 120000}).catch(() => {})
@@ -154,7 +156,9 @@ try {
     check("engine kept playing", await page.evaluate(() => window.opendaw.engine.isPlaying()))
     const speakers = await page.evaluate(() => [...new Set([...document.querySelectorAll("[data-testid=takedo-chat] li")]
         .map(line => line.dataset.from).filter(from => from !== "user"))])
-    check("only the Team Lead speaks in the chat", speakers.every(from => from === "agent:team_lead"), speakers.join(", "))
+    // The Team Lead and the team's members (team.ts) speak; never the utility or an unnamed worker.
+    const team = ["team_lead", "composer", "performer", "sound_designer", "mix_engineer", "conductor"].map(name => `agent:${name}`)
+    check("only the Team Lead and the members speak in the chat", speakers.every(from => team.includes(from)), speakers.join(", "))
 
     // ---------- the page's guarantees, sent straight to it (no model) ----------
     // An edit as a worker sends it; resolves with its last status (applied, dropped or failed).

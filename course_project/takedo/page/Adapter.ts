@@ -22,6 +22,7 @@ import {ceilingOf, type Correction, guardField} from "./Guard"
 import {runLook, runScript, type ScriptEnv, scriptEnv, serialize} from "./Scripting"
 import {loadTakedoPresets} from "./Samples"
 import {channelState, onStateReadError, unstick} from "./EngineState"
+import {beat} from "./Meter"
 import type {Connection} from "./Connection"
 
 // The page half of the bus (TAKEDO_API.md, "Overview"): the only TakeDo code that touches openDAW. Holds the ref map,
@@ -39,6 +40,7 @@ import type {Connection} from "./Connection"
 const StallSeconds = 3            // a playhead stuck this long while playing: the engine has stalled
 const EngineSettleMs = 3000      // an engine start this soon after the adapter is the project opening, not a restart
 const GlideBeats = 0.25          // the shortest change of a continuous value: a sixteenth's glide, never a jump
+const HeartbeatSeconds = 5     // a heartbeat to the session log (Meter.ts)
 const EffectFadeBeats = 1        // an effect added or parked fades through its wet or mix over a beat
 const LeadMs = 200              // edits land at least this far ahead of the playhead (STRATEGY.md, "Timing")
 const GestureFoldMs = 300       // value changes on a ref with no further change for this long form one change event
@@ -176,7 +178,13 @@ export class Adapter implements Terminable {
         window.addEventListener("error", onError)
         window.addEventListener("unhandledrejection", onError)
         this.#terminator.own({terminate: () => {window.removeEventListener("error", onError); window.removeEventListener("unhandledrejection", onError)}})
+        let ticks = 0
         const timer = setInterval(() => {
+            // Every few seconds, what the page and the engine's output were doing (Meter.ts), for the session log.
+            if (++ticks % HeartbeatSeconds === 0) {
+                this.#connection.send({type: "heartbeat", pos: this.#pos(project.engine.position.getValue()), playing: project.engine.isPlaying.getValue(),
+                    cpu: Math.round(project.engine.cpuLoad.getValue() * 100), audio: audio.state, ...beat()})
+            }
             const dialog = [...document.querySelectorAll<HTMLElement>("dialog, [role=dialog]")]
                 .find(element => element.innerText?.startsWith("Audio-Engine Error"))
             const position = project.engine.position.getValue(), playing = project.engine.isPlaying.getValue()

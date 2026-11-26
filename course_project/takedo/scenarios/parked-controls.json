@@ -1,0 +1,9 @@
+{
+  "//": "Controls on a parked part (2026-11-26, the producer's session: the controls stopped responding, silently): the lofi change parks the TR-808, whose starter crusher panel and swing dial stay; they're shown dimmed (the TR-808 is out), and moving one has its owner say so. Also the page's heartbeats (output peak, clipping, frames) in the log.",
+  "project": "01_good_base.odb",
+  "messages": [
+    {"text": "Slowly evolve this into a lush lofi girl beat"},
+    {"control": "c:start_t1_fx1_crush", "value": 0.9},
+    {"control": "c:start_t1_fx1_bits", "value": 0.9}
+  ]
+}

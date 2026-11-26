@@ -205,11 +205,14 @@ export const TakeDoPanel = ({lifecycle, service, visible}: Construct): HTMLEleme
         if (control.kind !== "direct" || adapter === null) {return}
         ;(control.bind ?? []).forEach(({ref, from, to}) => adapter.setAsProducer(ref, from + (to - from) * value, mark))
     }
+    // A control on a part that's out is dimmed, with why (Control.idle): it still moves, but nothing is heard.
     const shell = (control: Control, body: HTMLElement, ends: boolean): HTMLElement => (
         <div data-testid="takedo-control" data-ref={control.ref} data-widget={control.widget} data-kind={control.kind}
-             title={control.meaning}>
+             data-idle={control.idle ?? ""} title={control.idle !== undefined ? `${control.idle}: not heard now. ${control.meaning}` : control.meaning}
+             style={{opacity: control.idle !== undefined ? "0.45" : "1"}}>
             <div style={{fontWeight: "bold"}}>{control.label}{control.kind === "direct" ? <span style={{opacity: "0.5",
-                fontWeight: "normal"}}> · direct</span> : null}</div>
+                fontWeight: "normal"}}> · direct</span> : null}{control.idle !== undefined ? <span style={{fontWeight: "normal",
+                fontStyle: "italic"}}> · {control.idle}</span> : null}</div>
             {body}
             {ends ? <div style={{display: "flex", justifyContent: "space-between", opacity: "0.6", fontSize: "10px"}}>
                 <span>{control.low}</span><span>{control.high}</span>
@@ -352,7 +355,8 @@ input.takedo-dial:active::-webkit-slider-thumb { cursor: grabbing; background: r
     }
     // Every edit, newest first, with who made it and where it is (waiting for a bar, under way, done, not done), live
     // from the page's adapter, so a wait or a refusal shows instead of silence.
-    const MaxActivity = 40
+    // Every edit of a session, not the last few (2026-11-26: a session's 56 edits, the first ones gone from the list).
+    const MaxActivity = 500
     const stateText = ({status}: Activity): [string, string] => {
         switch (status.state) {
             case "scheduled": return [`waits for ${status.landsAt ?? "its bar"}`, "#d8b45a"]

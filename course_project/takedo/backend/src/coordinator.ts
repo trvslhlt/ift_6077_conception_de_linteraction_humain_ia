@@ -44,6 +44,16 @@ const Edge = 0.02
 // Controls a member may have on its card at once (INTERACTION.md: one intent control each; a few while it's tried out).
 const SureMember = 0.8, SureControl = 0.6
 const Starter = "c:start_"   // a starter control's ref (#starterControls)
+// The part a control works on: the one track all its bindings are on (not its own mute: that's how it comes back), or
+// the track its ref names (an intent dial on a part, "c:start_t1_swing").
+const trackOfControl = (control: Control): string | null => {
+    const bound = (control.bind ?? []).map(({ref}) => ref)
+    if (bound.some(ref => /^t\d+\.mix\.mute$/.test(ref))) {return null}
+    const tracks = new Set(bound.map(ref => /^(t\d+)\./.exec(ref)?.[1] ?? "other"))
+    if (tracks.size === 1 && !tracks.has("other")) {return [...tracks][0]!}
+    if (bound.length > 0) {return null}
+    return /^c:(?:start_)?(t\d+)_/.exec(control.ref)?.[1] ?? null
+}
 // Tweaks that are a matter of degree, each a dial's word (fastTweak, #tweakDial); the rest (an octave, half time, a fill) aren't.
 const TweakDials: Partial<Record<string, string>> = {busier: "Busy", sparser: "Sparse", ghost_notes: "Ghost notes", swing_more: "Swing",
     straighten: "Straight", harder: "Punch", softer: "Soft", shorter: "Staccato", longer: "Legato"}
@@ -179,13 +189,14 @@ export class Coordinator {
                 this.#takes = new Takes(this.#notebook?.takesFile ?? null)
                 this.#ledger = new Ledger(this.#notebook?.ledgerFile ?? null, data => this.#log.write("activity", data))
                 this.#handChanges.length = 0
+                this.#muted.clear()
                 this.#startKept = false
                 this.#overview = "none"
                 this.#overviewLines = null
                 this.#log.write("project", {open: message.open, name: message.name})
                 this.#moved.clear()
                 this.#sendControls()
-                if (this.#notebook !== null && this.controls().length === 0) {void this.#starterControls().catch(error => this.#log.write("tweak_dial", {starter: String(error)}))}
+                if (this.#notebook !== null) {void this.#starterControls().catch(error => this.#log.write("tweak_dial", {starter: String(error)}))}
                 this.#maybeOverview()
                 // A message the backend was restarted in the middle of, picked back up.
                 if (this.#notebook !== null) {
@@ -255,10 +266,16 @@ export class Coordinator {
                 this.#looks.get(message.id)?.({ok: message.ok, value: message.value})
                 this.#looks.delete(message.id)
                 return
+            case "heartbeat": {
+                const {type: _, ...beat} = message
+                this.#log.write("heartbeat", beat)
+                this.#lastBeat = beat
+                return
+            }
             case "engine_health": {
                 // With what came just before: the last changes, by hand or by agents (the session's riding of a tremolo).
                 const recent = this.#recentChanges.slice(-12)
-                this.#log.write("engine", {health: message.state, detail: message.detail, recent})
+                this.#log.write("engine", {health: message.state, detail: message.detail, recent, beat: this.#lastBeat})
                 if (message.state === "recovered" || message.state === "page_error") {return}
                 const text = message.state === "crashed" ? "The audio engine crashed (openDAW is asking to restart it)."
                     : "The audio engine has stalled: the playhead stopped while playing."
@@ -498,7 +515,19 @@ export class Coordinator {
         this.#sendControls()
     }
 
-    #sendControls(): void {this.#send({type: "controls", controls: this.controls()})}
+    // A control on a part that's out (muted) moves nothing you can hear (2026-11-26, the producer's session: the starter
+    // crusher and swing on a TR-808 the lofi change had parked; the controls "stopped responding, silently"): the page
+    // shows it dimmed with why, and its owner says so when it's moved. A part's own in/out switch is never idle.
+    #sendControls(): void {
+        this.#send({type: "controls", controls: this.controls().map(control => {
+            const track = trackOfControl(control)
+            const out = track === null ? undefined : this.#muted.get(track)
+            return out === undefined ? control : {...control, idle: `${out} is out`}
+        })})
+    }
+    #lastBeat: object | null = null                  // the page's last heartbeat (page/Meter.ts)
+    readonly #muted = new Map<string, string>()     // track ref → its name, for the parts muted now (#change)
+    readonly #idleSaid = new Set<string>()          // controls whose owner has said they're idle
 
     // A member puts a control on its card, or changes one it has (same ref: the producer's position is kept).
     offerControl(owner: Actor, offered: Omit<Control, "owner">): string {
@@ -509,11 +538,21 @@ export class Coordinator {
         // A panel (controls sharing a group) counts once; a control joining one of its owner's panels takes no new slot.
         const group = offered.group?.trim() || undefined
         const joining = group !== undefined && controls.some(control => control.owner === owner && control.group === group)
+        // The same setting already in that panel (a style's panel for the master EQ its starter has): that one, not a twin.
+        const key = (control: { bind?: Control["bind"] }) => (control.bind ?? []).map(({ref}) => ref).sort().join(",")
+        const twin = existing === undefined && group !== undefined && offered.bind !== undefined
+            ? controls.find(control => control.owner === owner && control.group === group && key(control) === key(offered)) : undefined
+        if (twin !== undefined) {return `On your card: "${twin.label}" is in the "${group}" panel already.`}
         // No room: a starter control (#starterControls) gives way, its owner's first, else the oldest.
         const cardFull = slots(controls.filter(control => control.owner === owner)) >= MaxControls
         const full = existing === undefined && !joining && (cardFull || slots(controls) >= MaxTotalControls)
+        // A starter on a part that's out goes first.
+        const idleFirst = (candidates: Control[]) => candidates.find(control => {
+            const track = trackOfControl(control)
+            return track !== null && this.#muted.has(track)
+        }) ?? candidates[0]
         const starter = !full || offered.ref.startsWith(Starter) ? undefined
-            : (cardFull ? controls.find(control => control.ref.startsWith(Starter) && control.owner === owner) : controls.find(control => control.ref.startsWith(Starter)))
+            : idleFirst(controls.filter(control => control.ref.startsWith(Starter) && (!cardFull || control.owner === owner)))
         if (starter !== undefined) {
             this.removeControl(this.#captain.agent, starter.group ?? starter.ref)
             return this.offerControl(owner, offered)
@@ -577,6 +616,12 @@ export class Coordinator {
         if (moved === undefined || !Number.isFinite(value)) {return}
         const was = this.#moved.has(ref) ? null : moved.value
         const control = {...moved, value: settled(moved.widget, value, moved.options)}
+        const track = trackOfControl(moved)
+        const out = track === null ? undefined : this.#muted.get(track)
+        if (out !== undefined && track !== null && !this.#idleSaid.has(track)) {
+            this.#idleSaid.add(track)
+            this.say(moved.owner, `The ${out} is out right now, so ${moved.group !== undefined ? `its ${moved.group.split(" on ")[0]}` : `"${moved.label}"`} won't be heard until it's back in.`)
+        }
         this.#setControls(controls.map(candidate => candidate.ref === ref ? control : candidate))
         this.#log.write("control", {ref, value: control.value, owner: control.owner, widget: control.widget, kind: control.kind})
         // A direct control's move is the producer's own hand on its parameters (the page set them): nothing for its owner
@@ -994,7 +1039,9 @@ export class Coordinator {
             snapshot = await this.snapshot("full")
             if (snapshot === null) {await new Promise(resolve => setTimeout(resolve, 1000))}
         }
-        if (snapshot === null || this.#project !== project || this.controls().length > 0) {return}
+        if (snapshot === null || this.#project !== project) {return}
+        snapshot.tracks.filter(track => track.mix.mute).forEach(track => this.#muted.set(track.ref, track.name))
+        if (this.controls().length > 0) {return this.#sendControls()}
         const starter = (control: Omit<Control, "owner">): Omit<Control, "owner"> => ({...control, ref: control.ref.replace(/^c:/, Starter)})
         const offer = (member: MemberName, controls: Array<Omit<Control, "owner">>) => controls.forEach(control => this.offerControl(memberActor(member), starter(control)))
         const sounding = snapshot.tracks.filter(track => !track.mix.mute)
@@ -1296,17 +1343,30 @@ export class Coordinator {
         const controls = this.controls()
         let moved = false
         const next = controls.map(control => {
-            const bound = control.kind === "direct" && control.widget === "dial" ? control.bind?.[0] : undefined
+            const bound = control.kind === "direct" && (control.widget === "dial" || control.widget === "switch") ? control.bind?.[0] : undefined
             const change = bound === undefined ? undefined : event.changes.find(change => change.ref === bound.ref)
             if (bound === undefined || change === undefined || bound.to === bound.from) {return control}
             moved = true
-            return {...control, value: Math.max(0, Math.min(1, (Number(change.to) - bound.from) / (bound.to - bound.from)))}
+            const at = Math.max(0, Math.min(1, (Number(change.to) - bound.from) / (bound.to - bound.from)))
+            // A switch follows its parameter too (an effect a dial's blend switched off, a part it muted).
+            return {...control, value: control.widget === "switch" ? (at >= 0.5 ? 1 : 0) : at}
         })
         if (moved) {this.#setControls(next)}
     }
 
     #change(event: ChangeEvent): void {
         this.#followKnobs(event)
+        let muting = false
+        event.changes.forEach(({ref, label, to}) => {
+            const track = /^(t\d+)\.mix\.mute$/.exec(ref)?.[1]
+            if (track === undefined) {return}
+            muting = true
+            if (Number(to) >= 0.5) {this.#muted.set(track, label.split(" › ")[0] ?? track)} else {this.#muted.delete(track)}
+        })
+        if (muting) {
+            this.#idleSaid.clear()
+            if (this.controls().some(control => trackOfControl(control) !== null)) {this.#sendControls()}
+        }
         this.#log.seen(event.seq)
         this.#log.write("change", event)
         event.changes.filter(({ref}) => /\.mix\.(volume|pan|mute)$/.test(ref) && typeof ref === "string").forEach(({ref, from}) => {

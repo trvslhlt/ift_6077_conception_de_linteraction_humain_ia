@@ -166,6 +166,7 @@ export type ControlWidget = "dial" | "switch" | "choice" | "button"
 export type Control = { ref: string, owner: Actor, kind: "intent" | "direct", widget: ControlWidget, label: string,
     low: string, high: string, meaning: string, value: number
     group?: string                                              // a panel's title: controls sharing it show together, one on the card's limit
+    idle?: string                                               // why it can't be heard now ("TR-808 is out"): shown dimmed (page only)
     options?: string[]                                          // choice: its options, in order
     bind?: Array<{ ref: string, from: number, to: number }>     // direct: the parameters it sets (t2.mix.volume, t3.fx1.wet)
     transitions?: Record<string, "handover" | "crossfade"> }   // per track ref, how a part in one end only comes and goes (blend.ts)
@@ -204,6 +205,10 @@ export type PageToBackend =
     // page_error: an uncaught error on the page (logged only). One thrown in a frame callback that reads the engine's state
     // leaves its shared buffer mid-read for good, so the playhead stops while the audio plays on (a "stall").
     | { type: "engine_health", state: "stalled" | "crashed" | "recovered" | "page_error", detail: string }
+    // Every few seconds (page/Meter.ts): the engine's output (peak, samples at full scale, NaNs), frames drawn and the
+    // longest gap, long tasks, the tab's visibility, the JS heap; for the session log.
+    | { type: "heartbeat", pos: string, playing: boolean, cpu: number, audio: string, frames: number, longestFrameMs: number,
+        visible: boolean, peak: number, clipped: number, nan: number, heapMb: number | null, longTasks: number, longestTaskMs: number }
 
 export type BackendToPage =
     | { type: "welcome", session: string, protocol: number, startedAt: string }

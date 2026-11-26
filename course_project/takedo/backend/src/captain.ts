@@ -405,7 +405,7 @@ export class Captain {
                     .describe("direct: the parameters it sets, each from its from to its to across the control (several make a macro)"),
                 meaning: z.string().describe("What moving or pressing it should change, for yourself later: what changes, between which settings"),
                 value: z.number().min(0).describe("Where it starts: a dial or switch where the direction you just assigned takes the project once it has landed, not how far it has got yet (asked for a lush lofi beat on a lofi dial: near 1); a choice, its option's index; a button, 0; a direct control, where its parameters are now"),
-                before: z.number().min(0).max(1).optional().describe("An intent dial or switch for a direction you just assigned: where the project was before it, on this control (a lofi dial for a beat that wasn't lofi: 0). Its take is kept there.")},
+                before: z.number().min(0).max(1).optional().describe("An intent dial or switch for a direction you just assigned: where the project was before it, on this control (a lofi dial for a beat that wasn't lofi: 0). Its take is kept there, and moving the dial to it brings that project back: so its low end names what the song was (\"original\", \"acid house\"), never a lighter version of the direction (2026-11-26: a \"Lush\" dial, dry to lush, whose 0 was the song before the lofi change: moved to dry, the old drums came back)")},
                 handler(async (current, input) => {
                     const ref = `c:${String(input.name)}`
                     const widget = input.widget as Control["widget"]

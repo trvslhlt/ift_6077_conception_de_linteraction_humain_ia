@@ -317,7 +317,9 @@ if (before === undefined || after === undefined) {
             // Its window ends at the producer's next message or move.
             const next = log.find(entry => entry.t > move.t && (entry.type === "control" || entry.type === "chat" && entry.from === "user"))?.t ?? Infinity
             const edits = requests.filter(entry => entry.t > move.t && entry.t < next).length
-            const replied = log.some(entry => entry.t > move.t && entry.t < next && entry.type === "chat" && entry.from !== "user")
+            // A note that the control's part is out (a dimmed control) isn't a reply to the move.
+            const replied = log.some(entry => entry.t > move.t && entry.t < next && entry.type === "chat" && entry.from !== "user"
+                && !/ is out right now, so /.test(String(entry.text)))
             // A direct control's move is the producer's own hand on its parameters, set by the page: no reply, no agent
             // edits, a change of the producer's on each bound parameter within a second.
             if (move.kind === "direct") {
