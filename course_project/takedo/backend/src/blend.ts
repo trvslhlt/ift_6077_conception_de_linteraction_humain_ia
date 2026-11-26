@@ -50,7 +50,7 @@ const loopBeats = (region: Region, beatsPerBar: number): number => {
 }
 
 // The region a part plays from now on: the one the playhead is in, else the last one with notes.
-const playing = (track: Track, now: Snapshot): Region | null => {
+export const playing = (track: Track, now: Snapshot): Region | null => {
     const bpb = now.timeline.signature[0]
     const beat = hitOf([now.playback.pos.split(":")[0], 0, 0, 0], bpb)[0]
     const at = (pos: string) => hitOf([pos, 0, 0, 0], bpb)[0]

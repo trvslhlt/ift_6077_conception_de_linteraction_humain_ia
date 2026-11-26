@@ -1,9 +1,10 @@
 import {mkdirSync, writeFileSync} from "node:fs"
 import {join} from "node:path"
 import {Gateway, loadConfig} from "./gateway.ts"
-import {judgeTweak, type TweakJudged, type TriageState} from "./triage.ts"
+import {triage, type Triage, type TriageState} from "./triage.ts"
+import {SureTweak} from "./fastpath.ts"
 
-// Musical tweaks, judged (triage.ts, judgeTweak; variants.ts makes them): on knowledge/bench/tweaks.mjs's labelled
+// Musical tweaks, judged (triage.ts: the tweak question in the same Jev call as the path; variants.ts makes them): on knowledge/bench/tweaks.mjs's labelled
 // messages, how often Jev names the right tweak and part, and at each threshold how many a tweak fast path would take and
 // how many of those it would get wrong (the music-library plan, steps 3 and 4). Costs Jev cents.
 //   node --env-file=../.env src/tweaks.bench.ts        (`make tweak-bench`)
@@ -14,20 +15,20 @@ const Concurrency = 4
 type Item = { msg: string, tweak: string | string[], part: string | null, amount: number | null, src: string, recent: Array<{ from: string, text: string }> }
 const {Messages, Project} = await import(join(Takedo, "knowledge", "bench", "tweaks.mjs")) as { Messages: Item[], Project: TriageState }
 const gateway = new Gateway(loadConfig(join(Takedo, "config", "models.json")))
-const results: Array<{ item: Item, judged?: TweakJudged, error?: string }> = []
+const results: Array<{ item: Item, judged?: Triage, error?: string }> = []
 let next = 0
 await Promise.all(Array.from({length: Concurrency}, async () => {
     while (next < Messages.length) {
         const item = Messages[next++]
         try {
-            results.push({item, judged: await judgeTweak(gateway, () => {}, Project, item.msg, item.recent)})
+            results.push({item, judged: await triage(gateway, () => {}, Project, item.msg, item.recent)})
         } catch (error) {
             results.push({item, error: String(error)})
         }
     }
 }))
 
-type Judged = { item: Item, judged: TweakJudged }
+type Judged = { item: Item, judged: Triage }
 const judged = results.filter(result => result.judged !== undefined) as Judged[]
 const pct = (n: number, of: number): string => of === 0 ? "-" : `${Math.round(100 * n / of)}%`
 const tweakRight = ({item, judged}: Judged) => [item.tweak].flat().includes(judged.tweak)
@@ -58,6 +59,16 @@ for (const threshold of [0.5, 0.6, 0.7, 0.8, 0.9]) {
     const wrong = taken.filter(result => !isTweak(result) || !tweakRight(result) || !partRight(result))
     console.log(`  ${threshold.toFixed(1)}: taken ${taken.length} of ${tweaks.length} tweaks, wrong ${wrong.length}` +
         `${wrong.length > 0 ? `: ${wrong.map(({item, judged}) => `"${item.msg}" → ${judged.tweak} on ${judged.part}`).join("; ")}` : ""}`)
+}
+{
+    // The live policy (fastpath.ts, fastTweak): the path the Team Lead's, tweak and part at SureTweak, no numbers, not later.
+    const taken = judged.filter(({item, judged}) => judged.tweak !== "none" && judged.path === "team" && Math.min(judged.tweakP, judged.partP) >= SureTweak
+        && !/\d/.test(item.msg) && judged.when !== "later")
+    const wrong = taken.filter(result => !isTweak(result) || !tweakRight(result) || !partRight(result))
+    console.log(`  live policy (path team, tweak and part ${SureTweak}, no numbers): taken ${taken.length} of ${tweaks.length} tweaks, wrong ${wrong.length}` +
+        `${wrong.length > 0 ? `: ${wrong.map(({item, judged}) => `"${item.msg}" → ${judged.tweak} on ${judged.part}`).join("; ")}` : ""}`)
+    judged.filter(result => isTweak(result) && !taken.includes(result)).forEach(({item, judged}) =>
+        console.log(`    not taken: "${item.msg}": ${judged.path} p ${judged.pathP.toFixed(2)}, ${judged.tweak} p ${judged.tweakP.toFixed(2)}, ${judged.part} p ${judged.partP.toFixed(2)}`))
 }
 const ms = judged.map(({judged}) => judged.ms).sort((a, b) => a - b)
 console.log(`\nJev: median ${ms[Math.floor(ms.length / 2)]} ms`)

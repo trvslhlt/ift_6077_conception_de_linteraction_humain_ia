@@ -1,5 +1,7 @@
 import type {Hit} from "./generate.ts"
+import type {Track} from "../../shared/protocol.ts"
 import {swung} from "./compose.ts"
+import {DrumRoles} from "./knowledge.ts"
 
 // Musical tweaks made by code (2026-11-25, the music-library plan, step 3): "busier drums", "simplify the bass", "more
 // swing" are one change to a part's notes, made from the notes already there. A model (Jev, step 4) names the tweak, the
@@ -27,7 +29,19 @@ export const DrumOnly: Tweak[] = ["ghost_notes", "fill"]
 export const PitchedOnly: Tweak[] = ["octave_up", "octave_down", "shorter", "longer"]
 
 // A part's notes: its hits over a loop of `beats`, and for drums which role each pitch plays (from the kit's pads).
-export type Part = { hits: Hit[], beats: number, beatsPerBar: number, roleOf?: (pitch: number) => string | null }
+// padOf: the kit's pad for a role, playing or not (ghost notes on a snare pad a clap-backbeat kit doesn't play yet).
+export type Part = { hits: Hit[], beats: number, beatsPerBar: number, roleOf?: (pitch: number) => string | null, padOf?: (role: string) => number | null }
+
+// For a kit (a track with pads), which role each pitch plays, from its pad's name; undefined for a pitched part.
+// And the pad for each role (the open hat first: its name matches the closed hat's "hi-hat" too).
+const RoleOrder = ["open_hat", ...Object.keys(DrumRoles).filter(role => role !== "open_hat")]
+export const rolesOf = (track: Track): Pick<Part, "roleOf" | "padOf"> => {
+    const pads = track.device?.content !== undefined && "pads" in track.device.content ? track.device.content.pads : null
+    if (pads === null) {return {}}
+    const roleOfPad = (name: string): string | null => RoleOrder.find(role => DrumRoles[role].names.test(name)) ?? null
+    return {roleOf: pitch => {const pad = pads.find(candidate => candidate.note === pitch); return pad === undefined ? null : roleOfPad(pad.name)},
+        padOf: role => pads.find(pad => roleOfPad(pad.name) === role)?.note ?? null}
+}
 
 const round = (value: number): number => Number(value.toFixed(4))
 const clamp = (value: number, low: number, high: number): number => Math.max(low, Math.min(high, value))
@@ -73,7 +87,9 @@ export const vary = (tweak: Tweak, part: Part, amount = 1): Hit[] | string => {
             if (isDrums(part)) {
                 // Hats fill in a grid finer: eighths where they're missing, else sixteenths (at 0-1 only each beat's last),
                 // then kicks on the and of beats.
-                const hat = rolePitch(part, "closed_hat") ?? rolePitch(part, "ride")
+                // The time-keeper: a closed hat or ride playing, else the kit's closed-hat pad (2026-11-25: the jam project's
+                // TR-808 keeps time on its cymbal and open hat, and busier added nothing).
+                const hat = rolePitch(part, "closed_hat") ?? rolePitch(part, "ride") ?? part.padOf?.("closed_hat") ?? null
                 if (hat !== null) {
                     const eighths = Array.from({length: Math.round(beats * 2)}, (_, index) => index / 2)
                     const missing = eighths.filter(beat => !has(swung(beat, swing), hat))
@@ -130,9 +146,10 @@ export const vary = (tweak: Tweak, part: Part, amount = 1): Hit[] | string => {
             return drop.size === 0 ? "nothing left to take out but the part's backbone" : sorted(hits.filter((_, index) => !drop.has(index)))
         }
         case "ghost_notes": {
-            const snare = rolePitch(part, "snare")
-            if (snare === null) {return "the kit has no snare playing to ghost"}
-            const backbeats = hits.filter(([, pitch, , velocity]) => pitch === snare && velocity >= 0.5).map(([beat]) => beat)
+            // Around the backbeat (snare, clap or rim), on the snare, a pad the kit has even when the pattern doesn't play it.
+            const snare = rolePitch(part, "snare") ?? part.padOf?.("snare") ?? null
+            if (snare === null) {return "the kit has no snare to ghost"}
+            const backbeats = hits.filter(([, pitch, , velocity]) => ["snare", "clap", "rim"].includes(part.roleOf!(pitch) ?? "") && velocity >= 0.5).map(([beat]) => beat)
             const offsets = [-0.25, 0.75, 0.25, -0.75, 0.5, -0.5].slice(0, [1, 2, 4, 6][n])
             const added: Hit[] = []
             for (const at of backbeats) {
@@ -160,8 +177,8 @@ export const vary = (tweak: Tweak, part: Part, amount = 1): Hit[] | string => {
         }
         case "fill": {
             // The loop's last beat (1), half bar (2) or bar (3): snare sixteenths rising, the kick on the first.
-            const snare = rolePitch(part, "snare") ?? rolePitch(part, "clap")
-            if (snare === null) {return "the kit has no snare playing to fill with"}
+            const snare = rolePitch(part, "snare") ?? part.padOf?.("snare") ?? rolePitch(part, "clap")
+            if (snare === null) {return "the kit has no snare to fill with"}
             const length = [1, 1, beatsPerBar / 2, beatsPerBar][n], from = beats - length
             const kept = hits.filter(([beat, pitch]) => beat < from - 1e-6 || part.roleOf!(pitch) === "kick" && Math.abs(beat - from) < 0.05)
             const steps = Math.round(length * 4)

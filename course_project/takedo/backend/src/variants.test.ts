@@ -48,6 +48,13 @@ describe("variants", () => {
         const ghosts = (result: Hit[]) => of(boombap, "snare", result).filter(([, , , velocity]) => velocity < 0.5)
         assert.ok(ghosts(one).length >= 2 && ghosts(two).length > ghosts(one).length)
         assert.match(String(vary("ghost_notes", house, 1)), /no snare/)
+        // The jam project's TR-808: a clap backbeat, the snare pad never played (2026-11-25): ghosts on the snare pad.
+        const withPad = {...house, padOf: (role: string) => Pads[role] ?? null}
+        const ghosted = hits(vary("ghost_notes", withPad, 1))
+        assert.ok(ghosted.filter(([, pitch]) => pitch === Pads.snare).length >= 2)
+        // No closed hat or ride playing: busier fills in on the closed-hat pad.
+        const busy = hits(vary("busier", withPad, 1))
+        assert.ok(busy.filter(([, pitch]) => pitch === Pads.closed_hat).length >= 4)
     })
     it("swing: more moves the off-beats later, straighten brings them back", () => {
         assert.equal(swingOf(boombap.hits), 0.58)

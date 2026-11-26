@@ -20,7 +20,7 @@ import {analyse, isDrums} from "./analysis.ts"
 import type {Knowledge} from "./knowledge.ts"
 import {Utility} from "./utility.ts"
 import {type Line, triage, triageState} from "./triage.ts"
-import {fastEffect, fastMix, SurePath} from "./fastpath.ts"
+import {fastEffect, fastMix, SurePath, fastTweak} from "./fastpath.ts"
 
 // The backend half of the bus (TAKEDO_API.md, "Overview"), one per connected page: claims, plans, chat, routing.
 // Talks to the page's adapter for state (snapshot queries) and to apply plans.
@@ -705,16 +705,20 @@ export class Coordinator {
         const judged = await triage(this.#gateway, this.modelLog(), triageState(full ?? snapshot), message, history).catch(() => null)
         if (judged === null) {return false}
         if (judged.path === "effect" && judged.pathP >= SurePath) {this.#effectAsked = message}
-        const fast = fastMix(judged, message, snapshot, Object.fromEntries(this.#mixBefore)) ?? fastEffect(judged, message, full ?? snapshot)
+        const single = fastMix(judged, message, snapshot, Object.fromEntries(this.#mixBefore)) ?? fastEffect(judged, message, full ?? snapshot)
+        const fast = single !== null ? {steps: [single.step], says: single.says}
+            : full === null ? null : fastTweak(judged, message, full, (call, args) => this.#knowledge?.script(call, args) ?? null)
         this.#log.write("triage", {message, ...judged, fast: fast !== null})
         if (fast === null) {return false}
         const agent: Actor = "agent:team_lead"
         this.say(agent, fast.says)
         // Its own direction on the board, so the edit is owned (the ledger) and an effect it adds gets its knob (#effectKnob).
         const direction = this.board.direction(message)
-        void performStep(this, agent, {...fast.step, decided: {by: "jev", ms: judged.ms}, activity: {direction: direction.id}}, message).then(result => {
-            if (/not done/.test(result)) {this.say(agent, `That didn't land: ${result.replace(/^.*?: not done/, "not done")}.`)}
-        })
+        for (const step of fast.steps) {
+            void performStep(this, agent, {...step, decided: {by: "jev", ms: judged.ms}, activity: {direction: direction.id}}, message).then(result => {
+                if (/not done/.test(result)) {this.say(agent, `That didn't land: ${result.replace(/^.*?: not done/, "not done")}.`)}
+            })
+        }
         return true
     }
 

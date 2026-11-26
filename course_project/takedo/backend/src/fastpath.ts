@@ -1,6 +1,9 @@
 import type {Snapshot} from "../../shared/protocol.ts"
 import type {Step} from "./members.ts"
 import type {Triage} from "./triage.ts"
+import {playing} from "./blend.ts"
+import {hitOf, morphNotes} from "./generate.ts"
+import {rolesOf, vary} from "./variants.ts"
 
 // The mix fast path (2026-11-25): a producer's message that Jev judges to be one mixer move on one part (triage.ts) is
 // done by code, with no Team Lead turn: about 100 ms for Jev, against seconds for a model. Only when Jev is sure of the
@@ -129,3 +132,42 @@ export const fastEffect = (judged: Triage, message: string, snapshot: Snapshot):
 }
 
 const capital = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1)
+
+// The musical fast path (2026-11-25, the music-library plan, step 4): a message Jev judges to be one tweak of one part's
+// notes (variants.ts: busier, sparser, more swing, an octave down...) is made by code from the part's notes, with no model
+// writing notes. At 0.8 for the tweak and the part (`make tweak-bench`: 38 of 40 taken, the one wrong a request for a
+// button, which the tweak question now counts as none); only when the path is the Team Lead's (a mixer move or an effect
+// is theirs), with no number and not for later. Two stages, a bar apart from the next bar line, so it moves, not jumps.
+export const SureTweak = 0.8
+const TweakStages = 2
+const TweakSays: Record<string, string> = {busier: "busier", sparser: "simpler", ghost_notes: "with ghost notes on the snare",
+    swing_more: "with more swing", straighten: "straighter", halftime: "in half time", double_time: "in double time",
+    fill: "with a fill at the end of the loop", harder: "played harder", softer: "played softer", octave_up: "an octave up",
+    octave_down: "an octave down", shorter: "shorter, more staccato", longer: "longer, more legato"}
+
+export type FastSteps = { steps: Step[], says: string }
+
+// script: a page helper call as code (knowledge.ts, script), for kb.replaceNotes.
+export const fastTweak = (judged: Triage, message: string, full: Snapshot, script: (call: string, args: unknown) => string | null): FastSteps | null => {
+    if (judged.tweak === "none" || judged.path !== "team" || Math.min(judged.tweakP, judged.partP) < SureTweak) {return null}
+    if (/\d/.test(message) || judged.when === "later") {return null}
+    const track = full.tracks.find(candidate => candidate.ref === judged.part)
+    const region = track === undefined ? null : playing(track, full)
+    if (track === undefined || region === null || region.notes === undefined) {return null}
+    const beatsPerBar = full.timeline.signature[0]
+    const at = (pos: string) => hitOf([pos, 0, 0, 0], beatsPerBar)[0]
+    const beats = region.loop !== null ? region.loop * beatsPerBar : at(region.to) - at(region.from)
+    const from = region.notes.map(note => hitOf(note, beatsPerBar))
+    const varied = vary(judged.tweak, {hits: from, beats, beatsPerBar, ...rolesOf(track)}, Math.round(judged.amount))
+    if (typeof varied === "string") {return null}         // the Team Lead can say why, or find another way
+    const fromBar = {position: full.playback.position, played: full.playback.played}
+    const label = `${track.name} ${TweakSays[judged.tweak]}`
+    const steps: Step[] = []
+    for (const [index, notes] of morphNotes(from, varied, TweakStages).entries()) {
+        const code = script("replaceNotes", {region: region.ref, notes})
+        if (code === null) {return null}
+        steps.push({plan: {op: "script", code, description: `${label} (${index + 1} of ${TweakStages})`},
+            when: {at: "bar", bar: index + 1, from: fromBar}, says: index === TweakStages - 1 ? label : ""})
+    }
+    return {steps, says: `${label}, over the next ${TweakStages} bars.`}
+}

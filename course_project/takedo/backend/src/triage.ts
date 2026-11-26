@@ -66,6 +66,7 @@ export type Triage = {
     move: keyof typeof Moves, moveP: number
     effect: keyof typeof Effects, effectP: number
     action: keyof typeof Actions, actionP: number
+    tweak: keyof typeof Tweaks | "none", tweakP: number   // a musical tweak of the part's notes (variants.ts)
     amount: number                                // 0..3 on Amounts' scale
     when: keyof typeof When
     ms: number
@@ -89,6 +90,9 @@ export const triage = async (gateway: Gateway, log: ModelLog, state: TriageState
         move: choice(`${Premise}If it asks for a mixer move, which one?`, Moves),
         effect: choice(`${Premise}If it asks about an audio effect, which kind?`, Effects),
         action: choice(`${Premise}If it asks about an audio effect, what should happen to it?`, Actions),
+        tweak: choice(`${Premise}If it's one change to how one part's notes are played, made from the notes it already plays, which?`,
+            {...Tweaks, none: "none of these: a new style or pattern, a new part or sound, two changes at once, the mix, effects " +
+                "or tempo, a button, knob or control to play, or not about the notes"}),
         amount: score(`${Premise}How large a change do they want?`, Amounts),
         when: choice(`${Premise}When should the change happen?`, When)
     }, log)
@@ -99,26 +103,9 @@ export const triage = async (gateway: Gateway, log: ModelLog, state: TriageState
         move: answers.move.choice as Triage["move"], moveP: p(answers.move),
         effect: answers.effect.choice as Triage["effect"], effectP: p(answers.effect),
         action: answers.action.choice as Triage["action"], actionP: p(answers.action),
+        tweak: answers.tweak.choice as Triage["tweak"], tweakP: p(answers.tweak),
         amount: answers.amount.score, when: answers.when.choice as Triage["when"],
         ms: Math.round(performance.now() - start)
     }
 }
 
-// A musical tweak of one part's notes (variants.ts), judged (2026-11-25, the music-library plan, step 3): which tweak,
-// which part, how much. Measured on knowledge/bench/tweaks.mjs (`make tweak-bench`) before a fast path acts on it.
-export type TweakJudged = { tweak: string, tweakP: number, part: string, partP: number, amount: number, ms: number }
-export const judgeTweak = async (gateway: Gateway, log: ModelLog, state: TriageState, message: string, recent: Line[] = []): Promise<TweakJudged> => {
-    const parts: Record<string, string> = Object.fromEntries(Object.entries(state.tracks).map(([ref, track]) =>
-        [ref, `the ${track.name}${track.role !== undefined ? `, the ${track.role === "pitched" ? "melodic or chordal part" : track.role === "no notes" ? "silent part" : track.role}` : ""}` +
-            `${track.instrument ? ` (${track.instrument})` : ""}`]))
-    const start = performance.now()
-    const answers = await gateway.judge("fast_path", {project: state, recent: recent.slice(-RecentLines), message}, {
-        tweak: choice(`${Premise}Is it one change to how one part's notes are played, made from the notes it already plays? Which?`,
-            {...Tweaks, none: "none of these: a new style or pattern, a new part or sound, two changes at once, the mix, effects or tempo, or not about the notes"}),
-        part: choice(`${Premise}Which part's notes is it about?`, parts),
-        amount: score(`${Premise}How large a change do they want?`, Amounts)
-    }, log)
-    const p = (answer: { choice: string, probabilities: Record<string, number> }) => answer.probabilities[answer.choice] ?? 0
-    return {tweak: answers.tweak.choice, tweakP: p(answers.tweak), part: answers.part.choice, partP: p(answers.part),
-        amount: answers.amount.score, ms: Math.round(performance.now() - start)}
-}

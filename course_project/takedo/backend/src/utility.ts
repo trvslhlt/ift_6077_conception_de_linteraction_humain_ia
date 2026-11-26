@@ -7,8 +7,8 @@ import type {Actor, Note, Plan, Snapshot, Status, When} from "../../shared/proto
 import {type Action, type Anchor, commitAnchor, type Direction, type Piece, type PieceKind, PieceKinds, type Step as BoardStep} from "./board.ts"
 import type {Coordinator} from "./coordinator.ts"
 import type {Catalog} from "./catalog.ts"
-import {drumMap, DrumRoles, type Knowledge, shortlist} from "./knowledge.ts"
-import {type Tweak, Tweaks, vary} from "./variants.ts"
+import {drumMap, type Knowledge, shortlist} from "./knowledge.ts"
+import {rolesOf, type Tweak, Tweaks, vary} from "./variants.ts"
 import {analyse} from "./analysis.ts"
 import {hitOf, morphNotes, targetHitOf, tile} from "./generate.ts"
 import {chordHits, type ChordSpec, drumHits, melodyHits, type MelodySpec, type MiniSpec, rangeOf} from "./compose.ts"
@@ -699,12 +699,7 @@ export class Utility implements Member {
         }
         const tweak = String(input.tweak ?? "none")
         if (tweak !== "none" && tweak in Tweaks) {
-            const pads = track.device?.content !== undefined && "pads" in track.device.content ? track.device.content.pads : null
-            const roleOf = pads === null ? undefined : (pitch: number): string | null => {
-                const pad = pads.find(candidate => candidate.note === pitch)
-                return pad === undefined ? null : Object.keys(DrumRoles).find(role => DrumRoles[role].names.test(pad.name)) ?? null
-            }
-            const varied = vary(tweak as Tweak, {hits: from, beats: loopBeats, beatsPerBar, roleOf}, Number(input.amount) || 0)
+            const varied = vary(tweak as Tweak, {hits: from, beats: loopBeats, beatsPerBar, ...rolesOf(track)}, Number(input.amount) || 0)
             if (typeof varied === "string") {return `Not done: ${varied}.`}
             to = varied
             says.push(`${tweak} (${Number(input.amount) || 0})`)

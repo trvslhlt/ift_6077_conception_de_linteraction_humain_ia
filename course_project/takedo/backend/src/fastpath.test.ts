@@ -1,7 +1,7 @@
 import {strict as assert} from "node:assert"
 import {describe, it} from "node:test"
 import type {Snapshot, Track} from "../../shared/protocol.ts"
-import {fastEffect, fastMix} from "./fastpath.ts"
+import {fastEffect, fastMix, fastTweak} from "./fastpath.ts"
 import type {Triage} from "./triage.ts"
 
 // The mix fast path offline: Jev's answers given, so these check what code does with them. Run from backend/:
@@ -20,7 +20,7 @@ const snapshot: Snapshot = {
 }
 const judged = (part: string, move: Triage["move"], extra: Partial<Triage> = {}): Triage => ({
     path: "mix", pathP: 0.95, part, partP: 0.95, move, moveP: 0.95, effect: "other", effectP: 0, action: "add", actionP: 0,
-    amount: 1, when: "unspecified", ms: 90, ...extra
+    tweak: "none", tweakP: 0, amount: 1, when: "unspecified", ms: 90, ...extra
 })
 
 describe("the effect fast path", () => {
@@ -74,5 +74,33 @@ describe("the mix fast path", () => {
         assert.equal(fastMix(judged("t1", "quieter", {path: "team"}), "make it trap", snapshot), null)
         assert.equal(fastMix(judged("t1", "quieter", {partP: 0.55}), "its too loud", snapshot), null)
         assert.equal(fastMix(judged("t1", "unmute", {pathP: 0.76}), "its still muted", snapshot), null)
+    })
+})
+
+describe("the musical fast path", () => {
+    // A bass line playing in a 1-bar loop (notes as the project shows them), and a script maker that records its calls.
+    const bass = {...track("t3", "Bass", -5), regions: [{ref: "r3", name: "Bass", from: "1.1.1", to: "5.1.1", muted: false, loop: 1, kind: "notes" as const,
+        notes: [["1.1.1:0", 40, 8, 100], ["1.3.1:0", 43, 8, 100]] as Array<[string, number, number, number]>}]}
+    const full: Snapshot = {...snapshot, detail: "full", tracks: [track("t1", "Drums", -4), bass]}
+    const calls: Array<{ call: string, args: { region: string, notes: number[][] } }> = []
+    const script = (call: string, args: unknown) => {calls.push({call, args: args as { region: string, notes: number[][] }}); return `kb.${call}()`}
+    const tweak = (extra: Partial<Triage>) => judged("t3", "quieter", {path: "team", tweak: "octave_down", tweakP: 0.95, ...extra})
+    it("makes a tweak Jev is sure of by code: two stages, a bar apart, the last the tweak exactly", () => {
+        calls.length = 0
+        const fast = fastTweak(tweak({}), "drop the bass an octave", full, script)
+        assert.ok(fast !== null)
+        assert.equal(fast.says, "Bass an octave down, over the next 2 bars.")
+        assert.deepEqual(fast.steps.map(step => step.when.at === "bar" ? step.when.bar : null), [1, 2])
+        assert.deepEqual(calls.map(({call, args}) => [call, args.region]), [["replaceNotes", "r3"], ["replaceNotes", "r3"]])
+        assert.deepEqual(calls[1].args.notes.map(([, pitch]) => pitch).sort(), [28, 31])
+    })
+    it("leaves to the Team Lead what isn't sure, has a number, is for later, isn't the Team Lead's path, or can't be made", () => {
+        assert.equal(fastTweak(tweak({tweakP: 0.7}), "lower the bass", full, script), null)
+        assert.equal(fastTweak(tweak({partP: 0.6}), "lower it", full, script), null)
+        assert.equal(fastTweak(tweak({}), "drop the bass an octave at bar 9", full, script), null)
+        assert.equal(fastTweak(tweak({when: "later"}), "drop the bass an octave next section", full, script), null)
+        assert.equal(fastTweak(tweak({path: "mix"}), "bass down", full, script), null)
+        assert.equal(fastTweak(tweak({tweak: "none"}), "make it trap", full, script), null)
+        assert.equal(fastTweak(tweak({tweak: "fill"}), "a fill on the bass", full, script), null)     // a fill is for drums
     })
 })

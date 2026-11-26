@@ -1,0 +1,7 @@
+{"//": "Musical tweaks by Jev's fast path (2026-11-25, the music-library plan, step 4): each message is one change to one part's notes, made by code from the notes there (variants.ts), with no model writing notes; replies in about a second, the edits over the next 2 bars.",
+ "project": "01_good_base.odb", "messages": [
+  {"text": "make the drums busier"}, {"wait_ms": 8000},
+  {"text": "simplify the bass line"}, {"wait_ms": 8000},
+  {"text": "give the beat more swing"}, {"wait_ms": 8000},
+  {"text": "drop the bass an octave"}, {"wait_ms": 8000},
+  {"text": "add some ghost notes on the snare"}, {"wait_ms": 8000}]}
