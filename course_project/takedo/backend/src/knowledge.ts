@@ -1,8 +1,9 @@
 import {existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync} from "node:fs"
 import {basename, join} from "node:path"
-import type {Snapshot, Track} from "../../shared/protocol.ts"
+import type {Snapshot, SoundTuning, Track} from "../../shared/protocol.ts"
 import type {Catalog, CatalogParameter} from "./catalog.ts"
 import type {Samples} from "./samples.ts"
+import {Library} from "./library.ts"
 import {drumHits} from "./compose.ts"
 
 // The knowledge base (project_plan/KNOWLEDGE.md): what agents would otherwise look up or work out again every session,
@@ -321,6 +322,10 @@ export type Knowledge = {
     // A new part on an existing notes track from the bar given, replacing what was there: notes as written.
     part(input: Record<string, unknown>, snapshot: Snapshot): { code: string, says: string } | string
     readonly samples: Samples | null
+    // The producer's sound library (library.ts): their verdicts and tuning; null without samples.
+    readonly library: Library | null
+    // A sound's track as the Sounds tab auditions it: soundfont's input, with the tuning being tried.
+    audition(input: Record<string, unknown>, tuning: SoundTuning, snapshot: Snapshot): { code: string, says: string } | string
     draft(entry: Record<string, unknown>, by: string): string
     voices(): Record<string, string[]>
     readonly size: number
@@ -644,22 +649,54 @@ export const loadKnowledge = (dir: string, catalog: Catalog, warn: (text: string
         }
         return wantsNotes(input, owner) ? notesOf(input.notes, null, owner, snapshot) : null
     }
-    const soundfontPlan = (input: Record<string, unknown>, snapshot: Snapshot, owner: Entry | null): { code: string, says: string } | string => {
+    // The producer's sound library (library.ts): a kept sound's tuning goes on every track made with it.
+    const library = samples === null ? null : new Library(join(dir, "sound-library.json"), samples)
+    // A tuning's effects for kb.js's tune helper: the tone as a Revamp (high- and low-pass), then a knowledge chain's
+    // effects at the tuning's amount (0-3, as a chain's dial reads it), each with its settings by field path.
+    const tuningEffects = (tuning: SoundTuning): Array<{ device: string, settings: Record<string, number> }> => {
+        const {low_cut: low, high_cut: high} = tuning.tone
+        const tone = low > 20 || high < 20000 ? [{device: "Revamp", settings: {"highPass/enabled": low > 20 ? 1 : 0, "highPass/frequency": Math.max(20, low),
+            "lowPass/enabled": high < 20000 ? 1 : 0, "lowPass/frequency": Math.min(20000, high)}}] : []
+        const chain = tuning.effect === null ? undefined : entries.get(tuning.effect.chain)
+        const amount = Math.max(0, Math.min(3, tuning.effect?.amount ?? 0))
+        const character = (chain?.apply?.steps ?? []).flatMap(step => {
+            if (step.op !== "add_effect" || !isRecord(step.input) || typeof step.input.effect !== "string") {return []}
+            const settings = Array.isArray(step.input.settings) ? step.input.settings as Array<{ param: string, value: unknown }> : []
+            return [{device: step.input.effect, settings: Object.fromEntries(settings.flatMap(setting => {
+                const value = isDial(setting.value) ? setting.value.dial[0] + (setting.value.dial[1] - setting.value.dial[0]) * amount / 3 : setting.value
+                return typeof value === "number" ? [[setting.param, value]] : []
+            }))}]
+        })
+        return [...tone, ...character]
+    }
+    // tuning: the producer's for this sound (kept), or one given (the Sounds tab's audition); octave moves the notes.
+    const soundfontPlan = (input: Record<string, unknown>, snapshot: Snapshot, owner: Entry | null,
+                           given: SoundTuning | null = null): { code: string, says: string } | string => {
         if (kbScript === null) {return "the knowledge base's page helpers (scripts/kb.js) are missing"}
         if (samples === null || samples.sounds.length === 0) {return "no soundfonts here (make samples)"}
         const sound = samples.sound(String(input.sound))
         if (sound === null) {return `no sound ${String(input.sound)} (find them with sounds; ids look like "GeneralUser GS/Finger Bass")`}
         const name = typeof input.name === "string" && input.name !== "" ? input.name : typeof input.default_name === "string" ? input.default_name : sound.preset
-        const notes = melodicNotes(input, snapshot, owner, name)
-        if (typeof notes === "string") {return notes}
-        const says = `${name}: a new track playing ${sound.id}${notes === null ? "" : `, ${startText(notes)}`}`
+        const written = melodicNotes(input, snapshot, owner, name)
+        if (typeof written === "string") {return written}
+        const kept = library?.entry(sound.id)
+        if (kept?.verdict === "rejected" && given === null) {
+            return `the producer rejected ${sound.id} in their sound library${kept.note ? ` (${kept.note})` : ""}; pick another with sounds (their kept ones come first)`
+        }
+        const tuning = given ?? (kept?.verdict === "kept" ? kept.tuning : null)
+        const notes = written === null || tuning === null || tuning.octave === 0 ? written
+            : {...written, notes: (written.notes as Array<[number, number, number, number]>).map(([beat, pitch, length, velocity]) =>
+                [beat, Math.max(0, Math.min(127, pitch + 12 * tuning.octave)), length, velocity])}
+        const volume = tuning !== null ? tuning.level_db : volumeOf(input.volume_db)
+        const effects = tuning === null ? [] : tuningEffects(tuning)
+        const says = `${name}: a new track playing ${sound.id}${tuning !== null && given === null ? " (the producer's tuning)" : ""}${notes === null ? "" : `, ${startText(notes)}`}`
         if (sound.source === "preset") {
             if (catalog.device(sound.device ?? "")?.allowed === false) {return `${sound.id} is for ${sound.device}, which isn't allowed`}
             return {code: helper("preset", {name, uuid: sound.uuid, device: sound.device, preset_name: sound.preset,
-                volume_db: volumeOf(input.volume_db), notes})!, says}
+                volume_db: volume, notes, effects})!, says}
         }
         return {code: helper("soundfont", {name, uuid: sound.uuid, file_name: sound.soundfont, preset: sound.index, preset_name: sound.preset,
-                volume_db: volumeOf(input.volume_db), notes})!, says}
+                volume_db: volume, notes, effects})!, says}
     }
     // A new part on an existing track (its notes as written, looping every loop_bars), replacing what was in those bars:
     // a track made empty (a sound entry with no notes) gets its part, and a part can be rewritten from a bar on.
@@ -896,6 +933,8 @@ export const loadKnowledge = (dir: string, catalog: Catalog, warn: (text: string
         effectPreset: (input, snapshot) => effectPresetPlan(input, snapshot),
         part: (input, snapshot) => partPlan(input, snapshot),
         samples,
+        library,
+        audition: (input, tuning, snapshot) => soundfontPlan(input, snapshot, null, tuning),
         voices: () => Object.fromEntries([...cartridges].map(([name, voices]) => [name, voices.map(entry => entry.name)])),
         // An agent's entry, kept as a draft until a person reviews it. Returns what happened, for the model.
         draft: (input, by) => {

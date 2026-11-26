@@ -106,6 +106,7 @@ export class Adapter implements Terminable {
     #seq = 0
     #revision = 0                                               // every box graph update (UI state included)
     #applying: { actor: Actor, request: string } | null = null  // set around our own writes (origin tagging)
+    #auditioning: AudioUnitBox[] = []                            // the Sounds tab's audition track, while it plays
     #lastAgentEdit: { label: string, steps: number } | null = null   // the latest script or added effect, for a crash
     #historySteps = 0
     #played = 0                                                 // pulses played, through each pass of the loop
@@ -333,7 +334,7 @@ export class Adapter implements Terminable {
         const [nominator, denominator] = this.#signature()
         const bar = this.#bar()
         let end = 0
-        const tracks: Track[] = this.#units().filter(unit => !unit.isOutput).map(unit => {
+        const tracks: Track[] = this.#units().filter(unit => !unit.isOutput && !this.#auditioning.includes(unit.box)).map(unit => {
             const ref = this.#trackRef(unit)
             const regionAdapters = unit.tracks.values().flatMap(track => track.regions.collection.asArray())
                 .filter(region => region.type !== "value-region")
@@ -646,6 +647,30 @@ export class Adapter implements Terminable {
         this.#jamming ||= this.#project.engine.isPlaying.getValue()
         this.#status(request, {state: "applied", detail: [made.made ? `made the ${plan.bus} return` : "", made.sent ? "a new send, silent" : "the send was there"]
             .filter(part => part !== "").join("; "), result: {ref, label: device.name, device}})
+    }
+
+    // The Sounds tab's audition (2026-11-26): a sound's track as an agent would make it (the backend's code), run as the
+    // producer's own edit, the last one removed first. Agents don't see it (not in the snapshot). An error, or null.
+    audition(code: string, solo = false): string | null {
+        this.endAudition()
+        const before = new Set(this.#units().map(unit => unit.box))
+        try {
+            this.#project.editing.modify(() => {runScript(code, this.#env)})
+        } catch (error) {
+            return errorText(error)
+        }
+        this.#auditioning = this.#units().filter(unit => !before.has(unit.box)).map(unit => unit.box)
+        if (solo) {this.#project.editing.modify(() => this.#auditioning.forEach(box => box.solo.setValue(true)))}
+        this.#params = null
+        return null
+    }
+
+    endAudition(): void {
+        const boxes = this.#auditioning
+        if (boxes.length === 0) {return}
+        this.#auditioning = []
+        this.#project.editing.modify(() => boxes.filter(box => box.isAttached()).forEach(box => this.#project.api.deleteAudioUnit(box)))
+        this.#params = null
     }
 
     async #removeEffect(request: Apply, plan: RemoveEffectPlan): Promise<void> {

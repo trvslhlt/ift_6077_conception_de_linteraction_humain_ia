@@ -83,6 +83,20 @@ export type SendPlan = { op: "send", track: string, bus: string,
 // The open path (STRATEGY.md, "Keep the open path"): a function body run with `takedo` in scope inside one edit (one
 // undo step, attributed); it may return a JSON-able value. Rolled back if it throws, undone if it touched a held control.
 export type ScriptPlan = { op: "script", code: string, description: string }
+// The producer's sound library (backend/src/library.ts, the Sounds tab): their verdict on an instrument sound, the roles
+// and tags they gave it, and its tuning, which agents apply when they use it.
+export type SoundRole = "bass" | "keys" | "pad" | "lead" | "strings" | "guitar" | "brass" | "bells" | "other"
+export const SoundRoles: SoundRole[] = ["bass", "keys", "pad", "lead", "strings", "guitar", "brass", "bells", "other"]
+// level_db: the track's volume. octave: added to every note it plays. register: the MIDI range it sounds good in (null:
+// any). tone: a high-pass and low-pass on the track in Hz (20 and 20000: open). effect: a knowledge chain ("chain/saturate")
+// at an amount 0-3, or null.
+export type SoundTuning = { level_db: number, octave: number, register: [number, number] | null,
+    tone: { low_cut: number, high_cut: number }, effect: { chain: string, amount: number } | null }
+export type LibraryEntry = { verdict: "kept" | "rejected", roles: SoundRole[], tags: string[], tuning: SoundTuning, note: string, t: number }
+export type LibrarySound = { id: string, source: "soundfont" | "preset", family: string, bank: number, roles: SoundRole[], entry: LibraryEntry | null }
+export const OpenTone = {low_cut: 20, high_cut: 20000}
+export const DefaultTuning: SoundTuning = {level_db: -6, octave: 0, register: null, tone: OpenTone, effect: null}
+
 export type Plan = RampPlan | SetPlan | AddEffectPlan | RemoveEffectPlan | SendPlan | ScriptPlan
 // Who decided an edit (2026-11-25, the activity view's icons): a model's turn, Jev (a fast judgment, code filling it
 // in), or code alone (a rule: a dial's blend, a recall). Every edit is carried out by code; this is what chose it.
@@ -149,6 +163,9 @@ export type PageToBackend =
     | { type: "overview" }                                // the producer asked for a fresh overview
     | { type: "chat", text: string }                      // the producer typed in the team view
     | { type: "control", ref: string, value: number }     // the producer let go of a control at this value
+    | { type: "library" }                                  // the Sounds tab asks for the sound library
+    | { type: "library_set", id: string, entry: LibraryEntry | null }   // the producer's verdict and tuning for a sound
+    | { type: "audition", id: string, role: SoundRole, tuning: SoundTuning }   // the Sounds tab wants to hear a sound
     // After (re)connecting: the requests still waiting for their bar or under way (they outlive a backend restart).
     | { type: "waiting", requests: string[] }
     | { type: "result", id: number, snapshot: Snapshot | null }   // answer to a query; null: no project open
@@ -176,6 +193,8 @@ export type BackendToPage =
     | { type: "team", members: TeamMember[], aliases: Record<string, Actor> }
     | { type: "overview", state: "writing" } | { type: "overview", state: "done", overview: Overview }
     | { type: "overview", state: "failed", detail: string }
+    | { type: "library", sounds: LibrarySound[], chains: Array<{ key: string, summary: string }> }   // the sound library, with the character effects
+    | { type: "audition", id: string, code: string } | { type: "audition", id: string, error: string }   // the track to audition, as agents would make it
     | { type: "error", detail: string }
 
 export const encode = (message: PageToBackend | BackendToPage): string => JSON.stringify(message)

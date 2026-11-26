@@ -59,6 +59,19 @@ const kb = (() => {
         if (track === undefined) {throw new Error(`${unit.label} has no notes track`)}
         return track
     }
+    // A sound's tuning (the producer's, from their sound library): effects at the end of the new track's chain, each set
+    // by field path; a switch takes 0 or 1. Made with the track, so it never plays untuned.
+    const tune = (audioUnitBox, effects) => (effects ?? []).map(({device, settings}) => {
+        const factory = lib.core.EffectFactories.AudioNamed[device]
+        if (factory === undefined) {throw new Error(`no audio effect ${device}`)}
+        const box = api.insertEffect(audioUnitBox.audioEffects, factory)
+        Object.entries(settings).forEach(([path, value]) => {
+            const field = fieldOf(box, path)
+            if (field === undefined || typeof field.setValue !== "function") {return}
+            field.setValue(typeof field.getValue() === "boolean" ? value !== 0 : value)
+        })
+        return device
+    })
     const isTubular = box => box.operators !== undefined && box.voiceLoad !== undefined
     return {
         // A DX7 voice (155 bytes) on a track's Tubular, or on a new Tubular track; optionally with notes, written in
@@ -161,7 +174,8 @@ const kb = (() => {
             const product = api.createInstrument(lib.adapters.InstrumentFactories.Soundfont, {name: args.name, attachment: file})
             product.instrumentBox.presetIndex.setValue(args.preset)
             if (args.volume_db !== null && args.volume_db !== undefined) {product.audioUnitBox.volume.setValue(args.volume_db)}
-            return {track: "new", name: product.instrumentBox.label.getValue(), sound: args.preset_name,
+            const tuned = tune(product.audioUnitBox, args.effects)
+            return {track: "new", name: product.instrumentBox.label.getValue(), sound: args.preset_name, ...(tuned.length > 0 ? {effects: tuned} : {}),
                 ...(args.notes ? {notes: writeNotes(product.trackBox, null, args.notes)} : {})}
         },
         // One of openDAW's factory presets as a new track (Tubular's FM Rhodes, Neon's house bass): its device made, then
@@ -174,7 +188,8 @@ const kb = (() => {
             if (attempt.isFailure()) {throw new Error(`the preset ${args.preset_name} didn't apply: ${attempt.failureReason()}`)}
             const input = product.audioUnitBox.input.pointerHub.incoming().at(0)?.box
             if (input !== undefined && args.name) {input.label.setValue(args.name)}
-            return {track: "new", name: args.name, sound: args.preset_name,
+            const tuned = tune(product.audioUnitBox, args.effects)
+            return {track: "new", name: args.name, sound: args.preset_name, ...(tuned.length > 0 ? {effects: tuned} : {}),
                 ...(args.notes ? {notes: writeNotes(product.trackBox, null, args.notes)} : {})}
         },
         // One of openDAW's effect presets (Large Plate, Soft Wall, Vocal EQ) at the end of a track's effects.

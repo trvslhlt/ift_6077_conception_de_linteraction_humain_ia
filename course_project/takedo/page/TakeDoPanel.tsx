@@ -10,6 +10,7 @@ import {type CatalogResult, generateCatalog} from "./Catalog"
 import {Connection, type ConnectionState} from "./Connection"
 import type {Actor, BackendToPage, ChatLine, Control, MemberCard, Playback, TeamMember} from "@/takedo_shared/protocol"
 import {MentionInput, withMentions} from "./Mentions"
+import {SoundBench} from "./SoundBench"
 
 // The team view's content, in three columns: activity (the connection, the Team Lead's overview of the project, and
 // every edit with where it is), the team (a card per member: what it's doing and the controls it offers the producer),
@@ -419,7 +420,12 @@ export const TakeDoPanel = ({lifecycle, service, visible}: Construct): HTMLEleme
         <div style={{fontSize: "10px", letterSpacing: "0.08em", textTransform: "uppercase", opacity: "0.6"}}>{text}</div>
     )
     const column = {display: "flex", flexDirection: "column", rowGap: "0.6em", minHeight: "0", minWidth: "0"}
-    return (
+    // Two tabs: the team view, and the Sounds tab where the producer filters, tunes and tags instruments (SoundBench).
+    const bench = SoundBench({lifecycle, connection, adapter: () => handle.adapter})
+    const tab = (name: string): HTMLButtonElement => <button data-testid={`takedo-tab-${name.toLowerCase()}`} style={{fontSize: "11px",
+        padding: "0.2em 0.8em", borderRadius: "4px", border: "1px solid #555", cursor: "pointer"}}>{name}</button>
+    const teamTab = tab("Team"), soundsTab = tab("Sounds")
+    const teamView: HTMLElement = (
         <div data-testid="takedo-panel"
              style={{flex: "1 0 0", display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
                  columnGap: "1em", padding: "1em", minHeight: "0", fontSize: "13px"}}>
@@ -438,6 +444,23 @@ export const TakeDoPanel = ({lifecycle, service, visible}: Construct): HTMLEleme
                 {chat}
                 {composer.element}
             </div>
+        </div>
+    )
+    const showTab = (sounds: boolean): void => {
+        teamView.style.display = sounds ? "none" : "grid"
+        bench.element.style.display = sounds ? "grid" : "none"
+        teamTab.style.background = sounds ? "transparent" : "#2a3a40"
+        soundsTab.style.background = sounds ? "#2a3a40" : "transparent"
+        bench.show(sounds)
+    }
+    teamTab.onclick = () => showTab(false)
+    soundsTab.onclick = () => showTab(true)
+    showTab(false)
+    return (
+        <div style={{flex: "1 0 0", display: "flex", flexDirection: "column", minHeight: "0"}}>
+            <div style={{display: "flex", columnGap: "0.4em", padding: "0.6em 1em 0"}}>{teamTab}{soundsTab}</div>
+            {teamView}
+            {bench.element}
         </div>
     )
 }

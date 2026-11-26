@@ -10,7 +10,7 @@ TYPES_DIR := .opendaw
 export PORT
 COMPOSE := docker compose --profile test
 
-.PHONY: help builder build up down restart logs status open shell test scenario catalog check knowledge knowledge-bench triage-bench tweak-bench knowledge-import types usage clean
+.PHONY: help builder build up down restart logs status open shell test scenario catalog check knowledge knowledge-bench triage-bench tweak-bench knowledge-import types usage clean sounds-probe
 
 help: ## List targets
 	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
@@ -70,6 +70,10 @@ scenario: build $(TYPES_DIR)/packages ## Play scenarios/$(SCENARIO).json to Take
 		$(COMPOSE) run --rm -e COUNT_FRAMES=$(COUNT_FRAMES) -e QUERY_LOADING=$(QUERY_LOADING) -v $(CURDIR)/scenarios:/scenarios smoke node scenario.mjs /scenarios/$(SCENARIO).json; \
 		status=$$?; kill $$watcher; exit $$status
 	cd backend && node src/report.ts "$$(ls -td ../scenarios/runs/*_$(SCENARIO) | head -1)"
+
+sounds-probe: build $(TYPES_DIR)/packages ## Drive the Sounds tab headless: audition, tune, keep, forget (writes and clears one entry of knowledge/sound-library.json)
+	$(COMPOSE) up -d --wait studio backend
+	$(COMPOSE) run --rm -v $(CURDIR)/scenarios:/scenarios -v $(CURDIR)/knowledge:/knowledge:ro -v $(CURDIR)/test/sounds-probe.mjs:/test/sounds-probe.mjs:ro smoke node sounds-probe.mjs
 
 catalog: build ## Regenerate catalog/generated.json from openDAW (every device's descriptions and parameters)
 	$(COMPOSE) run --rm -v $(CURDIR)/catalog:/out \

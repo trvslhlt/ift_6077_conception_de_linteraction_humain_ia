@@ -3,7 +3,8 @@ import {createSdkMcpServer, query, type Query, type SDKUserMessage, tool} from "
 import type Anthropic from "@anthropic-ai/sdk"
 import type {CallToolResult} from "@modelcontextprotocol/sdk/types.js"
 import {z} from "zod"
-import type {Actor, Note, Plan, Snapshot, Status, When} from "../../shared/protocol.ts"
+import {type Actor, type Note, type Plan, type Snapshot, type SoundRole, SoundRoles, type Status, type When} from "../../shared/protocol.ts"
+import type {Sound} from "./samples.ts"
 import {type Action, type Anchor, type Direction, type Piece, type PieceKind, PieceKinds, type Step as BoardStep} from "./board.ts"
 import type {Coordinator} from "./coordinator.ts"
 import type {Catalog} from "./catalog.ts"
@@ -150,6 +151,7 @@ const KindNotes: Record<PieceKind, string> = {
 - Grooves as one line of mini-notation, code writes the hits: make_kit's drums, write_part's drums, evolve_notes's to_drums (\"[bd ~ ~ bd ~ ~ bd ~, ~ sd ~ sd, hh*8]\"; sd:0.4 a ghost note, <sd cp> a different one each bar with bars 2).
 - A style's drum sound (trap, house, techno, boom-bap, 80s) is a new kit, not new notes on the old one: apply_knowledge a kit entry (sound/kit-trap-808, kit-house-909, kit-boombap-mpc60, kit-boombap-sp12, kit-synthpop-linndrum) with the style's pattern, or make_kit with samples you pick (samples finds them across 70 drum machines); with replaces naming the old drums, which parks them on the bar the kit comes in.`,
     notes: `${Restyle}
+- The producer's sound library (2026-11-26, the producer: the sounds picked were the worst so far, so they keep, reject, tune and tag sounds by ear): sounds with a role lists the ones they kept for it first (✓, with their tags); use one of those, and their tuning (level, octave, tone, character) goes on with it by itself, so don't set those again. An unheard one only when no kept one fits; a rejected one is refused.
 - A new part's sound (2026-11-25, the producer: sounds outside the drums were grating and not genre appropriate): pick a sampled instrument first: the knowledge base's \"Sampled instruments\" entries name a genre's usual ones (bass, keys, guitar, strings, pads, brass, leads) with their registers; sounds finds the rest of 300 (GeneralUser GS and openDAW's). make_instrument makes the track with its notes. Set a synth (Vaporisateur, Tubular) by hand only for a sound no sample has or when the producer asks for a synth, and then start from a knowledge sound entry. Play a sampled instrument in its register.
 - evolve_notes: a part's notes changing over several bars (a groove becoming another, a part thinning out or filling in), not a script per stage. Name where it's going (a knowledge pattern, or the notes written once) and how many stages; code works out each stage and rewrites the region's notes in place, so a looping region changes as it plays.
 - A region's notes play on every pass of its loop: rewriting them changes every repeat from when it lands.
@@ -162,6 +164,7 @@ ${KeySlot}
 - A new named track with a bar of notes: const {audioUnitBox, trackBox, instrumentBox} = api.createInstrument(lib.adapters.InstrumentFactories.Vaporisateur); instrumentBox.label.setValue("Lead"); const region = api.createNoteRegion({trackBox, position: 0, duration: bar, name: "Lead"}); api.createNoteEvent({owner: region, position: 0, duration: lib.dsp.PPQN.Quarter, pitch: 60, velocity: 0.8});
 - A track made in this script has no adapter yet (ref and audioUnits.adapters() don't find it until the edit ends): set its level with audioUnitBox.volume.setValue(dB) and its instrument's settings on instrumentBox's fields (instrumentBox.cutoff.setValue(2200)), with the names namedParameter shows on a track of that instrument. Every field has a range (the box schema's constraints; a parameter's valueMapping); a value outside it can crash the audio engine, so TakeDo brings it back in and the result lists what it corrected.`,
     sound: `${Restyle}
+- The producer's sound library (2026-11-26, the producer: the sounds picked were the worst so far, so they keep, reject, tune and tag sounds by ear): sounds with a role lists the ones they kept for it first (✓, with their tags); use one of those, and their tuning (level, octave, tone, character) goes on with it by itself, so don't set those again. An unheard one only when no kept one fits; a rejected one is refused.
 - A new part's sound (2026-11-25, the producer: sounds outside the drums were grating and not genre appropriate): pick a sampled instrument first: the knowledge base's \"Sampled instruments\" entries name a genre's usual ones (bass, keys, guitar, strings, pads, brass, leads) with their registers; sounds finds the rest of 300 (GeneralUser GS and openDAW's). make_instrument makes the track with its notes. Set a synth (Vaporisateur, Tubular) by hand only for a sound no sample has or when the producer asks for a synth, and then start from a knowledge sound entry. Play a sampled instrument in its register.
 - An instrument's settings: ref("t2").inputAdapter.unwrap().namedParameter (e.g. Cubed: cutoff, resonance, envMod, decay, accent; Vaporisateur: cutoff, resonance, attack, decay, sustain, release, …); set them with .setValue(v). A drum machine (Playfield) has none: its sounds are samples by pad.
 - A style's drum sound (trap, house, techno, boom-bap, 80s) is a new kit, not new notes on the old one: apply_knowledge a kit entry (sound/kit-trap-808, kit-house-909, kit-boombap-mpc60, kit-boombap-sp12, kit-synthpop-linndrum) with the style's pattern, or make_kit with samples you pick (samples finds them across 70 drum machines); with replaces naming the old drums, which parks them on the bar the kit comes in.
@@ -561,16 +564,33 @@ export class Utility implements Member {
                 handler(make("sampler"))),
             ...(samples.sounds.length === 0 ? [] : [
                 tool("sounds", "Find instrument sounds by words in their names and descriptions: sampled instruments (soundfont presets: GeneralUser GS's 287 General MIDI sounds, and openDAW's upright piano, guitars, harp, organ, xylophone, TB-303) and openDAW's factory synth presets (\"openDAW/...\": FM Rhodes, organs, pads, house and square basses, brass, plucks, on Tubular, Neon, Vaporisateur). Usually a better start for a genre's bass, keys, strings, brass, guitar or pad than a synth set by hand.", {
-                    words: z.string().describe("Words in the name (\"fingered bass\", \"electric piano\", \"strings\", \"pad\"); \"\" lists the soundfonts")},
+                    words: z.string().describe("Words in the name or the producer's tags (\"fingered bass\", \"electric piano\", \"warm\"); \"\" for any"),
+                    role: z.enum(["", ...SoundRoles] as [string, ...string[]]).describe("The part it's for (bass, keys, pad, lead, strings, guitar, brass, bells, other); \"\" for any")},
                     handler((_current, input) => {
-                        const words = String(input.words ?? "").trim()
-                        if (words === "") {
+                        const words = String(input.words ?? "").trim(), role = String(input.role ?? "") as SoundRole | ""
+                        const library = knowledge.library
+                        if (words === "" && role === "") {
                             return [...new Map(samples.sounds.map(sound => [sound.soundfont, samples.sounds.filter(other => other.soundfont === sound.soundfont).length])).entries()]
                                 .map(([font, count]) => `${font}: ${count} sounds`).join("\n")
                         }
-                        const found = samples.searchSounds(words, 40)
-                        return found.length === 0 ? "Nothing matches; try fewer or other words."
-                            : found.map(sound => sound.source === "preset" ? `${sound.id} (${sound.device}${sound.about ? `: ${sound.about}` : ""})` : sound.id).join("\n")
+                        // The producer's library first (2026-11-26): kept sounds for the role, then unheard ones; rejected never.
+                        const tagged = (sound: Sound) => library?.entry(sound.id)?.tags.join(" ") ?? ""
+                        const candidates = words === "" ? samples.sounds
+                            : [...samples.searchSounds(words, 400), ...samples.sounds.filter(sound => tagged(sound) !== "" && words.toLowerCase().split(/\s+/).every(word => tagged(sound).includes(word)))]
+                        const ranked = [...new Set(candidates)].flatMap(sound => {
+                            const rank = library === null ? 1 : library.rank(sound, role === "" ? null : role)
+                            return rank === null || (role !== "" && rank > 1) ? [] : [{sound, rank}]
+                        }).sort((a, b) => a.rank - b.rank).slice(0, 40)
+                        if (ranked.length === 0) {return "Nothing matches; try fewer or other words, or another role."}
+                        const keptCount = ranked.filter(({rank}) => rank % 2 === 0).length
+                        return [keptCount === 0 && library !== null ? "None of these is in the producer's library yet (all unheard)." : "",
+                            ...ranked.map(({sound}) => {
+                                const entry = library?.entry(sound.id)
+                                const own = sound.source === "preset" ? ` (${sound.device}${sound.about ? `: ${sound.about}` : ""})` : ""
+                                return entry?.verdict === "kept"
+                                    ? `✓ ${sound.id}${own}: kept by the producer${entry.tags.length > 0 ? `, ${entry.tags.join(", ")}` : ""}${entry.note ? ` (${entry.note})` : ""}; their tuning goes on with it`
+                                    : `${sound.id}${own}: unheard`
+                            })].filter(line => line !== "").join("\n")
                     }), {annotations: {readOnlyHint: true}}),
                 tool("make_instrument", "A new track playing a sound from sounds (a soundfont preset on openDAW's Soundfont device, or an openDAW factory preset on its synth), optionally with notes from the start. Set its sound once; its notes play as written (keep a bass in the bass register).", {
                     name: z.string().describe(TrackName),

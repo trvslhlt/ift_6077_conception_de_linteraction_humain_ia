@@ -1,7 +1,7 @@
 import {randomUUID} from "node:crypto"
 import {
     type Actor, type Apply, type Decided, type BackendToPage, type ChangeEvent, type Control, type Detail, type MemberCard, type PageToBackend,
-    type Plan, type Snapshot, type Status, target, type When
+    type Plan, type Snapshot, type SoundRole, type SoundTuning, type Status, target, type When
 } from "../../shared/protocol.ts"
 import type {Catalog} from "./catalog.ts"
 import type {Gateway, ModelLog} from "./gateway.ts"
@@ -22,6 +22,7 @@ import {Utility} from "./utility.ts"
 import {type Line, triage, triageState} from "./triage.ts"
 import {fastEffect, fastMix, SurePath, fastTweak} from "./fastpath.ts"
 import {Profiles, Styles, styleSteps} from "./mixProfiles.ts"
+import {auditionPhrase} from "./library.ts"
 
 // The backend half of the bus (TAKEDO_API.md, "Overview"), one per connected page: claims, plans, chat, routing.
 // Talks to the page's adapter for state (snapshot queries) and to apply plans.
@@ -191,6 +192,19 @@ export class Coordinator {
             case "control":
                 this.#control(message.ref, message.value)
                 return
+            case "library":
+                this.#sendLibrary()
+                return
+            case "audition":
+                void this.#audition(message.id, message.role, message.tuning)
+                return
+            case "library_set": {
+                const problem = this.#knowledge?.library?.set(message.id, message.entry) ?? "no sound library (no samples)"
+                if (problem !== null) {return this.#send({type: "error", detail: `The sound library: ${problem}`})}
+                this.#log.write("library", {id: message.id, entry: message.entry})
+                this.#sendLibrary()
+                return
+            }
             case "waiting": {
                 const {coming, lost} = this.board.reconcile(message.requests)
                 // Workers' sessions don't outlive the backend: a job still running was cut off.
@@ -753,6 +767,29 @@ export class Coordinator {
             this.#report({kind: "job_failed", text: `${job.id} (${piece}): stopped with an error: ${String(error)}`, direction})
         })
         return `Started ${job.id}. Its report comes back as job_finished.`
+    }
+
+    // The sound library for the Sounds tab, with the character effects a sound's tuning can name (knowledge chains).
+    #sendLibrary(): void {
+        const library = this.#knowledge?.library
+        if (library === undefined || library === null) {return this.#send({type: "error", detail: "The sound library needs TakeDo's samples (make samples)."})}
+        const chains = this.#knowledge!.index().filter(line => line.key.startsWith("chain/")).map(line => ({key: line.key, summary: line.summary}))
+        this.#send({type: "library", sounds: library.list(), chains})
+    }
+
+    // A sound as the Sounds tab auditions it: its role's phrase in the project's key, on a track made the way an agent
+    // makes one with that sound and the tuning being tried. The page runs it as the producer's edit and removes it after.
+    async #audition(id: string, role: SoundRole, tuning: SoundTuning): Promise<void> {
+        const knowledge = this.#knowledge, snapshot = await this.snapshot()
+        if (knowledge === null || snapshot === null) {return this.#send({type: "audition", id, error: "Open a project first."})}
+        const facts = this.#notebook?.get("facts") ?? null
+        const said = facts === null ? null : (JSON.parse(facts.value)?.key?.said as string | undefined) ?? null
+        const key = said !== null && !said.startsWith("unknown") ? said : "C minor"
+        const phrase = auditionPhrase(role, key, tuning.register)
+        if (typeof phrase === "string") {return this.#send({type: "audition", id, error: phrase})}
+        const made = knowledge.audition({sound: id, name: `Audition: ${id.split("/").pop()}`,
+            notes: {notes: phrase.hits, loop_bars: phrase.beats / snapshot.timeline.signature[0], bars: 16, from_bar: 0}}, tuning, snapshot)
+        this.#send(typeof made === "string" ? {type: "audition", id, error: made} : {type: "audition", id, code: made.code})
     }
 
     // A style's mix (mixProfiles.ts): applied by code once the direction's parts have landed (no job running, nothing
