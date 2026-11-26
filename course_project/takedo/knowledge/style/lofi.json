@@ -1,0 +1,17 @@
+{
+  "style": "lofi",
+  "about": "lofi girl: a swung, soft jazz kit, a warm round bass, a Rhodes held as a pad under it, an optional soft vibraphone line; slow, warm, nothing bright or distorted",
+  "tempo": [70, 90],
+  "parts": {
+    "drums": {"sound": "GeneralUser GS/Jazz Kit", "groove": "pattern/boombap-1", "level_db": -8},
+    "bass": {"sound": "GeneralUser GS/Fretless Bass", "range": [28, 50], "level_db": -10},
+    "chords": {"sound": "openDAW/Rhodes", "range": [50, 74], "rhythm": "hold", "velocity": 0.45, "level_db": -14,
+      "add": {"major": "vi7:8 IVmaj7:8", "minor": "i9:8 VImaj7:8"}},
+    "lead": {"sound": "GeneralUser GS/Vibraphone", "range": [55, 72], "velocity": 0.55, "level_db": -16}
+  },
+  "master": "gentle tape warmth and a soft top-end roll-off; no distortion (no Waveshaper), nothing bright",
+  "rules": [
+    {"text": "The keys are a Rhodes held as a pad: each chord held through its bar, soft attack, never short or choppy hits", "said": "the keys are way too bright and have too much attack for lofi / they are now choppy hits, not sustained / use a rhodes pad instead → much better", "date": "2026-11-26"},
+    {"text": "No Waveshaper or other distortion on the master", "said": "(the producer's review: the waveshaper on the master was part of what made lofi worse)", "date": "2026-11-26"}
+  ]
+}

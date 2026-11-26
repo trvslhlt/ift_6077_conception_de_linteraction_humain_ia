@@ -702,7 +702,8 @@ export const loadKnowledge = (dir: string, catalog: Catalog, warn: (text: string
         const notes = written === null || tuning === null || tuning.octave === 0 ? written
             : {...written, notes: (written.notes as Array<[number, number, number, number]>).map(([beat, pitch, length, velocity]) =>
                 [beat, Math.max(0, Math.min(127, pitch + 12 * tuning.octave)), length, velocity])}
-        const volume = tuning !== null ? tuning.level_db : volumeOf(input.volume_db)
+        // start_db: a level to come in at, before a fade up (restyle.ts's crossfades).
+        const volume = volumeOf(input.start_db) ?? (tuning !== null ? tuning.level_db : volumeOf(input.volume_db))
         const effects = tuning === null ? [] : tuningEffects(tuning)
         const says = `${name}: a new track playing ${sound.id}${tuning !== null && given === null ? " (the producer's tuning)" : ""}${notes === null ? "" : `, ${startText(notes)}`}`
         if (sound.source === "preset") {

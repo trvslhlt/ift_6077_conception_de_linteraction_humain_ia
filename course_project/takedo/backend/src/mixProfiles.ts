@@ -69,7 +69,8 @@ export const Styles = Object.keys(Profiles)
 // in the bass register a bass, several at once chords (a pad if they're long), one at a time a lead.
 export const roleOf = (track: Track): Role => {
     const name = track.name.toLowerCase()
-    if (isDrums(track)) {return /perc|shaker|conga|bongo|tamb|cabasa/.test(name) ? "perc" : "drums"}
+    // A General MIDI kit on a soundfont has no pads to read: its name says it (restyle.ts names tracks after their sound).
+    if (isDrums(track) || /\bkit\b|drum/.test(name)) {return /perc|shaker|conga|bongo|tamb|cabasa/.test(name) ? "perc" : "drums"}
     const notes = track.regions.flatMap(region => region.notes ?? [])
     if (/bass|808|sub/.test(name)) {return "bass"}
     if (/pad|string|choir|atmos/.test(name)) {return "pad"}

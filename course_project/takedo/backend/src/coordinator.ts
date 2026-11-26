@@ -24,6 +24,8 @@ import {fastEffect, fastMix, SurePath, fastTweak} from "./fastpath.ts"
 import {Profiles, Styles, styleSteps} from "./mixProfiles.ts"
 import {auditionPhrase, drumAudition, padRole} from "./library.ts"
 import {soundsAgainst} from "./soundFit.ts"
+import {join} from "node:path"
+import {loadTemplates, type Move, restyleMoves, type Template, templateText} from "./restyle.ts"
 
 // The backend half of the bus (TAKEDO_API.md, "Overview"), one per connected page: claims, plans, chat, routing.
 // Talks to the page's adapter for state (snapshot queries) and to apply plans.
@@ -824,6 +826,66 @@ export class Coordinator {
     // The parts playing whose sound isn't for a style (soundFit.ts), for the Team Lead's style turns.
     soundsAgainst(style: Genre, snapshot: Snapshot): string[] {
         return soundsAgainst(style, snapshot, this.#catalog, this.#knowledge?.library ?? null)
+    }
+
+    // Style templates (restyle.ts), read again each time, so a rule learned in this session applies at once.
+    templates(): Map<string, Template> {
+        return loadTemplates(join(process.env.KNOWLEDGE_DIR ?? "../knowledge", "style"))
+    }
+
+    // A style direction by its template (restyle.ts): the parts by code, each new one handed over (drums) or crossfaded
+    // over the bars given while the old fades out and is parked; tempo and the master as workers' pieces with exact
+    // goals; the style's mix after. Answers what it does at once; the edits land in the background.
+    async restyle(direction: Direction, anchor: Anchor | null, style: string, overBars: number): Promise<string> {
+        const template = this.templates().get(style)
+        if (template === undefined) {return `Not done: no template for ${style}; there are ${[...this.templates().keys()].join(", ")}.`}
+        if (this.#knowledge === null) {return "Not done: no knowledge base."}
+        const snapshot = await this.snapshot("full")
+        if (snapshot === null) {return "Not done: no project open."}
+        const made = restyleMoves(template, snapshot, this.#knowledge, this.#catalog, overBars > 0)
+        if (typeof made === "string") {return `Not done: ${made}`}
+        const beats = Math.max(0, overBars) * snapshot.timeline.signature[0]
+        void Promise.all(made.moves.map(move => this.#move(direction, move, beats)))
+            .then(results => this.#log.write("board", {event: "restyle", style, direction: direction.id, results}))
+        const [low, high] = template.tempo, bpm = snapshot.timeline.bpm
+        const tempo = bpm < low ? low : bpm > high ? high : null
+        if (made.moves.length === 0 && tempo === null) {
+            return `Everything is the ${style} template already: ${made.left.join("; ")}. Nothing assigned.\nThe template:\n${templateText(template)}`
+        }
+        const pieces: Piece[] = [
+            ...(tempo === null ? [] : [{kind: "tempo" as const, tracks: [], goal: `The tempo glides from ${Math.round(bpm)} to ${tempo} BPM.`,
+                from_bar: 0, to_bar: overBars, steps: overBars > 0 ? 4 : 1, keep: ""}]),
+            {kind: "effects", tracks: ["master"], goal: `The master for ${style}: ${template.master}.`, from_bar: 0, to_bar: overBars,
+                steps: overBars > 0 ? 4 : 1, keep: template.rules.map(rule => rule.text).join("; ")}
+        ]
+        const assigned = pieces.map(piece => this.assign(direction, anchor, piece))
+        const mix = Profiles[style] === undefined ? "" : this.styleMix(direction, style)
+        return [`The ${style} template, by code: ${made.moves.map(move => `${move.old === null ? "new" : `${move.old.ref} ${move.old.name} →`} ${move.says}`).join("; ") || "no part to change"}.`,
+            ...(made.left.length > 0 ? [`Left as they are: ${made.left.join("; ")}.`] : []),
+            ...assigned, mix, `The template:\n${templateText(template)}`].filter(line => line !== "").join("\n")
+    }
+
+    // One template part: its new track made, then (crossfading) faded up while its old part fades down, the old parked.
+    async #move(direction: Direction, move: Move, beats: number): Promise<string> {
+        const agent = this.#captain.agent
+        const step = (plan: Plan, says: string) => performStep(this, agent, {plan, when: {at: "next", unit: "bar"}, says,
+            decided: {by: "code"}, activity: {direction: direction.id}}, `the style template: ${move.says}`)
+        const made = await step({op: "script", code: move.code, description: move.says}, move.says)
+        if (/not done/.test(made)) {return made}
+        const now = await this.snapshot()
+        const track = now?.tracks.filter(candidate => candidate.name === move.name).at(-1)
+        const results = [made]
+        if (move.old !== null && (move.handover || beats === 0)) {
+            results.push(await step({op: "set", ref: `${move.old.ref}.mix.mute`, to: 1}, `${move.old.name} parked`))
+            return results.join("; ")
+        }
+        if (track !== undefined) {
+            const up = step({op: "ramp", ref: `${track.ref}.mix.volume`, to: move.level_db, beats}, `${move.name} fading in`)
+            const down = move.old === null ? Promise.resolve("") : step({op: "ramp", ref: `${move.old.ref}.mix.volume`, to: -60, beats}, `${move.old.name} fading out`)
+            results.push(...await Promise.all([up, down]))
+        }
+        if (move.old !== null) {results.push(await step({op: "set", ref: `${move.old.ref}.mix.mute`, to: 1}, `${move.old.name} parked`))}
+        return results.filter(result => result !== "").join("; ")
     }
 
     // A style's mix (mixProfiles.ts): applied by code once the direction's parts have landed (no job running, nothing
