@@ -1216,6 +1216,12 @@ export class Adapter implements Terminable {
     // producer's own hand, so it's recorded and the Team Lead sees it as theirs). False if there's no such ref. A
     // gesture's writes go unmarked (mark false) between gestureMark() calls, so a drag is one undo step, as a knob's is.
     setAsProducer(ref: string, value: number, mark: boolean = true): boolean {
+        // An effect switched on or off by hand ("t3.fx1.enabled": a bypass toggle on a member's card, 2026-11-26).
+        const effect = this.#enabledOf(ref)
+        if (effect !== null) {
+            this.#project.editing.modify(() => effect.adapter.enabledField.setValue(value >= 0.5), mark)
+            return true
+        }
         const param = this.#param(ref)
         if (param === null || !Number.isFinite(value)) {return false}
         const {parameter} = param
@@ -1228,7 +1234,12 @@ export class Adapter implements Terminable {
     gestureMark(): void {this.#project.editing.mark()}
 
     // Whether a ref is a parameter that can be set (a direct control's binding).
-    hasParam(ref: string): boolean {return this.#param(ref) !== null
+    hasParam(ref: string): boolean {return this.#param(ref) !== null || this.#enabledOf(ref) !== null}
+
+    #enabledOf(ref: string): Effect | null {
+        const match = /^(.+\.fx\d+)\.enabled$/.exec(this.#named(ref))
+        if (match === null) {return null}
+        return this.#units().flatMap(unit => this.#effects(unit)).find(effect => effect.ref === match[1]) ?? null
     }
 
     // Requests still waiting for their bar or under way. They outlive a backend restart (2026-11-22: the board keeps the
@@ -1353,7 +1364,20 @@ export class Adapter implements Terminable {
             return
         }
         const param = this.#allParams().find(param => param.parameter.address.equals(update.address))
-        if (param === undefined) {return}
+        if (param === undefined) {
+            // An effect switched on or off (a bypass toggle on a card, or an agent parking it): reported as its
+            // "enabled", 0 or 1, so the team sees the producer's hand on it.
+            const effect = this.#units().flatMap(unit => this.#effects(unit)).find(effect => effect.adapter.enabledField.address.equals(update.address))
+            if (effect === undefined) {return}
+            this.#seq++
+            const actor: Actor = this.#applying?.actor ?? "user"
+            this.#connection.send({type: "change", event: {
+                seq: this.#seq, t: Date.now(), pos: this.#pos(), playing: this.#project.engine.isPlaying.getValue(),
+                actor, via: actor === "user" ? "gesture" : "edit", request: this.#applying?.request,
+                changes: [{kind: "value", ref: `${effect.ref}.enabled`, label: `${effect.label} on`, from: update.oldValue ? 1 : 0, to: update.newValue ? 1 : 0}]
+            }})
+            return
+        }
         this.#seq++
         const actor: Actor = this.#applying?.actor ?? "user"
         if (actor === "user") {this.#lastTouched.set(param.ref, this.#seq)}

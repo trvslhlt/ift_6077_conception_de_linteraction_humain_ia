@@ -1,0 +1,9 @@
+{
+  "//": "Panels and toggles (2026-11-26, the producer: other control types, toggles, several dials in one control, a vintage control with more than one dial): an effect added for a message gets a panel on its member's card (the crusher's Crunch, Bits and Mix and an on/off switch), the switch bypasses it with no turn; a vintage master from the Team Lead as a panel of several dials.",
+  "project": "01_good_base.odb",
+  "messages": [
+    {"text": "put a crusher on the drums"},
+    {"control": "", "widget": "switch", "kind": "direct", "value": 0},
+    {"text": "vintage effects on master, and give me a few knobs for it"}
+  ]
+}

@@ -255,21 +255,25 @@ input.takedo-dial:active::-webkit-slider-thumb { cursor: grabbing; background: r
         }
         return shell(control, input, true)
     }
+    // A switch is one toggle (2026-11-26, the producer: toggles): it shows its state's name and flips on a click.
     const toggle = (control: Control): HTMLElement => {
-        const on = control.value >= 0.5
-        const row: HTMLElement = <div style={{display: "flex", columnGap: "0.3em", margin: "0.2em 0"}}/>
-        const pick = (value: number) => () => {
-            if ((value >= 0.5) === on) {return}
-            direct(control, value, true)
-            send(control, value)
-            row.querySelectorAll("button").forEach((button, index) => {
-                const lit = index === value
-                button.dataset.on = String(lit)
-                button.style.background = lit ? "rgba(70, 120, 140, 0.9)" : "rgba(40, 44, 50, 0.95)"
-            })
+        let on = control.value >= 0.5
+        const lit = (button: HTMLButtonElement) => {
+            button.dataset.on = String(on)
+            button.textContent = `${on ? "●" : "○"} ${on ? control.high || "on" : control.low || "off"}`
+            button.style.background = on ? "rgba(70, 120, 140, 0.9)" : "rgba(40, 44, 50, 0.95)"
         }
-        row.append(chip(control.low || "off", !on, pick(0), "takedo-control-option"), chip(control.high || "on", on, pick(1), "takedo-control-option"))
-        return shell(control, row, false)
+        const button = chip("", on, () => {
+            on = !on
+            lit(button)
+            direct(control, on ? 1 : 0, true)
+            send(control, on ? 1 : 0)
+        }, "takedo-control-toggle")
+        button.style.minWidth = "4.5em"
+        button.style.padding = "0.3em 0.7em"
+        lit(button)
+        const body: HTMLElement = <div style={{display: "flex", alignItems: "center", columnGap: "0.5em", margin: "0.2em 0"}}>{button}</div>
+        return shell(control, body, false)
     }
     const choice = (control: Control): HTMLElement => {
         const row: HTMLElement = <div style={{display: "flex", flexWrap: "wrap", gap: "0.3em", margin: "0.2em 0"}}/>
@@ -298,9 +302,24 @@ input.takedo-dial:active::-webkit-slider-thumb { cursor: grabbing; background: r
         const box = controlsBox(agent)
         // A dial being dragged stays as it is; it reports when it's let go.
         if (box.contains(document.activeElement) && box.querySelector("input:active") !== null) {return}
-        box.replaceChildren(...(controls.length === 0
-            ? [<div style={{opacity: "0.5"}}>No controls yet</div>]
-            : controls.map(control => (widgets[control.widget] ?? dial)(control))))
+        // A panel (controls sharing a group): one framed box under its title, in the place of its first control.
+        const drawn: HTMLElement[] = []
+        const panels = new Map<string, HTMLElement>()
+        for (const control of controls) {
+            const element = (widgets[control.widget] ?? dial)(control)
+            if (control.group === undefined) {drawn.push(element); continue}
+            let panel = panels.get(control.group)
+            if (panel === undefined) {
+                panel = <div data-testid="takedo-control-panel" data-group={control.group} style={{border: "1px solid #444",
+                    borderRadius: "6px", padding: "0.35em 0.5em", display: "flex", flexDirection: "column", rowGap: "0.35em"}}>
+                    <div style={{fontWeight: "bold", opacity: "0.85"}}>{control.group}</div>
+                </div>
+                panels.set(control.group, panel)
+                drawn.push(panel)
+            }
+            panel.append(element)
+        }
+        box.replaceChildren(...(controls.length === 0 ? [<div style={{opacity: "0.5"}}>No controls yet</div>] : drawn))
     }
     // Each card: the member, its area, what it says it's doing, and the controls it offers the producer. One per
     // roster member from the start; an agent outside the roster gets one when it acts.

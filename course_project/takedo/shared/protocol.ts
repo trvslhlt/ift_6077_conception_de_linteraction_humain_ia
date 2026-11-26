@@ -165,6 +165,7 @@ export type MemberCard = { agent: Actor, name: string, doing: string }
 export type ControlWidget = "dial" | "switch" | "choice" | "button"
 export type Control = { ref: string, owner: Actor, kind: "intent" | "direct", widget: ControlWidget, label: string,
     low: string, high: string, meaning: string, value: number
+    group?: string                                              // a panel's title: controls sharing it show together, one on the card's limit
     options?: string[]                                          // choice: its options, in order
     bind?: Array<{ ref: string, from: number, to: number }>     // direct: the parameters it sets (t2.mix.volume, t3.fx1.wet)
     transitions?: Record<string, "handover" | "crossfade"> }   // per track ref, how a part in one end only comes and goes (blend.ts)

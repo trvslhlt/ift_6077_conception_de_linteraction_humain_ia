@@ -23,6 +23,7 @@ import {type Line, type Triage, triage, triageState} from "./triage.ts"
 import {Tweaks} from "./variants.ts"
 import {fastEffect, fastMix, SurePath, fastTweak} from "./fastpath.ts"
 import {Profiles, Styles, styleSteps} from "./mixProfiles.ts"
+import {effectPanel, MaxGroup, slots} from "./panels.ts"
 import {MaxControls, MaxTotalControls, memberActor, type MemberName, MemberNames, Members, memberOf, TeamList} from "./team.ts"
 import {auditionPhrase, drumAudition, padRole} from "./library.ts"
 import {soundsAgainst} from "./soundFit.ts"
@@ -48,7 +49,7 @@ const TweakDials: Partial<Record<string, string>> = {busier: "Busy", sparser: "S
 const MaxOptions = 6
 const Pressed = -1                                  // a button's "was" in #moved: never its value, so a press is always news
 // A parameter a direct control may set: a track's or the master's mix control, or an effect's parameter.
-const ParamRef = /^(t\d+|master)\.(mix\.(volume|pan|mute|solo)|fx\d+\.[A-Za-z0-9_.]+)$/
+const ParamRef = /^(t\d+|master)\.(mix\.(volume|pan|mute|solo)|fx\d+\.[A-Za-z0-9_./]+)$/
 // A control's value as its widget has it: a switch on one of its two states, a choice on an option, a button at 0.
 const settled = (widget: Control["widget"], value: number, options?: ReadonlyArray<string>): number => {
     const clamped = Number.isFinite(value) ? value : 0
@@ -503,10 +504,16 @@ export class Coordinator {
         const controls = this.controls()
         const existing = controls.find(control => control.ref === offered.ref)
         if (existing !== undefined && existing.owner !== owner) {return `Not offered: ${offered.ref} is ${existing.owner}'s.`}
-        if (existing === undefined && controls.filter(control => control.owner === owner).length >= MaxControls) {
+        // A panel (controls sharing a group) counts once; a control joining one of its owner's panels takes no new slot.
+        const group = offered.group?.trim() || undefined
+        const joining = group !== undefined && controls.some(control => control.owner === owner && control.group === group)
+        if (joining && controls.filter(control => control.owner === owner && control.group === group).length >= MaxGroup && existing === undefined) {
+            return `Not offered: the "${group}" panel has ${MaxGroup} controls already.`
+        }
+        if (existing === undefined && !joining && slots(controls.filter(control => control.owner === owner)) >= MaxControls) {
             return `Not offered: ${owner.replace("agent:", "")}'s card has ${MaxControls} controls already; remove one that no longer applies first.`
         }
-        if (existing === undefined && controls.length >= MaxTotalControls) {
+        if (existing === undefined && !joining && slots(controls) >= MaxTotalControls) {
             return `Not offered: the team has ${MaxTotalControls} controls already (${controls.map(control => `${control.ref} on ${control.owner.replace("agent:", "")}'s card`).join(", ")}); remove one that no longer applies first.`
         }
         const {widget, kind} = offered
@@ -521,7 +528,7 @@ export class Coordinator {
         }
         const control: Control = {ref: offered.ref, owner, kind, widget, label: offered.label, low: offered.low, high: offered.high,
             meaning: offered.meaning, value: settled(widget, existing?.widget === widget ? existing.value : offered.value, options),
-            ...(options !== undefined ? {options} : {}), ...(bind !== undefined ? {bind} : {}),
+            ...(group !== undefined ? {group} : {}), ...(options !== undefined ? {options} : {}), ...(bind !== undefined ? {bind} : {}),
             ...(existing?.transitions !== undefined ? {transitions: existing.transitions} : {})}
         this.#setControls(existing === undefined ? [...controls, control]
             : controls.map(candidate => candidate.ref === control.ref ? control : candidate))
@@ -532,8 +539,11 @@ export class Coordinator {
 
     removeControl(owner: Actor, ref: string): string {
         const controls = this.controls()
-        if (!controls.some(control => control.ref === ref && (control.owner === owner || owner === this.#captain.agent))) {return `There's no control ${ref}.`}
-        this.#setControls(controls.filter(control => control.ref !== ref))
+        // A ref, or a panel's title (all its controls).
+        const named = ref.startsWith("c:") ? ref : `c:${ref}`
+        const gone = (control: Control) => (control.ref === named || control.group === ref) && (control.owner === owner || owner === this.#captain.agent)
+        if (!controls.some(gone)) {return `There's no control ${ref}.`}
+        this.#setControls(controls.filter(control => !gone(control)))
         return `Removed ${ref}.`
     }
 
@@ -1160,17 +1170,18 @@ export class Coordinator {
         const devices = [...snapshot.tracks.map(track => ({where: track.name, effects: track.effects})), {where: "the master", effects: snapshot.master.effects}]
         const owner = devices.find(({effects}) => effects.some(effect => effect.ref === added.ref))
         const device = owner?.effects.find(effect => effect.ref === added.ref)
-        const amount = device?.params?.find(param => /\.(wet|mix)$/.test(param.ref))
-        if (owner === undefined || device === undefined || amount === undefined) {return}
-        // A wet in dB from -40 (barely there) to 0; a mix from none to all.
-        const [from, to] = amount.ref.endsWith(".wet") ? [Math.max(amount.min, -40), Math.min(amount.max, 0)] : [amount.min, amount.max]
-        const value = Math.max(0, Math.min(1, (amount.value - from) / (to - from)))
-        // On the card of the member the request landed with (a reverb the mix engineer's, a crusher the sound designer's).
+        if (owner === undefined || device === undefined) {return}
+        // On the card of the member the request landed with (a reverb the mix engineer's, a crusher the sound designer's):
+        // a panel of the settings it's ridden by and a bypass switch (panels.ts), one slot on the card.
         const knobOwner = memberActor(this.#effectMember(asked ?? "", this.#landsWith?.judged.effect ?? "other"))
-        const said = this.offerControl(knobOwner, {ref: `c:${added.ref.replace(/\./g, "_")}_amount`, kind: "direct", widget: "dial",
-            label: `${device.name} on ${owner.where === "the master" ? "the master" : owner.where}`, low: "dry", high: "wet",
-            meaning: `How much of the ${device.name} you hear`, value, bind: [{ref: amount.ref, from, to}]})
-        if (said.startsWith("On your card")) {this.say(knobOwner, `There's a knob for the ${device.name.toLowerCase()} on my card, to set how much of it you hear.`)}
+        const where = owner.where === "the master" ? "the master" : owner.where
+        const panel = effectPanel(device, where)
+        if (panel.length === 0) {return}
+        const said = panel.map(control => this.offerControl(knobOwner, control))
+        if (said[0]?.startsWith("On your card")) {
+            const dials = panel.filter(control => control.widget === "dial").map(control => control.label.toLowerCase())
+            this.say(knobOwner, `The ${device.name.toLowerCase()} has its own panel on my card: ${dials.length > 0 ? `${dials.join(", ")}, and ` : ""}an on/off switch.`)
+        } else {this.#log.write("tweak_dial", {panel: panel[0]?.group, said: said[0]})}
     }
 
     // Whose an effect is (2026-11-26, the producer: the vintage effect's control expected on the sound designer's or the

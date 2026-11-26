@@ -47,7 +47,7 @@ Tools:
 Your team (the producer sees them by name, and their cards in the team view): every piece goes to the member it lands with, by what it does to the music, not by instrument.
 ${MemberNames.map(member => `- ${member}: ${Members[member].area}; controls: ${Members[member].controls}.`).join("\n")}
 A producer_message may come with lands_with: who the message most likely lands with and the control it merits, from a quick classifier; follow it unless the message plainly says otherwise. A direction for several members (a style, "bigger") is yours: split it into pieces, each to its member.
-Controls tune a direction afterwards, and go on the card of the member it landed with (offer_control's card; yours for a style or a direction several members share). Not every direction gets one: never for a correction, an exact request or a plain level move. When lands_with names a control, offer that one; when it says unsure, it's the member's call: offer one of its_controls when the direction makes something new (a part, a melody, an effect, a sound) or is a matter of degree, in the same turn you assign it (a choice between versions needs the versions: ask the member for two or three); when the producer asks for a control, that one. At most ${MaxControls} on a card and ${MaxTotalControls} in all: remove one that no longer applies before adding another.
+Controls tune a direction afterwards, and go on the card of the member it landed with (offer_control's card; yours for a style or a direction several members share). Not every direction gets one: never for a correction, an exact request or a plain level move. When lands_with names a control, offer that one; when it says unsure, it's the member's call: offer one of its_controls when the direction makes something new (a part, a melody, an effect, a sound) or is a matter of degree, in the same turn you assign it (a choice between versions needs the versions: ask the member for two or three); when the producer asks for a control, that one. At most ${MaxControls} on a card and ${MaxTotalControls} in all (a panel counts as one): remove one that no longer applies before adding another. A direction with several sides the producer will want to ride apart (a vintage master: wobble, crunch, tone) gets a panel: direct dials sharing a group, each bound to its own parameters once they exist (after its piece lands: its report gives the refs), with a switch bound to each effect's enabled (t3.fx1.enabled) to bypass it. An effect added for a message on its own already gets a panel by code.
 
 Rules:
 - project is the project as it is now: what has landed. A gradual change that has finished shows its end values (a tempo eased from 119 to 82 reads 82); that's the plan having worked, not a jump.
@@ -394,6 +394,7 @@ export class Captain {
                 name: z.string().regex(/^[a-z][a-z0-9_]{0,30}$/).describe("A short id, lower case (\"lofi_amount\")"),
                 card: z.enum(["team_lead", ...MemberNames]).default("team_lead").describe("Whose card it goes on: the member the direction it tunes landed with; team_lead (yours) for a style or a direction several members share"),
                 label: z.string().max(30).describe("What the producer reads on it, a word or two (\"Lofi\", \"Busy\")"),
+                group: z.string().max(40).optional().describe("A panel's title: controls with the same group show together as one panel on the card and count as one control (up to 4 in a panel). For a direction with several sides the producer will ride separately: a Vintage panel of direct dials Wow (the tremolo's depth), Crunch (the crusher's crush), Tone (the EQ's top) and a switch bypassing it all"),
                 widget: z.enum(["dial", "switch", "choice", "button"]).default("dial").describe("dial: an amount between two ends; switch: one of two states (a part in or out, half-time or not); choice: one of a few named options (sections, variations, kits); button: a one-shot the producer presses when they want it (a fill, a drop, a build into the next phrase)"),
                 kind: z.enum(["intent", "direct"]).default("intent").describe("intent: a direction to you; direct: a dial or switch bound to parameters (bind), set instantly with no turn of yours (a macro knob for the reverb, a mute switch), for something the producer wants under their own hand"),
                 low: z.string().max(30).default("").describe("dial, switch: its 0 end or off state, in the producer's words (\"clean\")"),
@@ -410,13 +411,20 @@ export class Captain {
                     const widget = input.widget as Control["widget"]
                     const kind = input.kind as Control["kind"]
                     const fresh = !current.context.controls().some(control => control.ref === ref)
-                    const owner: Actor = input.card === undefined || input.card === "team_lead" ? this.agent : memberActor(input.card as MemberName)
-                    const said = current.context.offerControl(owner, {ref, kind, widget, label: String(input.label), low: String(input.low ?? ""),
+                    // A direction that landed with one member is tuned on its card, even when the Team Lead names its own
+                    // (2026-11-26: a vintage master panel went on the Team Lead's card); a style or a shared one is the Team Lead's.
+                    const landed = current.context.landsWith(current.direction.text)?.member
+                    const card = (input.card === undefined || input.card === "team_lead") && landed !== undefined && (MemberNames as readonly string[]).includes(landed)
+                        ? landed : input.card
+                    const owner: Actor = card === undefined || card === "team_lead" ? this.agent : memberActor(card as MemberName)
+                    let said = current.context.offerControl(owner, {ref, kind, widget, label: String(input.label), low: String(input.low ?? ""),
+                        ...(typeof input.group === "string" && input.group.trim() !== "" ? {group: input.group} : {}),
                         high: String(input.high ?? ""), meaning: String(input.meaning), value: Number(input.value),
                         ...(input.options !== undefined ? {options: (input.options as string[]).map(String)} : {}),
                         ...(input.bind !== undefined ? {bind: (input.bind as Array<{ ref: string, from: number, to: number }>)
                             .map(({ref, from, to}) => ({ref: String(ref), from: Number(from), to: Number(to)}))} : {})})
                     const placed = current.context.controls().find(control => control.ref === ref)
+                    if (owner !== this.agent) {said = said.replace(/^On your card/, `On the ${Members[card as MemberName].name.toLowerCase()}'s card (not yours: say so)`)}
                     if (!fresh || placed === undefined) {return said}
                     current.context.ledger.dial(ref, current.direction.id)
                     // An intent dial's or switch's other end: the project before this direction, kept as a take.
@@ -462,8 +470,8 @@ export class Captain {
             tool("style_mix", "Give the project a style's mix, by code: each part's pan, and how much it sends into a shared reverb and delay set up for that style (made the first time), by what it plays (drums, perc, bass, chords, pad, lead). It goes on once this direction's parts have landed, so new parts get their place too, every change gliding. Call it after assigning a style direction's pieces; it's cheaper and more consistent than an effects piece for the space and placement.", {
                 style: z.enum(Styles as [string, ...string[]]).describe("The style whose mix this is: the nearest to the producer's")},
                 handler((current, input) => current.context.styleMix(current.direction, String(input.style)))),
-            tool("remove_control", "Take a control off its card (yours or a member's).", {name: z.string()},
-                handler((current, input) => current.context.removeControl(this.agent, `c:${String(input.name).replace(/^c:/, "")}`))),
+            tool("remove_control", "Take a control off its card (yours or a member's): its name, or a panel's title to take the whole panel.", {name: z.string()},
+                handler((current, input) => current.context.removeControl(this.agent, String(input.name)))),
             tool("look", "Run read-only JavaScript (an async function body, `takedo` in scope) and see what it returns.", {
                 code: z.string()}, handler(async (current, input) => {
                     const {ok, value} = await current.context.look(this.agent, String(input.code))
