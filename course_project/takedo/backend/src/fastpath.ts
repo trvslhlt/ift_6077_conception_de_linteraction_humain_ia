@@ -115,7 +115,9 @@ export const fastEffect = (judged: Triage, message: string, snapshot: Snapshot):
         case "add":
             // A second limiter (the master has its safety one) is the Team Lead's call.
             if (judged.effect === "limiter" && existing !== undefined) {return null}
-            return step({op: "add_effect", track: master ? "master" : track!.ref, device: plan.device, factory: plan.device, settings: plan.at(level)},
+            // It enters mild (2026-11-26, the producer: not at full blast): at most the moderate setting, the subtle
+            // one on the master, whatever the words ("damage"); its knob takes it further.
+            return step({op: "add_effect", track: master ? "master" : track!.ref, device: plan.device, factory: plan.device, settings: plan.at(Math.min(level, master ? 0 : 1))},
                 `Adding a ${judged.effect} on ${name}.`)
         case "remove":
             if (existing === undefined) {return null}
@@ -151,6 +153,9 @@ export type FastSteps = { steps: Step[], says: string }
 export const fastTweak = (judged: Triage, message: string, full: Snapshot, script: (call: string, args: unknown) => string | null): FastSteps | null => {
     if (judged.tweak === "none" || judged.path !== "team" || Math.min(judged.tweakP, judged.partP) < SureTweak) {return null}
     if (/\d/.test(message) || judged.when === "later" || judged.newPart >= 0.5) {return null}
+    // A tweak of the notes is the composer's or the performer's: "add some space on the lead" (2026-11-26) was judged
+    // sparser, but the mix engineer's (a reverb), and the lead lost notes.
+    if (!["composer", "performer"].includes(judged.member) && judged.memberP >= 0.5) {return null}
     const track = full.tracks.find(candidate => candidate.ref === judged.part)
     const region = track === undefined ? null : playing(track, full)
     if (track === undefined || region === null || region.notes === undefined) {return null}

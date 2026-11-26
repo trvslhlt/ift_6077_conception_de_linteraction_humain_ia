@@ -1,0 +1,10 @@
+{
+  "//": "The producer's 21:24 session (2026-11-26): 'add some space on the lead' had thinned the lead's notes (a tweak, though Jev said the mix engineer's), and 'vintage damage' put a crusher on the master at full blast with its knob on the Team Lead's card. Now: space is the mix engineer's, effects enter mild, and their knobs go on the sound designer's or the mix engineer's card.",
+  "project": "01_good_base.odb",
+  "messages": [
+    {"text": "bring in a lead melody"},
+    {"text": "add some space on the lead"},
+    {"text": "apply vintage damage effects to the whole thing"},
+    {"text": "put a crusher on the drums"}
+  ]
+}

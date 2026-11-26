@@ -765,14 +765,17 @@ export class Coordinator {
         if (judged === null) {return false}
         this.#landsWith = {message, judged}
         if (judged.path === "effect" && judged.pathP >= SurePath) {this.#effectAsked = message}
-        const single = fastMix(judged, message, snapshot, Object.fromEntries(this.#mixBefore)) ?? fastEffect(judged, message, full ?? snapshot)
+        const mixed = fastMix(judged, message, snapshot, Object.fromEntries(this.#mixBefore))
+        const single = mixed ?? fastEffect(judged, message, full ?? snapshot)
         const fast = single !== null ? {steps: [single.step], says: single.says}
             : full === null ? null : fastTweak(judged, message, full, (call, args) => this.#knowledge?.script(call, args) ?? null)
         this.#log.write("triage", {message, ...judged, fast: fast !== null})
         if (fast === null) {return false}
-        // Done as the member it lands with when Jev is sure who (a swing is the performer's, a level the mix engineer's).
+        // Done as the member it lands with when Jev is sure who (a swing is the performer's, a level the mix engineer's);
+        // an effect always by its member (#effectMember).
         const member = this.landsWith(message)?.member
-        const agent: Actor = member !== undefined && (MemberNames as readonly string[]).includes(member) ? memberActor(member as MemberName) : "agent:team_lead"
+        const agent: Actor = mixed === null && single !== null ? memberActor(this.#effectMember(message, judged.effect))
+            : member !== undefined && (MemberNames as readonly string[]).includes(member) ? memberActor(member as MemberName) : "agent:team_lead"
         this.say(agent, fast.says)
         // Its own direction on the board, so the edit is owned (the ledger) and an effect it adds gets its knob (#effectKnob).
         const direction = this.board.direction(message)
@@ -1163,12 +1166,22 @@ export class Coordinator {
         const [from, to] = amount.ref.endsWith(".wet") ? [Math.max(amount.min, -40), Math.min(amount.max, 0)] : [amount.min, amount.max]
         const value = Math.max(0, Math.min(1, (amount.value - from) / (to - from)))
         // On the card of the member the request landed with (a reverb the mix engineer's, a crusher the sound designer's).
-        const member = asked === undefined ? undefined : this.landsWith(asked)?.member
-        const knobOwner: Actor = member !== undefined && (MemberNames as readonly string[]).includes(member) ? memberActor(member as MemberName) : "agent:team_lead"
+        const knobOwner = memberActor(this.#effectMember(asked ?? "", this.#landsWith?.judged.effect ?? "other"))
         const said = this.offerControl(knobOwner, {ref: `c:${added.ref.replace(/\./g, "_")}_amount`, kind: "direct", widget: "dial",
             label: `${device.name} on ${owner.where === "the master" ? "the master" : owner.where}`, low: "dry", high: "wet",
             meaning: `How much of the ${device.name} you hear`, value, bind: [{ref: amount.ref, from, to}]})
         if (said.startsWith("On your card")) {this.say(knobOwner, `There's a knob for the ${device.name.toLowerCase()} on my card, to set how much of it you hear.`)}
+    }
+
+    // Whose an effect is (2026-11-26, the producer: the vintage effect's control expected on the sound designer's or the
+    // mix engineer's card, not the Team Lead's): Jev's member when it's one of those two, sure or not; else by its kind,
+    // space and dynamics the mix engineer's, character (distortion, crusher, tremolo) the sound designer's.
+    #effectMember(message: string, effect: string): MemberName {
+        const judged = this.#landsWith?.message === message ? this.#landsWith.judged : null
+        const addressed = this.#addressed?.message === message ? this.#addressed.member : null
+        if (addressed === "sound_designer" || addressed === "mix_engineer") {return addressed}
+        if (judged !== null && (judged.member === "sound_designer" || judged.member === "mix_engineer")) {return judged.member}
+        return ["distortion", "crusher", "tremolo"].includes(effect) ? "sound_designer" : "mix_engineer"
     }
 
     // A parked effect's knobs leave the card with it.

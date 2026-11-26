@@ -28,9 +28,11 @@ describe("the effect fast path", () => {
         params: [{ref: "master.fx1.wet", name: "Wet", value: -12, display: "-12 dB", min: -96, max: 0, stepped: false}]}]}}
     const effect = (part: string, kind: Triage["effect"], action: Triage["action"], extra: Partial<Triage> = {}): Triage =>
         judged(part, "quieter", {path: "effect", effect: kind, effectP: 0.95, action, actionP: 0.95, ...extra})
-    it("adds an effect with settings by Jev's amount", () => {
+    it("adds an effect mild, by Jev's amount at most moderate, the subtlest on the master", () => {
         assert.deepEqual(fastEffect(effect("whole_mix", "reverb", "add"), "put a reverb on master", snapshot)?.step.plan,
-            {op: "add_effect", track: "master", device: "Reverb", factory: "Reverb", settings: [{param: "decay", value: 0.5}, {param: "wet", value: -12}]})
+            {op: "add_effect", track: "master", device: "Reverb", factory: "Reverb", settings: [{param: "decay", value: 0.4}, {param: "wet", value: -18}]})
+        assert.deepEqual(fastEffect(effect("t1", "crusher", "add", {amount: 3}), "destroy the drums with a crusher", snapshot)?.step.plan,
+            {op: "add_effect", track: "t1", device: "Crusher", factory: "Crusher", settings: [{param: "crush", value: 0.4}, {param: "bits", value: 10}]})
     })
     it("makes more of one there, adds one where there's none", () => {
         assert.deepEqual(fastEffect(effect("whole_mix", "reverb", "more"), "more reverb", withReverb)?.step.plan,
@@ -84,7 +86,7 @@ describe("the musical fast path", () => {
     const full: Snapshot = {...snapshot, detail: "full", tracks: [track("t1", "Drums", -4), bass]}
     const calls: Array<{ call: string, args: { region: string, notes: number[][] } }> = []
     const script = (call: string, args: unknown) => {calls.push({call, args: args as { region: string, notes: number[][] }}); return `kb.${call}()`}
-    const tweak = (extra: Partial<Triage>) => judged("t3", "quieter", {path: "team", tweak: "octave_down", tweakP: 0.95, ...extra})
+    const tweak = (extra: Partial<Triage>) => judged("t3", "quieter", {path: "team", tweak: "octave_down", tweakP: 0.95, member: "composer", ...extra})
     it("makes a tweak Jev is sure of by code: two stages, a bar apart, the last the tweak exactly", () => {
         calls.length = 0
         const fast = fastTweak(tweak({}), "drop the bass an octave", full, script)
@@ -102,5 +104,7 @@ describe("the musical fast path", () => {
         assert.equal(fastTweak(tweak({path: "mix"}), "bass down", full, script), null)
         assert.equal(fastTweak(tweak({tweak: "none"}), "make it trap", full, script), null)
         assert.equal(fastTweak(tweak({tweak: "fill"}), "a fill on the bass", full, script), null)     // a fill is for drums
+        assert.equal(fastTweak(tweak({member: "mix_engineer", memberP: 0.7}), "add some space on the bass", full, script), null)
+        assert.equal(fastTweak(tweak({newPart: 0.9}), "sparse lead melody", full, script), null)
     })
 })

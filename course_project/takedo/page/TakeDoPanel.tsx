@@ -225,11 +225,25 @@ export const TakeDoPanel = ({lifecycle, service, visible}: Construct): HTMLEleme
         button.onclick = press
         return button
     }
+    // The browser's range is a few pixels tall to grab (2026-11-26, the producer: the sliders are hard to use, a small
+    // click height): a 24 px tall hit area with a thick track and a big thumb, styled once for the page.
+    if (document.getElementById("takedo-dial-style") === null) {
+        const style = document.createElement("style")
+        style.id = "takedo-dial-style"
+        const track = "height: 6px; border-radius: 3px; background: rgba(120, 130, 140, 0.45);"
+        const thumb = "width: 18px; height: 18px; border-radius: 50%; background: rgb(110, 170, 190); border: 2px solid rgb(30, 34, 40); cursor: grab;"
+        style.textContent = `input.takedo-dial { -webkit-appearance: none; appearance: none; width: 100%; height: 24px; margin: 0.1em 0; background: transparent; cursor: pointer; touch-action: none; }
+input.takedo-dial::-webkit-slider-runnable-track { ${track} }
+input.takedo-dial::-moz-range-track { ${track} }
+input.takedo-dial::-webkit-slider-thumb { -webkit-appearance: none; ${thumb} margin-top: -6px; }
+input.takedo-dial::-moz-range-thumb { ${thumb} }
+input.takedo-dial:active::-webkit-slider-thumb { cursor: grabbing; background: rgb(150, 205, 225); }`
+        document.head.append(style)
+    }
     const dial = (control: Control): HTMLElement => {
         const input: HTMLInputElement = (
-            <input type="range" min="0" max="100" step="1" value={String(Math.round(control.value * 100))}
-                   data-testid="takedo-control-input" aria-label={`${control.label}, from ${control.low} to ${control.high}`}
-                   style={{width: "100%", margin: "0.2em 0"}}/>
+            <input type="range" min="0" max="100" step="1" value={String(Math.round(control.value * 100))} className="takedo-dial"
+                   data-testid="takedo-control-input" aria-label={`${control.label}, from ${control.low} to ${control.high}`}/>
         )
         if (control.kind === "direct") {
             input.onpointerdown = () => handle.adapter?.gestureMark()
