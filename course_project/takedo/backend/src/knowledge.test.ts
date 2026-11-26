@@ -302,7 +302,9 @@ describe("kits", {skip: samples.size === 0 ? "no samples/ (make samples)" : fals
         for (const args of [{pattern: "pattern/four-on-the-floor"}, {pattern: "pattern/four-on-the-floor", from_bar: 5}]) {
             const planned = withSamples.expand("sound/kit-house-909", args, take)
             assert.ok(Array.isArray(planned) && /from the bar it lands on/.test(planned[0].says), JSON.stringify(planned).slice(0, 300))
-            const sent = JSON.parse(planned[0].code.slice("const args = ".length, planned[0].code.indexOf(";\n")))
+            const kit = (planned as Array<{ kind: string, code?: string }>)[0]
+            if (kit.code === undefined) {throw new Error("not a script")}
+            const sent = JSON.parse(kit.code.slice("const args = ".length, kit.code.indexOf(";\n")))
             assert.equal(sent.notes.from_bar, null)
         }
     })

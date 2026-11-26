@@ -4,7 +4,7 @@ import type Anthropic from "@anthropic-ai/sdk"
 import type {CallToolResult} from "@modelcontextprotocol/sdk/types.js"
 import {z} from "zod"
 import type {Actor, Note, Plan, Snapshot, Status, When} from "../../shared/protocol.ts"
-import {type Action, type Anchor, commitAnchor, type Direction, type Piece, type PieceKind, PieceKinds, type Step as BoardStep} from "./board.ts"
+import {type Action, type Anchor, type Direction, type Piece, type PieceKind, PieceKinds, type Step as BoardStep} from "./board.ts"
 import type {Coordinator} from "./coordinator.ts"
 import type {Catalog} from "./catalog.ts"
 import {drumMap, type Knowledge, shortlist} from "./knowledge.ts"
@@ -836,7 +836,9 @@ export class Utility implements Member {
             current.work.late.push(`the plan's ${steps.length} timed edits: not sent, no project is open`)
             return
         }
-        if (current.anchor !== null) {current.anchor = commitAnchor(current.anchor, now)}
+        if (current.anchor !== null) {
+            current.anchor = context.board.anchor(current.direction.id, current.anchor, now, Math.min(...steps.map(step => step.bar)))
+        }
         for (const step of steps) {
             if (context.board.step(step.id)?.state !== "sent") {continue}   // cancelled meanwhile
             const bar = step.bar

@@ -52,6 +52,7 @@ export type Job = { id: string, direction: string, piece: string, state: "runnin
 export class Board {
     readonly #log: (data: object) => void
     readonly #directions = new Map<string, Direction>()
+    readonly #bound = new Map<string, number>()      // a direction's bar 1, as how far its first part sent moved the anchor
     #steps: Step[] = []
     #jobs: Job[] = []
     #file: string | null = null
@@ -74,6 +75,14 @@ export class Board {
     #save(): void {
         if (this.#file === null) {return}
         writeFileSync(this.#file, JSON.stringify({directions: [...this.#directions.values()], steps: this.#steps, jobs: this.#jobs}))
+    }
+
+    // The anchor a direction's part is sent with (commitAnchor): the first part sent fixes the direction's bar 1 for the rest.
+    anchor(direction: string, anchor: Anchor, now: Snapshot, first: number): Anchor {
+        const bound = this.#bound.get(direction) ?? null
+        const committed = commitAnchor(anchor, now, bound, first)
+        if (bound === null) {this.#bound.set(direction, committed.played - anchor.played)}
+        return committed
     }
 
     direction(text: string, control = false): Direction {
@@ -240,6 +249,7 @@ export class Board {
 
     clear(): void {
         this.#directions.clear()
+        this.#bound.clear()
         this.#steps = []
         this.#jobs = []
         this.#file = null
@@ -251,9 +261,18 @@ export type Anchor = { position: number, played: number, bar: number }
 
 // The anchor a plan is sent with: the message's, moved later past the playhead now by whole bars of playing (steps count
 // bars of playing from it, 2026-11-24), so every step's time is still ahead and they keep their spacing.
-export const commitAnchor = (anchor: Anchor, now: Snapshot): Anchor => {
+// bound: how far an earlier part of the same direction moved it (Board.anchor). A later part keeps that, so parts planned
+// for one bar land on one bar; if its first step (first: its bar) would have passed, it moves on by whole phrases, so it
+// stays in step with the parts already playing (2026-11-25: jobs moved on their own, by whole bars, and two parts planned
+// for the same bar landed 1 to 3 bars apart).
+export const Phrase = 4
+export const commitAnchor = (anchor: Anchor, now: Snapshot, bound: number | null = null, first = 1): Anchor => {
     const [beats, unit] = now.timeline.signature
     const step = 960 * 4 * beats / unit
-    const delay = Math.max(0, Math.ceil((now.playback.played - anchor.played) / step)) * step
-    return {...anchor, played: anchor.played + delay}
+    if (bound === null) {
+        return {...anchor, played: anchor.played + Math.max(0, Math.ceil((now.playback.played - anchor.played) / step)) * step}
+    }
+    const least = Math.max(0, Math.ceil((now.playback.played - anchor.played - Math.max(0, first - 1) * step) / step)) * step
+    const phrase = Phrase * step
+    return {...anchor, played: anchor.played + (bound >= least ? bound : bound + Math.ceil((least - bound) / phrase) * phrase)}
 }

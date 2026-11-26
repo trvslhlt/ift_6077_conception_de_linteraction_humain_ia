@@ -43,6 +43,17 @@ describe("the board", () => {
         assert.equal(commitAnchor(anchor, now(5 * bar)).played, 5 * bar)
         assert.equal(commitAnchor(anchor, now(1.5 * bar, false)).played, 2 * bar, "no loop: the same")
     })
+    it("gives a direction one bar 1: a later part keeps it, or moves on by whole phrases if its first bar has passed", () => {
+        const board = new Board(() => {})
+        const {id} = board.direction("make it trap")
+        const anchor = {position: 2 * bar, played: 0, bar: 3}
+        assert.equal(board.anchor(id, anchor, now(1.5 * bar), 1).played, 2 * bar, "the first part sent fixes it")
+        assert.equal(board.anchor(id, anchor, now(2.5 * bar), 2).played, 2 * bar, "a part from bar 2 on: still ahead, kept")
+        assert.equal(board.anchor(id, anchor, now(3.5 * bar), 1).played, 6 * bar, "bar 1 has passed: one phrase on")
+        assert.equal(board.anchor(id, anchor, now(9.5 * bar), 1).played, 10 * bar, "two phrases on")
+        const other = board.direction("now house")
+        assert.equal(board.anchor(other.id, anchor, now(9.5 * bar), 1).played, 10 * bar, "another direction: its own")
+    })
 })
 
 describe("the board across a restart", () => {
