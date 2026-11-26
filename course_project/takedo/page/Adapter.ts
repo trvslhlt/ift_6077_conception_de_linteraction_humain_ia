@@ -21,6 +21,7 @@ import {Clock} from "./Clock"
 import {ceilingOf, type Correction, guardField} from "./Guard"
 import {runLook, runScript, type ScriptEnv, scriptEnv, serialize} from "./Scripting"
 import {loadTakedoPresets} from "./Samples"
+import {channelState, onStateReadError, unstick} from "./EngineState"
 import type {Connection} from "./Connection"
 
 // The page half of the bus (TAKEDO_API.md, "Overview"): the only TakeDo code that touches openDAW. Holds the ref map,
@@ -171,6 +172,7 @@ export class Adapter implements Terminable {
             lastError = (error instanceof Error ? `${error.message} ${error.stack ?? ""}` : String(error)).slice(0, 800)
             this.#connection.send({type: "engine_health", state: "page_error", detail: lastError})
         }
+        onStateReadError(text => {lastError = text; this.#connection.send({type: "engine_health", state: "page_error", detail: text})})
         window.addEventListener("error", onError)
         window.addEventListener("unhandledrejection", onError)
         this.#terminator.own({terminate: () => {window.removeEventListener("error", onError); window.removeEventListener("unhandledrejection", onError)}})
@@ -183,7 +185,12 @@ export class Adapter implements Terminable {
             last = position
             const cpu = `CPU load ${Math.round(project.engine.cpuLoad.getValue() * 100)}%`
             if (dialog !== undefined && state !== "crashed") {send("crashed", `${dialog.innerText.slice(0, 300)} (${cpu})`)}
-            else if (dialog === undefined && stuck >= StallSeconds && state === "ok") {send("stalled", `playhead stuck at ${this.#pos(position)} while playing for ${stuck} s (${cpu}; the audio context ${audio.state}, its clock moved ${(audio.currentTime - audioAtStuck).toFixed(1)} s meanwhile)`)}
+            else if (dialog === undefined && stuck >= StallSeconds && state === "ok") {
+                // Which side stopped: the engine's state channel's flag (EngineState.ts), and the page's repair if it's the page's.
+                const channel = channelState(), repaired = unstick()
+                send("stalled", `playhead stuck at ${this.#pos(position)} while playing for ${stuck} s (${cpu}; the audio context ${audio.state}, its clock moved ${(audio.currentTime - audioAtStuck).toFixed(1)} s meanwhile; the engine's state channel ${channel ?? "unknown"}${channel === "read" ? ": the engine stopped writing its state" : ""}${repaired !== null ? `; ${repaired}` : ""})`)
+            }
+            else if (dialog === undefined && state === "stalled" && stuck >= StallSeconds) {unstick()}
             else if (dialog === undefined && state !== "ok" && playing && stuck === 0) {send("recovered", `playing again at ${this.#pos(position)}`)}
         }, 1000)
         this.#terminator.own({terminate: () => clearInterval(timer)})

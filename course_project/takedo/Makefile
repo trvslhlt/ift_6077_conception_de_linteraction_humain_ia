@@ -10,7 +10,7 @@ TYPES_DIR := .opendaw
 export PORT
 COMPOSE := docker compose --profile test
 
-.PHONY: help builder build up down restart logs status open shell test scenario catalog check knowledge knowledge-bench triage-bench tweak-bench knowledge-import types usage clean sounds-probe
+.PHONY: help builder build up down restart logs status open shell test scenario catalog check knowledge knowledge-bench triage-bench tweak-bench knowledge-import types usage clean sounds-probe state-probe
 
 help: ## List targets
 	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
@@ -135,6 +135,11 @@ jam-probe: build $(TYPES_DIR)/packages ## Does a recorded loop-off jam keep goin
 	$(COMPOSE) up -d --wait studio backend
 	$(COMPOSE) build smoke
 	$(COMPOSE) run --rm -e SECONDS=$(or $(SECONDS),40) -e PROJECT=$(PROJECT) -e PANEL=$(PANEL) -e EDITS=$(EDITS) -e LOOP=$(LOOP) -e RAMP_MS=$(or $(RAMP_MS),20) -e NOREC=$(NOREC) -e DRAGS=$(DRAGS) -v $(CURDIR)/scenarios:/scenarios smoke node jam-probe.mjs
+
+state-probe: build $(TYPES_DIR)/packages ## Does the playhead survive a throw in the engine state's read, and a stuck state channel? (no models)
+	$(COMPOSE) up -d --wait studio backend
+	$(COMPOSE) build smoke
+	$(COMPOSE) run --rm -v $(CURDIR)/test/state-probe.mjs:/test/state-probe.mjs:ro smoke node state-probe.mjs
 
 # Drum machine samples (geikha/tidal-drum-machines, 73 machines, ~170 MB), pinned by commit. Refetched at any time:
 # the studio serves samples/ and openDAW reloads a sample from there whenever the browser has lost its copy.

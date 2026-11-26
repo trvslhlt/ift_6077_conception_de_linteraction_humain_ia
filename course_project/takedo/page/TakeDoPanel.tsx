@@ -1,4 +1,5 @@
 import {createElement} from "@opendaw/lib-jsx"
+import {channelState, stickForProbe} from "./EngineState"
 import {Lifecycle, ObservableValue, Option, Terminator} from "@opendaw/lib-std"
 import {PPQN} from "@opendaw/lib-dsp"
 import {AudioUnitBoxAdapter, InstrumentFactories, type InstrumentFactory} from "@opendaw/studio-adapters"
@@ -26,6 +27,7 @@ type Debug = {
     addSynth(name: string, notes?: ReadonlyArray<DebugNote>, instrument?: InstrumentKey): void
     catalog(): CatalogResult | null                 // `make catalog`: creates and deletes every device in the project
     openBundle(base64: string, name?: string): Promise<void>  // `make scenario`: opens an .odb bundle, renamed if a name is given
+    engineState: { channel: typeof channelState, stick(): void }  // `make state-probe`: the engine's state channel (EngineState.ts)
 }
 type InstrumentKey = keyof typeof InstrumentFactories.Named
 
@@ -49,6 +51,7 @@ const debugFor = (service: StudioService): Debug => ({
                 notes.forEach(([start, pitch, length]) => project.api.createNoteEvent({owner: region,
                     position: start * PPQN.SemiQuaver, duration: length * PPQN.SemiQuaver, pitch, velocity: 0.8}))
             })),
+    engineState: {channel: channelState, stick: stickForProbe},
     catalog: () => service.projectProfileService.getValue().mapOr(({project}) => generateCatalog(project), null),
     // Not saved to the browser's storage: a scenario starts from the bundle every time.
     // Renamed, the project gets its own notebook on the backend (kept per project name).
