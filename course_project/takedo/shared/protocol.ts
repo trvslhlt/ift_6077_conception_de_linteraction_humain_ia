@@ -93,8 +93,17 @@ export const SoundRoles: SoundRole[] = ["bass", "keys", "pad", "lead", "strings"
 // at an amount 0-3, or null.
 export type SoundTuning = { level_db: number, octave: number, register: [number, number] | null,
     tone: { low_cut: number, high_cut: number }, effect: { chain: string, amount: number } | null }
-export type LibraryEntry = { verdict: "kept" | "rejected", roles: SoundRole[], tags: string[], tuning: SoundTuning, note: string, t: number }
-export type LibrarySound = { id: string, source: "soundfont" | "preset", family: string, bank: number, roles: SoundRole[], entry: LibraryEntry | null }
+// What a sound is good for: styles (the style mix profiles' genres) and moods. Guessed for every sound (guess) until the
+// producer saves their own with a verdict; entries saved before these existed have none (the guess stands).
+export type Genre = "lofi" | "boombap" | "jazz" | "trap" | "house" | "techno" | "dnb" | "synthwave" | "ambient" | "pop"
+export const Genres: Genre[] = ["lofi", "boombap", "jazz", "trap", "house", "techno", "dnb", "synthwave", "ambient", "pop"]
+export type Mood = "warm" | "mellow" | "bright" | "dark" | "dreamy" | "gritty" | "punchy" | "clean" | "vintage" | "cheesy"
+export const Moods: Mood[] = ["warm", "mellow", "bright", "dark", "dreamy", "gritty", "punchy", "clean", "vintage", "cheesy"]
+export type StyleGuess = { styles: Genre[], moods: Mood[] }
+export type LibraryEntry = { verdict: "kept" | "rejected", roles: SoundRole[], tags: string[], tuning: SoundTuning, note: string, t: number,
+    styles?: Genre[], moods?: Mood[] }
+export type LibrarySound = { id: string, source: "soundfont" | "preset", family: string, bank: number, roles: SoundRole[], entry: LibraryEntry | null,
+    guess: StyleGuess }
 export const OpenTone = {low_cut: 20, high_cut: 20000}
 export const DefaultTuning: SoundTuning = {level_db: -6, octave: 0, register: null, tone: OpenTone, effect: null}
 // The producer's drum samples (the Sounds tab's drums): their verdict on one sample of TakeDo's drum machines, the piece
@@ -107,8 +116,9 @@ export const DrumPieces: DrumPiece[] = ["kick", "snare", "rim", "clap", "closed_
     "tom_high", "shaker", "perc", "other"]
 export type DrumTuning = { level_db: number, pitch: number, length: number, tone: { low_cut: number, high_cut: number } }
 export const DefaultDrumTuning: DrumTuning = {level_db: 0, pitch: 0, length: 1, tone: OpenTone}
-export type DrumEntry = { verdict: "kept" | "rejected", piece: DrumPiece, tags: string[], tuning: DrumTuning, note: string, t: number }
-export type LibraryDrum = { id: string, machine: string, piece: DrumPiece, duration: number, entry: DrumEntry | null }
+export type DrumEntry = { verdict: "kept" | "rejected", piece: DrumPiece, tags: string[], tuning: DrumTuning, note: string, t: number,
+    styles?: Genre[], moods?: Mood[] }
+export type LibraryDrum = { id: string, machine: string, piece: DrumPiece, duration: number, entry: DrumEntry | null, guess: StyleGuess }
 
 export type Plan = RampPlan | SetPlan | AddEffectPlan | RemoveEffectPlan | SendPlan | ScriptPlan
 // Who decided an edit (2026-11-25, the activity view's icons): a model's turn, Jev (a fast judgment, code filling it

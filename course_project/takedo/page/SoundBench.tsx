@@ -5,7 +5,7 @@ import type {Connection} from "./Connection"
 import {DrumBench} from "./DrumBench"
 import {
     DefaultTuning, type LibraryEntry, type LibrarySound, type SoundRole, SoundRoles, type SoundTuning
-} from "@/takedo_shared/protocol"
+, type Genre, Genres, type Mood, Moods} from "@/takedo_shared/protocol"
 
 // The Sounds tab (2026-11-26, the producer: the agents' sound choices were the worst so far; they filter, tune and tag
 // the instruments by ear). Step through the sounds for a role: each plays its role's phrase in the project's key, on a
@@ -55,6 +55,12 @@ export const SoundBench = ({lifecycle, connection, adapter}: Construct) => {
     const roleBoxes = new Map<SoundRole, HTMLInputElement>(SoundRoles.map(name => [name, <input type="checkbox"/> as HTMLInputElement]))
     const tags: HTMLInputElement = <input placeholder="warm, dusty, lofi, round…" style={{flex: "1 0 12em"}}/>
     const note: HTMLInputElement = <input placeholder="a note for yourself or the agents" style={{flex: "1 0 12em"}}/>
+    const styleBoxes = new Map<Genre, HTMLInputElement>(Genres.map(name => [name, <input type="checkbox"/> as HTMLInputElement]))
+    const moodBoxes = new Map<Mood, HTMLInputElement>(Moods.map(name => [name, <input type="checkbox"/> as HTMLInputElement]))
+    const guessed: HTMLElement = <span style={{...label, fontStyle: "italic"}}/>
+    const styleFilter: HTMLSelectElement = <select>{["any style", ...Genres].map(name => <option value={name}>{name}</option>)}</select>
+    // What it's good for: the producer's once saved, else the guess (theirs to correct).
+    const stylesOf = (item: LibrarySound) => ({styles: item.entry?.styles ?? item.guess.styles, moods: item.entry?.moods ?? item.guess.moods})
     const keepButton: HTMLButtonElement = <button style={{background: "#24414a", color: "#cfd8dc"}}>keep (K)</button>
     const rejectButton: HTMLButtonElement = <button style={{background: "#4a2424", color: "#cfd8dc"}}>reject (R)</button>
     const forgetButton: HTMLButtonElement = <button>forget</button>
@@ -62,6 +68,7 @@ export const SoundBench = ({lifecycle, connection, adapter}: Construct) => {
     const visible = (): LibrarySound[] => {
         const words = search.value.toLowerCase().split(/\s+/).filter(word => word !== "")
         return sounds.filter(sound => (role.value === "all" || sound.roles.includes(role.value as SoundRole))
+            && (styleFilter.value === "any style" || stylesOf(sound).styles.includes(styleFilter.value as Genre))
             && (status.value === "all" || statusOf(sound) === status.value)
             && words.every(word => `${sound.id} ${sound.family} ${sound.entry?.tags.join(" ") ?? ""}`.toLowerCase().includes(word)))
             // Kept first, then unheard, rejected last; General MIDI's main bank before its variations.
@@ -77,7 +84,7 @@ export const SoundBench = ({lifecycle, connection, adapter}: Construct) => {
                 opacity: state === "rejected" ? "0.45" : "1"}}>
                 <span style={{color: state === "kept" ? "#7fd" : state === "rejected" ? "#e88" : "#cfd8dc"}}>{state === "kept" ? "✓ " : state === "rejected" ? "✗ " : "· "}</span>
                 {sound.id.replace(/^GeneralUser GS\//, "")}
-                <span style={{...label, marginLeft: "0.5em"}}>{sound.family}{sound.entry?.tags.length ? ` · ${sound.entry.tags.join(", ")}` : ""}</span>
+                <span style={{...label, marginLeft: "0.5em"}}>{sound.family}{sound.entry?.tags.length ? ` · ${sound.entry.tags.join(", ")}` : ""}{stylesOf(sound).styles.length ? ` · ${stylesOf(sound).styles.join(" ")}` : ""}</span>
             </li>
             item.onclick = () => select(sound.id, true)
             return item
@@ -139,6 +146,10 @@ export const SoundBench = ({lifecycle, connection, adapter}: Construct) => {
         roleBoxes.forEach((box, name) => box.checked = sound.roles.includes(name))
         tags.value = sound.entry?.tags.join(", ") ?? ""
         note.value = sound.entry?.note ?? ""
+        const good = stylesOf(sound)
+        styleBoxes.forEach((box, name) => box.checked = good.styles.includes(name))
+        moodBoxes.forEach((box, name) => box.checked = good.moods.includes(name))
+        guessed.textContent = sound.entry?.styles === undefined ? "guessed: correct them, they're saved with keep or reject" : ""
         showTuning()
         drawList()
         if (andPlay) {play()}
@@ -156,7 +167,8 @@ export const SoundBench = ({lifecycle, connection, adapter}: Construct) => {
         const after = next[Math.min(next.length - 1, Math.max(0, visible().findIndex(other => other.id === sound.id)))]
         const roles = SoundRoles.filter(name => roleBoxes.get(name)!.checked)
         connection.send({type: "library_set", id: sound.id, entry: verdict === null ? null : {verdict, roles, tuning,
-            tags: tags.value.split(",").map(tag => tag.trim().toLowerCase()).filter(tag => tag !== ""), note: note.value.trim(), t: Date.now()}})
+            tags: tags.value.split(",").map(tag => tag.trim().toLowerCase()).filter(tag => tag !== ""), note: note.value.trim(), t: Date.now(),
+            styles: Genres.filter(name => styleBoxes.get(name)!.checked), moods: Moods.filter(name => moodBoxes.get(name)!.checked)}})
         message.textContent = verdict === null ? "forgotten: unheard again" : `${verdict}`
         if (verdict !== null && after !== undefined && status.value === "unheard") {select(after.id, true)}
         else if (verdict !== null && after !== undefined) {step(1)}
@@ -176,13 +188,13 @@ export const SoundBench = ({lifecycle, connection, adapter}: Construct) => {
     keepButton.onclick = () => save("kept")
     rejectButton.onclick = () => save("rejected")
     forgetButton.onclick = () => save(null)
-    role.onchange = status.onchange = search.oninput = () => drawList()
+    role.onchange = status.onchange = styleFilter.onchange = search.oninput = () => drawList()
 
     const element: HTMLElement = (
         <div data-testid="takedo-sounds" tabIndex={0} style={{flex: "1 0 0", display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.3fr)",
             columnGap: "1.5em", padding: "1em", minHeight: "0", fontSize: "13px", outline: "none"}}>
             <div style={{display: "flex", flexDirection: "column", rowGap: "0.5em", minHeight: "0"}}>
-                <div style={row}><span style={label}>role</span>{role}<span style={label}>showing</span>{status}{search}</div>
+                <div style={row}><span style={label}>role</span>{role}{styleFilter}<span style={label}>showing</span>{status}{search}</div>
                 {counts}
                 {list}
             </div>
@@ -201,6 +213,11 @@ export const SoundBench = ({lifecycle, connection, adapter}: Construct) => {
                 <div style={row}><span style={{...label, width: "6em"}}>register</span>{registerLow}<span style={label}>to</span>{registerHigh}{registerText}</div>
                 <div style={row}><span style={{...label, width: "6em"}}>roles</span>
                     {SoundRoles.map(name => <label style={label}>{roleBoxes.get(name)!} {name}</label>)}</div>
+                <div style={row}><span style={{...label, width: "6em"}}>good for</span>
+                    {Genres.map(name => <label style={label}>{styleBoxes.get(name)!} {name}</label>)}</div>
+                <div style={row}><span style={{...label, width: "6em"}}>mood</span>
+                    {Moods.map(name => <label style={label}>{moodBoxes.get(name)!} {name}</label>)}</div>
+                {guessed}
                 <div style={row}><span style={{...label, width: "6em"}}>tags</span>{tags}</div>
                 <div style={row}><span style={{...label, width: "6em"}}>note</span>{note}</div>
                 <div style={row}>{keepButton}{rejectButton}{forgetButton}</div>

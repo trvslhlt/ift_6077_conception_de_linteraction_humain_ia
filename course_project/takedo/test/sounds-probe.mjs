@@ -54,7 +54,7 @@ try {
     await page.getByTestId("takedo-sounds").press("k")
     await sleep(1500)
     const stored = JSON.parse(readFileSync("/knowledge/sound-library.json", "utf8")).sounds["GeneralUser GS/Finger Bass"]
-    check("keep writes the producer's entry with the tuning", stored?.verdict === "kept" && stored.tuning.tone.high_cut < 20000 && stored.tuning.effect?.chain === "chain/saturate",
+    check("keep writes the producer's entry with the tuning", stored?.verdict === "kept" && Array.isArray(stored.styles) && stored.tuning.tone.high_cut < 20000 && stored.tuning.effect?.chain === "chain/saturate",
         JSON.stringify(stored))
     const moved = await page.evaluate(() => document.querySelector("[data-testid=takedo-sounds] div[style*='15px']")?.textContent)
     check("keep moves on to the next sound", moved !== "GeneralUser GS/Finger Bass", moved)
@@ -92,7 +92,7 @@ try {
     await page.getByTestId("takedo-drums").press("k")
     await sleep(1500)
     const keptDrum = JSON.parse(readFileSync("/knowledge/sound-library.json", "utf8")).drums?.[drum]
-    check("keep writes the drum entry with its tuning", keptDrum?.verdict === "kept" && keptDrum.piece === "snare" && keptDrum.tuning.length === 0.4, JSON.stringify(keptDrum))
+    check("keep writes the drum entry with its tuning", keptDrum?.verdict === "kept" && Array.isArray(keptDrum.styles) && keptDrum.piece === "snare" && keptDrum.tuning.length === 0.4, JSON.stringify(keptDrum))
     await page.locator(`[data-testid=takedo-drums-list] li[data-id='${drum}']`).click()
     await page.locator("[data-testid=takedo-drums]").getByText("forget").click()
     await sleep(1500)

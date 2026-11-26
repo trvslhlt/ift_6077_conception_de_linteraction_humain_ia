@@ -1,5 +1,6 @@
 import {existsSync, readFileSync, renameSync, statSync, writeFileSync} from "node:fs"
-import type {DrumEntry, DrumPiece, LibraryDrum, LibraryEntry, LibrarySound, SoundRole} from "../../shared/protocol.ts"
+import type {DrumEntry, DrumPiece, Genre, LibraryDrum, LibraryEntry, LibrarySound, SoundRole, StyleGuess} from "../../shared/protocol.ts"
+import {guessDrum, guessSound} from "./soundStyles.ts"
 import type {Sample, Samples, Sound} from "./samples.ts"
 import type {Hit} from "./generate.ts"
 import {chordHits, drumHits, melodyHits} from "./compose.ts"
@@ -55,6 +56,16 @@ const Pieces: Record<string, DrumPiece> = {kick: "kick", snare: "snare", sd2: "s
 export const pieceOf = (sample: Sample): DrumPiece => Pieces[(sample.role ?? "").toLowerCase()] ?? "other"
 // The role a piece plays as on a kit's pad (other: as perc).
 export const padRole = (piece: DrumPiece): string => piece === "other" ? "perc" : piece
+
+// A guess the producer's own words speak against (Warm Pad, kept but "cheesy", was guessed lofi): no style guessed.
+const Against = /cheesy|harsh|thin|cheap|fake|ugly|bad|awful|tinny|plastic|video ?game|donkey kong/i
+const doubted = (guess: StyleGuess, entry: { tags: string[], note: string } | null): StyleGuess =>
+    entry !== null && Against.test(`${entry.tags.join(" ")} ${entry.note}`)
+        ? {styles: [], moods: [...new Set([...guess.moods, "cheesy" as const])]} : guess
+
+// The order agents see sounds in: the role first, then the style, then the producer's keeping.
+const tier = (kept: boolean, fitsRole: boolean, fitsStyle: boolean): number =>
+    (fitsRole ? 0 : 4) + (fitsStyle ? 0 : 2) + (kept ? 0 : 1)
 
 type Stored = { sounds: Record<string, LibraryEntry>, drums?: Record<string, DrumEntry> }
 
@@ -112,7 +123,7 @@ export class Library {
         return this.#samples.sounds.map(sound => {
             const entry = this.entry(sound.id)
             return {id: sound.id, source: sound.source, family: familyOf(sound), bank: sound.bank,
-                roles: entry !== null && entry.roles.length > 0 ? entry.roles : guessRoles(sound), entry}
+                roles: entry !== null && entry.roles.length > 0 ? entry.roles : guessRoles(sound), entry, guess: doubted(guessSound(sound), entry)}
         })
     }
 
@@ -125,15 +136,30 @@ export class Library {
         return null
     }
 
-    // How agents rank a sound for a role: kept with that role first, then unheard (when the role has nothing kept), and
-    // never a rejected one. Returns the order key (lower is better) or null to leave it out.
-    rank(sound: Sound, role: SoundRole | null): number | null {
+    // What a sound is good for: the producer's styles and moods once they saved some, else the guess; confirmed says which.
+    styles(sound: Sound): StyleGuess & { confirmed: boolean } {
+        const entry = this.entry(sound.id)
+        if (entry?.styles !== undefined) {return {styles: entry.styles, moods: entry.moods ?? [], confirmed: true}}
+        return {...doubted(guessSound(sound), entry), confirmed: false}
+    }
+
+    // How agents rank a sound for a role and a style (null: any): kept and good for both first, then unheard ones that
+    // are, then those not for the style, then other roles; never a rejected one. The order key (lower is better) or null.
+    rank(sound: Sound, role: SoundRole | null, style: Genre | null = null): number | null {
         const entry = this.entry(sound.id)
         if (entry?.verdict === "rejected") {return null}
         const roles = entry !== null && entry.roles.length > 0 ? entry.roles : guessRoles(sound)
-        const fits = role === null || roles.includes(role)
-        if (entry?.verdict === "kept") {return fits ? 0 : 2}
-        return fits ? 1 : 3
+        return tier(entry?.verdict === "kept", role === null || roles.includes(role), style === null || this.styles(sound).styles.includes(style))
+    }
+
+    // The producer's own drums for a style (2026-11-26: a drums worker went to a knowledge kit though they had kept kits):
+    // whole kits (instruments with the role drums) and how many pieces they've kept samples for. Null when there are none.
+    ownDrums(styles: Genre[]): { kits: Sound[], pieces: DrumPiece[] } | null {
+        const fits = (rank: number | null) => rank !== null && rank === 0
+        const kits = this.#samples.sounds.filter(sound => styles.some(style => fits(this.rank(sound, "drums", style))))
+        const pieces = [...new Set(this.#all.filter(sample => this.drumEntry(sample.id)?.verdict === "kept"
+            && styles.some(style => this.drumStyles(sample).styles.includes(style))).map(sample => this.piece(sample)))]
+        return kits.length === 0 && pieces.length === 0 ? null : {kits, pieces}
     }
 
     // How many sounds are kept for a role.
@@ -150,7 +176,7 @@ export class Library {
     piece(sample: Sample): DrumPiece {return this.drumEntry(sample.id)?.piece ?? pieceOf(sample)}
     drums(): LibraryDrum[] {
         return this.#all.map(sample => ({id: sample.id, machine: sample.machine ?? "other", piece: this.piece(sample),
-            duration: sample.duration, entry: this.drumEntry(sample.id)}))
+            duration: sample.duration, entry: this.drumEntry(sample.id), guess: doubted(guessDrum(sample), this.drumEntry(sample.id))}))
     }
     setDrum(id: string, entry: DrumEntry | null): string | null {
         const sample = this.#samples.find(id)
@@ -160,13 +186,16 @@ export class Library {
         this.#write()
         return null
     }
-    // As rank, for a drum sample and a piece (null: any).
-    rankDrum(sample: Sample, piece: DrumPiece | null): number | null {
+    drumStyles(sample: Sample): StyleGuess & { confirmed: boolean } {
+        const entry = this.drumEntry(sample.id)
+        if (entry?.styles !== undefined) {return {styles: entry.styles, moods: entry.moods ?? [], confirmed: true}}
+        return {...doubted(guessDrum(sample), entry), confirmed: false}
+    }
+    // As rank, for a drum sample, a piece and a style (null: any).
+    rankDrum(sample: Sample, piece: DrumPiece | null, style: Genre | null = null): number | null {
         const entry = this.drumEntry(sample.id)
         if (entry?.verdict === "rejected") {return null}
-        const fits = piece === null || this.piece(sample) === piece
-        if (entry?.verdict === "kept") {return fits ? 0 : 2}
-        return fits ? 1 : 3
+        return tier(entry?.verdict === "kept", piece === null || this.piece(sample) === piece, style === null || this.drumStyles(sample).styles.includes(style))
     }
     // The producer's kept samples for a piece, those of one machine first, then the latest kept.
     keptDrums(piece: DrumPiece, machine: string | null = null): Sample[] {

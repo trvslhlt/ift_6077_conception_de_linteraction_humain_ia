@@ -4,7 +4,7 @@ import type {Adapter as AdapterType} from "./Adapter"
 import type {Connection} from "./Connection"
 import {
     DefaultDrumTuning, type DrumEntry, type DrumPiece, DrumPieces, type DrumTuning, type LibraryDrum
-} from "@/takedo_shared/protocol"
+, type Genre, Genres, type Mood, Moods} from "@/takedo_shared/protocol"
 
 // The Sounds tab's drums (2026-11-26, the producer: a lofi change came out as 80s gated drums). Step through the drum
 // machines' samples for one piece of a kit: each plays in a beat that features it, on a kit made exactly as an agent
@@ -49,6 +49,12 @@ export const DrumBench = ({lifecycle, connection, adapter}: Construct) => {
     const pieceAs: HTMLSelectElement = <select>{DrumPieces.map(name => <option value={name}>{pieceName(name)}</option>)}</select>
     const tags: HTMLInputElement = <input placeholder="dusty, punchy, soft, 90s…" style={{flex: "1 0 12em"}}/>
     const note: HTMLInputElement = <input placeholder="a note for yourself or the agents" style={{flex: "1 0 12em"}}/>
+    const styleBoxes = new Map<Genre, HTMLInputElement>(Genres.map(name => [name, <input type="checkbox"/> as HTMLInputElement]))
+    const moodBoxes = new Map<Mood, HTMLInputElement>(Moods.map(name => [name, <input type="checkbox"/> as HTMLInputElement]))
+    const guessed: HTMLElement = <span style={{...label, fontStyle: "italic"}}/>
+    const styleFilter: HTMLSelectElement = <select>{["any style", ...Genres].map(name => <option value={name}>{name}</option>)}</select>
+    // What it's good for: the producer's once saved, else the guess (theirs to correct).
+    const stylesOf = (item: LibraryDrum) => ({styles: item.entry?.styles ?? item.guess.styles, moods: item.entry?.moods ?? item.guess.moods})
     const keepButton: HTMLButtonElement = <button style={{background: "#24414a", color: "#cfd8dc"}}>keep (K)</button>
     const rejectButton: HTMLButtonElement = <button style={{background: "#4a2424", color: "#cfd8dc"}}>reject (R)</button>
     const forgetButton: HTMLButtonElement = <button>forget</button>
@@ -57,6 +63,7 @@ export const DrumBench = ({lifecycle, connection, adapter}: Construct) => {
         const words = search.value.toLowerCase().split(/\s+/).filter(word => word !== "")
         return drums.filter(drum => (piece.value === "all" || drum.piece === piece.value)
             && (machine.value === "all" || drum.machine === machine.value)
+            && (styleFilter.value === "any style" || stylesOf(drum).styles.includes(styleFilter.value as Genre))
             && (status.value === "all" || statusOf(drum) === status.value)
             && words.every(word => `${drum.id} ${drum.entry?.tags.join(" ") ?? ""}`.toLowerCase().includes(word)))
             .sort((a, b) => ["kept", "unheard", "rejected"].indexOf(statusOf(a)) - ["kept", "unheard", "rejected"].indexOf(statusOf(b))
@@ -70,7 +77,7 @@ export const DrumBench = ({lifecycle, connection, adapter}: Construct) => {
                 background: drum.id === selected ? "rgba(127, 221, 221, 0.18)" : "transparent", opacity: state === "rejected" ? "0.45" : "1"}}>
                 <span style={{color: state === "kept" ? "#7fd" : state === "rejected" ? "#e88" : "#cfd8dc"}}>{state === "kept" ? "✓ " : state === "rejected" ? "✗ " : "· "}</span>
                 {drum.id}
-                <span style={{...label, marginLeft: "0.5em"}}>{piece.value === "all" ? `${pieceName(drum.piece)} · ` : ""}{drum.duration.toFixed(2)} s{drum.entry?.tags.length ? ` · ${drum.entry.tags.join(", ")}` : ""}</span>
+                <span style={{...label, marginLeft: "0.5em"}}>{piece.value === "all" ? `${pieceName(drum.piece)} · ` : ""}{drum.duration.toFixed(2)} s{drum.entry?.tags.length ? ` · ${drum.entry.tags.join(", ")}` : ""}{stylesOf(drum).styles.length ? ` · ${stylesOf(drum).styles.join(" ")}` : ""}</span>
             </li>
             item.onclick = () => select(drum.id, true)
             return item
@@ -122,6 +129,10 @@ export const DrumBench = ({lifecycle, connection, adapter}: Construct) => {
         pieceAs.value = drum.piece
         tags.value = drum.entry?.tags.join(", ") ?? ""
         note.value = drum.entry?.note ?? ""
+        const good = stylesOf(drum)
+        styleBoxes.forEach((box, name) => box.checked = good.styles.includes(name))
+        moodBoxes.forEach((box, name) => box.checked = good.moods.includes(name))
+        guessed.textContent = drum.entry?.styles === undefined ? "guessed: correct them, they're saved with keep or reject" : ""
         showTuning()
         drawList()
         if (andPlay) {play()}
@@ -139,7 +150,8 @@ export const DrumBench = ({lifecycle, connection, adapter}: Construct) => {
         const next = shown.filter(other => other.id !== drum.id)
         const after = next[Math.min(next.length - 1, Math.max(0, at))]
         connection.send({type: "drum_set", id: drum.id, entry: verdict === null ? null : {verdict, piece: pieceAs.value as DrumPiece, tuning,
-            tags: tags.value.split(",").map(tag => tag.trim().toLowerCase()).filter(tag => tag !== ""), note: note.value.trim(), t: Date.now()}})
+            tags: tags.value.split(",").map(tag => tag.trim().toLowerCase()).filter(tag => tag !== ""), note: note.value.trim(), t: Date.now(),
+            styles: Genres.filter(name => styleBoxes.get(name)!.checked), moods: Moods.filter(name => moodBoxes.get(name)!.checked)}})
         message.textContent = verdict === null ? "forgotten: unheard again" : verdict
         if (verdict !== null && after !== undefined && status.value === "unheard") {select(after.id, true)}
         else if (verdict !== null && after !== undefined) {step(1)}
@@ -159,13 +171,13 @@ export const DrumBench = ({lifecycle, connection, adapter}: Construct) => {
     keepButton.onclick = () => save("kept")
     rejectButton.onclick = () => save("rejected")
     forgetButton.onclick = () => save(null)
-    piece.onchange = machine.onchange = status.onchange = search.oninput = () => drawList()
+    piece.onchange = machine.onchange = status.onchange = styleFilter.onchange = search.oninput = () => drawList()
 
     const element: HTMLElement = (
         <div data-testid="takedo-drums" tabIndex={0} style={{flex: "1 0 0", display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.3fr)",
             columnGap: "1.5em", padding: "1em", minHeight: "0", fontSize: "13px", outline: "none"}}>
             <div style={{display: "flex", flexDirection: "column", rowGap: "0.5em", minHeight: "0"}}>
-                <div style={row}><span style={label}>piece</span>{piece}{machine}</div>
+                <div style={row}><span style={label}>piece</span>{piece}{machine}{styleFilter}</div>
                 <div style={row}><span style={label}>showing</span>{status}{search}</div>
                 {counts}
                 {list}
@@ -183,6 +195,11 @@ export const DrumBench = ({lifecycle, connection, adapter}: Construct) => {
                 <div style={row}><span style={{...label, width: "6em"}}>low cut</span>{lowCut}{lowText}</div>
                 <div style={row}><span style={{...label, width: "6em"}}>high cut</span>{highCut}{highText}</div>
                 <div style={row}><span style={{...label, width: "6em"}}>piece</span>{pieceAs}<span style={label}>what it plays in a kit</span></div>
+                <div style={row}><span style={{...label, width: "6em"}}>good for</span>
+                    {Genres.map(name => <label style={label}>{styleBoxes.get(name)!} {name}</label>)}</div>
+                <div style={row}><span style={{...label, width: "6em"}}>mood</span>
+                    {Moods.map(name => <label style={label}>{moodBoxes.get(name)!} {name}</label>)}</div>
+                {guessed}
                 <div style={row}><span style={{...label, width: "6em"}}>tags</span>{tags}</div>
                 <div style={row}><span style={{...label, width: "6em"}}>note</span>{note}</div>
                 <div style={row}>{keepButton}{rejectButton}{forgetButton}</div>

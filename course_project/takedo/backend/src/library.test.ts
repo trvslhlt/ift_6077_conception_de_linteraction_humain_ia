@@ -6,6 +6,7 @@ import {describe, it} from "node:test"
 import {DefaultDrumTuning, DefaultTuning} from "../../shared/protocol.ts"
 import {auditionPhrase, drumAudition, guessRoles, Library, pieceOf} from "./library.ts"
 import {loadSamples} from "./samples.ts"
+import {genresOf, guessDrum, guessSound} from "./soundStyles.ts"
 
 // The producer's sound library (library.ts): roles guessed until they say, kept first, rejected never, saved at once.
 // Run from backend/: node --test src/library.test.ts
@@ -87,5 +88,30 @@ describe("the sound library", () => {
         for (const piece of ["kick", "snare", "clap", "closed_hat", "open_hat", "ride", "crash", "tom_low", "tom_mid", "tom_high", "shaker", "perc", "other"] as const) {
             assert.equal(typeof drumAudition(piece, false, 4), "object", piece)
         }
+    })
+    it("guesses styles and moods, and ranks sounds for the style first, the producer's own over the guess", () => {
+        assert.ok(guessSound(samples.sounds.find(one => one.soundfont === "GeneralUser GS" && one.program === 4 && one.bank === 0)!).styles.includes("lofi"))
+        assert.ok(guessSound(sound("GeneralUser GS/Jazz Kit")).styles.includes("lofi"))
+        assert.ok(!guessSound(sound("GeneralUser GS/Slap Bass 1")).styles.includes("lofi"))
+        assert.ok(guessDrum(samples.search({machine: "909", role: "kick"}, 1)[0]).styles.includes("house"))
+        const path = join(mkdtempSync(join(tmpdir(), "library-")), "sound-library.json")
+        const library = new Library(path, samples)
+        const fretless = sound("GeneralUser GS/Fretless Bass"), synth = sound("GeneralUser GS/Synth Bass 1")
+        assert.equal(library.rank(fretless, "bass", "lofi"), 1)
+        assert.equal(library.rank(synth, "bass", "lofi"), 3)
+        library.set(synth.id, {verdict: "kept", roles: ["bass"], tags: [], tuning: DefaultTuning, note: "", t: 1})
+        assert.equal(library.rank(synth, "bass", "lofi"), 2, "kept but not for lofi: after unheard lofi ones")
+        library.set(synth.id, {verdict: "kept", roles: ["bass"], tags: [], tuning: DefaultTuning, note: "", t: 1, styles: ["lofi"], moods: ["warm"]})
+        assert.equal(library.rank(synth, "bass", "lofi"), 0, "the producer's styles win over the guess")
+        assert.deepEqual(library.styles(synth), {styles: ["lofi"], moods: ["warm"], confirmed: true})
+    })
+    it("finds the producer's own drums for a knowledge kit's styles", () => {
+        assert.deepEqual(genresOf(["boom bap", "lo-fi", "90s", "kit"]).sort(), ["boombap", "lofi"])
+        const path = join(mkdtempSync(join(tmpdir(), "library-")), "sound-library.json")
+        const library = new Library(path, samples)
+        assert.equal(library.ownDrums(["lofi"]), null)
+        library.set("GeneralUser GS/Jazz Kit", {verdict: "kept", roles: ["drums"], tags: [], tuning: DefaultTuning, note: "", t: 1})
+        assert.deepEqual(library.ownDrums(["lofi"])?.kits.map(kit => kit.id), ["GeneralUser GS/Jazz Kit"])
+        assert.equal(library.ownDrums(["techno"]), null)
     })
 })

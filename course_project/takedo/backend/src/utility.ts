@@ -3,9 +3,10 @@ import {createSdkMcpServer, query, type Query, type SDKUserMessage, tool} from "
 import type Anthropic from "@anthropic-ai/sdk"
 import type {CallToolResult} from "@modelcontextprotocol/sdk/types.js"
 import {z} from "zod"
-import {type Actor, type Note, type Plan, type Snapshot, type SoundRole, SoundRoles, type Status, type When} from "../../shared/protocol.ts"
+import {type Actor, type DrumPiece, type Note, type Plan, type Snapshot, type Genre, Genres, type SoundRole, SoundRoles, type Status, type When} from "../../shared/protocol.ts"
 import type {Sample, Sound} from "./samples.ts"
 import {pieceOf} from "./library.ts"
+import {genresIn, genresOf} from "./soundStyles.ts"
 import {type Action, type Anchor, type Direction, type Piece, type PieceKind, PieceKinds, type Step as BoardStep} from "./board.ts"
 import type {Coordinator} from "./coordinator.ts"
 import type {Catalog} from "./catalog.ts"
@@ -51,7 +52,7 @@ type Work = { done: string[], pending: Promise<string>[], late: string[] }
 // The message being worked on, for the tools' handlers (one at a time: they share the session). direction: its entry
 // on the board, which holds its timed edits until the turn ends.
 type Current = { context: Coordinator, task: Task, work: Work, calls: number, said?: string, direction: Direction,
-    anchor: Anchor | null, applied?: string[], appliedBars?: number, job?: string }   // job: a worker's piece   // applied: what a knowledge entry's steps said they'd do (the fast route's reply)
+    anchor: Anchor | null, applied?: string[], appliedBars?: number, job?: string, ownDrumsShown?: boolean }   // job: a worker's piece   // applied: what a knowledge entry's steps said they'd do (the fast route's reply)
 const anchored = (when: When, anchor: Anchor | null): When =>
     when.at === "bar" && anchor !== null ? {...when, from: {position: anchor.position, played: anchor.played}} : when
 
@@ -150,9 +151,9 @@ const KindNotes: Record<PieceKind, string> = {
 - A region's notes play on every pass of its loop: rewriting them changes every repeat from when it lands.
 - A change to a part's own notes (busier, sparser, ghost notes, more or less swing, half or double time, a fill, harder or softer) is evolve_notes's tweak with an amount, made by code from the notes there; write a new groove only for a new style.
 - Grooves as one line of mini-notation, code writes the hits: make_kit's drums, write_part's drums, evolve_notes's to_drums (\"[bd ~ ~ bd ~ ~ bd ~, ~ sd ~ sd, hh*8]\"; sd:0.4 a ghost note, <sd cp> a different one each bar with bars 2).
-- A style's drum sound (trap, house, techno, boom-bap, 80s) is a new kit, not new notes on the old one: apply_knowledge a kit entry (sound/kit-trap-808, kit-house-909, kit-boombap-mpc60, kit-boombap-sp12, kit-synthpop-linndrum) with the style's pattern, or make_kit with samples you pick (samples finds them across 70 drum machines); with replaces naming the old drums, which parks them on the bar the kit comes in. The producer's drum samples (they keep, reject, tune and tag them by ear): samples with a role lists the ones they kept first (✓, with their tags), so build a kit from those with make_kit; each pad's tuning goes on by itself, and a rejected sample (in a kit entry too) is swapped for a kept one. A whole kit as one instrument (sounds with the role drums or percussion: General MIDI's kits, ones the producer kept first) is a drum kit too: make_instrument it, then write_part its drums, which play General MIDI drum notes.`,
+- A style's drum sound (trap, house, techno, boom-bap, 80s) is a new kit, not new notes on the old one, and the producer's own come first (below). Else apply_knowledge a kit entry (sound/kit-trap-808, kit-house-909, kit-boombap-mpc60, kit-boombap-sp12, kit-synthpop-linndrum) with the style's pattern, or make_kit with samples you pick (samples finds them across 70 drum machines); with replaces naming the old drums, which parks them on the bar the kit comes in. The producer's drums come first, before a knowledge kit: sounds with the role drums (or percussion) and the style lists whole kits they kept (✓; make_instrument it, then write_part its drums, which play General MIDI drum notes), and samples with a role and the style lists drum samples they kept (✓; build a kit with make_kit, each pad's tuning going on by itself). A knowledge kit entry only when neither has one for the style; a rejected sample in it is swapped for a kept one.`,
     notes: `${Restyle}
-- The producer's sound library (2026-11-26, the producer: the sounds picked were the worst so far, so they keep, reject, tune and tag sounds by ear): sounds with a role lists the ones they kept for it first (✓, with their tags); use one of those, and their tuning (level, octave, tone, character) goes on with it by itself, so don't set those again. An unheard one only when no kept one fits; a rejected one is refused.
+- The producer's sound library (2026-11-26, the producer: the sounds picked were the worst so far, so they keep, reject, tune and tag sounds by ear): call sounds with the part's role and the style the music is going for (lofi, trap, ...); it lists sounds for both first, the producer's kept ones (✓) before unheard ones, each with the styles and moods it's for (the producer's, or guessed). Use one for the style, and its tuning (level, octave, tone, character) goes on with it by itself, so don't set those again. Their words (tags, note) are their judgement: one kept but called cheesy, harsh or thin isn't for a lush or tasteful part. A sound "not for" the style only when nothing for it fits the part, and say so in your reply; a rejected one is refused.
 - A new part's sound (2026-11-25, the producer: sounds outside the drums were grating and not genre appropriate): pick a sampled instrument first: the knowledge base's \"Sampled instruments\" entries name a genre's usual ones (bass, keys, guitar, strings, pads, brass, leads) with their registers; sounds finds the rest of 300 (GeneralUser GS and openDAW's). make_instrument makes the track with its notes. Set a synth (Vaporisateur, Tubular) by hand only for a sound no sample has or when the producer asks for a synth, and then start from a knowledge sound entry. Play a sampled instrument in its register.
 - evolve_notes: a part's notes changing over several bars (a groove becoming another, a part thinning out or filling in), not a script per stage. Name where it's going (a knowledge pattern, or the notes written once) and how many stages; code works out each stage and rewrites the region's notes in place, so a looping region changes as it plays.
 - A region's notes play on every pass of its loop: rewriting them changes every repeat from when it lands.
@@ -165,10 +166,10 @@ ${KeySlot}
 - A new named track with a bar of notes: const {audioUnitBox, trackBox, instrumentBox} = api.createInstrument(lib.adapters.InstrumentFactories.Vaporisateur); instrumentBox.label.setValue("Lead"); const region = api.createNoteRegion({trackBox, position: 0, duration: bar, name: "Lead"}); api.createNoteEvent({owner: region, position: 0, duration: lib.dsp.PPQN.Quarter, pitch: 60, velocity: 0.8});
 - A track made in this script has no adapter yet (ref and audioUnits.adapters() don't find it until the edit ends): set its level with audioUnitBox.volume.setValue(dB) and its instrument's settings on instrumentBox's fields (instrumentBox.cutoff.setValue(2200)), with the names namedParameter shows on a track of that instrument. Every field has a range (the box schema's constraints; a parameter's valueMapping); a value outside it can crash the audio engine, so TakeDo brings it back in and the result lists what it corrected.`,
     sound: `${Restyle}
-- The producer's sound library (2026-11-26, the producer: the sounds picked were the worst so far, so they keep, reject, tune and tag sounds by ear): sounds with a role lists the ones they kept for it first (✓, with their tags); use one of those, and their tuning (level, octave, tone, character) goes on with it by itself, so don't set those again. An unheard one only when no kept one fits; a rejected one is refused.
+- The producer's sound library (2026-11-26, the producer: the sounds picked were the worst so far, so they keep, reject, tune and tag sounds by ear): call sounds with the part's role and the style the music is going for (lofi, trap, ...); it lists sounds for both first, the producer's kept ones (✓) before unheard ones, each with the styles and moods it's for (the producer's, or guessed). Use one for the style, and its tuning (level, octave, tone, character) goes on with it by itself, so don't set those again. Their words (tags, note) are their judgement: one kept but called cheesy, harsh or thin isn't for a lush or tasteful part. A sound "not for" the style only when nothing for it fits the part, and say so in your reply; a rejected one is refused.
 - A new part's sound (2026-11-25, the producer: sounds outside the drums were grating and not genre appropriate): pick a sampled instrument first: the knowledge base's \"Sampled instruments\" entries name a genre's usual ones (bass, keys, guitar, strings, pads, brass, leads) with their registers; sounds finds the rest of 300 (GeneralUser GS and openDAW's). make_instrument makes the track with its notes. Set a synth (Vaporisateur, Tubular) by hand only for a sound no sample has or when the producer asks for a synth, and then start from a knowledge sound entry. Play a sampled instrument in its register.
 - An instrument's settings: ref("t2").inputAdapter.unwrap().namedParameter (e.g. Cubed: cutoff, resonance, envMod, decay, accent; Vaporisateur: cutoff, resonance, attack, decay, sustain, release, …); set them with .setValue(v). A drum machine (Playfield) has none: its sounds are samples by pad.
-- A style's drum sound (trap, house, techno, boom-bap, 80s) is a new kit, not new notes on the old one: apply_knowledge a kit entry (sound/kit-trap-808, kit-house-909, kit-boombap-mpc60, kit-boombap-sp12, kit-synthpop-linndrum) with the style's pattern, or make_kit with samples you pick (samples finds them across 70 drum machines); with replaces naming the old drums, which parks them on the bar the kit comes in. The producer's drum samples (they keep, reject, tune and tag them by ear): samples with a role lists the ones they kept first (✓, with their tags), so build a kit from those with make_kit; each pad's tuning goes on by itself, and a rejected sample (in a kit entry too) is swapped for a kept one. A whole kit as one instrument (sounds with the role drums or percussion: General MIDI's kits, ones the producer kept first) is a drum kit too: make_instrument it, then write_part its drums, which play General MIDI drum notes.
+- A style's drum sound (trap, house, techno, boom-bap, 80s) is a new kit, not new notes on the old one, and the producer's own come first (below). Else apply_knowledge a kit entry (sound/kit-trap-808, kit-house-909, kit-boombap-mpc60, kit-boombap-sp12, kit-synthpop-linndrum) with the style's pattern, or make_kit with samples you pick (samples finds them across 70 drum machines); with replaces naming the old drums, which parks them on the bar the kit comes in. The producer's drums come first, before a knowledge kit: sounds with the role drums (or percussion) and the style lists whole kits they kept (✓; make_instrument it, then write_part its drums, which play General MIDI drum notes), and samples with a role and the style lists drum samples they kept (✓; build a kit with make_kit, each pad's tuning going on by itself). A knowledge kit entry only when neither has one for the style; a rejected sample in it is swapped for a kept one.
 - An 808 bass (trap, drill, modern hip hop) is make_sampler: a long TR-808 kick played as notes (sound/808-bass), roots in the key around the kick, long notes with gaps.
 - A track a sound entry made with no notes gets its part with write_part: chords (pads, keys, strings) as a progression, code writes the notes.
 - Vaporisateur's namedParameter: oscillators[0] and oscillators[1], each {waveform (0 sine, 1 triangle, 2 saw, 3 square), volume (dB; -Infinity is off), octave (-3..3), tune (cents)}; unisonCount is 1, 3 or 5 only; unisonDetune in cents (1..1200); unisonStereo 0..1; cutoff (Hz), resonance, filterOrder (1..4), attack, decay, sustain, release. A supersaw: both oscillators saw at 0 dB, the second tuned +7 ct, unisonCount 5, unisonDetune 25, unisonStereo 0.8.
@@ -420,6 +421,31 @@ export class Utility implements Member {
 
     // The knowledge entries that best match a piece (its kind, goal and the producer's words), not the whole index
     // (~20k characters, a third of a worker's context, read once by seven workers in one run).
+    // The producer's own sounds for the style a piece is going for (2026-11-26: workers went to knowledge kits and
+    // copied their samples though the producer had kept kits for the style): kept ones good for the style, by role, with
+    // their words, in the piece's first message rather than behind a search it may not make.
+    #producersSounds(piece: Piece, message: string): Record<string, unknown> {
+        const library = this.#knowledge?.library ?? null, samples = this.#knowledge?.samples ?? null
+        if (library === null || samples === null || !["drums", "notes", "sound"].includes(piece.kind)) {return {}}
+        const styles = genresIn(`${piece.goal} ${message}`)
+        if (styles.length === 0) {return {}}
+        const line = (id: string, words: string[]) => words.length > 0 ? `${id} (their words: ${words.join(", ")})` : id
+        const roles = piece.kind === "drums" ? ["drums", "percussion"] as SoundRole[] : SoundRoles.filter(role => role !== "drums" && role !== "percussion")
+        const sounds = Object.fromEntries(roles.flatMap(role => {
+            const kept = samples.sounds.filter(sound => styles.some(style => library.rank(sound, role, style) === 0)).slice(0, 5)
+            return kept.length === 0 ? [] : [[role, kept.map(sound => line(sound.id, library.entry(sound.id)?.tags ?? []))]]
+        }))
+        const drumSamples = piece.kind !== "drums" ? {} : Object.fromEntries((["kick", "snare", "closed_hat", "open_hat", "clap", "rim", "ride", "shaker", "perc"] as DrumPiece[])
+            .flatMap(drum => {
+                const kept = samples.search({}, Number.MAX_SAFE_INTEGER).filter(sample => styles.some(style => library.rankDrum(sample, drum, style) === 0)).slice(0, 4)
+                return kept.length === 0 ? [] : [[drum, kept.map(sample => line(sample.id, library.drumEntry(sample.id)?.tags ?? []))]]
+            }))
+        if (Object.keys(sounds).length === 0 && Object.keys(drumSamples).length === 0) {return {}}
+        return {producers_sounds: {style: styles.join(", "),
+            about: "The producer's own sounds kept for this style, by role: use these before any knowledge entry's sound or kit. A whole kit (drums) is a track from make_instrument whose drums write_part writes (General MIDI drum notes); drum samples go into make_kit.",
+            ...(Object.keys(sounds).length > 0 ? {instruments: sounds} : {}), ...(Object.keys(drumSamples).length > 0 ? {drum_samples: drumSamples} : {})}}
+    }
+
     #knowledgeFor(piece: Piece, message: string): Record<string, unknown> {
         if (this.#knowledge === null) {return {}}
         const found = shortlist(this.#knowledge.index(), `${piece.kind} ${PieceKinds[piece.kind]} ${piece.goal} ${message}`, 12)
@@ -453,6 +479,13 @@ export class Utility implements Member {
                 handler(async (current, input) => {
                     const snapshot = await current.context.snapshot()
                     if (snapshot === null) {return "Not applied: no project is open."}
+                    // A knowledge kit while the producer has kept their own drums for its style: their drums are shown first,
+                    // once a piece; a second call goes ahead (the producer asked for it, or none of theirs fits).
+                    const own = current.ownDrumsShown === true ? null : this.#producersDrums(String(input.key))
+                    if (own !== null) {
+                        current.ownDrumsShown = true
+                        return own
+                    }
                     return this.#replacing(current, String(input.replaces ?? ""), Number(input.at_bar) || 0, snapshot,
                         bar => this.#applyKnowledge(current, String(input.key), (input.args ?? {}) as Record<string, unknown>, bar))
                 })),
@@ -519,6 +552,17 @@ export class Utility implements Member {
             if (snapshot === null) {return "Not done: no project is open."}
             const input = this.#withComposed(current.context, given, snapshot.timeline.signature[0])
             if (typeof input === "string") {return `Not done: ${input}.`}
+            // A kit of samples the producer hasn't kept while they have drums of their own for the style: theirs are shown
+            // first, once a piece (a worker copied a knowledge kit's samples into make_kit).
+            if (kind === "kit" && current.ownDrumsShown !== true) {
+                const pads = (Array.isArray(input.pads) ? input.pads : []) as Array<{ sample?: unknown }>
+                const theirs = pads.some(pad => knowledge.library?.drumEntry(String(pad.sample))?.verdict === "kept")
+                const own = theirs ? null : this.#producersDrums("sound/kit-", genresIn(`${current.task.piece ?? ""} ${current.task.message}`))
+                if (own !== null) {
+                    current.ownDrumsShown = true
+                    return own
+                }
+            }
             const made = knowledge[kind](shape(kind, input), snapshot)
             if (typeof made === "string") {return `Not done: ${made}.`}
             current.context.card({agent: this.agent, name: this.name, doing: kind === "kit" ? "building a drum kit…" : kind === "soundfont" ? "bringing in an instrument…" : "setting up a sampler…"})
@@ -529,31 +573,36 @@ export class Utility implements Member {
             tool("samples", "Find drum and percussion samples in TakeDo's collections (~2,800 one-shots from 70 classic drum machines: TR-808, TR-909, LinnDrum, MPC60, SP-12, DMX, ...) by machine, role and words; all empty lists the machines.", {
                 machine: z.string().describe("Part of a machine's name (\"808\", \"LinnDrum\", \"MPC\"); \"\" for any"),
                 role: z.string().describe("kick, snare, clap, rim, closed hat, open hat, crash, ride, low tom, mid tom, high tom, cowbell, percussion, shaker, tambourine, misc, effect; \"\" for any"),
-                words: z.string().describe("Words in the sample's id or the producer's tags (\"BD0010\", \"dusty\"); \"\" for none")},
+                words: z.string().describe("Words in the sample's id, the producer's tags or its moods (\"BD0010\", \"dusty\"); \"\" for none"),
+                style: z.enum(["", ...Genres] as [string, ...string[]]).describe(`The style the music is going for (${Genres.join(", ")}); samples good for it come first; "" for any`)},
                 handler((_current, input) => {
                     const machine = String(input.machine ?? ""), role = String(input.role ?? ""), words = String(input.words ?? "")
-                    if (machine === "" && role === "" && words === "") {
+                    const style = String(input.style ?? "") as Genre | ""
+                    if (machine === "" && role === "" && words === "" && style === "") {
                         return samples.machines().map(entry => `${entry.machine} (${entry.count}): ${entry.roles.join(", ")}`).join("\n")
                     }
                     // The producer's drum samples first (2026-11-26): kept ones (with their tags), then unheard; rejected never.
                     const library = knowledge.library
                     const piece = role === "" ? null : pieceOf({role} as Sample)
-                    const tagsOf = (sample: Sample) => library?.drumEntry(sample.id)?.tags ?? []
+                    const tagsOf = (sample: Sample) => [...library?.drumEntry(sample.id)?.tags ?? [], ...library?.drumStyles(sample).moods ?? []]
                     const terms = words.toLowerCase().split(/\s+/).filter(term => term !== "")
                     const byTag = terms.length === 0 ? [] : samples.search({machine, role}, Number.MAX_SAFE_INTEGER)
                         .filter(sample => terms.every(term => tagsOf(sample).join(" ").includes(term)))
                     const found = [...new Set([...samples.search({machine, role, words}, Number.MAX_SAFE_INTEGER), ...byTag])]
                         .flatMap(sample => {
-                            const rank = library?.rankDrum(sample, piece) ?? 1
+                            const rank = library?.rankDrum(sample, piece, style === "" ? null : style) ?? 1
                             return rank === null ? [] : [{sample, rank}]
                         })
                         .sort((a, b) => a.rank - b.rank).slice(0, 60)
                     return found.length === 0 ? "Nothing matches (or the producer rejected all that do); leave a field empty or list the machines."
-                        : found.map(({sample}) => {
-                            const entry = library?.drumEntry(sample.id)
+                        : found.map(({sample, rank}) => {
+                            const entry = library?.drumEntry(sample.id), styled = library?.drumStyles(sample)
+                            const good = styled === undefined || styled.styles.length === 0 ? "" : ` · ${styled.confirmed ? "for" : "guessed for"} ${styled.styles.join(", ")}`
+                            const moods = styled === undefined || styled.moods.length === 0 ? "" : ` · ${styled.moods.join(", ")}`
+                            const notFor = style !== "" && rank % 4 >= 2 ? ` · not for ${style}` : ""
                             return entry?.verdict === "kept"
-                                ? `✓ ${sample.id} (${sample.role ?? "?"}, ${sample.duration.toFixed(2)} s): kept by the producer${entry.tags.length > 0 ? `, ${entry.tags.join(", ")}` : ""}${entry.note ? ` (${entry.note})` : ""}`
-                                : `${sample.id} (${sample.role ?? "?"}, ${sample.duration.toFixed(2)} s)`
+                                ? `✓ ${sample.id} (${sample.role ?? "?"}, ${sample.duration.toFixed(2)} s): kept by the producer${good}${moods}${notFor}${entry.tags.length > 0 ? ` · their words: ${entry.tags.join(", ")}` : ""}${entry.note ? ` (${entry.note})` : ""}`
+                                : `${sample.id} (${sample.role ?? "?"}, ${sample.duration.toFixed(2)} s)${good}${moods}${notFor}`
                         }).join("\n")
                 }), {annotations: {readOnlyHint: true}}),
             tool("make_kit", "A new drum track: a kit (openDAW's Playfield) of samples you pick, one per role, optionally playing a groove from the start. The pads get role names, so knowledge drum patterns and evolve_notes find them. The old drums stay: park them (mute) when the new kit comes in.", {
@@ -582,32 +631,44 @@ export class Utility implements Member {
                 handler(make("sampler"))),
             ...(samples.sounds.length === 0 ? [] : [
                 tool("sounds", "Find instrument sounds by words in their names and descriptions: sampled instruments (soundfont presets: GeneralUser GS's 287 General MIDI sounds, and openDAW's upright piano, guitars, harp, organ, xylophone, TB-303) and openDAW's factory synth presets (\"openDAW/...\": FM Rhodes, organs, pads, house and square basses, brass, plucks, on Tubular, Neon, Vaporisateur). Usually a better start for a genre's bass, keys, strings, brass, guitar or pad than a synth set by hand.", {
-                    words: z.string().describe("Words in the name or the producer's tags (\"fingered bass\", \"electric piano\", \"warm\"); \"\" for any"),
-                    role: z.enum(["", ...SoundRoles] as [string, ...string[]]).describe("The part it's for (bass, keys, pad, lead, strings, guitar, brass, bells, drums or percussion: a whole kit, other); \"\" for any")},
+                    words: z.string().describe("Words in the name, the producer's tags or the moods (\"electric piano\", \"warm\"); \"\" for any: role and style are usually enough"),
+                    role: z.enum(["", ...SoundRoles] as [string, ...string[]]).describe("The part it's for (bass, keys, pad, lead, strings, guitar, brass, bells, drums or percussion: a whole kit, other); \"\" for any"),
+                    style: z.enum(["", ...Genres] as [string, ...string[]]).describe(`The style the music is going for (${Genres.join(", ")}); those good for it come first; "" for any`)},
                     handler((_current, input) => {
                         const words = String(input.words ?? "").trim(), role = String(input.role ?? "") as SoundRole | ""
+                        const style = String(input.style ?? "") as Genre | ""
                         const library = knowledge.library
-                        if (words === "" && role === "") {
+                        if (words === "" && role === "" && style === "") {
                             return [...new Map(samples.sounds.map(sound => [sound.soundfont, samples.sounds.filter(other => other.soundfont === sound.soundfont).length])).entries()]
                                 .map(([font, count]) => `${font}: ${count} sounds`).join("\n")
                         }
-                        // The producer's library first (2026-11-26): kept sounds for the role, then unheard ones; rejected never.
-                        const tagged = (sound: Sound) => library?.entry(sound.id)?.tags.join(" ") ?? ""
+                        // The producer's library first (2026-11-26): sounds for the role and the style, kept before unheard,
+                        // then ones not for the style; rejected never. Styles and moods are the producer's, else guessed.
+                        const described = (sound: Sound) => {
+                            const entry = library?.entry(sound.id), styled = library?.styles(sound)
+                            return `${entry?.tags.join(" ") ?? ""} ${styled?.moods.join(" ") ?? ""}`.toLowerCase()
+                        }
+                        const terms = words.toLowerCase().split(/\s+/).filter(word => word !== "")
                         const candidates = words === "" ? samples.sounds
-                            : [...samples.searchSounds(words, 400), ...samples.sounds.filter(sound => tagged(sound) !== "" && words.toLowerCase().split(/\s+/).every(word => tagged(sound).includes(word)))]
+                            : [...samples.searchSounds(words, 400), ...samples.sounds.filter(sound => terms.every(word => described(sound).includes(word)))]
                         const ranked = [...new Set(candidates)].flatMap(sound => {
-                            const rank = library === null ? 1 : library.rank(sound, role === "" ? null : role)
-                            return rank === null || (role !== "" && rank > 1) ? [] : [{sound, rank}]
+                            const rank = library === null ? 1 : library.rank(sound, role === "" ? null : role, style === "" ? null : style)
+                            return rank === null || (role !== "" && rank >= 4) ? [] : [{sound, rank}]
                         }).sort((a, b) => a.rank - b.rank).slice(0, 40)
                         if (ranked.length === 0) {return "Nothing matches; try fewer or other words, or another role."}
                         const keptCount = ranked.filter(({rank}) => rank % 2 === 0).length
+                        const forStyle = ranked.filter(({rank}) => rank % 4 < 2).length
                         return [keptCount === 0 && library !== null ? "None of these is in the producer's library yet (all unheard)." : "",
-                            ...ranked.map(({sound}) => {
-                                const entry = library?.entry(sound.id)
+                            style !== "" && forStyle === 0 ? `Nothing here is marked or guessed for ${style}; say so in your reply rather than pass one off as ${style}.` : "",
+                            ...ranked.map(({sound, rank}) => {
+                                const entry = library?.entry(sound.id), styled = library?.styles(sound)
                                 const own = sound.source === "preset" ? ` (${sound.device}${sound.about ? `: ${sound.about}` : ""})` : ""
+                                const good = styled === undefined || styled.styles.length === 0 ? "" : ` · ${styled.confirmed ? "for" : "guessed for"} ${styled.styles.join(", ")}`
+                                const moods = styled === undefined || styled.moods.length === 0 ? "" : ` · ${styled.moods.join(", ")}`
+                                const notFor = style !== "" && rank % 4 >= 2 ? ` · not for ${style}` : ""
                                 return entry?.verdict === "kept"
-                                    ? `✓ ${sound.id}${own}: kept by the producer${entry.tags.length > 0 ? `, ${entry.tags.join(", ")}` : ""}${entry.note ? ` (${entry.note})` : ""}; their tuning goes on with it`
-                                    : `${sound.id}${own}: unheard`
+                                    ? `✓ ${sound.id}${own}: kept by the producer${good}${moods}${notFor}${entry.tags.length > 0 ? ` · their words: ${entry.tags.join(", ")}` : ""}${entry.note ? ` (${entry.note})` : ""}; their tuning goes on with it`
+                                    : `${sound.id}${own}: unheard${good}${moods}${notFor}`
                             })].filter(line => line !== "").join("\n")
                     }), {annotations: {readOnlyHint: true}}),
                 tool("make_instrument", "A new track playing a sound from sounds (a soundfont preset on openDAW's Soundfont device, or an openDAW factory preset on its synth), optionally with notes from the start. Set its sound once; its notes play as written (keep a bass in the bass register).", {
@@ -632,6 +693,27 @@ export class Utility implements Member {
                         return this.#run(current, made.says, made.code, Number(input.at_bar) || 0)
                     }))])])
         ]
+    }
+
+    // The producer's own drums for a knowledge kit's styles, as the reason not to use the kit; null when they have none.
+    #producersDrums(key: string, given: Genre[] | null = null): string | null {
+        const knowledge = this.#knowledge, library = knowledge?.library ?? null
+        if (knowledge === null || library === null || !key.startsWith("sound/kit-")) {return null}
+        const entry = given === null ? knowledge.get([key])[0] : null
+        if (given === null && (entry === undefined || entry === null || "missing" in entry)) {return null}
+        const styles = given ?? genresOf((entry as { tags: string[] }).tags)
+        if (styles.length === 0) {return null}
+        const own = library.ownDrums(styles)
+        if (own === null) {return null}
+        const kits = own.kits.slice(0, 6).map(sound => {
+            const words = library.entry(sound.id)?.tags ?? []
+            return `${sound.id}${words.length > 0 ? ` (their words: ${words.join(", ")})` : ""}`
+        })
+        return [`Not done: the producer kept their own drums for ${styles.join(" and ")}, which come before a knowledge kit.`,
+            kits.length > 0 ? `Their kits: ${kits.join("; ")}. One is a drum track with make_instrument (a whole kit), then write_part its drums, which play General MIDI drum notes; replaces parks the old drums.` : "",
+            own.pieces.length > 0 ? `Their samples (samples with a role and the style lists them, ✓): ${own.pieces.join(", ")}; make_kit builds a kit of them, each pad tuned their way.` : "",
+            `Use theirs. Call again only if the producer asked for this kit or none of theirs fits the piece, and say why in your reply.`]
+            .filter(line => line !== "").join("\n")
     }
 
     // A part's notes changed in stages by code (generate.ts): the model names the target and the pacing, not the notes of
@@ -991,6 +1073,7 @@ export class Utility implements Member {
                 regions: track.regions.map(({ref, name, from, to, loop}) => ({ref, name, from, to, loop}))}))},
             notebook: context.notebook?.list() ?? [],
             ...this.#knowledgeFor(job.task, job.message),
+            ...this.#producersSounds(job.task, job.message),
             devices: this.#devices,
             ...(EffectKinds.includes(job.task.kind) ? Object.assign({}, ...this.#team.map(member => member.context(snapshot))) : {})
         }))
