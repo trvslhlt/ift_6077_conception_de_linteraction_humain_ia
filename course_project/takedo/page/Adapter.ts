@@ -814,8 +814,8 @@ export class Adapter implements Terminable {
         })
         if (problems.length === 0) {return null}
         return `not applied: the loop is off and bars before ${this.#pos(played)} are already played (the producer's take); ` +
-            `${problems.join("; ")} would reach into them. Start a new region at the next bar line, ` +
-            `${this.#pos(played + bar)} (Math.ceil(project.engine.position.getValue() / bar) * bar), running to the song's end`
+            `${problems.join("; ")} would reach into them. Start a new region at \`here\` (the bar this edit landed on, ` +
+            `${this.#pos(played)}), running to the song's end`
     }
 
     // With the loop off, an edit to a part's notes changes only what's still to play (2026-11-25: stages rewrote the

@@ -15,6 +15,7 @@ export type ScriptEnv = {
     lib: { std: typeof Std, dsp: { PPQN: typeof PPQN }, adapters: typeof Adapters, core: typeof Core }
     ref(ref: string): unknown                       // t1 → its AudioUnitBoxAdapter, t1.fx1 → the effect's adapter, r1 → the region's adapter
     bar: ppqn                                       // pulses per bar (960 per quarter note)
+    here: ppqn                                      // the bar line this edit landed on: where a new part starts
     ppqn(pos: string): ppqn                         // "5.1.1" → pulses
     pos(position: ppqn): string                     // pulses → "5.1.1"
     snapshot(): unknown                             // the outline snapshot agents read
@@ -77,6 +78,9 @@ export const scriptEnv = (project: Project, resolve: (ref: string) => unknown, s
     lib: {std: Std, dsp: {PPQN}, adapters: Adapters, core: Core},
     ref: resolve,
     get bar() {return bar()},
+    // The bar this edit lands in, read as it runs (2026-11-25: positions an agent worked out while planning were stale
+    // by the time the edit landed, so parts started in bars already played and the page had to move them).
+    get here() {return Math.floor(project.engine.position.getValue() / bar()) * bar()},
     ppqn: (text: string) => {
         const [bars, beats = 1, sixteenths = 1] = text.split(".").map(Number)
         const [nominator, denominator] = [project.timelineBox.signature.nominator.getValue(),
@@ -89,11 +93,11 @@ export const scriptEnv = (project: Project, resolve: (ref: string) => unknown, s
     preset: takedoPreset
 })
 
-// Runs a function body with `takedo` in scope, and its parts as plain names too (project, api, lib, ref, bar, ppqn,
-// pos, snapshot), since models write either, in a block of their own so a script may declare those names itself.
+// Runs a function body with `takedo` in scope, and its parts as plain names too (project, api, lib, ref, bar, here,
+// ppqn, pos, snapshot), since models write either, in a block of their own so a script may declare those names itself.
 // Async for looks (they may await); scripts are synchronous, since they run inside one edit.
-const Names = ["takedo", "project", "api", "lib", "ref", "bar", "ppqn", "pos", "snapshot"]
-const values = (env: ScriptEnv) => [env, env.project, env.api, env.lib, env.ref, env.bar, env.ppqn, env.pos, env.snapshot]
+const Names = ["takedo", "project", "api", "lib", "ref", "bar", "here", "ppqn", "pos", "snapshot"]
+const values = (env: ScriptEnv) => [env, env.project, env.api, env.lib, env.ref, env.bar, env.here, env.ppqn, env.pos, env.snapshot]
 export const runLook = (code: string, env: ScriptEnv): Promise<unknown> =>
     new Function(...Names, `return (async () => {\n${code}\n})()`)(...values(env))
 export const runScript = (code: string, env: ScriptEnv): unknown => new Function(...Names, `{\n${code}\n}`)(...values(env))

@@ -77,6 +77,8 @@ export type Planned =
     | { at: number, kind: "script", code: string, says: string }
 export type IndexLine = { key: string, summary: string, tags: string[], draft?: true, group?: string, label?: string }
 
+// A jam: playing with the loop off, where bars played are the producer's take and parts start where their edits land.
+export const jamming = (snapshot: Snapshot): boolean => snapshot.playback.playing && !snapshot.playback.loop.on
 const FixedOps = ["add_effect", "set_param", "remove_effect", "volume", "pan", "mute"] as const
 const Ops = [...FixedOps, "instrument", "dx7", "kit", "sampler", "soundfont", "pattern", "tempo", "script", "entry"]
 const ParamTypes = ["track", "amount", "number", "key", "text"]
@@ -543,8 +545,11 @@ export const loadKnowledge = (dir: string, catalog: Catalog, warn: (text: string
     // Where a pattern goes when the caller doesn't say: the bars the track's regions cover, else the loop, else the
     // bars the other parts cover. With the loop off (a take: the song plays straight through), from just ahead of the playhead instead (2026-11-24: a
     // house kit landing at bar 30 was placed over bars 1-16, already played, and never heard).
-    const defaultSpan = (snapshot: Snapshot, track: Track | null, minBars: number): { from: number, bars: number } => {
-        if (snapshot.playback.playing && !snapshot.playback.loop.on) {return {from: snapshot.playback.bar + 2, bars: Math.max(minBars, 16)}}
+    // With the loop off during playback a part has no bar number: it starts on the bar its edit lands on (the page's
+    // `here`, kb.js). Planning takes bars, so a bar worked out while planning had passed by the time the edit landed
+    // (2026-11-25: a job's "bar 5" read as the timeline's put the chords 11 bars in the past, in at once at full level).
+    const defaultSpan = (snapshot: Snapshot, track: Track | null, minBars: number): { from: number | null, bars: number } => {
+        if (jamming(snapshot)) {return {from: null, bars: Math.max(minBars, 16)}}
         if (track?.bars) {return {from: track.bars.from, bars: Math.max(minBars, track.bars.to - track.bars.from + 1)}}
         const covered = snapshot.tracks.flatMap(other => other.bars === null ? [] : [other.bars])
         if (covered.length > 0) {
@@ -584,12 +589,18 @@ export const loadKnowledge = (dir: string, catalog: Catalog, warn: (text: string
         if (typeof written === "string") {return written}
         const loopBars = Math.max(1, Math.ceil(source.pattern.beats / beatsPerBar))
         const span = defaultSpan(snapshot, track, loopBars)
-        const from = typeof input.from_bar === "number" && input.from_bar > 0 ? input.from_bar : span.from
+        const from = fromBar(input.from_bar, span)
         const bars = typeof input.bars === "number" && input.bars > 0 ? input.bars : span.bars
         return {from_bar: from, bars, loop_bars: loopBars, name: source.key.split("/")[1], notes: written.notes,
             says: written.says}
     }
 
+    const fromBar = (given: unknown, span: { from: number | null }): number | null =>
+        span.from === null ? null : typeof given === "number" && given > 0 ? given : span.from
+    const startText = (notes: Record<string, unknown>): string =>
+        typeof notes.from_bar === "number" ? `from bar ${notes.from_bar}` : "from the bar it lands on"
+    const barsText = (notes: Record<string, unknown>): string => typeof notes.from_bar === "number"
+        ? `bars ${notes.from_bar}–${notes.from_bar + Number(notes.bars) - 1}` : `${String(notes.bars)} bars from the bar it lands on`
     const helper = (call: string, args: unknown): string | null => kbScript === null ? null
         : `const args = ${JSON.stringify(args)};\n${kbScript}\nreturn kb.${call}(args)`
     const sampleLabel = (sample: { machine: string | null, id: string }): string => `${sample.machine ?? ""} ${sample.id.split("/").pop()}`.trim()
@@ -621,14 +632,14 @@ export const loadKnowledge = (dir: string, catalog: Catalog, warn: (text: string
         }
         return {code: helper("kit", {name, pads: resolved, volume_db: volumeOf(input.volume_db), notes})!,
             says: `${name}: a new kit track (${resolved.map(pad => pad.name).join(", ")})${notes === null ? ""
-                : `, ${String(notes.name)} from bar ${String(notes.from_bar)}`}`}
+                : `, ${String(notes.name)} ${startText(notes)}`}`}
     }
     // Notes as written ([beat, pitch, beats, velocity 0..1], looping every loop_bars) or a pattern entry's; null for none.
     const melodicNotes = (input: Record<string, unknown>, snapshot: Snapshot, owner: Entry | null, name: string): Record<string, unknown> | null | string => {
         if (isRecord(input.notes) && Array.isArray(input.notes.notes)) {
             const given = input.notes, loopBars = typeof given.loop_bars === "number" && given.loop_bars > 0 ? given.loop_bars : 1
             const span = defaultSpan(snapshot, null, loopBars)
-            return {from_bar: typeof given.from_bar === "number" && given.from_bar > 0 ? given.from_bar : span.from,
+            return {from_bar: fromBar(given.from_bar, span),
                 bars: typeof given.bars === "number" && given.bars > 0 ? given.bars : span.bars, loop_bars: loopBars, name, notes: given.notes}
         }
         return wantsNotes(input, owner) ? notesOf(input.notes, null, owner, snapshot) : null
@@ -641,7 +652,7 @@ export const loadKnowledge = (dir: string, catalog: Catalog, warn: (text: string
         const name = typeof input.name === "string" && input.name !== "" ? input.name : typeof input.default_name === "string" ? input.default_name : sound.preset
         const notes = melodicNotes(input, snapshot, owner, name)
         if (typeof notes === "string") {return notes}
-        const says = `${name}: a new track playing ${sound.id}${notes === null ? "" : `, from bar ${String(notes.from_bar)}`}`
+        const says = `${name}: a new track playing ${sound.id}${notes === null ? "" : `, ${startText(notes)}`}`
         if (sound.source === "preset") {
             if (catalog.device(sound.device ?? "")?.allowed === false) {return `${sound.id} is for ${sound.device}, which isn't allowed`}
             return {code: helper("preset", {name, uuid: sound.uuid, device: sound.device, preset_name: sound.preset,
@@ -662,7 +673,7 @@ export const loadKnowledge = (dir: string, catalog: Catalog, warn: (text: string
         if (notes === null) {return "no notes to write (give notes or chords)"}
         if (typeof notes === "string") {return notes}
         return {code: helper("pattern", {track: track.ref, notes})!,
-            says: `${name} on ${track.name}, bars ${String(notes.from_bar)}–${Number(notes.from_bar) + Number(notes.bars) - 1}`}
+            says: `${name} on ${track.name}, ${barsText(notes)}`}
     }
     // One of openDAW's effect presets at the end of a track's effects.
     const effectPresetPlan = (input: Record<string, unknown>, snapshot: Snapshot): { code: string, says: string } | string => {
@@ -690,7 +701,7 @@ export const loadKnowledge = (dir: string, catalog: Catalog, warn: (text: string
             // Notes as written: [beat, pitch, beats, velocity 0..1], looping every loop_bars.
             const given = input.notes, loopBars = typeof given.loop_bars === "number" && given.loop_bars > 0 ? given.loop_bars : 1
             const span = defaultSpan(snapshot, null, loopBars)
-            notes = {from_bar: typeof given.from_bar === "number" && given.from_bar > 0 ? given.from_bar : span.from,
+            notes = {from_bar: fromBar(given.from_bar, span),
                 bars: typeof given.bars === "number" && given.bars > 0 ? given.bars : span.bars, loop_bars: loopBars, name, notes: given.notes}
         } else if (wantsNotes(input, owner)) {
             const written = notesOf(input.notes, null, owner, snapshot)
@@ -764,7 +775,7 @@ export const loadKnowledge = (dir: string, catalog: Catalog, warn: (text: string
                 const notes = notesFor(input, track, entry)
                 if (typeof notes === "string") {return notes}
                 planned.push({at: stepAt, kind: "script", code: script("pattern", {track: track.ref, notes})!,
-                    says: `${entry.key.split("/")[1]} on ${track.name}, bars ${String(notes.from_bar)}–${Number(notes.from_bar) + Number(notes.bars) - 1}`})
+                    says: `${entry.key.split("/")[1]} on ${track.name}, ${barsText(notes)}`})
                 continue
             }
             if (step.op === "dx7" || step.op === "instrument") {

@@ -296,10 +296,15 @@ describe("kits", {skip: samples.size === 0 ? "no samples/ (make samples)" : fals
             assert.equal(args.notes.loop_bars, 2)
         }
     })
-    it("with the loop off, places a kit's groove just ahead of the playhead, not over bars already played", () => {
+    it("with the loop off, leaves a kit's groove to start on the bar its edit lands on, whatever bar it was given", () => {
+        // 2026-11-25: bars worked out while planning had passed when the edit landed (a job's "bar 5" put chords 11 bars back).
         const take = {...snapshot, playback: {...snapshot.playback, bar: 30, loop: {...snapshot.playback.loop, on: false}}}
-        const planned = withSamples.expand("sound/kit-house-909", {pattern: "pattern/four-on-the-floor"}, take)
-        assert.ok(Array.isArray(planned) && /from bar 32/.test(planned[0].says), JSON.stringify(planned))
+        for (const args of [{pattern: "pattern/four-on-the-floor"}, {pattern: "pattern/four-on-the-floor", from_bar: 5}]) {
+            const planned = withSamples.expand("sound/kit-house-909", args, take)
+            assert.ok(Array.isArray(planned) && /from the bar it lands on/.test(planned[0].says), JSON.stringify(planned).slice(0, 300))
+            const sent = JSON.parse(planned[0].code.slice("const args = ".length, planned[0].code.indexOf(";\n")))
+            assert.equal(sent.notes.from_bar, null)
+        }
     })
     it("makes an empty kit when no pattern is given", () => {
         const planned = withSamples.expand("sound/kit-house-909", {}, snapshot)

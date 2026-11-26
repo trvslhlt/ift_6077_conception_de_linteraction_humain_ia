@@ -36,9 +36,10 @@ const kb = (() => {
     }
     // A new region over [from_bar, from_bar + bars) whose content (loop_bars long) repeats, after clearing that range
     // of the track (openDAW's own clip resolver: regions in the way are cut or removed, as when the user drops one).
+    // No from_bar (a jam with the loop off): it starts on the bar the edit lands on (`here`), its pattern from the top.
     const writeNotes = (trackBox, trackAdapter, notes) => {
         const beat = ppqn("1.2.1") - ppqn("1.1.1")
-        const position = (notes.from_bar - 1) * bar, duration = notes.bars * bar
+        const position = typeof notes.from_bar === "number" ? (notes.from_bar - 1) * bar : here, duration = notes.bars * bar
         if (trackAdapter !== null) {
             const resolver = lib.core.RegionClipResolver
             if (resolver !== undefined) {
