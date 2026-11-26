@@ -176,6 +176,36 @@ try {
             console.log(`> ${text}`)
             continue
         }
+        if (step.screenshot !== undefined) {
+            // The team view as it looks now: {"screenshot": "<name>"} saves <name>.png with the run.
+            const shots = join(dirname(file), "runs", `${run.started.replace(/[:.]/g, "-")}_${name}`)
+            mkdirSync(shots, {recursive: true})
+            await page.getByTestId("takedo-column-team").screenshot({path: join(shots, `${step.screenshot}.png`)})
+                .catch(() => page.screenshot({path: join(shots, `${step.screenshot}.png`)}))
+            console.log(`> (screenshot ${step.screenshot})`)
+            continue
+        }
+        if (step.done !== undefined) {
+            // ✓ (keep: true) or ✗ on a control, or on the panel it's in: {"done": "<ref, or \"\" for the first>", "keep": true}.
+            const selector = `[data-testid=takedo-control]${step.done === "" ? "" : `[data-ref="${step.done}"]`}` +
+                `${step.widget === undefined ? "" : `[data-widget="${step.widget}"]`}${step.kind === undefined ? "" : `[data-kind="${step.kind}"]`}`
+            const found = await page.waitForSelector(selector, {timeout: 5000}).then(() => true, () => false)
+            const label = found ? await page.evaluate(([selector, keep]) => {
+                const control = document.querySelector(selector)
+                const holder = control.closest("[data-testid=takedo-control-panel]") ?? control
+                holder.querySelector(`[data-done="${keep ? "keep" : "undo"}"]`)?.click()
+                return holder.dataset.group ?? control.dataset.ref
+            }, [selector, step.keep === true]) : null
+            text = label === null ? "(no control for ✓/✗)" : `(${step.keep ? "✓" : "✗"} on ${label})`
+            console.log(`> ${text}`)
+            if (label === null) {
+                run.messages.push({text, control: true, replyMs: 0, settledMs: 0, settled: true, replies: []})
+                continue
+            }
+            await page.waitForTimeout(8000)
+            run.messages.push({text, control: true, replyMs: 0, settledMs: 8000, settled: true, replies: []})
+            continue
+        }
         if (step.control !== undefined) {
             // widget, kind: the first control of that widget or kind (the Team Lead names its controls itself).
             const selector = `[data-testid=takedo-control]${step.control === "" ? "" : `[data-ref="${step.control}"]`}` +
@@ -190,10 +220,10 @@ try {
                     input.dispatchEvent(new Event("input"))
                     input.dispatchEvent(new Event("change"))
                 } else {
-                    const buttons = [...control.querySelectorAll("button")]
+                    const buttons = [...control.querySelectorAll("button:not([data-done])")]
                     buttons[Math.min(buttons.length - 1, Math.max(0, Math.round(value)))]?.click()
                 }
-                return `${control.dataset.ref} (${control.firstElementChild.textContent})`
+                return `${control.dataset.ref} (${(control.querySelector("[data-role=label]") ?? control.firstElementChild).textContent})`
             }, [selector, step.value]) : null
             text = label === null ? `(no control to move${step.control === "" ? "" : ` ${step.control}`})` : `(moved ${label} to ${step.value})`
             if (label === null) {
@@ -234,7 +264,7 @@ try {
         console.log(`> ${text}\n${lines.map(line => `  ${line.shown ?? line.from}: ${line.text}`).join("\n")}\n  (${(replyMs / 1000).toFixed(1)} s to reply, ${((Date.now() - start) / 1000).toFixed(1)} s to settle)`)
     }
     run.controls = await page.evaluate(() => [...document.querySelectorAll("[data-testid=takedo-control]")].map(control => ({
-        ref: control.dataset.ref, label: control.firstElementChild.textContent, widget: control.dataset.widget,
+        ref: control.dataset.ref, label: (control.querySelector("[data-role=label]") ?? control.firstElementChild).textContent, widget: control.dataset.widget,
         value: control.querySelector("input") !== null ? Number(control.querySelector("input").value) / 100
             : Math.max(0, [...control.querySelectorAll("button")].findIndex(button => button.dataset.on === "true"))})))
     run.after = await full()

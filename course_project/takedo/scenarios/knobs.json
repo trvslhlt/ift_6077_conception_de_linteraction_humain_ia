@@ -1,0 +1,10 @@
+{
+  "//": "The controls as the producer sees them (2026-11-26: knobs over sliders, the moves icons, ✓ and ✗, cards that keep their height): the starters, a swing tweak's dial, a crusher's panel, then a style's slider; screenshots of the team view.",
+  "project": "01_good_base.odb",
+  "messages": [
+    {"screenshot": "starters"},
+    {"text": "give the beat more swing"},
+    {"text": "put a reverb on the bass"},
+    {"screenshot": "members"}
+  ]
+}

@@ -167,6 +167,9 @@ export type Control = { ref: string, owner: Actor, kind: "intent" | "direct", wi
     low: string, high: string, meaning: string, value: number
     group?: string                                              // a panel's title: controls sharing it show together, one on the card's limit
     idle?: string                                               // why it can't be heard now ("TR-808 is out"): shown dimmed (page only)
+    moves?: "code" | "model"                                    // page only: what a move of it does: code at once (⚡: a direct control,
+                                                                //   or a dial gliding between its takes), or a model's turn (🐢)
+    origin?: number                                             // where it was first offered: ✗ puts a direct control back there
     options?: string[]                                          // choice: its options, in order
     bind?: Array<{ ref: string, from: number, to: number }>     // direct: the parameters it sets (t2.mix.volume, t3.fx1.wet)
     transitions?: Record<string, "handover" | "crossfade"> }   // per track ref, how a part in one end only comes and goes (blend.ts)
@@ -188,6 +191,9 @@ export type PageToBackend =
     | { type: "overview" }                                // the producer asked for a fresh overview
     | { type: "chat", text: string }                      // the producer typed in the team view
     | { type: "control", ref: string, value: number }     // the producer let go of a control at this value
+    // The producer's ✓ (keep: the setting stays, the control goes) or ✗ (undo what it did, and the control goes), on a
+    // control or a whole panel (any of its refs).
+    | { type: "control_done", ref: string, keep: boolean }
     | { type: "library" }                                  // the Sounds tab asks for the sound library
     | { type: "library_set", id: string, entry: LibraryEntry | null }   // the producer's verdict and tuning for a sound
     | { type: "audition", id: string, role: SoundRole, tuning: SoundTuning }   // the Sounds tab wants to hear a sound

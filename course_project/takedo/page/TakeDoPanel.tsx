@@ -205,16 +205,40 @@ export const TakeDoPanel = ({lifecycle, service, visible}: Construct): HTMLEleme
         if (control.kind !== "direct" || adapter === null) {return}
         ;(control.bind ?? []).forEach(({ref, from, to}) => adapter.setAsProducer(ref, from + (to - from) * value, mark))
     }
+    // What a move does, with the activity's icons (2026-11-26, the producer: the same icons in the controls, not text):
+    // ⚡ code, at once (a direct control, or a dial gliding between its two takes); 🐢 a model's turn (the Team Lead).
+    const movesIcon = (control: Control): HTMLElement => (
+        <span data-testid="takedo-control-moves" title={control.moves === "code"
+            ? "⚡ code: a move sets it at once, no model (a dial past its versions' ends goes to the Team Lead)" : "🐢 a model: a move is a direction to the Team Lead"}
+              style={{fontWeight: "normal", cursor: "default"}}>{control.moves === "code" ? " ⚡" : " 🐢"}</span>
+    )
+    // ✓ keeps the setting and takes the control off; ✗ undoes what it did and takes it off (2026-11-26, the producer).
+    // On a panel, once for all of it.
+    const doneButtons = (control: Control): HTMLElement => {
+        const button = (text: string, keep: boolean, title: string): HTMLButtonElement => {
+            const element: HTMLButtonElement = <button data-done={keep ? "keep" : "undo"} data-testid={`takedo-control-${keep ? "keep" : "undo"}`}
+                title={title} style={{fontSize: "11px", lineHeight: "1", padding: "0.15em 0.35em", cursor: "pointer", borderRadius: "4px",
+                    border: "1px solid #555", color: keep ? "#8fd18f" : "#e08a8a", background: "rgba(40, 44, 50, 0.95)"}}>{text}</button>
+            element.onclick = event => {
+                event.stopPropagation()
+                connection.send({type: "control_done", ref: control.ref, keep})
+            }
+            return element
+        }
+        return <span style={{display: "inline-flex", columnGap: "0.25em", marginLeft: "auto"}}>
+            {button("✓", true, "Keep it as it is, and take the control off")}{button("✗", false, "Undo what it did, and take the control off")}
+        </span>
+    }
     // A control on a part that's out is dimmed, with why (Control.idle): it still moves, but nothing is heard.
     const shell = (control: Control, body: HTMLElement, ends: boolean): HTMLElement => (
         <div data-testid="takedo-control" data-ref={control.ref} data-widget={control.widget} data-kind={control.kind}
              data-idle={control.idle ?? ""} title={control.idle !== undefined ? `${control.idle}: not heard now. ${control.meaning}` : control.meaning}
-             style={{opacity: control.idle !== undefined ? "0.45" : "1"}}>
-            <div style={{fontWeight: "bold"}}>{control.label}{control.kind === "direct" ? <span style={{opacity: "0.5",
-                fontWeight: "normal"}}> · direct</span> : null}{control.idle !== undefined ? <span style={{fontWeight: "normal",
-                fontStyle: "italic"}}> · {control.idle}</span> : null}</div>
+             style={{opacity: control.idle !== undefined ? "0.45" : "1", display: "flex", flexDirection: "column"}}>
+            <div data-role="head" style={{display: "flex", alignItems: "center", columnGap: "0.2em", fontWeight: "bold"}}>
+                <span data-role="label">{control.label}</span>{movesIcon(control)}{control.idle !== undefined ? <span style={{fontWeight: "normal",
+                fontStyle: "italic"}}> · {control.idle}</span> : null}{control.group === undefined ? doneButtons(control) : null}</div>
             {body}
-            {ends ? <div style={{display: "flex", justifyContent: "space-between", opacity: "0.6", fontSize: "10px"}}>
+            {ends ? <div style={{display: "flex", justifyContent: "space-between", columnGap: "0.4em", opacity: "0.6", fontSize: "10px"}}>
                 <span>{control.low}</span><span>{control.high}</span>
             </div> : null}
         </div>
@@ -243,7 +267,10 @@ input.takedo-dial::-moz-range-thumb { ${thumb} }
 input.takedo-dial:active::-webkit-slider-thumb { cursor: grabbing; background: rgb(150, 205, 225); }`
         document.head.append(style)
     }
-    const dial = (control: Control): HTMLElement => {
+    // A slider where the dial crossfades the song between two versions (the Team Lead's: the song before a style and the
+    // style); a knob everywhere else, for an amount (2026-11-26, the producer: dials preferred over sliders, sliders where
+    // they're the best fit).
+    const slider = (control: Control): HTMLElement => {
         const input: HTMLInputElement = (
             <input type="range" min="0" max="100" step="1" value={String(Math.round(control.value * 100))} className="takedo-dial"
                    data-testid="takedo-control-input" aria-label={`${control.label}, from ${control.low} to ${control.high}`}/>
@@ -258,6 +285,95 @@ input.takedo-dial:active::-webkit-slider-thumb { cursor: grabbing; background: r
         }
         return shell(control, input, true)
     }
+    const SvgNs = "http://www.w3.org/2000/svg"
+    const svg = (tag: string, attributes: Record<string, string>): SVGElement => {
+        const element = document.createElementNS(SvgNs, tag)
+        Object.entries(attributes).forEach(([name, value]) => element.setAttribute(name, value))
+        return element
+    }
+    // A knob: drag up or down (or the arrow keys); 270 degrees from its low end to its high. A range input under it,
+    // hidden, carries the value (for keyboards, screen readers and the scenarios), so a knob moves as a slider does.
+    const Size = 44, Sweep = 270
+    const knob = (control: Control): HTMLElement => {
+        const input: HTMLInputElement = (
+            <input type="range" min="0" max="100" step="1" value={String(Math.round(control.value * 100))}
+                   data-testid="takedo-control-input" aria-label={`${control.label}, from ${control.low} to ${control.high}`}
+                   style={{position: "absolute", opacity: "0", width: "1px", height: "1px", pointerEvents: "none"}}/>
+        )
+        const r = Size / 2 - 5, c = Size / 2
+        const point = (f: number) => {
+            const angle = (-Sweep / 2 + Sweep * f - 90) * Math.PI / 180
+            return [c + r * Math.cos(angle), c + r * Math.sin(angle)]
+        }
+        const arc = (f: number) => {
+            const [x0, y0] = point(0), [x1, y1] = point(Math.max(0.0001, f))
+            return `M ${x0} ${y0} A ${r} ${r} 0 ${Sweep * f > 180 ? 1 : 0} 1 ${x1} ${y1}`
+        }
+        const face = svg("svg", {width: String(Size), height: String(Size), viewBox: `0 0 ${Size} ${Size}`})
+        const track = svg("path", {d: arc(1), fill: "none", stroke: "rgba(120, 130, 140, 0.45)", "stroke-width": "4", "stroke-linecap": "round"})
+        const level = svg("path", {fill: "none", stroke: "rgb(110, 170, 190)", "stroke-width": "4", "stroke-linecap": "round"})
+        const cap = svg("circle", {cx: String(c), cy: String(c), r: String(r - 6), fill: "rgb(40, 44, 50)", stroke: "#555"})
+        const needle = svg("line", {stroke: "rgb(150, 205, 225)", "stroke-width": "2", "stroke-linecap": "round"})
+        face.append(track, level, cap, needle)
+        const draw = (f: number) => {
+            level.setAttribute("d", arc(f))
+            const [x, y] = point(f), inner = (r - 6) / r
+            needle.setAttribute("x1", String(c)); needle.setAttribute("y1", String(c))
+            needle.setAttribute("x2", String(c + (x - c) * inner)); needle.setAttribute("y2", String(c + (y - c) * inner))
+        }
+        let value = control.value
+        draw(value)
+        const set = (next: number, live: boolean) => {
+            value = Math.max(0, Math.min(1, next))
+            input.value = String(Math.round(value * 100))
+            draw(value)
+            if (live) {direct(control, value, false)}
+        }
+        const holder: HTMLElement = <div tabIndex={0} data-testid="takedo-control-knob" style={{position: "relative", width: `${Size}px`,
+            height: `${Size}px`, cursor: "ns-resize", touchAction: "none", alignSelf: "center", outline: "none"}}>{face}{input}</div>
+        let start: { y: number, value: number } | null = null
+        holder.onpointerdown = event => {
+            holder.setPointerCapture(event.pointerId)
+            holder.dataset.dragging = "true"
+            start = {y: event.clientY, value}
+            if (control.kind === "direct") {handle.adapter?.gestureMark()}
+        }
+        holder.onpointermove = event => {
+            if (start === null) {return}
+            set(start.value + (start.y - event.clientY) / (event.shiftKey ? 600 : 150), control.kind === "direct")
+        }
+        const release = () => {
+            if (start === null) {return}
+            start = null
+            delete holder.dataset.dragging
+            if (control.kind === "direct") {handle.adapter?.gestureMark()}
+            send(control, value)
+        }
+        holder.onpointerup = release
+        holder.onpointercancel = release
+        holder.onkeydown = event => {
+            const step = event.key === "ArrowUp" || event.key === "ArrowRight" ? 0.05 : event.key === "ArrowDown" || event.key === "ArrowLeft" ? -0.05 : 0
+            if (step === 0) {return}
+            event.preventDefault()
+            set(value + step, control.kind === "direct")
+            send(control, value)
+        }
+        // The hidden input moved by a keyboard or a scenario: the knob follows.
+        input.oninput = () => set(Number(input.value) / 100, control.kind === "direct")
+        input.onchange = () => {set(Number(input.value) / 100, false); send(control, value)}
+        // The ends under the knob, not across the card.
+        const element = shell(control, holder, true)
+        element.style.minWidth = "4.5em"
+        if (control.group === undefined) {
+            const body: HTMLElement = <div style={{display: "flex", flexDirection: "column", width: "9em"}}/>
+            const ends = element.lastElementChild as HTMLElement
+            body.append(holder, ends)
+            element.append(body)
+        }
+        return element
+    }
+    const dial = (control: Control): HTMLElement =>
+        control.kind === "intent" && control.owner === "agent:team_lead" && control.group === undefined ? slider(control) : knob(control)
     // A switch is one toggle (2026-11-26, the producer: toggles): it shows its state's name and flips on a click.
     const toggle = (control: Control): HTMLElement => {
         let on = control.value >= 0.5
@@ -297,14 +413,14 @@ input.takedo-dial:active::-webkit-slider-thumb { cursor: grabbing; background: r
             setTimeout(() => button.style.background = "rgba(40, 44, 50, 0.95)", 300)
         }, "takedo-control-press")
         const element = shell(control, <div style={{margin: "0.2em 0"}}>{button}</div>, false)
-        element.firstElementChild?.remove()
+        element.querySelector("[data-role=label]")?.remove()
         return element
     }
     const widgets: Record<Control["widget"], (control: Control) => HTMLElement> = {dial, switch: toggle, choice, button: press}
     const showControls = (agent: string, controls: ReadonlyArray<Control>): void => {
         const box = controlsBox(agent)
         // A dial being dragged stays as it is; it reports when it's let go.
-        if (box.contains(document.activeElement) && box.querySelector("input:active") !== null) {return}
+        if (box.querySelector("input:active, [data-dragging=true]") !== null) {return}
         // A panel (controls sharing a group): one framed box under its title, in the place of its first control.
         const drawn: HTMLElement[] = []
         const panels = new Map<string, HTMLElement>()
@@ -314,8 +430,9 @@ input.takedo-dial:active::-webkit-slider-thumb { cursor: grabbing; background: r
             let panel = panels.get(control.group)
             if (panel === undefined) {
                 panel = <div data-testid="takedo-control-panel" data-group={control.group} style={{border: "1px solid #444",
-                    borderRadius: "6px", padding: "0.35em 0.5em", display: "flex", flexDirection: "column", rowGap: "0.35em"}}>
-                    <div style={{fontWeight: "bold", opacity: "0.85"}}>{control.group}</div>
+                    borderRadius: "6px", padding: "0.35em 0.5em", display: "flex", flexWrap: "wrap", gap: "0.4em 0.6em", alignItems: "flex-start"}}>
+                    <div style={{flexBasis: "100%", display: "flex", alignItems: "center", fontWeight: "bold"}}>
+                        <span style={{opacity: "0.85"}}>{control.group}</span>{doneButtons(control)}</div>
                 </div>
                 panels.set(control.group, panel)
                 drawn.push(panel)
@@ -338,7 +455,8 @@ input.takedo-dial:active::-webkit-slider-thumb { cursor: grabbing; background: r
                      background: "rgba(22, 25, 29, 0.95)"}}>
                 <div style={{fontWeight: "bold"}}>{name}</div>
                 {area === undefined ? null : <div style={{fontSize: "11px", opacity: "0.6"}}>{area}</div>}
-                <div data-testid="takedo-card-doing" style={{fontSize: "11px", marginTop: "0.3em"}}>{card.doing || "idle"}</div>
+                <div data-testid="takedo-card-doing" title={card.doing || "idle"} style={{fontSize: "11px", marginTop: "0.3em",
+                    whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis"}}>{card.doing || "idle"}</div>
                 {controlsBox(agent)}
             </div>
         )

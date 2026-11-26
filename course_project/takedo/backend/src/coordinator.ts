@@ -220,6 +220,9 @@ export class Coordinator {
             case "control":
                 this.#control(message.ref, message.value)
                 return
+            case "control_done":
+                void this.#controlDone(message.ref, message.keep).catch(error => this.#log.write("tweak_dial", {control_done: String(error)}))
+                return
             case "library":
                 this.#sendLibrary()
                 return
@@ -522,7 +525,8 @@ export class Coordinator {
         this.#send({type: "controls", controls: this.controls().map(control => {
             const track = trackOfControl(control)
             const out = track === null ? undefined : this.#muted.get(track)
-            return out === undefined ? control : {...control, idle: `${out} is out`}
+            const moves = control.kind === "direct" || ((control.widget === "dial" || control.widget === "switch") && this.#takes.has(control.ref)) ? "code" : "model"
+            return {...control, moves, ...(out === undefined ? {} : {idle: `${out} is out`})}
         })})
     }
     #lastBeat: object | null = null                  // the page's last heartbeat (page/Meter.ts)
@@ -578,13 +582,73 @@ export class Coordinator {
         }
         const control: Control = {ref: offered.ref, owner, kind, widget, label: offered.label, low: offered.low, high: offered.high,
             meaning: offered.meaning, value: settled(widget, existing?.widget === widget ? existing.value : offered.value, options),
-            ...(group !== undefined ? {group} : {}), ...(options !== undefined ? {options} : {}), ...(bind !== undefined ? {bind} : {}),
+            ...(group !== undefined ? {group} : {}), ...(options !== undefined ? {options} : {}),
+            origin: existing?.origin ?? offered.value, ...(bind !== undefined ? {bind} : {}),
             ...(existing?.transitions !== undefined ? {transitions: existing.transitions} : {})}
         this.#setControls(existing === undefined ? [...controls, control]
             : controls.map(candidate => candidate.ref === control.ref ? control : candidate))
         return `On your card: "${control.label}" at ${placed(control)}. ${kind === "direct"
             ? "The producer's moves set its parameters at once, as their own hand; you'll see them as producer_changed."
             : widget === "button" ? "A press will reach you as control_moved." : "Moving it will reach you as control_moved."}`
+    }
+
+    // The producer's ✓ or ✗ on a control or a panel (2026-11-26, the producer: a check confirms the setting and removes
+    // the control; an x removes the control's effect). ✓: the controls go, the project stays as it is. ✗, by what the
+    // control is: an effect's panel takes the effect out (parked, faded); a dial or switch between two takes goes back
+    // to the project before its direction (glided, by code); a direct control's parameters glide back to where they
+    // were when it was offered; anything else (a choice, a button, a dial still landing) is a direction to the Team
+    // Lead, to undo what it did. Its owner says what happened.
+    async #controlDone(ref: string, keep: boolean): Promise<void> {
+        const controls = this.controls()
+        const control = controls.find(candidate => candidate.ref === ref)
+        if (control === undefined) {return}
+        const panel = control.group === undefined ? [control] : controls.filter(candidate => candidate.owner === control.owner && candidate.group === control.group)
+        const name = control.group ?? control.label
+        const drop = () => this.#setControls(this.controls().filter(candidate => !panel.some(gone => gone.ref === candidate.ref)))
+        this.#log.write("board", {event: "control_done", ref, keep, panel: panel.map(gone => gone.ref)})
+        if (keep) {
+            drop()
+            return this.say(control.owner, `Keeping ${name} as it is; I've taken it off my card.`)
+        }
+        const bypass = panel.flatMap(candidate => candidate.bind ?? []).find(({ref}) => /\.fx\d+\.enabled$/.test(ref))
+        const direction = this.board.direction(`✗ ${name}`, true)
+        const step = (plan: Plan, says: string) => performStep(this, control.owner, {plan, when: {at: "asap"}, says, decided: {by: "code"},
+            activity: {direction: direction.id}}, `the producer's ✗ on ${name}`)
+        if (bypass !== undefined) {
+            drop()
+            const effect = bypass.ref.replace(/\.enabled$/, "")
+            this.say(control.owner, `Taking the ${name} out.`)
+            await step({op: "remove_effect", ref: effect}, `${name} out`)
+            return
+        }
+        const ends = this.#takes.ends(control.ref)
+        if (panel.length === 1 && (control.widget === "dial" || control.widget === "switch") && control.kind === "intent" && ends !== null) {
+            this.say(control.owner, `Taking ${name} back to how it was before.`)
+            await this.#blend(control.ref, ends.lo.value)
+            drop()
+            return
+        }
+        const direct = panel.filter(candidate => candidate.kind === "direct" && candidate.bind !== undefined)
+        if (direct.length === panel.length) {
+            drop()
+            this.say(control.owner, `Putting ${name} back where it was.`)
+            await Promise.all(direct.flatMap(candidate => (candidate.bind ?? []).map(({ref, from, to}) => {
+                const at = from + (to - from) * (candidate.origin ?? candidate.value)
+                return /\.mix\.mute$/.test(ref) || candidate.widget === "switch"
+                    ? step({op: "set", ref, to: Math.round(at)}, `${candidate.label} back`)
+                    : step({op: "ramp", ref, to: at, beats: 2}, `${candidate.label} back`)
+            })))
+            return
+        }
+        // The Team Lead's to undo: a choice, a button, a dial whose work is still landing.
+        drop()
+        const captain = this.#captain
+        this.card({agent: control.owner, name: memberOf(control.owner) === null ? captain.name : Members[memberOf(control.owner)!].name, doing: `heard: ✗ on ${name}`})
+        captain.later(this, async () => {
+            const snapshot = await this.snapshot()
+            return snapshot === null ? null : {turn: {kind: "control_moved", controls: [control.ref],
+                text: `The producer pressed ✗ on your control "${control.label}" (${control.ref}, on ${control.owner.replace("agent:", "")}'s card): undo what it did, back to how the project was before its direction, and the control is gone. It meant: ${control.meaning}`}, snapshot}
+        }).catch(error => this.say("agent:team_lead", `Something went wrong: ${String(error)}`))
     }
 
     removeControl(owner: Actor, ref: string): string {
@@ -704,6 +768,7 @@ export class Coordinator {
         if (snapshot === null || snapshot.detail !== "full") {return null}
         const take = this.#takes.keep(control, value, label, snapshot)
         this.#log.write("take", {id: take.id, control, value, label})
+        this.#sendControls()        // its moves may now glide by code (⚡)
         return take.id
     }
 
@@ -866,6 +931,8 @@ export class Coordinator {
         if (word === undefined || track === undefined || memberOf(agent) === null || ["none", undefined].includes(this.landsWith(message)?.control)) {return}
         const ref = `c:${judged.tweak}_${track.ref}`
         if (this.controls().some(control => control.ref === ref)) {return}
+        // The part's starter swing dial gives way to this one (a twin otherwise, on the same card).
+        if (judged.tweak === "swing_more" || judged.tweak === "straighten") {this.removeControl(this.#captain.agent, `${Starter}${track.ref}_swing`)}
         const value = Math.min(0.85, 0.4 + 0.15 * Math.round(judged.amount))
         const said = this.offerControl(agent, {ref, kind: "intent", widget: "dial", label: `${word}: ${track.name}`.slice(0, 30),
             low: "as it was", high: `more ${word.toLowerCase()}`.slice(0, 30), meaning: `How ${word.toLowerCase()} the ${track.name} plays: ${Tweaks[judged.tweak as keyof typeof Tweaks]}`, value})

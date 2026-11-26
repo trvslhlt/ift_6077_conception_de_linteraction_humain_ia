@@ -305,7 +305,7 @@ if (before === undefined || after === undefined) {
     if (run.messages.some(message => message.control === true)) {
         type Offered = { ref: string, label: string, low: string, high: string, widget?: string, kind?: string, options?: string[],
             bind?: Array<{ ref: string }> }
-        const offered = log.filter(entry => entry.type === "controls").flatMap(entry => entry.controls as Offered[])
+        const offered = log.filter(entry => entry.type === "controls" && Array.isArray(entry.controls)).flatMap(entry => entry.controls as Offered[])
         const shape = (control: Offered): string => `${control.kind === "direct" ? "direct " : ""}${control.widget ?? "dial"}` +
             (control.widget === "button" ? "" : control.widget === "choice" ? `: ${(control.options ?? []).join(" / ")}` : `: ${control.low} → ${control.high}`) +
             (control.bind === undefined ? "" : `, on ${control.bind.map(bound => bound.ref).join(", ")}`)
@@ -315,7 +315,8 @@ if (before === undefined || after === undefined) {
         const moves = log.filter(entry => entry.type === "control")
         for (const move of moves) {
             // Its window ends at the producer's next message or move.
-            const next = log.find(entry => entry.t > move.t && (entry.type === "control" || entry.type === "chat" && entry.from === "user"))?.t ?? Infinity
+            const next = log.find(entry => entry.t > move.t && (entry.type === "control" || entry.type === "chat" && entry.from === "user"
+                || entry.type === "board" && entry.event === "control_done"))?.t ?? Infinity
             const edits = requests.filter(entry => entry.t > move.t && entry.t < next).length
             // A note that the control's part is out (a dimmed control) isn't a reply to the move.
             const replied = log.some(entry => entry.t > move.t && entry.t < next && entry.type === "chat" && entry.from !== "user"

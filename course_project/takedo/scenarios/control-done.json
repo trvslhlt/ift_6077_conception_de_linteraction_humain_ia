@@ -1,0 +1,12 @@
+{
+  "//": "Knobs, the moves icon, ✓ and ✗ (2026-11-26, the producer: dials over sliders; the activity icons on the controls; a check keeps the setting and removes the control, an x removes the control's effect): the starter crusher's Crunch knob turned, then ✗ on its panel takes the crusher out; ✓ on the drums switch keeps it as it is; a swing tweak's dial moved, then ✗ takes the beat back to before the swing.",
+  "project": "01_good_base.odb",
+  "messages": [
+    {"control": "c:start_t1_fx1_crush", "value": 0.8},
+    {"done": "c:start_t1_fx1_crush", "keep": false},
+    {"done": "c:start_t1_in", "keep": true},
+    {"text": "give the beat more swing"},
+    {"control": "", "widget": "dial", "kind": "intent", "value": 0.3},
+    {"done": "", "widget": "dial", "kind": "intent", "keep": false}
+  ]
+}
