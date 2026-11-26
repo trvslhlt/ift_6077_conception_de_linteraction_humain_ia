@@ -84,6 +84,13 @@ describe("a dial between its two takes", () => {
         const line = after.target.tracks.find(t => t.ref === "t4")!.regions[0].notes!
         assert.ok(line.every(([, pitch]) => pitch < 40), `the 808 stays in its register: ${JSON.stringify(line)}`)
     })
+    it("hands a bass line around E2 over at the middle, not crossfaded under the old bass", () => {
+        // The trap dial's 808 bass, its median E2 (52), and the acid bass it replaced (2026-11-25).
+        const acid = track("t2", "Acid Bass", [["1.1.1:0", 45, 2, 100], ["1.2.1:0", 52, 2, 100]]), sub = track("t4", "808 Bass", [["1.1.1:0", 52, 6, 120]])
+        const lo4 = snapshot([acid]), hi4 = snapshot([muted(acid), sub])
+        const {target} = blendOf(lo4, hi4, 0.49, hi4)
+        assert.deepEqual(["t2", "t4"].map(ref => target.tracks.find(t => t.ref === ref)!.mix.mute), [false, true])
+    })
     it("crossfades a part that isn't drums or bass: both play in between, one fading as the other comes up", () => {
         const pad = track("t6", "Pad", [["1.1.1:0", 64, 16, 80]]), strings = track("t7", "Strings", [["1.1.1:0", 67, 16, 80]])
         const lo3 = snapshot([pad]), hi3 = snapshot([muted(pad), strings])

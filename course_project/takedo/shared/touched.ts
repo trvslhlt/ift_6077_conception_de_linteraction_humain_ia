@@ -76,6 +76,10 @@ export const touchedBetween = (before: Snapshot, after: Snapshot): Touched => {
     value("master.mix.volume", before.master.volume, after.master.volume)
     devices(before.master.effects, after.master.effects)
     if (!same(before.timeline.bpm, after.timeline.bpm)) {touched.tempo = {from: before.timeline.bpm, to: after.timeline.bpm}}
+    // A tempo lane written or rewritten is a tempo change too, to where the lane ends (the playhead hasn't got there yet).
+    else if (before.timeline.tempoLane?.sig !== after.timeline.tempoLane?.sig) {
+        touched.tempo = {from: before.timeline.bpm, to: after.timeline.tempoLane?.last ?? after.timeline.bpm}
+    }
     const [was, is] = [before.playback.loop, after.playback.loop]
     if (was.on !== is.on || was.from !== is.from || was.to !== is.to) {touched.loop = {from: was, to: is}}
     return touched

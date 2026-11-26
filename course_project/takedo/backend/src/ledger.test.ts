@@ -36,6 +36,13 @@ describe("what an edit changed", () => {
         assert.deepEqual(touched.tempo, {from: 120, to: 84})
         assert.equal(touched.loop?.to.to, "17.1.1")
     })
+    it("the tempo, when a script rewrites its automation lane and the playhead hasn't got there yet", () => {
+        const before = snapshot([track("t1")])
+        const after = {...snapshot([track("t1")]), timeline: {bpm: 120, tempoAutomated: true, tempoLane: {sig: "0@120,34560@136", last: 136},
+            signature: [4, 4] as [number, number], length: "17.1.1"}}
+        assert.deepEqual(touchedBetween(before, after).tempo, {from: 120, to: 136})
+        assert.equal(touchedBetween(after, after).tempo, undefined)
+    })
     it("an instrument and an effect switched off", () => {
         const reverb = {key: "DattorroReverb", name: "Reverb", enabled: true, ref: "t1.fx1", params: []}
         const before = snapshot([track("t1", {effects: [reverb]})])

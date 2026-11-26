@@ -117,6 +117,11 @@ export const recallOf = (take: Snapshot, now: Snapshot, scope: Scope = everythin
         lines.set(bar, at)
     }
     const values: Recall["values"] = [], first: Recall["first"] = [], missing: string[] = [], conflicts: string[] = []
+    // A value with an automation lane can be recalled in a loop-off jam, where the page writes the change into the lane
+    // where it lands; with the loop on (or stopped) the lane would override a set, and the page refuses it (2026-11-25:
+    // every agent change in a loop-off jam is a lane, so a trap dial skipped every level and mute after its first move).
+    const timeline = now.playback.playing && !now.playback.loop.on
+    const laned = (lanes: ReadonlyArray<string>, ref: string): boolean => !timeline && lanes.includes(ref)
     // A mute is a switch, not a number: brought back only when no other direction changed it too.
     const mutes = (ref: string) => scope.owns(`value ${ref}.mix.mute`) && !scope.shared(`value ${ref}.mix.mute`)
     const ramp = (ref: string, to: number, says: string, beats = span, bar = 1) => values.push({ref, to, beats, bar, says})
@@ -140,7 +145,7 @@ export const recallOf = (take: Snapshot, now: Snapshot, scope: Scope = everythin
             if (kept === undefined || !enabled) {return}
             ;(kept.params ?? []).forEach(param => {
                 const current = effect.params?.find(candidate => candidate.ref === param.ref)
-                if (current === undefined || lanes.includes(param.ref) || !scope.owns(`value ${param.ref}`)) {return}
+                if (current === undefined || laned(lanes, param.ref) || !scope.owns(`value ${param.ref}`)) {return}
                 const to = Math.min(param.max, Math.max(param.min, scope.value(`value ${param.ref}`, param.value)))
                 if (differs(to, current.value, Math.max(1e-6, (param.max - param.min) * 0.001))) {
                     ramp(param.ref, to, `${name}'s ${effect.name} ${param.name} back`, param.stepped ? 0 : span)
@@ -156,7 +161,7 @@ export const recallOf = (take: Snapshot, now: Snapshot, scope: Scope = everythin
     const instrument = (track: Track, on: boolean) => `ref(${JSON.stringify(track.ref)}).inputAdapter.ifSome(input => input.box.enabled.setValue(${on}))`
     // Returns whether the part leaves (parked at the span's end).
     const mix = (track: Track, kept: Track | undefined): boolean => {
-        const free = (control: string) => !track.lanes.includes(`${track.ref}.mix.${control}`)
+        const free = (control: string) => !laned(track.lanes, `${track.ref}.mix.${control}`)
         const muted = kept === undefined ? true : kept.mix.mute
         const leaves = kept === undefined ? scope.owns(`track ${track.ref}`) : mutes(track.ref)
         if (muted && !track.mix.mute && free("mute") && leaves) {

@@ -1,0 +1,10 @@
+{"//": "The style dial in a loop-off jam (2026-11-25, the producer's session: the trap dial moved notes but no levels, mutes or tempo after its first move, since every agent change in a loop-off jam is an automation lane and the recall skipped laned values; and a script's tempo glide wasn't the dial's to move). As dial-blend, with the loop off.",
+ "project": "01_good_base.odb", "messages": [
+  {"loop": false},
+  {"text": "Slowly evolve this into a trap hip hop beat"},
+  {"wait_ms": 30000},
+  {"control": "", "value": 0.5}, {"wait_ms": 12000},
+  {"control": "", "value": 0}, {"wait_ms": 12000},
+  {"control": "", "value": 0.5}, {"wait_ms": 12000},
+  {"control": "", "value": 0.75}, {"wait_ms": 12000},
+  {"control": "", "value": 1}, {"wait_ms": 12000}]}

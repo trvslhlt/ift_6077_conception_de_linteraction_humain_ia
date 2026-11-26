@@ -49,6 +49,15 @@ describe("recalling a take", () => {
         assert.deepEqual(recall.first, [{ref: "t1.mix.volume", to: -60}])
         assert.deepEqual(recall.values.map(({ref, to, beats, bar}) => [ref, to, beats, bar]), [["t1.mix.mute", 0, 0, 1], ["t1.mix.volume", -6, 16, 1]])
     })
+    it("brings back a level and a mute with automation lanes in a loop-off jam, where the page writes them into the lane", () => {
+        const take = snapshot([track("t1", "Bass")])
+        const laned = track("t1", "Bass", {mix: {volume: -60, pan: 0, mute: true, solo: false}, lanes: ["t1.mix.volume", "t1.mix.mute"]})
+        const jam = snapshot([laned])
+        jam.playback = {...jam.playback, loop: {...jam.playback.loop, on: false}}
+        assert.deepEqual(recallOf(take, jam).values.map(({ref, to}) => [ref, to]), [["t1.mix.mute", 0], ["t1.mix.volume", -6]])
+        // With the loop on, the lane would override a set: left alone.
+        assert.deepEqual(recallOf(take, snapshot([laned])).values, [])
+    })
     it("switches off an effect added since at the end, and ramps a kept one's values", () => {
         const reverb = {key: "DattorroReverb", name: "Reverb", enabled: true, ref: "t1.fx1",
             params: [{ref: "t1.fx1.wet", name: "Wet", value: 0.2, display: "20%", min: 0, max: 1, stepped: false}]}

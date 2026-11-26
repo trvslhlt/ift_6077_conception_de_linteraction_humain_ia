@@ -62,7 +62,9 @@ const playing = (track: Track, now: Snapshot): Region | null => {
 export const defaultTransition = (track: Track): Transition => {
     if (track.device?.content !== undefined && "pads" in track.device.content) {return "handover"}
     const pitches = track.regions.flatMap(region => region.notes ?? []).map(([, pitch]) => pitch).sort((a, b) => a - b)
-    return pitches.length > 0 && pitches[Math.floor(pitches.length / 2)] < 52 ? "handover" : "crossfade"
+    // A bass line sits around E2 (openDAW's 52; 2026-11-25: a trap dial's 808 bass, its median E2, crossfaded under the acid
+    // bass instead of taking over from it): a median under G2 is a bass.
+    return pitches.length > 0 && pitches[Math.floor(pitches.length / 2)] < 55 ? "handover" : "crossfade"
 }
 
 const pads = (track: Track): ReadonlyArray<{ note: number, name: string }> | null =>

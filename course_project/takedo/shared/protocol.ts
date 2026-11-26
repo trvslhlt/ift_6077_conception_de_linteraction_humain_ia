@@ -54,7 +54,9 @@ export type Snapshot = {
     detail: Detail
     playing: boolean
     playback: Playback
-    timeline: { bpm: number, tempoAutomated?: boolean, signature: [number, number], length: string }
+    // tempoLane: the tempo automation, when on, as a fingerprint (its events) and its last tempo: a script that rewrites it
+    // leaves bpm as it is until the playhead gets there, and still changed the tempo (shared/touched.ts).
+    timeline: { bpm: number, tempoAutomated?: boolean, tempoLane?: { sig: string, last: number }, signature: [number, number], length: string }
     tracks: Track[]
     master: { volume: number, effects: Device[] }
 }

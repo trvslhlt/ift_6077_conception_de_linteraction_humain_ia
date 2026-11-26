@@ -339,7 +339,7 @@ export class Adapter implements Terminable {
             // The tempo playing (the tempo track's, when it's on), not the project's field: a Team Lead that read the field,
             // 82 BPM, while automation played 170 redid a finished tempo glide from 82 (2026-11-25).
             timeline: {bpm: this.#tempoAutomated() ? Math.round(engine.bpm.getValue() * 10) / 10 : timelineBox.bpm.getValue(),
-                tempoAutomated: this.#tempoAutomated(), signature: [nominator, denominator], length: this.#pos(end)},
+                tempoAutomated: this.#tempoAutomated(), ...(this.#tempoLane() ?? {}), signature: [nominator, denominator], length: this.#pos(end)},
             tracks,
             master: {volume: master === undefined ? 0 : this.#now(master.namedParameter.volume), effects: master ? this.#effectsOf(master) : []}
         }
@@ -862,6 +862,19 @@ export class Adapter implements Terminable {
         point(at, now, 0)
         point(at, after, 1)
         tempoTrack.enabled.setValue(true)
+    }
+
+    // The tempo lane's events as a fingerprint, and its last tempo (2026-11-25: a script's tempo glide changed no field,
+    // so the ledger never gave the tempo to the trap dial's direction, and the dial left it at 136 at every position).
+    #tempoLane(): { tempoLane: { sig: string, last: number } } | null {
+        if (!this.#tempoAutomated()) {return null}
+        const collection = this.#project.timelineBox.tempoTrack.events.targetVertex.unwrap().box
+        if (!(collection instanceof ValueEventCollectionBox)) {return null}
+        const events = collection.events.pointerHub.incoming().map(pointer => pointer.box)
+            .filter((box): box is ValueEventBox => box instanceof ValueEventBox)
+            .map(box => [box.position.getValue(), box.value.getValue()] as const).sort((a, b) => a[0] - b[0])
+        if (events.length === 0) {return null}
+        return {tempoLane: {sig: events.map(([at, bpm]) => `${at}@${Math.round(bpm * 100) / 100}`).join(","), last: events[events.length - 1][1]}}
     }
 
     #tempoAutomated(): boolean {
