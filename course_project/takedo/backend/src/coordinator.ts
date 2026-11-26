@@ -19,9 +19,10 @@ import type {LlmMember} from "./members.ts"
 import {analyse, isDrums} from "./analysis.ts"
 import type {Knowledge} from "./knowledge.ts"
 import {Utility} from "./utility.ts"
-import {type Line, triage, triageState} from "./triage.ts"
+import {type Line, type Triage, triage, triageState} from "./triage.ts"
 import {fastEffect, fastMix, SurePath, fastTweak} from "./fastpath.ts"
 import {Profiles, Styles, styleSteps} from "./mixProfiles.ts"
+import {MaxControls, MaxTotalControls, memberActor, type MemberName, MemberNames, memberOf, TeamList} from "./team.ts"
 import {auditionPhrase, drumAudition, padRole} from "./library.ts"
 import {soundsAgainst} from "./soundFit.ts"
 import {join} from "node:path"
@@ -39,7 +40,7 @@ const Edge = 0.02
 // team's structure", 2026-11-22); "team": the older full team (Jev routing, the one-off Team Lead split, specialists
 // handing leftovers to one long-lived utility session), kept until it's retired (step 3).
 // Controls a member may have on its card at once (INTERACTION.md: one intent control each; a few while it's tried out).
-export const MaxControls = 3
+const SureMember = 0.8, SureControl = 0.6
 const MaxOptions = 6
 const Pressed = -1                                  // a button's "was" in #moved: never its value, so a press is always news
 // A parameter a direct control may set: a track's or the master's mix control, or an effect's parameter.
@@ -98,6 +99,8 @@ export class Coordinator {
     readonly #notebooks: string
     #takes: Takes = new Takes(null)        // the open project's takes (takes.ts)
     #effectAsked: string | null = null                // the producer's latest message Jev judged one effect (#effectKnob)
+    #landsWith: { message: string, judged: Triage } | null = null
+    #addressed: { message: string, member: MemberName } | null = null  // the member the producer's latest message @named   // Jev's member and control for the latest message (landsWith)
     readonly #mixBefore = new Map<string, number>()    // each mix control's value before its latest change, latest last ("back")
     readonly #recentChanges: Array<{ t: number, pos: string, actor: string, label: string, from: unknown, to: unknown }> = []
     readonly #blending = new Map<string, Set<string>>()   // per dial: the requests its last move sent (#blend)
@@ -152,8 +155,8 @@ export class Coordinator {
     // Tells the page who's on the team (the Team Lead first), for mentions and autocomplete. The utility isn't shown:
     // the producer sees its work as the Team Lead's (an alias; it keeps its own claims, attribution and log lines).
     start(): void {
-        // The Team Lead is the captain itself; the workers show as the utility, in the activity.
-        this.#send({type: "team", aliases: {}, members: [{role: "team_lead", name: "Team lead", area: "does what you ask in openDAW"}]})
+        // The Team Lead is the captain itself; the members (team.ts) are the workers a piece lands with.
+        this.#send({type: "team", aliases: {}, members: TeamList})
     }
 
     receive(message: PageToBackend): void {
@@ -331,7 +334,8 @@ export class Coordinator {
         const staged = step === undefined ? null : this.board.step(step)
         const belongs: Activity | undefined = activity ?? (staged === null ? undefined
             : {direction: staged.direction, ...(staged.job !== undefined ? {job: staged.job} : {}), step: staged.id})
-        const allowed = agent === this.#captain.agent ? this.#captain.may(plan) : this.#members.find(member => member.agent === agent)?.may(plan) === true
+        // A worker runs as the member its piece landed with (team.ts): as free as the utility.
+        const allowed = agent === this.#captain.agent ? this.#captain.may(plan) : memberOf(agent) !== null || this.#members.find(member => member.agent === agent)?.may(plan) === true
         if (!allowed) {
             const status: Status = {request: id, t: Date.now(), pos: "", state: "failed", reason: "not_allowed",
                 detail: `${plan.op} on ${target(plan)} is outside ${agent}'s area`}
@@ -496,7 +500,10 @@ export class Coordinator {
         const existing = controls.find(control => control.ref === offered.ref)
         if (existing !== undefined && existing.owner !== owner) {return `Not offered: ${offered.ref} is ${existing.owner}'s.`}
         if (existing === undefined && controls.filter(control => control.owner === owner).length >= MaxControls) {
-            return `Not offered: you have ${MaxControls} controls already; remove one that no longer applies first.`
+            return `Not offered: ${owner.replace("agent:", "")}'s card has ${MaxControls} controls already; remove one that no longer applies first.`
+        }
+        if (existing === undefined && controls.length >= MaxTotalControls) {
+            return `Not offered: the team has ${MaxTotalControls} controls already (${controls.map(control => `${control.ref} on ${control.owner.replace("agent:", "")}'s card`).join(", ")}); remove one that no longer applies first.`
         }
         const {widget, kind} = offered
         const options = widget === "choice" ? (offered.options ?? []).filter(option => option.trim() !== "") : undefined
@@ -521,7 +528,7 @@ export class Coordinator {
 
     removeControl(owner: Actor, ref: string): string {
         const controls = this.controls()
-        if (!controls.some(control => control.ref === ref && control.owner === owner)) {return `You have no control ${ref}.`}
+        if (!controls.some(control => control.ref === ref && (control.owner === owner || owner === this.#captain.agent))) {return `There's no control ${ref}.`}
         this.#setControls(controls.filter(control => control.ref !== ref))
         return `Removed ${ref}.`
     }
@@ -726,10 +733,13 @@ export class Coordinator {
         this.#send({type: "chat", line})
         const mention = /^@(\w+)\s*/.exec(text)
         const named = mention === null ? null : mention[1]
-        if (named !== null && named !== "team_lead") {
-            return this.say("agent:team_lead", `There's no @${named} on the team.`)
+        const addressed = named === null ? null : MemberNames.find(member => member === named.toLowerCase()) ?? null
+        if (named !== null && named !== "team_lead" && addressed === null) {
+            return this.say("agent:team_lead", `There's no @${named} on the team: ${["team_lead", ...MemberNames].map(name => `@${name}`).join(", ")}.`)
         }
         const message = mention === null ? text : text.slice(mention[0].length)
+        // "@performer looser": the producer named who it lands with (team.ts); the Team Lead hands it to them.
+        this.#addressed = addressed === null ? null : {message, member: addressed}
         if (this.#project === null) {return this.say("agent:team_lead", "Open a project first.")}
         const snapshot = await this.snapshot()
         if (snapshot === null) {return this.say("agent:team_lead", "Open a project first.")}
@@ -746,13 +756,16 @@ export class Coordinator {
         const full = await this.snapshot("full")
         const judged = await triage(this.#gateway, this.modelLog(), triageState(full ?? snapshot), message, history).catch(() => null)
         if (judged === null) {return false}
+        this.#landsWith = {message, judged}
         if (judged.path === "effect" && judged.pathP >= SurePath) {this.#effectAsked = message}
         const single = fastMix(judged, message, snapshot, Object.fromEntries(this.#mixBefore)) ?? fastEffect(judged, message, full ?? snapshot)
         const fast = single !== null ? {steps: [single.step], says: single.says}
             : full === null ? null : fastTweak(judged, message, full, (call, args) => this.#knowledge?.script(call, args) ?? null)
         this.#log.write("triage", {message, ...judged, fast: fast !== null})
         if (fast === null) {return false}
-        const agent: Actor = "agent:team_lead"
+        // Done as the member it lands with when Jev is sure who (a swing is the performer's, a level the mix engineer's).
+        const member = this.landsWith(message)?.member
+        const agent: Actor = member !== undefined && (MemberNames as readonly string[]).includes(member) ? memberActor(member as MemberName) : "agent:team_lead"
         this.say(agent, fast.says)
         // Its own direction on the board, so the edit is owned (the ledger) and an effect it adds gets its knob (#effectKnob).
         const direction = this.board.direction(message)
@@ -766,6 +779,20 @@ export class Coordinator {
 
     // ---------- jobs (the captain's workers) ----------
 
+    // Jev's guess at who a message lands with and the control it merits (triage.ts), for the Team Lead's turn on it;
+    // given only when Jev is sure enough (members-bench: at p >= 0.8, 74% of messages with 1 wrong in 85).
+    landsWith(message: string): { member: string, control: string } | null {
+        const landed = this.#landsWith
+        const addressed = this.#addressed?.message === message ? this.#addressed.member : null
+        if (addressed !== null) {
+            const judged = landed?.message === message ? landed.judged : null
+            return {member: addressed, control: judged === null || judged.controlP < SureControl ? "none" : judged.control}
+        }
+        if (landed === null || landed.message !== message || landed.judged.memberP < SureMember) {return null}
+        const {member, control, controlP} = landed.judged
+        return {member, control: member === "none" || controlP < SureControl ? "none" : control}
+    }
+
     // Hands a piece of a direction to a fresh worker (the utility in job mode), which runs at once, alongside any
     // others; its timed steps join the direction's plan from the same anchor. Its report goes to the captain.
     assign(direction: Direction, anchor: Anchor | null, task: Piece): string {
@@ -777,7 +804,7 @@ export class Coordinator {
                 "a second part on top. To change what it made, give a piece on the track it made (its ref from the project), saying what to change."
         }
         const job = this.board.job(direction.id, piece, task)
-        const worker = new Utility(this.#team, this.#catalog, this.#source, this.#knowledge)
+        const worker = new Utility(this.#team, this.#catalog, this.#source, this.#knowledge, task.member ?? null)
         void (async () => {
             const snapshot = await this.snapshot()
             if (snapshot === null) {throw new Error("no project is open")}

@@ -1,3 +1,4 @@
+import type {MemberName} from "./team.ts"
 import {randomUUID} from "node:crypto"
 import {readFileSync, writeFileSync} from "node:fs"
 import type {Actor, Snapshot, Status} from "../../shared/protocol.ts"
@@ -38,10 +39,11 @@ export const PieceKinds = {
     arrange: "the song's shape: new tracks, regions extended, moved, muted or removed"
 } as const
 export type PieceKind = keyof typeof PieceKinds
-export type Piece = { kind: PieceKind, tracks: string[], goal: string, from_bar: number, to_bar: number, steps: number, keep: string }
+// member: who it lands with (team.ts), its worker running as that member.
+export type Piece = { kind: PieceKind, tracks: string[], goal: string, from_bar: number, to_bar: number, steps: number, keep: string, member?: MemberName }
 // The piece in one line, for the board, the cards and the captain's jobs_running.
-export const pieceLine = ({kind, tracks, goal, from_bar, to_bar, steps}: Piece): string =>
-    `${kind}${tracks.length > 0 ? ` on ${tracks.join(", ")}` : ""}: ${goal} (${from_bar <= 0 && to_bar <= 0 ? "now"
+export const pieceLine = ({kind, tracks, goal, from_bar, to_bar, steps, member}: Piece): string =>
+    `${member !== undefined ? `${member}, ` : ""}${kind}${tracks.length > 0 ? ` on ${tracks.join(", ")}` : ""}: ${goal} (${from_bar <= 0 && to_bar <= 0 ? "now"
         : `bars ${Math.max(from_bar, 1)}–${Math.max(to_bar, from_bar, 1)}`}${steps > 1 ? `, ${steps} steps` : ""})`
 
 // A piece of a direction the captain handed to a worker (a fresh agent session); lost: cut off by a restart.

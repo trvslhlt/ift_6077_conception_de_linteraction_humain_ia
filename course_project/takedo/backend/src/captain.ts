@@ -11,6 +11,7 @@ import {asChatLine, Inbox, replyProblem} from "./utility.ts"
 import {Styles} from "./mixProfiles.ts"
 import {genresIn} from "./soundStyles.ts"
 import {ruleLine} from "./restyle.ts"
+import {MaxControls, MaxTotalControls, memberActor, type MemberName, MemberNames, Members} from "./team.ts"
 
 // The captain (ARCHITECTURE.md, "The team's structure", decided 2026-11-22): the Team Lead the producer talks with. It
 // works out what each message means for the work and hands pieces to workers (the utility in a fresh session per
@@ -42,6 +43,11 @@ Tools:
 - look: read-only JavaScript to inspect the project (an async function body, \`takedo\` in scope: project, snapshot()). Only when the summary doesn't answer what you need.
 - remember, recall, forget: your notebook, kept on disk per project. Keep the producer's wishes and taste (note) and each direction and how it's split (plan).
 - reply: what the producer reads in the chat, as in a chat with a bandmate mid-session: one or two short, plain sentences. For producer_message and control_moved, call it once after assigning, on what's happening and how it will sound (or why it can't). For job reports and restarts, reply only when the producer needs to know (a problem, or something they asked about that's now done); otherwise end the turn without it. No lists or markdown; no bar numbers, refs, dB values or device settings unless they asked; no caveats about not having heard it. Ask at most one short question, only when you need the answer. Nothing else you write is shown.
+
+Your team (the producer sees them by name, and their cards in the team view): every piece goes to the member it lands with, by what it does to the music, not by instrument.
+${MemberNames.map(member => `- ${member}: ${Members[member].area}; controls: ${Members[member].controls}.`).join("\n")}
+A producer_message may come with lands_with: who the message most likely lands with and the control it merits, from a quick classifier; follow it unless the message plainly says otherwise. A direction for several members (a style, "bigger") is yours: split it into pieces, each to its member.
+Controls tune a direction afterwards, and go on the card of the member it landed with (offer_control's card; yours for a style or a direction several members share). Not every direction gets one: offer one when lands_with says which control, or the producer asks for one; never for a correction, an exact request or a plain level move. At most ${MaxControls} on a card and ${MaxTotalControls} in all: remove one that no longer applies before adding another.
 
 Rules:
 - project is the project as it is now: what has landed. A gradual change that has finished shows its end values (a tempo eased from 119 to 82 reads 82); that's the plan having worked, not a jump.
@@ -218,6 +224,7 @@ export class Captain {
             ...(context.takeLines().length > 0 ? {takes: context.takeLines()} : {}),
             project: projectFor(snapshot, false),
             ...(against.length > 0 ? {sounds_not_for_the_style: against} : {}),
+            ...(turn.kind === "producer_message" && context.landsWith(turn.text) !== null ? {lands_with: context.landsWith(turn.text)} : {}),
             ...(producers ? {style_templates: [...context.templates()].map(([style, template]) => `${style}: ${template.about}`)} : {}),
             ...(producers ? {producers_rules: context.rules(this.#style === null ? [] : [this.#style]).map(ruleLine)} : {}),
             notebook: context.notebook?.list() ?? []
@@ -345,6 +352,7 @@ export class Captain {
             }
         const tools = [
             tool("assign", "Hand one piece of the work to a fresh worker, which runs at the same time as the others. Answers at once; its report comes back as job_finished.", {
+                member: z.enum(MemberNames).describe("The member it lands with: " + MemberNames.map(member => `${member}: ${Members[member].area}`).join("; ")),
                 kind: z.enum(Object.keys(PieceKinds) as [PieceKind, ...PieceKind[]]).describe(Object.entries(PieceKinds).map(([kind, about]) => `${kind}: ${about}`).join("; ")),
                 tracks: z.array(z.string()).describe("Track refs it changes (t1, master); [\"new\"] for a new part on its own track; [] for tempo"),
                 goal: z.string().describe("One sentence: where it ends up, as a listener would check it"),
@@ -360,7 +368,7 @@ export class Captain {
                     if (input.with !== undefined && direction === undefined) {return `Not started: no job ${String(input.with)}. Leave out with for a new direction.`}
                     const piece: Piece = {kind: input.kind as PieceKind, tracks: (input.tracks ?? []) as string[], goal: String(input.goal),
                         from_bar: Number(input.from_bar) || 0, to_bar: Number(input.to_bar) || 0, steps: Math.max(1, Number(input.steps) || 1),
-                        keep: String(input.keep ?? "")}
+                        keep: String(input.keep ?? ""), member: input.member as MemberName}
                     return direction === undefined ? current.context.assign(current.direction, current.anchor, piece)
                         : current.context.assign(direction, this.#anchors.get(direction.id) ?? current.anchor, piece)
                 })),
@@ -384,6 +392,7 @@ export class Captain {
                 })),
             tool("offer_control", "Put a control on your card in the team view (or change one you have: same name), for the producer to steer without typing. An intent control changes nothing by itself: its move reaches you (or, for a dial or switch between its two takes, is played by code). A direct one sets the parameters it's bound to at once, as the producer's own hand.", {
                 name: z.string().regex(/^[a-z][a-z0-9_]{0,30}$/).describe("A short id, lower case (\"lofi_amount\")"),
+                card: z.enum(["team_lead", ...MemberNames]).default("team_lead").describe("Whose card it goes on: the member the direction it tunes landed with; team_lead (yours) for a style or a direction several members share"),
                 label: z.string().max(30).describe("What the producer reads on it, a word or two (\"Lofi\", \"Busy\")"),
                 widget: z.enum(["dial", "switch", "choice", "button"]).default("dial").describe("dial: an amount between two ends; switch: one of two states (a part in or out, half-time or not); choice: one of a few named options (sections, variations, kits); button: a one-shot the producer presses when they want it (a fill, a drop, a build into the next phrase)"),
                 kind: z.enum(["intent", "direct"]).default("intent").describe("intent: a direction to you; direct: a dial or switch bound to parameters (bind), set instantly with no turn of yours (a macro knob for the reverb, a mute switch), for something the producer wants under their own hand"),
@@ -401,7 +410,8 @@ export class Captain {
                     const widget = input.widget as Control["widget"]
                     const kind = input.kind as Control["kind"]
                     const fresh = !current.context.controls().some(control => control.ref === ref)
-                    const said = current.context.offerControl(this.agent, {ref, kind, widget, label: String(input.label), low: String(input.low ?? ""),
+                    const owner: Actor = input.card === undefined || input.card === "team_lead" ? this.agent : memberActor(input.card as MemberName)
+                    const said = current.context.offerControl(owner, {ref, kind, widget, label: String(input.label), low: String(input.low ?? ""),
                         high: String(input.high ?? ""), meaning: String(input.meaning), value: Number(input.value),
                         ...(input.options !== undefined ? {options: (input.options as string[]).map(String)} : {}),
                         ...(input.bind !== undefined ? {bind: (input.bind as Array<{ ref: string, from: number, to: number }>)
@@ -452,7 +462,7 @@ export class Captain {
             tool("style_mix", "Give the project a style's mix, by code: each part's pan, and how much it sends into a shared reverb and delay set up for that style (made the first time), by what it plays (drums, perc, bass, chords, pad, lead). It goes on once this direction's parts have landed, so new parts get their place too, every change gliding. Call it after assigning a style direction's pieces; it's cheaper and more consistent than an effects piece for the space and placement.", {
                 style: z.enum(Styles as [string, ...string[]]).describe("The style whose mix this is: the nearest to the producer's")},
                 handler((current, input) => current.context.styleMix(current.direction, String(input.style)))),
-            tool("remove_control", "Take a dial off your card.", {name: z.string()},
+            tool("remove_control", "Take a control off its card (yours or a member's).", {name: z.string()},
                 handler((current, input) => current.context.removeControl(this.agent, `c:${String(input.name).replace(/^c:/, "")}`))),
             tool("look", "Run read-only JavaScript (an async function body, `takedo` in scope) and see what it returns.", {
                 code: z.string()}, handler(async (current, input) => {

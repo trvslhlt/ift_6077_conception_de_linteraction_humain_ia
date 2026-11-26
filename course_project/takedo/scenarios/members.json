@@ -1,0 +1,24 @@
+{
+  "//": "Directions landing with team members (2026-11-26, the producer: directions land with specific members, and members offer different types of controls for tuning them, not one for every direction, and a limited number): each message lands with a different member, whose worker runs as them and whose card gets the control, if any.",
+  "project": "01_good_base.odb",
+  "messages": [
+    {
+      "text": "give the beat more swing"
+    },
+    {
+      "text": "add a playful lead melody on top"
+    },
+    {
+      "text": "make the bass sound more analog, less rubbery"
+    },
+    {
+      "text": "the drums are a bit too loud"
+    },
+    {
+      "text": "@performer play the lead a bit more laid back"
+    },
+    {
+      "text": "now slowly build up the energy over the next 8 bars"
+    }
+  ]
+}

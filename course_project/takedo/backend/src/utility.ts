@@ -1,3 +1,4 @@
+import {memberActor, memberBrief, type MemberName, Members} from "./team.ts"
 import {existsSync} from "node:fs"
 import {createSdkMcpServer, query, type Query, type SDKUserMessage, tool} from "@anthropic-ai/claude-agent-sdk"
 import type Anthropic from "@anthropic-ai/sdk"
@@ -271,9 +272,10 @@ const TrackName = "The track's name: its role and sound, as a producer labels a 
     "\"Trap Kit\", \"Muted Guitar\"); not an instrument's or device's name (\"Cubed\", \"Vaporisateur\"), nor a song or reference (\"Halogalo Riff\")"
 
 export class Utility implements Member {
-    readonly agent: Actor = "agent:utility"
-    readonly role = "utility"
-    readonly name = "Utility"
+    readonly agent: Actor
+    readonly role: string
+    readonly name: string
+    readonly #member: MemberName | null
     readonly area = "anything openDAW can do"
     readonly can = "read the project and change it directly with short openDAW scripts (extend or duplicate clips, add tracks or regions, write or rework notes, anything openDAW supports); slower and costlier, seconds to tens of seconds"
 
@@ -290,7 +292,12 @@ export class Utility implements Member {
     // openDAW's source tree, the session's working directory; knowledge: the knowledge base (knowledge.ts), if loaded.
     // Each instance is one worker: one piece the captain hands out, in a fresh session (job()). The long-lived session
     // mode (one session for every message) went with the ROSTER=team path (2026-11-23).
-    constructor(team: ReadonlyArray<LlmMember>, catalog: Catalog, source: string, knowledge: Knowledge | null = null) {
+    // member: the team member a worker's piece landed with (team.ts): it runs as that member, with its ear.
+    constructor(team: ReadonlyArray<LlmMember>, catalog: Catalog, source: string, knowledge: Knowledge | null = null, member: MemberName | null = null) {
+        this.#member = member
+        this.agent = member === null ? "agent:utility" : memberActor(member)
+        this.role = member ?? "utility"
+        this.name = member === null ? "Utility" : Members[member].name
         this.#team = team
         this.#source = source
         this.#knowledge = knowledge
@@ -1076,6 +1083,7 @@ export class Utility implements Member {
         this.#current = current
         this.#handSeen = 0
         session.inbox.push(JSON.stringify({
+            ...(this.#member !== null ? {who_you_are: memberBrief(this.#member)} : {}),
             your_task: job.task, producer_message: job.message,
             ...this.#hand(context, "producer_changed"),
             project: {...focus(projectFor(snapshot, true), job.task.tracks), regions: snapshot.tracks.map(track => ({track: track.ref,
