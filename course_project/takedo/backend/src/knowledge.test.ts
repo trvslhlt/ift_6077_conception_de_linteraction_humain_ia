@@ -3,7 +3,7 @@ import {cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync} fr
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 import {after, describe, it} from "node:test"
-import type {Snapshot, Track} from "../../shared/protocol.ts"
+import {DefaultDrumTuning, type Snapshot, type Track} from "../../shared/protocol.ts"
 import {loadCatalog} from "./catalog.ts"
 import {chordPitches, drumMap, loadKnowledge, parseKey, progressionKey, progressionMode, readCartridge, shortlist} from "./knowledge.ts"
 import {loadSamples} from "./samples.ts"
@@ -320,13 +320,39 @@ describe("kits", {skip: samples.size === 0 ? "no samples/ (make samples)" : fals
         assert.match(String(withSamples.kit({pads: [{role: "kick", sample: "RolandTR808/bd/NOPE"}]}, snapshot)), /no sample RolandTR808\/bd\/NOPE/)
         assert.match(String(withSamples.kit({pads: [{role: "kick", sample: "RolandTR808/bd/BD0010"}], notes: {hits: [[0, "tuba", 1]], beats: 4}}, snapshot)), /unknown drum role tuba/)
     })
+    it("swaps a sample the producer rejected for one they kept, and puts a kept sample's tuning on its pad", () => {
+        // 2026-11-26: the producer's drum samples (the Sounds tab), here in the scratch copy of the library.
+        const library = withSamples.library!
+        const kept = "RolandTR808/bd/BD0010"
+        library.setDrum("RolandTR808/bd/BD2525", {verdict: "rejected", piece: "kick", tags: [], tuning: DefaultDrumTuning, note: "", t: 1})
+        library.setDrum(kept, {verdict: "kept", piece: "kick", tags: ["boomy"], tuning: {...DefaultDrumTuning, level_db: -3, pitch: -2, length: 0.4}, note: "", t: 2})
+        try {
+            const planned = withSamples.expand("sound/kit-trap-808", {pattern: "pattern/trap-2bar"}, snapshot)
+            assert.ok(Array.isArray(planned) && planned[0].kind === "script", String(planned))
+            const step = planned[0] as { says: string, code: string }
+            assert.match(step.says, /the producer rejected some samples, so RolandTR808 BD2525 → RolandTR808 BD0010/)
+            const args = JSON.parse(step.code.slice("const args = ".length, step.code.indexOf(";\n")))
+            const kick = args.pads.find((pad: { name: string }) => pad.name.startsWith("Kick"))
+            assert.deepEqual({volume: kick.tuning.volume, pitch: kick.tuning.pitch, sample_end: kick.tuning.sample_end}, {volume: -3, pitch: -200, sample_end: 0.4})
+            assert.ok(args.pads.filter((pad: { name: string }) => !pad.name.startsWith("Kick")).every((pad: { tuning: unknown }) => pad.tuning === null))
+            compiles(step.code)
+        } finally {
+            library.setDrum("RolandTR808/bd/BD2525", null)
+            library.setDrum(kept, null)
+        }
+    })
     it("finds sampled instruments by name and makes one a new Soundfont track at its preset", () => {
         assert.ok(samples.searchSounds("fingered bass", 5).some(sound => sound.id === "GeneralUser GS/Finger Bass"))
         const sound = samples.sound("GeneralUser GS/Finger Bass")!
         assert.equal(sound.program, 33)
         const made = withSamples.soundfont({name: "Bass", sound: "GeneralUser GS/Finger Bass", notes: {notes: [[0, 40, 1, 0.9]], loop_bars: 1, from_bar: 3, bars: 8}}, snapshot)
-        assert.ok(typeof made !== "string" && made.code.includes(`"preset":${sound.index}`) && made.code.includes('"from_bar":3'), String(made))
-        compiles((made as { code: string }).code)
+        // The producer's library is the real one (knowledge/sound-library.json): a sound they rejected is refused.
+        if (withSamples.library?.entry(sound.id)?.verdict === "rejected") {
+            assert.match(String(made), /the producer rejected/)
+        } else {
+            assert.ok(typeof made !== "string" && made.code.includes(`"preset":${sound.index}`) && made.code.includes('"from_bar":3'), String(made))
+            compiles((made as { code: string }).code)
+        }
         assert.match(String(withSamples.soundfont({sound: "GeneralUser GS/Kazoo Deluxe"}, snapshot)), /no sound/)
     })
     it("writes a part onto an existing notes track, and refuses tracks that aren't there or aren't notes", () => {

@@ -4,7 +4,8 @@ import type Anthropic from "@anthropic-ai/sdk"
 import type {CallToolResult} from "@modelcontextprotocol/sdk/types.js"
 import {z} from "zod"
 import {type Actor, type Note, type Plan, type Snapshot, type SoundRole, SoundRoles, type Status, type When} from "../../shared/protocol.ts"
-import type {Sound} from "./samples.ts"
+import type {Sample, Sound} from "./samples.ts"
+import {pieceOf} from "./library.ts"
 import {type Action, type Anchor, type Direction, type Piece, type PieceKind, PieceKinds, type Step as BoardStep} from "./board.ts"
 import type {Coordinator} from "./coordinator.ts"
 import type {Catalog} from "./catalog.ts"
@@ -149,7 +150,7 @@ const KindNotes: Record<PieceKind, string> = {
 - A region's notes play on every pass of its loop: rewriting them changes every repeat from when it lands.
 - A change to a part's own notes (busier, sparser, ghost notes, more or less swing, half or double time, a fill, harder or softer) is evolve_notes's tweak with an amount, made by code from the notes there; write a new groove only for a new style.
 - Grooves as one line of mini-notation, code writes the hits: make_kit's drums, write_part's drums, evolve_notes's to_drums (\"[bd ~ ~ bd ~ ~ bd ~, ~ sd ~ sd, hh*8]\"; sd:0.4 a ghost note, <sd cp> a different one each bar with bars 2).
-- A style's drum sound (trap, house, techno, boom-bap, 80s) is a new kit, not new notes on the old one: apply_knowledge a kit entry (sound/kit-trap-808, kit-house-909, kit-boombap-mpc60, kit-boombap-sp12, kit-synthpop-linndrum) with the style's pattern, or make_kit with samples you pick (samples finds them across 70 drum machines); with replaces naming the old drums, which parks them on the bar the kit comes in.`,
+- A style's drum sound (trap, house, techno, boom-bap, 80s) is a new kit, not new notes on the old one: apply_knowledge a kit entry (sound/kit-trap-808, kit-house-909, kit-boombap-mpc60, kit-boombap-sp12, kit-synthpop-linndrum) with the style's pattern, or make_kit with samples you pick (samples finds them across 70 drum machines); with replaces naming the old drums, which parks them on the bar the kit comes in. The producer's drum samples (they keep, reject, tune and tag them by ear): samples with a role lists the ones they kept first (✓, with their tags), so build a kit from those with make_kit; each pad's tuning goes on by itself, and a rejected sample (in a kit entry too) is swapped for a kept one. A whole kit as one instrument (sounds with the role drums or percussion: General MIDI's kits, ones the producer kept first) is a drum kit too: make_instrument it, then write_part its drums, which play General MIDI drum notes.`,
     notes: `${Restyle}
 - The producer's sound library (2026-11-26, the producer: the sounds picked were the worst so far, so they keep, reject, tune and tag sounds by ear): sounds with a role lists the ones they kept for it first (✓, with their tags); use one of those, and their tuning (level, octave, tone, character) goes on with it by itself, so don't set those again. An unheard one only when no kept one fits; a rejected one is refused.
 - A new part's sound (2026-11-25, the producer: sounds outside the drums were grating and not genre appropriate): pick a sampled instrument first: the knowledge base's \"Sampled instruments\" entries name a genre's usual ones (bass, keys, guitar, strings, pads, brass, leads) with their registers; sounds finds the rest of 300 (GeneralUser GS and openDAW's). make_instrument makes the track with its notes. Set a synth (Vaporisateur, Tubular) by hand only for a sound no sample has or when the producer asks for a synth, and then start from a knowledge sound entry. Play a sampled instrument in its register.
@@ -167,7 +168,7 @@ ${KeySlot}
 - The producer's sound library (2026-11-26, the producer: the sounds picked were the worst so far, so they keep, reject, tune and tag sounds by ear): sounds with a role lists the ones they kept for it first (✓, with their tags); use one of those, and their tuning (level, octave, tone, character) goes on with it by itself, so don't set those again. An unheard one only when no kept one fits; a rejected one is refused.
 - A new part's sound (2026-11-25, the producer: sounds outside the drums were grating and not genre appropriate): pick a sampled instrument first: the knowledge base's \"Sampled instruments\" entries name a genre's usual ones (bass, keys, guitar, strings, pads, brass, leads) with their registers; sounds finds the rest of 300 (GeneralUser GS and openDAW's). make_instrument makes the track with its notes. Set a synth (Vaporisateur, Tubular) by hand only for a sound no sample has or when the producer asks for a synth, and then start from a knowledge sound entry. Play a sampled instrument in its register.
 - An instrument's settings: ref("t2").inputAdapter.unwrap().namedParameter (e.g. Cubed: cutoff, resonance, envMod, decay, accent; Vaporisateur: cutoff, resonance, attack, decay, sustain, release, …); set them with .setValue(v). A drum machine (Playfield) has none: its sounds are samples by pad.
-- A style's drum sound (trap, house, techno, boom-bap, 80s) is a new kit, not new notes on the old one: apply_knowledge a kit entry (sound/kit-trap-808, kit-house-909, kit-boombap-mpc60, kit-boombap-sp12, kit-synthpop-linndrum) with the style's pattern, or make_kit with samples you pick (samples finds them across 70 drum machines); with replaces naming the old drums, which parks them on the bar the kit comes in.
+- A style's drum sound (trap, house, techno, boom-bap, 80s) is a new kit, not new notes on the old one: apply_knowledge a kit entry (sound/kit-trap-808, kit-house-909, kit-boombap-mpc60, kit-boombap-sp12, kit-synthpop-linndrum) with the style's pattern, or make_kit with samples you pick (samples finds them across 70 drum machines); with replaces naming the old drums, which parks them on the bar the kit comes in. The producer's drum samples (they keep, reject, tune and tag them by ear): samples with a role lists the ones they kept first (✓, with their tags), so build a kit from those with make_kit; each pad's tuning goes on by itself, and a rejected sample (in a kit entry too) is swapped for a kept one. A whole kit as one instrument (sounds with the role drums or percussion: General MIDI's kits, ones the producer kept first) is a drum kit too: make_instrument it, then write_part its drums, which play General MIDI drum notes.
 - An 808 bass (trap, drill, modern hip hop) is make_sampler: a long TR-808 kick played as notes (sound/808-bass), roots in the key around the kick, long notes with gaps.
 - A track a sound entry made with no notes gets its part with write_part: chords (pads, keys, strings) as a progression, code writes the notes.
 - Vaporisateur's namedParameter: oscillators[0] and oscillators[1], each {waveform (0 sine, 1 triangle, 2 saw, 3 square), volume (dB; -Infinity is off), octave (-3..3), tune (cents)}; unisonCount is 1, 3 or 5 only; unisonDetune in cents (1..1200); unisonStereo 0..1; cutoff (Hz), resonance, filterOrder (1..4), attack, decay, sustain, release. A supersaw: both oscillators saw at 0 dB, the second tuned +7 ct, unisonCount 5, unisonDetune 25, unisonStereo 0.8.
@@ -528,15 +529,32 @@ export class Utility implements Member {
             tool("samples", "Find drum and percussion samples in TakeDo's collections (~2,800 one-shots from 70 classic drum machines: TR-808, TR-909, LinnDrum, MPC60, SP-12, DMX, ...) by machine, role and words; all empty lists the machines.", {
                 machine: z.string().describe("Part of a machine's name (\"808\", \"LinnDrum\", \"MPC\"); \"\" for any"),
                 role: z.string().describe("kick, snare, clap, rim, closed hat, open hat, crash, ride, low tom, mid tom, high tom, cowbell, percussion, shaker, tambourine, misc, effect; \"\" for any"),
-                words: z.string().describe("Words in the sample's id (\"BD0010\", \"Gated\"); \"\" for none")},
+                words: z.string().describe("Words in the sample's id or the producer's tags (\"BD0010\", \"dusty\"); \"\" for none")},
                 handler((_current, input) => {
                     const machine = String(input.machine ?? ""), role = String(input.role ?? ""), words = String(input.words ?? "")
                     if (machine === "" && role === "" && words === "") {
                         return samples.machines().map(entry => `${entry.machine} (${entry.count}): ${entry.roles.join(", ")}`).join("\n")
                     }
-                    const found = samples.search({machine, role, words}, 60)
-                    return found.length === 0 ? "Nothing matches; leave a field empty or list the machines."
-                        : found.map(sample => `${sample.id} (${sample.role ?? "?"}, ${sample.duration.toFixed(2)} s)`).join("\n")
+                    // The producer's drum samples first (2026-11-26): kept ones (with their tags), then unheard; rejected never.
+                    const library = knowledge.library
+                    const piece = role === "" ? null : pieceOf({role} as Sample)
+                    const tagsOf = (sample: Sample) => library?.drumEntry(sample.id)?.tags ?? []
+                    const terms = words.toLowerCase().split(/\s+/).filter(term => term !== "")
+                    const byTag = terms.length === 0 ? [] : samples.search({machine, role}, Number.MAX_SAFE_INTEGER)
+                        .filter(sample => terms.every(term => tagsOf(sample).join(" ").includes(term)))
+                    const found = [...new Set([...samples.search({machine, role, words}, Number.MAX_SAFE_INTEGER), ...byTag])]
+                        .flatMap(sample => {
+                            const rank = library?.rankDrum(sample, piece) ?? 1
+                            return rank === null ? [] : [{sample, rank}]
+                        })
+                        .sort((a, b) => a.rank - b.rank).slice(0, 60)
+                    return found.length === 0 ? "Nothing matches (or the producer rejected all that do); leave a field empty or list the machines."
+                        : found.map(({sample}) => {
+                            const entry = library?.drumEntry(sample.id)
+                            return entry?.verdict === "kept"
+                                ? `✓ ${sample.id} (${sample.role ?? "?"}, ${sample.duration.toFixed(2)} s): kept by the producer${entry.tags.length > 0 ? `, ${entry.tags.join(", ")}` : ""}${entry.note ? ` (${entry.note})` : ""}`
+                                : `${sample.id} (${sample.role ?? "?"}, ${sample.duration.toFixed(2)} s)`
+                        }).join("\n")
                 }), {annotations: {readOnlyHint: true}}),
             tool("make_kit", "A new drum track: a kit (openDAW's Playfield) of samples you pick, one per role, optionally playing a groove from the start. The pads get role names, so knowledge drum patterns and evolve_notes find them. The old drums stay: park them (mute) when the new kit comes in.", {
                 name: z.string().describe(TrackName),
@@ -565,7 +583,7 @@ export class Utility implements Member {
             ...(samples.sounds.length === 0 ? [] : [
                 tool("sounds", "Find instrument sounds by words in their names and descriptions: sampled instruments (soundfont presets: GeneralUser GS's 287 General MIDI sounds, and openDAW's upright piano, guitars, harp, organ, xylophone, TB-303) and openDAW's factory synth presets (\"openDAW/...\": FM Rhodes, organs, pads, house and square basses, brass, plucks, on Tubular, Neon, Vaporisateur). Usually a better start for a genre's bass, keys, strings, brass, guitar or pad than a synth set by hand.", {
                     words: z.string().describe("Words in the name or the producer's tags (\"fingered bass\", \"electric piano\", \"warm\"); \"\" for any"),
-                    role: z.enum(["", ...SoundRoles] as [string, ...string[]]).describe("The part it's for (bass, keys, pad, lead, strings, guitar, brass, bells, other); \"\" for any")},
+                    role: z.enum(["", ...SoundRoles] as [string, ...string[]]).describe("The part it's for (bass, keys, pad, lead, strings, guitar, brass, bells, drums or percussion: a whole kit, other); \"\" for any")},
                     handler((_current, input) => {
                         const words = String(input.words ?? "").trim(), role = String(input.role ?? "") as SoundRole | ""
                         const library = knowledge.library

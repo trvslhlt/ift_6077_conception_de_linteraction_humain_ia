@@ -1,6 +1,6 @@
 import {existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync} from "node:fs"
 import {basename, join} from "node:path"
-import type {Snapshot, SoundTuning, Track} from "../../shared/protocol.ts"
+import {DefaultTuning, type DrumPiece, type DrumTuning, type Snapshot, type SoundTuning, type Track} from "../../shared/protocol.ts"
 import type {Catalog, CatalogParameter} from "./catalog.ts"
 import type {Samples} from "./samples.ts"
 import {Library} from "./library.ts"
@@ -618,14 +618,29 @@ export const loadKnowledge = (dir: string, catalog: Catalog, warn: (text: string
         if (samples === null || samples.size === 0) {return "no sample collections here (make samples)"}
         const pads = Array.isArray(input.pads) ? input.pads as Array<Record<string, unknown>> : []
         if (pads.length === 0) {return "a kit needs pads: [{role, sample}]"}
-        const resolved: Array<{ note: number, uuid: string, name: string, duration: number, exclude: boolean }> = []
+        type PadTuning = { volume: number, pitch: number, sample_end: number, effects: ReturnType<typeof tuningEffects> }
+        const resolved: Array<{ note: number, uuid: string, name: string, duration: number, exclude: boolean, tuning: PadTuning | null }> = []
+        const swapped: string[] = []
         for (const pad of pads) {
             const role = String(pad.role)
             if (DrumRoles[role] === undefined) {return `unknown drum role ${role} (one of ${Object.keys(DrumRoles).join(", ")})`}
-            const sample = samples.find(String(pad.sample))
+            let sample = samples.find(String(pad.sample))
             if (sample === null) {return `no sample ${String(pad.sample)} (find them with samples; ids look like RolandTR808/bd/BD0010)`}
+            // The producer's drum samples (library.ts): a rejected one is swapped for one they kept for the piece, a kept
+            // one's tuning goes on its pad; given: the tuning the Sounds tab is trying (its audition).
+            const given = isRecord(pad.tuning) ? pad.tuning as DrumTuning : null
+            if (given === null && library?.drumEntry(sample.id)?.verdict === "rejected") {
+                const standIn = library.standIn(sample, role as DrumPiece)
+                if (standIn === null) {return `the producer rejected ${sample.id} for a kit; pick another ${role} with samples (their kept ones come first)`}
+                swapped.push(`${sampleLabel(sample)} → ${sampleLabel(standIn)}`)
+                sample = standIn
+            }
+            const kept = library?.drumEntry(sample.id)
+            const tuning = given ?? (kept?.verdict === "kept" ? kept.tuning : null)
             resolved.push({note: 60 + resolved.length, uuid: sample.uuid, name: `${RoleLabels[role]} (${sampleLabel(sample)})`,
-                duration: sample.duration, exclude: role === "closed_hat" || role === "open_hat"})
+                duration: sample.duration, exclude: role === "closed_hat" || role === "open_hat",
+                tuning: tuning === null ? null : {volume: tuning.level_db, pitch: tuning.pitch * 100, sample_end: Math.max(0.02, Math.min(1, tuning.length)),
+                    effects: tuningEffects({...DefaultTuning, tone: tuning.tone})}})
         }
         const name = typeof input.name === "string" && input.name !== "" ? input.name : typeof input.default_name === "string" ? input.default_name : "Kit"
         let notes: Record<string, unknown> | null = null
@@ -637,7 +652,7 @@ export const loadKnowledge = (dir: string, catalog: Catalog, warn: (text: string
         }
         return {code: helper("kit", {name, pads: resolved, volume_db: volumeOf(input.volume_db), notes})!,
             says: `${name}: a new kit track (${resolved.map(pad => pad.name).join(", ")})${notes === null ? ""
-                : `, ${String(notes.name)} ${startText(notes)}`}`}
+                : `, ${String(notes.name)} ${startText(notes)}`}${swapped.length > 0 ? `; the producer rejected some samples, so ${swapped.join(", ")}` : ""}`}
     }
     // Notes as written ([beat, pitch, beats, velocity 0..1], looping every loop_bars) or a pattern entry's; null for none.
     const melodicNotes = (input: Record<string, unknown>, snapshot: Snapshot, owner: Entry | null, name: string): Record<string, unknown> | null | string => {

@@ -1,7 +1,7 @@
 import {randomUUID} from "node:crypto"
 import {
     type Actor, type Apply, type Decided, type BackendToPage, type ChangeEvent, type Control, type Detail, type MemberCard, type PageToBackend,
-    type Plan, type Snapshot, type SoundRole, type SoundTuning, type Status, target, type When
+    type Plan, type Snapshot, type DrumPiece, type DrumTuning, type SoundRole, type SoundTuning, type Status, target, type When
 } from "../../shared/protocol.ts"
 import type {Catalog} from "./catalog.ts"
 import type {Gateway, ModelLog} from "./gateway.ts"
@@ -22,7 +22,7 @@ import {Utility} from "./utility.ts"
 import {type Line, triage, triageState} from "./triage.ts"
 import {fastEffect, fastMix, SurePath, fastTweak} from "./fastpath.ts"
 import {Profiles, Styles, styleSteps} from "./mixProfiles.ts"
-import {auditionPhrase} from "./library.ts"
+import {auditionPhrase, drumAudition, padRole} from "./library.ts"
 
 // The backend half of the bus (TAKEDO_API.md, "Overview"), one per connected page: claims, plans, chat, routing.
 // Talks to the page's adapter for state (snapshot queries) and to apply plans.
@@ -198,6 +198,16 @@ export class Coordinator {
             case "audition":
                 void this.#audition(message.id, message.role, message.tuning)
                 return
+            case "drum_audition":
+                void this.#drumAudition(message.id, message.piece, message.tuning, message.alone)
+                return
+            case "drum_set": {
+                const problem = this.#knowledge?.library?.setDrum(message.id, message.entry) ?? "no sound library (no samples)"
+                if (problem !== null) {return this.#send({type: "error", detail: `The sound library: ${problem}`})}
+                this.#log.write("library", {drum: message.id, entry: message.entry})
+                this.#sendLibrary()
+                return
+            }
             case "library_set": {
                 const problem = this.#knowledge?.library?.set(message.id, message.entry) ?? "no sound library (no samples)"
                 if (problem !== null) {return this.#send({type: "error", detail: `The sound library: ${problem}`})}
@@ -774,7 +784,7 @@ export class Coordinator {
         const library = this.#knowledge?.library
         if (library === undefined || library === null) {return this.#send({type: "error", detail: "The sound library needs TakeDo's samples (make samples)."})}
         const chains = this.#knowledge!.index().filter(line => line.key.startsWith("chain/")).map(line => ({key: line.key, summary: line.summary}))
-        this.#send({type: "library", sounds: library.list(), chains})
+        this.#send({type: "library", sounds: library.list(), drums: library.drums(), chains})
     }
 
     // A sound as the Sounds tab auditions it: its role's phrase in the project's key, on a track made the way an agent
@@ -789,6 +799,24 @@ export class Coordinator {
         if (typeof phrase === "string") {return this.#send({type: "audition", id, error: phrase})}
         const made = knowledge.audition({sound: id, name: `Audition: ${id.split("/").pop()}`,
             notes: {notes: phrase.hits, loop_bars: phrase.beats / snapshot.timeline.signature[0], bars: 16, from_bar: 0}}, tuning, snapshot)
+        this.#send(typeof made === "string" ? {type: "audition", id, error: made} : {type: "audition", id, code: made.code})
+    }
+
+    // A drum sample as the Sounds tab auditions it: a beat featuring its piece on a kit made the way an agent makes one,
+    // the sample on its piece's pad with the tuning being tried, the producer's kept samples (else its machine's) around it.
+    async #drumAudition(id: string, piece: DrumPiece, tuning: DrumTuning, alone: boolean): Promise<void> {
+        const knowledge = this.#knowledge, library = knowledge?.library ?? null, snapshot = await this.snapshot()
+        if (knowledge === null || library === null || snapshot === null) {return this.#send({type: "audition", id, error: "Open a project first."})}
+        const sample = knowledge.samples?.find(id) ?? null
+        if (sample === null) {return this.#send({type: "audition", id, error: `no drum sample ${id}`})}
+        const groove = drumAudition(piece, alone, snapshot.timeline.signature[0])
+        if (typeof groove === "string") {return this.#send({type: "audition", id, error: groove})}
+        const around = groove.backing.flatMap(other => {
+            const backing = library.backing(other, sample.machine)
+            return backing === null ? [] : [{role: other, sample: backing.id}]
+        })
+        const made = knowledge.kit({name: `Audition: ${id.split("/").pop()}`, pads: [{role: padRole(piece), sample: sample.id, tuning}, ...around],
+            notes: {hits: groove.hits, beats: groove.beats, bars: 16, from_bar: 0}}, snapshot)
         this.#send(typeof made === "string" ? {type: "audition", id, error: made} : {type: "audition", id, code: made.code})
     }
 

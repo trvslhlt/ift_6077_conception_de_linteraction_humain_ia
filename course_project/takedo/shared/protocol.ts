@@ -85,8 +85,9 @@ export type SendPlan = { op: "send", track: string, bus: string,
 export type ScriptPlan = { op: "script", code: string, description: string }
 // The producer's sound library (backend/src/library.ts, the Sounds tab): their verdict on an instrument sound, the roles
 // and tags they gave it, and its tuning, which agents apply when they use it.
-export type SoundRole = "bass" | "keys" | "pad" | "lead" | "strings" | "guitar" | "brass" | "bells" | "other"
-export const SoundRoles: SoundRole[] = ["bass", "keys", "pad", "lead", "strings", "guitar", "brass", "bells", "other"]
+// drums and percussion: a whole kit as one instrument (General MIDI's drum kits), playing General MIDI drum notes.
+export type SoundRole = "bass" | "keys" | "pad" | "lead" | "strings" | "guitar" | "brass" | "bells" | "drums" | "percussion" | "other"
+export const SoundRoles: SoundRole[] = ["bass", "keys", "pad", "lead", "strings", "guitar", "brass", "bells", "drums", "percussion", "other"]
 // level_db: the track's volume. octave: added to every note it plays. register: the MIDI range it sounds good in (null:
 // any). tone: a high-pass and low-pass on the track in Hz (20 and 20000: open). effect: a knowledge chain ("chain/saturate")
 // at an amount 0-3, or null.
@@ -96,6 +97,18 @@ export type LibraryEntry = { verdict: "kept" | "rejected", roles: SoundRole[], t
 export type LibrarySound = { id: string, source: "soundfont" | "preset", family: string, bank: number, roles: SoundRole[], entry: LibraryEntry | null }
 export const OpenTone = {low_cut: 20, high_cut: 20000}
 export const DefaultTuning: SoundTuning = {level_db: -6, octave: 0, register: null, tone: OpenTone, effect: null}
+// The producer's drum samples (the Sounds tab's drums): their verdict on one sample of TakeDo's drum machines, the piece
+// it plays in a kit (a drum role, knowledge.ts DrumRoles; other: effects and oddities, played as perc), and its tuning on
+// its pad: level_db the pad's volume, pitch in semitones, length the part of the sample played (1: all of it; less cuts a
+// long tail), tone a high- and low-pass on the pad.
+export type DrumPiece = "kick" | "snare" | "rim" | "clap" | "closed_hat" | "open_hat" | "ride" | "crash" | "tom_low" | "tom_mid"
+    | "tom_high" | "shaker" | "perc" | "other"
+export const DrumPieces: DrumPiece[] = ["kick", "snare", "rim", "clap", "closed_hat", "open_hat", "ride", "crash", "tom_low", "tom_mid",
+    "tom_high", "shaker", "perc", "other"]
+export type DrumTuning = { level_db: number, pitch: number, length: number, tone: { low_cut: number, high_cut: number } }
+export const DefaultDrumTuning: DrumTuning = {level_db: 0, pitch: 0, length: 1, tone: OpenTone}
+export type DrumEntry = { verdict: "kept" | "rejected", piece: DrumPiece, tags: string[], tuning: DrumTuning, note: string, t: number }
+export type LibraryDrum = { id: string, machine: string, piece: DrumPiece, duration: number, entry: DrumEntry | null }
 
 export type Plan = RampPlan | SetPlan | AddEffectPlan | RemoveEffectPlan | SendPlan | ScriptPlan
 // Who decided an edit (2026-11-25, the activity view's icons): a model's turn, Jev (a fast judgment, code filling it
@@ -166,6 +179,8 @@ export type PageToBackend =
     | { type: "library" }                                  // the Sounds tab asks for the sound library
     | { type: "library_set", id: string, entry: LibraryEntry | null }   // the producer's verdict and tuning for a sound
     | { type: "audition", id: string, role: SoundRole, tuning: SoundTuning }   // the Sounds tab wants to hear a sound
+    | { type: "drum_set", id: string, entry: DrumEntry | null }   // the producer's verdict and tuning for a drum sample
+    | { type: "drum_audition", id: string, piece: DrumPiece, tuning: DrumTuning, alone: boolean }   // a drum sample in a beat
     // After (re)connecting: the requests still waiting for their bar or under way (they outlive a backend restart).
     | { type: "waiting", requests: string[] }
     | { type: "result", id: number, snapshot: Snapshot | null }   // answer to a query; null: no project open
@@ -193,7 +208,7 @@ export type BackendToPage =
     | { type: "team", members: TeamMember[], aliases: Record<string, Actor> }
     | { type: "overview", state: "writing" } | { type: "overview", state: "done", overview: Overview }
     | { type: "overview", state: "failed", detail: string }
-    | { type: "library", sounds: LibrarySound[], chains: Array<{ key: string, summary: string }> }   // the sound library, with the character effects
+    | { type: "library", sounds: LibrarySound[], drums: LibraryDrum[], chains: Array<{ key: string, summary: string }> }   // the sound library, with the character effects
     | { type: "audition", id: string, code: string } | { type: "audition", id: string, error: string }   // the track to audition, as agents would make it
     | { type: "error", detail: string }
 

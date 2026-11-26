@@ -448,7 +448,7 @@ export const TakeDoPanel = ({lifecycle, service, visible}: Construct): HTMLEleme
     )
     const showTab = (sounds: boolean): void => {
         teamView.style.display = sounds ? "none" : "grid"
-        bench.element.style.display = sounds ? "grid" : "none"
+        bench.element.style.display = sounds ? "flex" : "none"
         teamTab.style.background = sounds ? "transparent" : "#2a3a40"
         soundsTab.style.background = sounds ? "#2a3a40" : "transparent"
         bench.show(sounds)

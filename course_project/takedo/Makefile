@@ -71,9 +71,11 @@ scenario: build $(TYPES_DIR)/packages ## Play scenarios/$(SCENARIO).json to Take
 		status=$$?; kill $$watcher; exit $$status
 	cd backend && node src/report.ts "$$(ls -td ../scenarios/runs/*_$(SCENARIO) | head -1)"
 
-sounds-probe: build $(TYPES_DIR)/packages ## Drive the Sounds tab headless: audition, tune, keep, forget (writes and clears one entry of knowledge/sound-library.json)
+sounds-probe: build $(TYPES_DIR)/packages ## Drive the Sounds tab headless: audition, tune, keep, forget, instruments and drums (the producer's library is put back after)
 	$(COMPOSE) up -d --wait studio backend
-	$(COMPOSE) run --rm -v $(CURDIR)/scenarios:/scenarios -v $(CURDIR)/knowledge:/knowledge:ro -v $(CURDIR)/test/sounds-probe.mjs:/test/sounds-probe.mjs:ro smoke node sounds-probe.mjs
+	cp knowledge/sound-library.json knowledge/.sound-library.probe-backup.json
+	$(COMPOSE) run --rm -v $(CURDIR)/scenarios:/scenarios -v $(CURDIR)/knowledge:/knowledge:ro -v $(CURDIR)/test/sounds-probe.mjs:/test/sounds-probe.mjs:ro smoke node sounds-probe.mjs; \
+		status=$$?; mv knowledge/.sound-library.probe-backup.json knowledge/sound-library.json; exit $$status
 
 catalog: build ## Regenerate catalog/generated.json from openDAW (every device's descriptions and parameters)
 	$(COMPOSE) run --rm -v $(CURDIR)/catalog:/out \

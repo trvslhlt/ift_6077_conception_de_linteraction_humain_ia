@@ -59,10 +59,44 @@ try {
     const moved = await page.evaluate(() => document.querySelector("[data-testid=takedo-sounds] div[style*='15px']")?.textContent)
     check("keep moves on to the next sound", moved !== "GeneralUser GS/Finger Bass", moved)
     await page.locator("[data-testid=takedo-sounds-list] li[data-id='GeneralUser GS/Finger Bass']").click()
-    await page.getByText("forget").click()
+    await page.locator("[data-testid=takedo-sounds]").getByText("forget").click()
     await sleep(1500)
     const forgotten = JSON.parse(readFileSync("/knowledge/sound-library.json", "utf8")).sounds["GeneralUser GS/Finger Bass"]
     check("forget clears it", forgotten === undefined)
+    // The drums section: a sample plays in a beat on a kit, its tuning on its pad; keep writes it under drums; forget clears it.
+    await page.getByTestId("takedo-sounds-drums").click()
+    await page.waitForFunction(() => document.querySelectorAll("[data-testid=takedo-drums-list] li").length > 0)
+    check("the drums section lists snares", await page.locator("[data-testid=takedo-drums-list] li").count() >= 50)
+    const drum = "AkaiMPC60/sd/Snare 2"
+    await page.locator(`[data-testid=takedo-drums-list] li[data-id='${drum}']`).click()
+    await page.waitForFunction(() => /playing/.test(document.querySelector("[data-testid=takedo-drums-message]")?.textContent ?? ""), null, {timeout: 20000})
+        .catch(() => {})
+    check("a drum sample auditions", /playing/.test(await page.getByTestId("takedo-drums-message").textContent()),
+        await page.getByTestId("takedo-drums-message").textContent())
+    await page.evaluate(() => {
+        const sliders = [...document.querySelectorAll("[data-testid=takedo-drums] input[type=range]")]
+        sliders[2].value = "0.4"; sliders[2].dispatchEvent(new Event("change"))
+        sliders[4].value = "400"; sliders[4].dispatchEvent(new Event("change"))
+    })
+    await sleep(2500)
+    const pads = await page.evaluate(() => {
+        const unit = window.takedo.service.projectProfileService.getValue().unwrap().project.rootBoxAdapter.audioUnits.adapters()
+            .find(adapter => adapter.label.startsWith("Audition"))
+        const device = unit?.box.input.pointerHub.incoming().at(0)?.box
+        return device === undefined ? null : device.samples.pointerHub.incoming().map(pointer => pointer.box).map(box => ({
+            note: box.index.getValue(), volume: box.volume.getValue(), end: box.sampleEnd.getValue(), effects: box.audioEffects.pointerHub.incoming().length}))
+    })
+    const snarePad = pads?.find(pad => pad.note === 60)
+    check("the kit has the sample and its backing, its tuning on its pad", pads !== null && pads.length >= 3 && Math.abs((snarePad?.end ?? 0) - 0.4) < 1e-6 && snarePad.effects === 1
+        && pads.filter(pad => pad.note !== 60).every(pad => pad.effects === 0), JSON.stringify(pads))
+    await page.getByTestId("takedo-drums").press("k")
+    await sleep(1500)
+    const keptDrum = JSON.parse(readFileSync("/knowledge/sound-library.json", "utf8")).drums?.[drum]
+    check("keep writes the drum entry with its tuning", keptDrum?.verdict === "kept" && keptDrum.piece === "snare" && keptDrum.tuning.length === 0.4, JSON.stringify(keptDrum))
+    await page.locator(`[data-testid=takedo-drums-list] li[data-id='${drum}']`).click()
+    await page.locator("[data-testid=takedo-drums]").getByText("forget").click()
+    await sleep(1500)
+    check("forget clears the drum entry", JSON.parse(readFileSync("/knowledge/sound-library.json", "utf8")).drums?.[drum] === undefined)
     await page.getByTestId("takedo-tab-team").click()
     await sleep(1000)
     check("leaving the tab ends the audition", !(await units()).some(unit => unit.label.startsWith("Audition")))

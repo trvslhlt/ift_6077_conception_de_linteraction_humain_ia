@@ -2,6 +2,7 @@ import {createElement} from "@opendaw/lib-jsx"
 import type {Lifecycle} from "@opendaw/lib-std"
 import type {Adapter as AdapterType} from "./Adapter"
 import type {Connection} from "./Connection"
+import {DrumBench} from "./DrumBench"
 import {
     DefaultTuning, type LibraryEntry, type LibrarySound, type SoundRole, SoundRoles, type SoundTuning
 } from "@/takedo_shared/protocol"
@@ -236,15 +237,44 @@ export const SoundBench = ({lifecycle, connection, adapter}: Construct) => {
         }
     }))
     lifecycle.own({terminate: () => adapter()?.endAudition()})
+    // Two sections: instruments (above) and the drum machines' samples (DrumBench.tsx), one shown at a time.
+    const drumBench = DrumBench({lifecycle, connection, adapter})
+    let section: "instruments" | "drums" = "instruments"
+    const sectionButton = (name: typeof section, text: string): HTMLButtonElement =>
+        <button data-testid={`takedo-sounds-${name}`} style={{fontSize: "12px"}}>{text}</button>
+    const instrumentsButton = sectionButton("instruments", "instruments"), drumsButton = sectionButton("drums", "drum samples")
+    const showSection = (name: typeof section): void => {
+        if (name !== section) {
+            if (section === "instruments" && playing) {stop()}
+            if (section === "drums") {drumBench.stop()}
+        }
+        section = name
+        element.style.display = name === "instruments" ? "grid" : "none"
+        drumBench.element.style.display = name === "drums" ? "grid" : "none"
+        instrumentsButton.style.fontWeight = name === "instruments" ? "700" : "400"
+        drumsButton.style.fontWeight = name === "drums" ? "700" : "400"
+        if (name === "instruments") {element.focus()} else {drumBench.focus()}
+    }
+    instrumentsButton.onclick = () => showSection("instruments")
+    drumsButton.onclick = () => showSection("drums")
+    const outer: HTMLElement = (
+        <div style={{flex: "1 0 0", display: "flex", flexDirection: "column", minHeight: "0"}}>
+            <div style={{...row, padding: "0.6em 1em 0"}}>{instrumentsButton}{drumsButton}</div>
+            {element}
+            {drumBench.element}
+        </div>
+    )
+    showSection("instruments")
     return {
-        element,
+        element: outer,
         // The tab shown: the library fetched (fresh each time), keys going to the list; hidden: the audition stops.
         show: (shown: boolean): void => {
             if (shown) {
                 connection.send({type: "library"})
-                element.focus()
-            } else if (playing) {
-                stop()
+                showSection(section)
+            } else {
+                if (playing) {stop()}
+                drumBench.stop()
             }
         }
     }
