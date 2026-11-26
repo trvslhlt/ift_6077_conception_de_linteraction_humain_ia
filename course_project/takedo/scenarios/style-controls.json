@@ -1,0 +1,9 @@
+{
+  "//": "A style's controls spread over the members (2026-11-26, the producer: in a big direction like a new style more members should show controls): the lofi evolve leaves the Team Lead's Lofi dial, and once its pieces land the conductor's switch for the new drums, the mix engineer's panel for the master's new effect and the sound designer's for a character effect; the drums switched out by the producer's hand.",
+  "project": "01_good_base.odb",
+  "messages": [
+    {"text": "Slowly evolve this into a lush lofi girl beat"},
+    {"text": "keep going"},
+    {"control": "", "widget": "switch", "kind": "direct", "value": 0}
+  ]
+}

@@ -1,6 +1,6 @@
 import {randomUUID} from "node:crypto"
 import {
-    type Actor, type Apply, type Decided, type BackendToPage, type ChangeEvent, type Control, type Detail, type MemberCard, type PageToBackend,
+    type Actor, type Apply, type Decided, type BackendToPage, type ChangeEvent, type Control, type Detail, type Device, type MemberCard, type PageToBackend,
     type Plan, type Snapshot, type DrumPiece, type DrumTuning, type Genre, type SoundRole, type SoundTuning, type Status, target, type When
 } from "../../shared/protocol.ts"
 import type {Catalog} from "./catalog.ts"
@@ -23,7 +23,7 @@ import {type Line, type Triage, triage, triageState} from "./triage.ts"
 import {Tweaks} from "./variants.ts"
 import {fastEffect, fastMix, SurePath, fastTweak} from "./fastpath.ts"
 import {Profiles, Styles, styleSteps} from "./mixProfiles.ts"
-import {effectPanel, MaxGroup, slots} from "./panels.ts"
+import {effectPanel, MaxGroup, plainName, slots} from "./panels.ts"
 import {MaxControls, MaxTotalControls, memberActor, type MemberName, MemberNames, Members, memberOf, TeamList} from "./team.ts"
 import {auditionPhrase, drumAudition, padRole} from "./library.ts"
 import {soundsAgainst} from "./soundFit.ts"
@@ -951,6 +951,8 @@ export class Coordinator {
         const beats = Math.max(0, overBars) * snapshot.timeline.signature[0]
         void Promise.all(made.moves.map(move => this.#move(direction, move, beats)))
             .then(results => this.#log.write("board", {event: "restyle", style, direction: direction.id, results}))
+            .then(() => this.#styleControls(direction, snapshot, made.moves))
+            .catch(error => this.#log.write("tweak_dial", {style_controls: String(error)}))
         const [low, high] = template.tempo, bpm = snapshot.timeline.bpm
         const tempo = bpm < low ? low : bpm > high ? high : null
         if (made.moves.length === 0 && tempo === null) {
@@ -967,6 +969,47 @@ export class Coordinator {
         return [`The ${style} template, by code: ${made.moves.map(move => `${move.old === null ? "new" : `${move.old.ref} ${move.old.name} →`} ${move.says}`).join("; ") || "no part to change"}.`,
             ...(made.left.length > 0 ? [`Left as they are: ${made.left.join("; ")}.`] : []),
             ...assigned, mix, `The template:\n${templateText(template, this.rules([style]))}`].filter(line => line !== "").join("\n")
+    }
+
+    // A style's controls spread over the members who made it (2026-11-26, the producer: in a big direction like a new
+    // style more members should show controls), offered by code once its pieces have landed, each where a producer
+    // rides that side of it: the conductor a switch dropping the new drums out and back in, the mix engineer a panel for
+    // the master's new effect, the sound designer one for a new part's character effect. Each as many as the card's
+    // limits allow; the Team Lead's dial for the style stays its own.
+    async #styleControls(direction: Direction, before: Snapshot, moves: ReadonlyArray<Move>): Promise<void> {
+        const busy = () => this.board.running().some(job => job.direction === direction.id) || this.board.coming().some(step => step.direction === direction.id)
+        for (let waited = 0; busy() && waited < 120; waited++) {await new Promise(resolve => setTimeout(resolve, 1000))}
+        const after = await this.snapshot("full")
+        if (after === null) {return}
+        const fresh = after.tracks.filter(track => !before.tracks.some(old => old.ref === track.ref) && !track.mix.mute)
+        const said: Array<[MemberName, string]> = []
+        const offer = (member: MemberName, controls: Array<Omit<Control, "owner">>, line: string) => {
+            if (controls.length === 0) {return}
+            const results = controls.map(control => this.offerControl(memberActor(member), control))
+            if (results[0]?.startsWith("On your card")) {said.push([member, line])} else {this.#log.write("tweak_dial", {member, said: results[0]})}
+        }
+        const drums = fresh.find(track => moves.some(move => move.role === "drums" && move.name === track.name)) ?? fresh.find(isDrums)
+        if (drums !== undefined) {
+            offer("conductor", [{ref: `c:${drums.ref}_in`, kind: "direct", widget: "switch", label: drums.name.slice(0, 30), low: "out", high: "in",
+                meaning: `The ${drums.name} dropped out or back in`, value: 1, bind: [{ref: `${drums.ref}.mix.mute`, from: 1, to: 0}]}],
+                `A switch on my card drops the ${drums.name} out and brings it back.`)
+        }
+        const paneled = (devices: ReadonlyArray<Device>, where: string) => devices.filter(device => device.enabled)
+            .map(device => effectPanel(device, where)).find(panel => panel.some(control => control.widget === "dial")) ?? []
+        // The style's effects: added, or set by it (the lofi master's EQ was there already, its bands set by the piece).
+        const touched = (now: ReadonlyArray<Device>, was: ReadonlyArray<Device>) => now.filter(effect => {
+            const old = was.find(candidate => candidate.ref === effect.ref)
+            return old === undefined || old.enabled !== effect.enabled || (effect.params ?? []).some(param =>
+                Math.abs(param.value - (old.params ?? []).find(candidate => candidate.ref === param.ref)!.value) > 1e-6)
+        })
+        const master = paneled(touched(after.master.effects, before.master.effects), "the master")
+        offer("mix_engineer", master, `The master's ${master[0]?.group?.split(" on ")[0] ?? "effect"} has a panel on my card.`)
+        // Character: a new part's effect first, else one the style put on a part it kept (the bass's tone).
+        const sounding = after.tracks.filter(track => !track.mix.mute)
+        const character = [...fresh, ...sounding.filter(track => !fresh.includes(track))].map(track => paneled(
+            touched(track.effects, before.tracks.find(old => old.ref === track.ref)?.effects ?? []), track.name)).find(panel => panel.length > 0) ?? []
+        offer("sound_designer", character, `The ${character[0]?.group ?? "character"} has a panel on my card.`)
+        said.forEach(([member, line]) => this.say(memberActor(member), line))
     }
 
     // One template part: its new track made, then (crossfading) faded up while its old part fades down, the old parked.
@@ -1180,7 +1223,7 @@ export class Coordinator {
         const said = panel.map(control => this.offerControl(knobOwner, control))
         if (said[0]?.startsWith("On your card")) {
             const dials = panel.filter(control => control.widget === "dial").map(control => control.label.toLowerCase())
-            this.say(knobOwner, `The ${device.name.toLowerCase()} has its own panel on my card: ${dials.length > 0 ? `${dials.join(", ")}, and ` : ""}an on/off switch.`)
+            this.say(knobOwner, `The ${plainName(device)} has its own panel on my card: ${dials.length > 0 ? `${dials.join(", ")}, and ` : ""}an on/off switch.`)
         } else {this.#log.write("tweak_dial", {panel: panel[0]?.group, said: said[0]})}
     }
 

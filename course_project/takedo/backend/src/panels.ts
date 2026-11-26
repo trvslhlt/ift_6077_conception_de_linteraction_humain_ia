@@ -21,10 +21,15 @@ const Knobs: Record<string, Knob[]> = {
     Tidal: [{param: "depth", label: "Depth", low: "steady", high: "pulsing", from: 0, to: 1}],
     Compressor: [{param: "threshold", label: "Squash", low: "light", high: "squashed", from: 0, to: -30},
         {param: "ratio", label: "Ratio", low: "gentle", high: "hard", from: 1.5, to: 8}],
-    Revamp: [{param: "highShelf/gain", label: "Top", low: "dark", high: "bright", from: -12, to: 6},
+    Revamp: [{param: "lowPass/frequency", label: "Tone", low: "dark", high: "open", from: 1500, to: 16000},
+        {param: "highPass/frequency", label: "Low cut", low: "full", high: "thin", from: 20, to: 400},
+        {param: "highShelf/gain", label: "Top", low: "dark", high: "bright", from: -12, to: 6},
         {param: "lowShelf/gain", label: "Body", low: "thin", high: "warm", from: -6, to: 6}]
 }
 export const MaxGroup = 4
+// What the producer reads for a device (openDAW's names aren't musicians' words: Revamp is an EQ).
+const Plain: Record<string, string> = {Revamp: "EQ", Tidal: "Tremolo", Waveshaper: "Drive", DattorroReverb: "Reverb", Maximizer: "Limiter"}
+export const plainName = (device: Device): string => Plain[device.key] ?? device.name
 
 // The device's dials (only settings it has; an EQ band only when it's switched on) and its bypass, for a card.
 export const effectPanel = (device: Device, where: string): Array<Omit<Control, "owner">> => {
@@ -39,15 +44,16 @@ export const effectPanel = (device: Device, where: string): Array<Omit<Control, 
     const knobs = known.length > 0 ? known : amount === undefined ? [] : [amount.ref.endsWith(".wet")
         ? {param: "wet", label: "Wet", low: "dry", high: "wet", from: -40, to: 0}
         : {param: "mix", label: "Mix", low: "dry", high: "all", from: 0, to: 1}]
-    const group = `${device.name} on ${where}`.slice(0, 40)
+    const name = plainName(device)
+    const group = `${name} on ${where}`.slice(0, 40)
     const id = ref.replace(/\./g, "_")
     const dials = knobs.slice(0, MaxGroup - 1).map((knob): Omit<Control, "owner"> => ({
         ref: `c:${id}_${knob.param.replace(/\W/g, "_").toLowerCase()}`, kind: "direct", widget: "dial", group, label: knob.label,
-        low: knob.low, high: knob.high, meaning: `The ${device.name}'s ${knob.label.toLowerCase()} on ${where}`,
+        low: knob.low, high: knob.high, meaning: `The ${name}'s ${knob.label.toLowerCase()} on ${where}`,
         value: Math.max(0, Math.min(1, (value(knob.param)! - knob.from) / (knob.to - knob.from))),
         bind: [{ref: `${ref}.${knob.param}`, from: knob.from, to: knob.to}]}))
     const bypass: Omit<Control, "owner"> = {ref: `c:${id}_on`, kind: "direct", widget: "switch", group, label: "On",
-        low: "off", high: "on", meaning: `The ${device.name} on ${where} switched on or bypassed`, value: device.enabled ? 1 : 0,
+        low: "off", high: "on", meaning: `The ${name} on ${where} switched on or bypassed`, value: device.enabled ? 1 : 0,
         bind: [{ref: `${ref}.enabled`, from: 0, to: 1}]}
     return [...dials, bypass]
 }
