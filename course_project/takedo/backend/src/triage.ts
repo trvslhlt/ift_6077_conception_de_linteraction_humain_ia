@@ -1,4 +1,4 @@
-import {choice, score} from "@typesafe-ai/sdk"
+import {choice, noul, score} from "@typesafe-ai/sdk"
 import type {Snapshot} from "../../shared/protocol.ts"
 import type {Gateway, ModelLog} from "./gateway.ts"
 import {isDrums} from "./analysis.ts"
@@ -102,6 +102,7 @@ export type Triage = {
     when: keyof typeof When
     member: keyof typeof Members, memberP: number
     control: keyof typeof Controls, controlP: number
+    newPart: number                               // p that it asks for a part not in the project yet (fastTweak)
     ms: number
 }
 
@@ -130,7 +131,9 @@ export const triage = async (gateway: Gateway, log: ModelLog, state: TriageState
         when: choice(`${Premise}When should the change happen?`, When),
         member: choice(`${Premise}Which member of the team does it land with?`, Members),
         control: choice(`${Premise}What control, if any, should the team offer the producer for tuning this direction afterwards? ` +
-            "If the message asks for a control (a knob, a switch, a button), that one.", Controls)
+            "If the message asks for a control (a knob, a switch, a button), that one.", Controls),
+        // 2026-11-26: "sparse lead melody" (no lead in the project) was judged a sparser Rhodes, and the Rhodes thinned out.
+        newPart: noul(`${Premise}Does the message ask for a new part, melody, line or instrument that isn't in \`project\` yet?`)
     }, log)
     const p = (answer: { choice: string, probabilities: Record<string, number> }) => answer.probabilities[answer.choice] ?? 0
     return {
@@ -143,6 +146,7 @@ export const triage = async (gateway: Gateway, log: ModelLog, state: TriageState
         amount: answers.amount.score, when: answers.when.choice as Triage["when"],
         member: answers.member.choice as Triage["member"], memberP: p(answers.member),
         control: answers.control.choice as Triage["control"], controlP: p(answers.control),
+        newPart: answers.newPart.noul,
         ms: Math.round(performance.now() - start)
     }
 }

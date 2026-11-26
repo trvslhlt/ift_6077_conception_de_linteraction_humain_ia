@@ -794,7 +794,7 @@ export class Coordinator {
     async #tweakDial(agent: Actor, judged: Triage, message: string, before: Snapshot, direction: string): Promise<void> {
         const word = TweakDials[judged.tweak]
         const track = before.tracks.find(candidate => candidate.ref === judged.part)
-        if (word === undefined || track === undefined || memberOf(agent) === null || this.landsWith(message)?.control !== "dial") {return}
+        if (word === undefined || track === undefined || memberOf(agent) === null || ["none", undefined].includes(this.landsWith(message)?.control)) {return}
         const ref = `c:${judged.tweak}_${track.ref}`
         if (this.controls().some(control => control.ref === ref)) {return}
         const value = Math.min(0.85, 0.4 + 0.15 * Math.round(judged.amount))
@@ -807,17 +807,19 @@ export class Coordinator {
     }
 
     // Jev's guess at who a message lands with and the control it merits (triage.ts), for the Team Lead's turn on it;
-    // given only when Jev is sure enough (members-bench: at p >= 0.8, 74% of messages with 1 wrong in 85).
-    landsWith(message: string): { member: string, control: string } | null {
+    // given only when Jev is sure enough of the member (members-bench: at p >= 0.8, 74% of messages with 1 wrong in 85).
+    // The control is Jev's when it's sure; when it isn't, the member's own call ("unsure"), never a silent none
+    // (2026-11-26, the producer's session: "vintage effects on master" and "sparse lead melody" were the mix engineer's
+    // and the composer's, Jev unsure of the control, and no member offered one).
+    landsWith(message: string): { member: string, control: string, its_controls?: string } | null {
         const landed = this.#landsWith
         const addressed = this.#addressed?.message === message ? this.#addressed.member : null
-        if (addressed !== null) {
-            const judged = landed?.message === message ? landed.judged : null
-            return {member: addressed, control: judged === null || judged.controlP < SureControl ? "none" : judged.control}
-        }
-        if (landed === null || landed.message !== message || landed.judged.memberP < SureMember) {return null}
-        const {member, control, controlP} = landed.judged
-        return {member, control: member === "none" || controlP < SureControl ? "none" : control}
+        const judged = landed?.message === message ? landed.judged : null
+        const member = addressed ?? (judged !== null && judged.memberP >= SureMember ? judged.member : null)
+        if (member === null) {return null}
+        if (member === "none") {return {member, control: "none"}}
+        const control = judged === null || judged.controlP < SureControl ? "unsure" : judged.control
+        return {member, control, ...((MemberNames as readonly string[]).includes(member) ? {its_controls: Members[member as MemberName].controls} : {})}
     }
 
     // Hands a piece of a direction to a fresh worker (the utility in job mode), which runs at once, alongside any
@@ -942,9 +944,9 @@ export class Coordinator {
             return `Everything is the ${style} template already: ${made.left.join("; ")}. Nothing assigned.\nThe template:\n${templateText(template, this.rules([style]))}`
         }
         const pieces: Piece[] = [
-            ...(tempo === null ? [] : [{kind: "tempo" as const, tracks: [], goal: `The tempo glides from ${Math.round(bpm)} to ${tempo} BPM.`,
+            ...(tempo === null ? [] : [{kind: "tempo" as const, member: "conductor" as const, tracks: [], goal: `The tempo glides from ${Math.round(bpm)} to ${tempo} BPM.`,
                 from_bar: 0, to_bar: overBars, steps: overBars > 0 ? 4 : 1, keep: ""}]),
-            {kind: "effects", tracks: ["master"], goal: `The master for ${style}: ${template.master}.`, from_bar: 0, to_bar: overBars,
+            {kind: "effects", member: "mix_engineer", tracks: ["master"], goal: `The master for ${style}: ${template.master}.`, from_bar: 0, to_bar: overBars,
                 steps: overBars > 0 ? 4 : 1, keep: this.rules([style]).filter(rule => rule.role === null).map(rule => rule.text).join("; ")}
         ]
         const assigned = pieces.map(piece => this.assign(direction, anchor, piece))

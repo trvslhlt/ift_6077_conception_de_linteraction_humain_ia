@@ -150,7 +150,7 @@ export type FastSteps = { steps: Step[], says: string }
 // script: a page helper call as code (knowledge.ts, script), for kb.replaceNotes.
 export const fastTweak = (judged: Triage, message: string, full: Snapshot, script: (call: string, args: unknown) => string | null): FastSteps | null => {
     if (judged.tweak === "none" || judged.path !== "team" || Math.min(judged.tweakP, judged.partP) < SureTweak) {return null}
-    if (/\d/.test(message) || judged.when === "later") {return null}
+    if (/\d/.test(message) || judged.when === "later" || judged.newPart >= 0.5) {return null}
     const track = full.tracks.find(candidate => candidate.ref === judged.part)
     const region = track === undefined ? null : playing(track, full)
     if (track === undefined || region === null || region.notes === undefined) {return null}
