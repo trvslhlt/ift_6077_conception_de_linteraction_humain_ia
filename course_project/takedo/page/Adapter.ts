@@ -136,7 +136,16 @@ export class Adapter implements Terminable {
         this.#terminator.own({terminate: () => document.removeEventListener("parameter-hold", onHold)})
         this.#terminator.own(project.editing.subscribe(() => {this.#historySteps++}))
         this.#lastPosition = project.engine.position.getValue()
-        this.#terminator.own(project.engine.position.subscribe(owner => this.#follow(owner.getValue())))
+        // Never throws: it runs in openDAW's frame loop, inside the read of the engine's state, and a throw there leaves the
+        // state mid-read for good (the playhead frozen while the audio plays on).
+        this.#terminator.own(project.engine.position.subscribe(owner => {
+            try {
+                this.#follow(owner.getValue())
+            } catch (error) {
+                this.#connection.send({type: "engine_health", state: "page_error",
+                    detail: `following the playhead: ${error instanceof Error ? `${error.message} ${error.stack ?? ""}` : String(error)}`.slice(0, 800)})
+            }
+        }))
         this.#watchEngine(project)
         this.#watchHealth(project)
     }
