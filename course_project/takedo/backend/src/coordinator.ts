@@ -728,7 +728,13 @@ export class Coordinator {
     // others; its timed steps join the direction's plan from the same anchor. Its report goes to the captain.
     assign(direction: Direction, anchor: Anchor | null, task: Piece): string {
         const piece = pieceLine(task)
-        const job = this.board.job(direction.id, piece)
+        const same = this.board.sameAs(direction.id, task)
+        if (same !== undefined) {
+            return `Not started: ${same.id} ${same.state === "running" ? "is making" : "made"} this change (${same.piece})` +
+                `${same.summary !== undefined ? `; it reported: ${same.summary}` : ""}. Its edits are its own: a second job would add ` +
+                "a second part on top. To change what it made, give a piece on the track it made (its ref from the project), saying what to change."
+        }
+        const job = this.board.job(direction.id, piece, task)
         const worker = new Utility(this.#team, this.#catalog, this.#source, this.#knowledge)
         void (async () => {
             const snapshot = await this.snapshot()

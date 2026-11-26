@@ -43,6 +43,22 @@ describe("the board", () => {
         assert.equal(commitAnchor(anchor, now(5 * bar)).played, 5 * bar)
         assert.equal(commitAnchor(anchor, now(1.5 * bar, false)).played, 2 * bar, "no loop: the same")
     })
+    it("knows a piece already given in a direction: the same kind on the same tracks, unless it failed", () => {
+        const board = new Board(() => {})
+        const {id} = board.direction("make it trap")
+        const drums = {kind: "drums" as const, tracks: ["t1"], goal: "a trap kit", from_bar: 0, to_bar: 0, steps: 1, keep: ""}
+        const first = board.job(id, pieceLine(drums), drums)
+        assert.equal(board.sameAs(id, drums)?.id, first.id, "running")
+        board.jobDone(first.id, "done", "a new kit")
+        assert.equal(board.sameAs(id, drums)?.id, first.id, "done")
+        assert.equal(board.sameAs(id, {...drums, kind: "mix"}), undefined, "another kind")
+        assert.equal(board.sameAs(id, {...drums, tracks: ["t2"]}), undefined, "other tracks")
+        assert.equal(board.sameAs(board.direction("now house").id, drums), undefined, "another direction")
+        const again = board.direction("make it dnb")
+        const failed = board.job(again.id, pieceLine(drums), drums)
+        board.jobDone(failed.id, "failed", "no kit")
+        assert.equal(board.sameAs(again.id, drums), undefined, "a failed one can be given again")
+    })
     it("gives a direction one bar 1: a later part keeps it, or moves on by whole phrases if its first bar has passed", () => {
         const board = new Board(() => {})
         const {id} = board.direction("make it trap")

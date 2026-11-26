@@ -115,7 +115,7 @@ Timing:
 - at_bar counts bars of playing after the producer's message, like from_bar and to_bar: 1 is the next bar line, 2 the one after, through every pass of the loop, whatever the loop is or becomes. An edit for a later bar (at_bar above 0) is staged: it answers at once and goes out when you reply, so its steps land in their bars' order however long you take. at_bar 0 lands at once. Failures of staged edits reach you later. A look sees only what has landed.
 - Land changes ahead of the playhead when timing matters; structural changes (lengths, new regions) can land as soon as possible.
 - When the loop is on (playback.loop), only its bars are heard: put what you write inside them. A new part's region covers the loop (its pattern looping); a change over time is edits staged on later bars, each landing on a later pass, never content placed at later timeline bars, which the loop never reaches. Leave the loop as it is (project.timelineBox.loopArea): the Team Lead sets it before handing out pieces, and other workers are planning for it now. If your piece needs more room, say so in your report.
-- When the loop is off, the song plays straight through and what has played is the producer's recording: never place or lengthen a region into bars already played. A new part's region starts on the bar its edit lands on: the note tools place it there themselves (choose the bar with at_bar), and a script uses \`here\` (the bar line the edit landed on, read as it runs), never a bar number worked out while planning, which will have passed by the time the edit lands. Its pattern loops (loopDuration shorter than duration); give it any length of a few bars or more: the page keeps each track's last region going as the song grows, and a part stops only when it's parked or muted. Your piece's bars are bars of playing (at_bar), never timeline bars. To bring back a part that stopped, add a new region from \`here\`. Moving or lengthening an existing region into bars already played is refused. Park the old part in the same edit as, or after, the new one comes in, never before: a part parked early leaves a gap. Rewriting a part's notes is fine: the page splits its region where the playhead is, so the bars played keep their notes in a new region and the ref you used goes on from there with yours. A tempo you set (api.setBpm) is written on the tempo track there too; snapshot().timeline.bpm is the tempo playing.
+- When the loop is off, the song plays straight through and what has played is the producer's recording: never place or lengthen a region into bars already played. A new part's region starts on the bar its edit lands on: the note tools place it there themselves (choose the bar with at_bar), and a script uses \`here\` (the bar line the edit landed on, read as it runs), never a bar number worked out while planning, which will have passed by the time the edit lands. Its pattern loops (loopDuration shorter than duration); give it any length of a few bars or more: the page keeps each track's last region going as the song grows, and a part stops only when it's parked or muted. Your piece's bars are bars of playing (at_bar), never timeline bars. To bring back a part that stopped, add a new region from \`here\`. Moving or lengthening an existing region into bars already played is refused. A new part that takes over from an old one names it in replaces: the old one is parked on the bar the new one comes in, never before (a gap) or after (both playing). Rewriting a part's notes is fine: the page splits its region where the playhead is, so the bars played keep their notes in a new region and the ref you used goes on from there with yours. A tempo you set (api.setBpm) is written on the tempo track there too; snapshot().timeline.bpm is the tempo playing.
 - The transport is the producer's: never play, stop, record or move the playhead (engine.play/stop/setPosition, recording); those calls are refused.
 
 Both run a function body with \`takedo\` in scope (its parts are also plain names: project, api, lib, ref, bar, ppqn, pos, snapshot); \`return\` a value to see it (JSON; openDAW objects show as their class name, so return plain data). look's body may await; run's is synchronous.
@@ -145,7 +145,7 @@ const KindNotes: Record<PieceKind, string> = {
 - A region's notes play on every pass of its loop: rewriting them changes every repeat from when it lands.
 - A change to a part's own notes (busier, sparser, ghost notes, more or less swing, half or double time, a fill, harder or softer) is evolve_notes's tweak with an amount, made by code from the notes there; write a new groove only for a new style.
 - Grooves as one line of mini-notation, code writes the hits: make_kit's drums, write_part's drums, evolve_notes's to_drums (\"[bd ~ ~ bd ~ ~ bd ~, ~ sd ~ sd, hh*8]\"; sd:0.4 a ghost note, <sd cp> a different one each bar with bars 2).
-- A style's drum sound (trap, house, techno, boom-bap, 80s) is a new kit, not new notes on the old one: apply_knowledge a kit entry (sound/kit-trap-808, kit-house-909, kit-boombap-mpc60, kit-boombap-sp12, kit-synthpop-linndrum) with the style's pattern, or make_kit with samples you pick (samples finds them across 70 drum machines); then park (mute) the old drums on the kit's at_bar, so the two never play together.`,
+- A style's drum sound (trap, house, techno, boom-bap, 80s) is a new kit, not new notes on the old one: apply_knowledge a kit entry (sound/kit-trap-808, kit-house-909, kit-boombap-mpc60, kit-boombap-sp12, kit-synthpop-linndrum) with the style's pattern, or make_kit with samples you pick (samples finds them across 70 drum machines); with replaces naming the old drums, which parks them on the bar the kit comes in.`,
     notes: `- A new part's sound (2026-11-25, the producer: sounds outside the drums were grating and not genre appropriate): pick a sampled instrument first: the knowledge base's \"Sampled instruments\" entries name a genre's usual ones (bass, keys, guitar, strings, pads, brass, leads) with their registers; sounds finds the rest of 300 (GeneralUser GS and openDAW's). make_instrument makes the track with its notes. Set a synth (Vaporisateur, Tubular) by hand only for a sound no sample has or when the producer asks for a synth, and then start from a knowledge sound entry. Play a sampled instrument in its register.
 - evolve_notes: a part's notes changing over several bars (a groove becoming another, a part thinning out or filling in), not a script per stage. Name where it's going (a knowledge pattern, or the notes written once) and how many stages; code works out each stage and rewrites the region's notes in place, so a looping region changes as it plays.
 - A region's notes play on every pass of its loop: rewriting them changes every repeat from when it lands.
@@ -159,7 +159,7 @@ ${KeySlot}
 - A track made in this script has no adapter yet (ref and audioUnits.adapters() don't find it until the edit ends): set its level with audioUnitBox.volume.setValue(dB) and its instrument's settings on instrumentBox's fields (instrumentBox.cutoff.setValue(2200)), with the names namedParameter shows on a track of that instrument. Every field has a range (the box schema's constraints; a parameter's valueMapping); a value outside it can crash the audio engine, so TakeDo brings it back in and the result lists what it corrected.`,
     sound: `- A new part's sound (2026-11-25, the producer: sounds outside the drums were grating and not genre appropriate): pick a sampled instrument first: the knowledge base's \"Sampled instruments\" entries name a genre's usual ones (bass, keys, guitar, strings, pads, brass, leads) with their registers; sounds finds the rest of 300 (GeneralUser GS and openDAW's). make_instrument makes the track with its notes. Set a synth (Vaporisateur, Tubular) by hand only for a sound no sample has or when the producer asks for a synth, and then start from a knowledge sound entry. Play a sampled instrument in its register.
 - An instrument's settings: ref("t2").inputAdapter.unwrap().namedParameter (e.g. Cubed: cutoff, resonance, envMod, decay, accent; Vaporisateur: cutoff, resonance, attack, decay, sustain, release, …); set them with .setValue(v). A drum machine (Playfield) has none: its sounds are samples by pad.
-- A style's drum sound (trap, house, techno, boom-bap, 80s) is a new kit, not new notes on the old one: apply_knowledge a kit entry (sound/kit-trap-808, kit-house-909, kit-boombap-mpc60, kit-boombap-sp12, kit-synthpop-linndrum) with the style's pattern, or make_kit with samples you pick (samples finds them across 70 drum machines); then park (mute) the old drums on the kit's at_bar, so the two never play together.
+- A style's drum sound (trap, house, techno, boom-bap, 80s) is a new kit, not new notes on the old one: apply_knowledge a kit entry (sound/kit-trap-808, kit-house-909, kit-boombap-mpc60, kit-boombap-sp12, kit-synthpop-linndrum) with the style's pattern, or make_kit with samples you pick (samples finds them across 70 drum machines); with replaces naming the old drums, which parks them on the bar the kit comes in.
 - An 808 bass (trap, drill, modern hip hop) is make_sampler: a long TR-808 kick played as notes (sound/808-bass), roots in the key around the kick, long notes with gaps.
 - A track a sound entry made with no notes gets its part with write_part: chords (pads, keys, strings) as a progression, code writes the notes.
 - Vaporisateur's namedParameter: oscillators[0] and oscillators[1], each {waveform (0 sine, 1 triangle, 2 saw, 3 square), volume (dB; -Infinity is off), octave (-3..3), tune (cents)}; unisonCount is 1, 3 or 5 only; unisonDetune in cents (1..1200); unisonStereo 0..1; cutoff (Hz), resonance, filterOrder (1..4), attack, decay, sustain, release. A supersaw: both oscillators saw at 0 dB, the second tuned +7 ct, unisonCount 5, unisonDetune 25, unisonStereo 0.8.
@@ -438,9 +438,14 @@ export class Utility implements Member {
             tool("apply_knowledge", "Apply an entry's edits (its apply): fixed operations and scripts, scheduled from the bar you give like your own. Its params are listed in the entry (read it first unless they're obvious: track, amount 0..3, key, from_bar, bars).", {
                 key: z.string(),
                 args: z.record(z.string(), Value).describe("The entry's params by name: {\"track\": \"t2\", \"amount\": 2}, {\"track\": \"t3\", \"key\": \"G major\"}; {} when it has none"),
-                at_bar: z.number().int().describe("Bars of playing after the producer's message its first edit lands on (1: the next bar line); 0 for as soon as possible. Its later edits keep their spacing from it.")},
-                handler((current, input) => this.#applyKnowledge(current, String(input.key),
-                    (input.args ?? {}) as Record<string, unknown>, Number(input.at_bar)))),
+                at_bar: z.number().int().describe("Bars of playing after the producer's message its first edit lands on (1: the next bar line); 0 for as soon as possible. Its later edits keep their spacing from it."),
+                replaces: z.string().describe("The track this new part takes over from (t1), parked on the same bar line the part comes in on, so the two never play together and leave no gap; \"\" for none")},
+                handler(async (current, input) => {
+                    const snapshot = await current.context.snapshot()
+                    if (snapshot === null) {return "Not applied: no project is open."}
+                    return this.#replacing(current, String(input.replaces ?? ""), Number(input.at_bar) || 0, snapshot,
+                        bar => this.#applyKnowledge(current, String(input.key), (input.args ?? {}) as Record<string, unknown>, bar))
+                })),
             tool("evolve_notes", "Change a notes region's notes, in place, over several stages toward a target: notes both share glide (timing, length, velocity), new ones come in loudest first, old ones go quietest first; the last stage is the target exactly. One edit per stage, each on its own bar.", {
                 region: z.string().describe("The notes region's ref (r3), from the project's regions"),
                 to_pattern: z.string().describe("A knowledge pattern entry to arrive at (\"pattern/boombap-1\"), repeated to fill the region's loop; \"\" to give to_notes"),
@@ -478,7 +483,8 @@ export class Utility implements Member {
         const Placement = {
             from_bar: z.number().int().describe("With the loop on or playback stopped: the timeline bar the part's region starts on; 0 to cover the bars the other parts cover. Ignored while the song plays with the loop off: the part starts on the bar its edit lands on (at_bar)"),
             bars: z.number().int().describe("How many bars the region runs (with the loop off: to the song's end); 0 for the default"),
-            at_bar: z.number().int().describe("Bars of playing after the producer's message the edit lands on (1: the next bar line); 0 for as soon as possible")}
+            at_bar: z.number().int().describe("Bars of playing after the producer's message the edit lands on (1: the next bar line); 0 for as soon as possible"),
+            replaces: z.string().describe("The track this new part takes over from (t1), parked on the same bar line the part comes in on, so the two never play together and leave no gap; \"\" for none")}
         const placed = (input: Record<string, unknown>, notes: Record<string, unknown>): Record<string, unknown> =>
             ({...notes, from_bar: Number(input.from_bar) || 0, bars: Number(input.bars) || 0})
         // The tool's input as the kit and sampler ops take it (knowledge.ts).
@@ -506,7 +512,8 @@ export class Utility implements Member {
             const made = knowledge[kind](shape(kind, input), snapshot)
             if (typeof made === "string") {return `Not done: ${made}.`}
             current.context.card({agent: this.agent, name: this.name, doing: kind === "kit" ? "building a drum kit…" : kind === "soundfont" ? "bringing in an instrument…" : "setting up a sampler…"})
-            return this.#run(current, made.says, made.code, Number(input.at_bar) || 0)
+            return this.#replacing(current, String(input.replaces ?? ""), Number(input.at_bar) || 0, snapshot,
+                bar => this.#run(current, made.says, made.code, bar))
         }
         return [
             tool("samples", "Find drum and percussion samples in TakeDo's collections (~2,800 one-shots from 70 classic drum machines: TR-808, TR-909, LinnDrum, MPC60, SP-12, DMX, ...) by machine, role and words; all empty lists the machines.", {
@@ -725,6 +732,21 @@ export class Utility implements Member {
     }
 
     // An entry's edits, each through the same path as the utility's own (fixed operation or script), timed from one bar.
+    // A new part that takes over from a track: the part and the old track's park (the mute operation, so a loop-off take
+    // keeps it as automation) both staged for one bar of the direction, so they go out from one anchor and land on one bar
+    // line. While playing, never at once: an edit at once lands mid-bar, and a park staged for the next bar left both
+    // parts playing for a bar (2026-11-25, the trap scenario: each worker said so in its report).
+    async #replacing(current: Current, replaces: string, atBar: number, snapshot: Snapshot, write: (bar: number) => Promise<string>): Promise<string> {
+        if (replaces === "") {return write(atBar)}
+        if (!snapshot.tracks.some(track => track.ref === replaces)) {return `Not done: no track ${replaces} to replace.`}
+        const owner = this.#owners.get("mute")
+        if (owner === undefined) {return "Not done: no member offers mute."}
+        const bar = atBar > 0 || !snapshot.playback.playing ? atBar : 1
+        const written = await write(bar)
+        if (/^Not\b|failed/.test(written)) {return written}
+        return `${written}\n${await this.#operate(current, owner, "mute", {track: replaces, muted: true, at_bar: bar})}`
+    }
+
     async #applyKnowledge(current: Current, key: string, args: Record<string, unknown>, atBar: number): Promise<string> {
         const {context} = current
         const snapshot = await context.snapshot()

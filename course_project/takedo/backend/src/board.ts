@@ -47,7 +47,7 @@ export const pieceLine = ({kind, tracks, goal, from_bar, to_bar, steps}: Piece):
 // A piece of a direction the captain handed to a worker (a fresh agent session); lost: cut off by a restart.
 // cancelled: taken back while its worker was still planning (its steps with it; anything it stages after is refused).
 export type Job = { id: string, direction: string, piece: string, state: "running" | "done" | "failed" | "lost" | "cancelled", t: number,
-    summary?: string }
+    summary?: string, kind?: PieceKind, tracks?: string[] }
 
 export class Board {
     readonly #log: (data: object) => void
@@ -176,8 +176,9 @@ export class Board {
 
     // ---------- jobs ----------
 
-    job(direction: string, piece: string): Job {
-        const job: Job = {id: `j${this.#jobs.length + 1}`, direction, piece, state: "running", t: Date.now()}
+    job(direction: string, piece: string, task?: Piece): Job {
+        const job: Job = {id: `j${this.#jobs.length + 1}`, direction, piece, state: "running", t: Date.now(),
+            ...(task !== undefined ? {kind: task.kind, tracks: task.tracks} : {})}
         this.#jobs.push(job)
         this.#log({event: "job", ...job})
         this.#save()
@@ -191,6 +192,15 @@ export class Board {
         job.summary = summary
         this.#log({event: "job_done", id, state, summary})
         this.#save()
+    }
+
+    // A job of the direction already doing (or done with) this kind of change to these tracks: a piece given twice built a
+    // second kit over the first (2026-11-25, the trap scenario: an unsure report, the same drums piece again, both kits
+    // playing; the producer's session: a fix-up job made "Trap Kit 2"). A failed or cancelled one can be given again.
+    sameAs(direction: string, task: Piece): Job | undefined {
+        const tracks = task.tracks.filter(track => track !== "new")
+        return this.#jobs.find(job => job.direction === direction && (job.state === "running" || job.state === "done")
+            && job.kind === task.kind && tracks.some(track => job.tracks?.includes(track)))
     }
 
     running(): Job[] {return this.#jobs.filter(job => job.state === "running")}

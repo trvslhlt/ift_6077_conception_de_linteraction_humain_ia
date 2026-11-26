@@ -154,6 +154,9 @@ export class Adapter implements Terminable {
     // dialog, is told to the backend once (and again when it plays on), so a session log says when and after what.
     #watchHealth(project: Project): void {
         let last = project.engine.position.getValue(), stuck = 0, state: "ok" | "stalled" | "crashed" = "ok"
+        // The audio context's own clock, to tell a stopped engine from one whose state stopped reaching the page.
+        const audio = project.env.audioContext
+        let audioAtStuck = audio.currentTime
         let lastError = ""
         const send = (next: "stalled" | "crashed" | "recovered", detail: string) => {
             state = next === "recovered" ? "ok" : next
@@ -174,10 +177,11 @@ export class Adapter implements Terminable {
                 .find(element => element.innerText?.startsWith("Audio-Engine Error"))
             const position = project.engine.position.getValue(), playing = project.engine.isPlaying.getValue()
             stuck = playing && position === last ? stuck + 1 : 0
+            if (stuck <= 1) {audioAtStuck = audio.currentTime}
             last = position
             const cpu = `CPU load ${Math.round(project.engine.cpuLoad.getValue() * 100)}%`
             if (dialog !== undefined && state !== "crashed") {send("crashed", `${dialog.innerText.slice(0, 300)} (${cpu})`)}
-            else if (dialog === undefined && stuck >= StallSeconds && state === "ok") {send("stalled", `playhead stuck at ${this.#pos(position)} while playing for ${stuck} s (${cpu})`)}
+            else if (dialog === undefined && stuck >= StallSeconds && state === "ok") {send("stalled", `playhead stuck at ${this.#pos(position)} while playing for ${stuck} s (${cpu}; the audio context ${audio.state}, its clock moved ${(audio.currentTime - audioAtStuck).toFixed(1)} s meanwhile)`)}
             else if (dialog === undefined && state !== "ok" && playing && stuck === 0) {send("recovered", `playing again at ${this.#pos(position)}`)}
         }, 1000)
         this.#terminator.own({terminate: () => clearInterval(timer)})
