@@ -20,9 +20,10 @@ import {analyse, isDrums} from "./analysis.ts"
 import type {Knowledge} from "./knowledge.ts"
 import {Utility} from "./utility.ts"
 import {type Line, type Triage, triage, triageState} from "./triage.ts"
+import {Tweaks} from "./variants.ts"
 import {fastEffect, fastMix, SurePath, fastTweak} from "./fastpath.ts"
 import {Profiles, Styles, styleSteps} from "./mixProfiles.ts"
-import {MaxControls, MaxTotalControls, memberActor, type MemberName, MemberNames, memberOf, TeamList} from "./team.ts"
+import {MaxControls, MaxTotalControls, memberActor, type MemberName, MemberNames, Members, memberOf, TeamList} from "./team.ts"
 import {auditionPhrase, drumAudition, padRole} from "./library.ts"
 import {soundsAgainst} from "./soundFit.ts"
 import {join} from "node:path"
@@ -41,6 +42,9 @@ const Edge = 0.02
 // handing leftovers to one long-lived utility session), kept until it's retired (step 3).
 // Controls a member may have on its card at once (INTERACTION.md: one intent control each; a few while it's tried out).
 const SureMember = 0.8, SureControl = 0.6
+// Tweaks that are a matter of degree, each a dial's word (fastTweak, #tweakDial); the rest (an octave, half time, a fill) aren't.
+const TweakDials: Partial<Record<string, string>> = {busier: "Busy", sparser: "Sparse", ghost_notes: "Ghost notes", swing_more: "Swing",
+    straighten: "Straight", harder: "Punch", softer: "Soft", shorter: "Staccato", longer: "Legato"}
 const MaxOptions = 6
 const Pressed = -1                                  // a button's "was" in #moved: never its value, so a press is always news
 // A parameter a direct control may set: a track's or the master's mix control, or an effect's parameter.
@@ -573,18 +577,21 @@ export class Coordinator {
             return text
         }
         const captain = this.#captain
-        if (control.owner !== captain.agent) {return}
+        // A member's control (team.ts) is steered as the Team Lead's own: the Team Lead hands a move on to that member.
+        const owner = memberOf(control.owner)
+        if (control.owner !== captain.agent && owner === null) {return}
+        const card = {agent: control.owner, name: owner === null ? captain.name : Members[owner].name}
         const within = () => {
             const ends = this.#takes.ends(ref)
             return ends !== null && control.value >= ends.lo.value - Edge && control.value <= ends.hi.value + Edge
         }
         const glide = () => {
             this.#moved.delete(ref)
-            this.card({agent: captain.agent, name: captain.name, doing: `${control.label} ${placed(control).replace(/ \(0 is.*$/, "")}: gliding there`})
+            this.card({...card, doing: `${control.label} ${placed(control).replace(/ \(0 is.*$/, "")}: gliding there`})
             void this.#blend(ref, control.value).catch(error => this.#log.write("blend_failed", {ref, error: String(error)}))
         }
         const lead = () => {
-            this.card({agent: captain.agent, name: captain.name, doing: control.widget === "button" ? `heard: ${control.label}, pressed`
+            this.card({...card, doing: control.widget === "button" ? `heard: ${control.label}, pressed`
                 : `heard: ${control.label} ${placed(control).replace(/ \((0 is|of|off is|the other is) .*$/, "")}`})
             if (this.#steering) {return}
             this.#steering = true
@@ -687,7 +694,7 @@ export class Coordinator {
         const recall = recallOf(blend.target, now, wide)
         const direction = this.#ledger.directionsOf(ref).at(-1)
         const says = recall.scripts.length === 0 && recall.values.length === 0 ? []
-            : await this.#sendRecall(captain.agent, recall, now, `dial ${ref} to ${value.toFixed(2)}`, `dial ${ref}`,
+            : await this.#sendRecall(this.controls().find(control => control.ref === ref)?.owner ?? captain.agent, recall, now, `dial ${ref} to ${value.toFixed(2)}`, `dial ${ref}`,
                 direction === undefined ? undefined : {direction}, request => sent.add(request))
         this.#log.write("blend", {ref, value, f, from: lo.id, to: hi.id, says: [...blend.says, ...says], conflicts: recall.conflicts})
     }
@@ -769,6 +776,7 @@ export class Coordinator {
         this.say(agent, fast.says)
         // Its own direction on the board, so the edit is owned (the ledger) and an effect it adds gets its knob (#effectKnob).
         const direction = this.board.direction(message)
+        if (single === null && full !== null) {void this.#tweakDial(agent, judged, message, full, direction.id).catch(error => this.#log.write("tweak_dial", {error: String(error)}))}
         for (const step of fast.steps) {
             void performStep(this, agent, {...step, decided: {by: "jev", ms: judged.ms}, activity: {direction: direction.id}}, message).then(result => {
                 if (/not done/.test(result)) {this.say(agent, `That didn't land: ${result.replace(/^.*?: not done/, "not done")}.`)}
@@ -778,6 +786,25 @@ export class Coordinator {
     }
 
     // ---------- jobs (the captain's workers) ----------
+
+    // A dial for a tweak of a part's notes done by code (fastTweak), on the card of the member it landed with, when Jev
+    // says the direction merits one (2026-11-26, the producer: members offer controls for tuning their directions; not
+    // every direction gets one). Its 0 is the project before the tweak, kept as a take; it sits where the tweak lands, so
+    // its first move keeps that as the other take and moves between them glide by code, no model turn (#controlMoved).
+    async #tweakDial(agent: Actor, judged: Triage, message: string, before: Snapshot, direction: string): Promise<void> {
+        const word = TweakDials[judged.tweak]
+        const track = before.tracks.find(candidate => candidate.ref === judged.part)
+        if (word === undefined || track === undefined || memberOf(agent) === null || this.landsWith(message)?.control !== "dial") {return}
+        const ref = `c:${judged.tweak}_${track.ref}`
+        if (this.controls().some(control => control.ref === ref)) {return}
+        const value = Math.min(0.85, 0.4 + 0.15 * Math.round(judged.amount))
+        const said = this.offerControl(agent, {ref, kind: "intent", widget: "dial", label: `${word}: ${track.name}`.slice(0, 30),
+            low: "as it was", high: `more ${word.toLowerCase()}`.slice(0, 30), meaning: `How ${word.toLowerCase()} the ${track.name} plays: ${Tweaks[judged.tweak as keyof typeof Tweaks]}`, value})
+        if (!said.startsWith("On your card")) {return this.#log.write("tweak_dial", {ref, said})}
+        this.ledger.dial(ref, direction)
+        await this.keepTake(ref, 0, "the project before this direction", Promise.resolve(before))
+        this.say(agent, `There's a ${word.toLowerCase()} dial for the ${track.name} on my card.`)
+    }
 
     // Jev's guess at who a message lands with and the control it merits (triage.ts), for the Team Lead's turn on it;
     // given only when Jev is sure enough (members-bench: at p >= 0.8, 74% of messages with 1 wrong in 85).
@@ -1133,10 +1160,13 @@ export class Coordinator {
         // A wet in dB from -40 (barely there) to 0; a mix from none to all.
         const [from, to] = amount.ref.endsWith(".wet") ? [Math.max(amount.min, -40), Math.min(amount.max, 0)] : [amount.min, amount.max]
         const value = Math.max(0, Math.min(1, (amount.value - from) / (to - from)))
-        const said = this.offerControl("agent:team_lead", {ref: `c:${added.ref.replace(/\./g, "_")}_amount`, kind: "direct", widget: "dial",
+        // On the card of the member the request landed with (a reverb the mix engineer's, a crusher the sound designer's).
+        const member = asked === undefined ? undefined : this.landsWith(asked)?.member
+        const knobOwner: Actor = member !== undefined && (MemberNames as readonly string[]).includes(member) ? memberActor(member as MemberName) : "agent:team_lead"
+        const said = this.offerControl(knobOwner, {ref: `c:${added.ref.replace(/\./g, "_")}_amount`, kind: "direct", widget: "dial",
             label: `${device.name} on ${owner.where === "the master" ? "the master" : owner.where}`, low: "dry", high: "wet",
             meaning: `How much of the ${device.name} you hear`, value, bind: [{ref: amount.ref, from, to}]})
-        if (said.startsWith("On your card")) {this.say("agent:team_lead", `There's a knob for the ${device.name.toLowerCase()} on my card, to set how much of it you hear.`)}
+        if (said.startsWith("On your card")) {this.say(knobOwner, `There's a knob for the ${device.name.toLowerCase()} on my card, to set how much of it you hear.`)}
     }
 
     // A parked effect's knobs leave the card with it.

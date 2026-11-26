@@ -1,0 +1,14 @@
+{
+  "//": "Members' controls (2026-11-26, the producer: members offer different types of controls for tuning their directions): 'more swing' is done at once by code as the performer, which leaves a Swing dial on its card; moved toward 0 it glides back by code (no model turn), past where it was it goes to the Team Lead, who hands it to the performer. Then a melody from the composer with a choice on its card: picking another option reaches the Team Lead (a member's control used to be ignored).",
+  "project": "01_good_base.odb",
+  "messages": [
+    {"text": "give the beat more swing"},
+    {"wait_ms": 12000},
+    {"control": "c:swing_more_t1", "value": 0}, {"wait_ms": 12000},
+    {"control": "c:swing_more_t1", "value": 0.3}, {"wait_ms": 12000},
+    {"control": "c:swing_more_t1", "value": 1}, {"wait_ms": 20000},
+    {"text": "add a playful lead melody on top"},
+    {"wait_ms": 10000},
+    {"control": "", "widget": "choice", "value": 2}, {"wait_ms": 20000}
+  ]
+}
