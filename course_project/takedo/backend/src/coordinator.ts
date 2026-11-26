@@ -21,6 +21,7 @@ import type {Knowledge} from "./knowledge.ts"
 import {Utility} from "./utility.ts"
 import {type Line, triage, triageState} from "./triage.ts"
 import {fastEffect, fastMix, SurePath, fastTweak} from "./fastpath.ts"
+import {Profiles, Styles, styleSteps} from "./mixProfiles.ts"
 
 // The backend half of the bus (TAKEDO_API.md, "Overview"), one per connected page: claims, plans, chat, routing.
 // Talks to the page's adapter for state (snapshot queries) and to apply plans.
@@ -77,6 +78,8 @@ export class Coordinator {
     readonly #source: string
     readonly #captain: Captain
     // Job reports not yet told to the captain, and whether a turn to tell it is queued (several are told together).
+    // Style mix profiles waiting for their direction's parts to land: direction id → style (mixProfiles.ts).
+    readonly #pendingMix = new Map<string, string>()
     readonly #reports: Array<{ kind: "job_finished" | "job_failed" | "job_failed_later", text: string, direction?: Direction }> = []
     #reporting = false
     readonly #knowledge: Knowledge | null
@@ -750,6 +753,40 @@ export class Coordinator {
             this.#report({kind: "job_failed", text: `${job.id} (${piece}): stopped with an error: ${String(error)}`, direction})
         })
         return `Started ${job.id}. Its report comes back as job_finished.`
+    }
+
+    // A style's mix (mixProfiles.ts): applied by code once the direction's parts have landed (no job running, nothing
+    // staged or on its way), so new parts get their place too; every pan and send glides. A later call in the same
+    // direction changes the style still waiting.
+    styleMix(direction: Direction, style: string): string {
+        const profile = Profiles[style]
+        if (profile === undefined) {return `Not done: no mix profile for ${style}; there are ${Styles.join(", ")}.`}
+        const waiting = this.#pendingMix.has(direction.id)
+        this.#pendingMix.set(direction.id, style)
+        if (!waiting) {void this.#mixWhenLanded(direction)}
+        return `The ${style} mix (${profile.summary}) goes on once this direction's parts have landed, each part's pan and sends gliding over 2 bars.`
+    }
+
+    async #mixWhenLanded(direction: Direction): Promise<void> {
+        const pause = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+        const busy = () => this.board.running().some(job => job.direction === direction.id)
+            || this.board.outstanding().some(entry => entry.direction?.id === direction.id && entry.steps.length > 0)
+        // A grace for pieces assigned in the same turn, then until its work has landed (at most 5 minutes).
+        await pause(4000)
+        const deadline = Date.now() + 5 * 60_000
+        while (busy() && Date.now() < deadline) {await pause(1000)}
+        const style = this.#pendingMix.get(direction.id)
+        this.#pendingMix.delete(direction.id)
+        const snapshot = style === undefined ? null : await this.snapshot("full")
+        if (style === undefined || snapshot === null) {return}
+        const made = styleSteps(style, snapshot)
+        if (typeof made === "string") {return this.#log.write("board", {event: "style_mix_failed", style, error: made})}
+        // Code in the Team Lead's name, as the fast path's edits are.
+        const results = await Promise.all(made.steps.map(step => performStep(this, this.#captain.agent,
+            {...step, decided: {by: "code"}, activity: {direction: direction.id}}, `the ${style} mix`)))
+        this.#log.write("board", {event: "style_mix", style, direction: direction.id, results})
+        const missed = results.filter(result => /not done/.test(result))
+        if (missed.length > 0) {this.jobLate(null, `the ${style} mix: ${missed.join("; ")}`, direction)}
     }
 
     // A job's part goes out as soon as it's planned, from the direction's anchor (moved past the playhead by whole loop
