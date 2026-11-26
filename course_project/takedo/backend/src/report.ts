@@ -143,7 +143,7 @@ out.push("## Edits", "",
     ...requests.map(entry => {
         const plan = entry.plan
         const what = plan.op === "script" ? plan.description ?? "script" : plan.op === "ramp" ? `${plan.ref} → ${plan.to} over ${plan.beats} beats`
-            : plan.op === "add_effect" ? `${plan.device} on ${plan.track}` : `${plan.op} ${plan.ref ?? plan.track ?? ""}`
+            : plan.op === "add_effect" ? `${plan.device} on ${plan.track}` : plan.op === "send" ? `${plan.track} into the ${plan.bus} return` : `${plan.op} ${plan.ref ?? plan.track ?? ""}`
         const state = final.get(entry.id)?.reason === "cancelled" ? "cancelled" : final.get(entry.id)?.state ?? "no status"
         return `- ${String(entry.from).replace("agent:", "")}: ${what}${entry.when?.at === "bar" ? `, bar ${entry.when.bar}` : ""} (${state})`
     }), "",
@@ -218,7 +218,7 @@ if (before === undefined || after === undefined) {
         // then stretched to the new 16-bar loop without repeating, was silent in bars 5-16 of each pass). A bar counts
         // as heard when a note sounds in it: the region's notes, repeated every loop length if it loops, with lengths.
         const beatsPerBar = after.timeline.signature[0]
-        const gaps = added.filter(track => !track.mix.mute).flatMap(track => {
+        const gaps = added.filter(track => track.kind !== "bus" && !track.mix.mute).flatMap(track => {
             const heard = new Set<number>()
             track.regions.filter(region => !region.muted).forEach(region => {
                 const [start, end] = [barOf(region.from), barOf(region.to)]
@@ -244,7 +244,7 @@ if (before === undefined || after === undefined) {
         // With the loop off, a new part should still be playing where the song is (2026-11-25: a live jam's chords and
         // pad were placed at bars 1-17 while the playhead was at bars 15 and 70, and never heard).
         const now = run.stoppedAtBar ?? after.playback.bar
-        const gone = added.filter(track => !track.mix.mute && !track.regions.some(region =>
+        const gone = added.filter(track => track.kind !== "bus" && !track.mix.mute && !track.regions.some(region =>
             !region.muted && barOf(region.from) <= now && now < barOf(region.to)))
             .map(track => `${track.name} (${track.regions.map(region => `${region.from}–${region.to}`).join(", ") || "no regions"})`)
         check(gone.length === 0, `${gone.length} new parts not playing at the end (bar ${now}, loop off)${gone.length > 0 ? `: ${gone.join(", ")}` : ""}`)

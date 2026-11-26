@@ -2,17 +2,18 @@ import {Terminable, Terminator, UUID} from "@opendaw/lib-std"
 import {Interpolation, PPQN, ppqn} from "@opendaw/lib-dsp"
 import {Address, Box, PrimitiveUpdate, Update} from "@opendaw/lib-box"
 import {
-    AudioRegionBoxAdapter, AudioUnitBoxAdapter, AutomatableParameterFieldAdapter, DeviceBoxAdapter, Devices,
+    AudioBusFactory, AudioRegionBoxAdapter, AudioUnitBoxAdapter, AutomatableParameterFieldAdapter, AuxSendBoxAdapter, DeviceBoxAdapter, Devices,
     ColorCodes, EffectDeviceBoxAdapter, InterpolationFieldAdapter, NoteRegionBoxAdapter, PlayfieldDeviceBoxAdapter, RegionOverlap,
     TempoRange, TrackBoxAdapter, TrackType, ValueRegionBoxAdapter
 } from "@opendaw/studio-adapters"
 import {
-    AudioRegionBox, MaximizerDeviceBox, NoteEventBox, NoteRegionBox, TrackBox, ValueEventBox, ValueEventCollectionBox, ValueRegionBox
+    AudioBusBox, AudioRegionBox, AudioUnitBox, AuxSendBox, MaximizerDeviceBox, NoteEventBox, NoteRegionBox, TrackBox, ValueEventBox, ValueEventCollectionBox, ValueRegionBox
 } from "@opendaw/studio-boxes"
+import {AudioSendRouting, AudioUnitType, IconSymbol} from "@opendaw/studio-enums"
 import {EffectFactories, type EffectFactory, type Project, RegionClipResolver} from "@opendaw/studio-core"
 import type {
     Actor, AddEffectPlan, Apply, BackendToPage, Change, Content, Detail, Device, FailReason, Note, ParamState, Playback, Region,
-    RemoveEffectPlan, ScriptPlan, Snapshot, Status, Track
+    RemoveEffectPlan, ScriptPlan, SendPlan, Snapshot, Status, Track
 } from "@/takedo_shared/protocol"
 import {numeric, primitives} from "./Catalog"
 import {touchedBetween} from "@/takedo_shared/touched"
@@ -310,6 +311,7 @@ export class Adapter implements Terminable {
             case "add_effect": return `${plan.device} on ${track(plan.track)}`
             case "remove_effect": return `remove ${this.#units().flatMap(unit => this.#effects(unit))
                 .find(effect => effect.ref === plan.ref)?.label ?? plan.ref}`
+            case "send": return `${track(plan.track)} › Send to ${plan.bus}`
             case "script": return plan.description
         }
     }
@@ -351,6 +353,10 @@ export class Adapter implements Terminable {
                     to: Math.ceil(Math.max(...regionAdapters.map(region => region.complete)) / bar)
                 },
                 lanes: this.#allParams().filter(param => param.ref.startsWith(`${ref}.`) && param.parameter.track.nonEmpty()).map(param => param.ref),
+                ...(unit.auxSends.adapters().length > 0 ? {sends: unit.auxSends.adapters().flatMap(send => {
+                    const bus = this.#sendBus(send)
+                    return bus === "" ? [] : [{bus, gain: Number(this.#now(send.sendGain).toFixed(1)), pan: Number(this.#now(send.sendPan).toFixed(2))}]
+                })} : {}),
                 regions: regionAdapters.map(region => this.#region(region, bar, detail))
             }
         })
@@ -461,6 +467,7 @@ export class Adapter implements Terminable {
         const {plan} = request
         if (plan.op === "add_effect") {return this.#addEffect(request, plan)}
         if (plan.op === "remove_effect") {return this.#removeEffect(request, plan)}
+        if (plan.op === "send") {return this.#send(request, plan)}
         if (plan.op === "script") {return this.#script(request, plan)}
         const param = this.#param(plan.ref)
         if (param === null) {return this.#status(request, {state: "failed", reason: "unknown_ref", detail: plan.ref})}
@@ -496,7 +503,9 @@ export class Adapter implements Terminable {
         // No jumps (2026-11-25, the producer: every change that can be gradual is, short, not slow): a continuous value
         // glides at least a sixteenth; a switch or a stepped choice is a step.
         const glide = (beats: number): number => isStepped(parameter) ? 0 : Math.max(beats, GlideBeats)
-        if (this.#onTimeline()) {return this.#automate(request, param, to, glide(plan.op === "ramp" ? plan.beats : 0))}
+        // A parameter openDAW gives no lane (a send's level) glides as a mixer setting even in a jam: heard, not in the
+        // song's automation (2026-11-25: a send left silent because its ramp was refused).
+        if (this.#onTimeline() && parameter.optTracks().nonEmpty()) {return this.#automate(request, param, to, glide(plan.op === "ramp" ? plan.beats : 0))}
         if (laneRefused()) {return this.#status(request, {state: "failed", reason: "not_allowed", detail: laneDetail})}
         const from = numeric(parameter.getValue())
         const beats = this.#project.engine.isPlaying.getValue() ? glide(plan.op === "ramp" ? plan.beats : 0) : 0
@@ -564,6 +573,79 @@ export class Adapter implements Terminable {
         this.#jamming ||= this.#project.engine.isPlaying.getValue()
         this.#status(request, {state: "applied",
             result: {ref: effect?.ref ?? plan.track, label: effect?.label ?? factory.defaultName, device, ...(limited !== null ? {corrected: [limited]} : {})}})
+    }
+
+    // A return bus by name: the aux track's bus box, if there is one.
+    #returnBus(name: string): { unit: AudioUnitBoxAdapter, bus: AudioBusBox } | null {
+        for (const unit of this.#units()) {
+            if (unit.type !== AudioUnitType.Aux) {continue}
+            const bus = unit.box.input.pointerHub.incoming().map(pointer => pointer.box).find(box => box instanceof AudioBusBox)
+            if (bus instanceof AudioBusBox && bus.label.getValue() === name) {return {unit, bus}}
+        }
+        return null
+    }
+
+    // The return bus a send goes to, by its name ("" if it has none).
+    #sendBus(send: AuxSendBoxAdapter): string {
+        return send.box instanceof AuxSendBox ? send.box.targetBus.targetVertex.mapOr(target => target.box instanceof AudioBusBox ? target.box.label.getValue() : "", "") : ""
+    }
+
+    // A track's send to a return bus (SendPlan): the bus made with its effect if it isn't there, the send made at silence
+    // if the track has none to it. The level is ramped afterwards by its ref, so it glides in (no jumps).
+    async #send(request: Apply, plan: SendPlan): Promise<void> {
+        const unit = this.#units().find(unit => this.#trackRef(unit) === this.#named(plan.track))
+        if (unit === undefined || unit.isOutput || unit.type === AudioUnitType.Aux) {
+            return this.#status(request, {state: "failed", reason: "unknown_ref", detail: `${plan.track} is not a track that can send`})
+        }
+        if (!/^[A-Za-z][\w -]*$/.test(plan.bus)) {return this.#status(request, {state: "failed", reason: "invalid_args", detail: `bus name ${plan.bus}`})}
+        const factory = effectFactory(plan.effect.factory)
+        if (factory === null) {return this.#status(request, {state: "failed", reason: "invalid_args", detail: `no audio effect ${plan.effect.factory}`})}
+        if (!(await this.#land(request))) {return}
+        const {api, boxAdapters, boxGraph, parameterFieldAdapters} = this.#project
+        const made = this.#tagged(request, () => this.#project.editing.modify(() => {
+            let found = this.#returnBus(plan.bus)
+            let bus: AudioBusBox
+            if (found === null) {
+                bus = AudioBusFactory.create(this.#project.skeleton, plan.bus, IconSymbol.Effects, AudioUnitType.Aux, ColorCodes.forAudioType(AudioUnitType.Aux))
+                const busUnit = bus.output.targetVertex.unwrap("a new bus has no unit").box
+                if (!(busUnit instanceof AudioUnitBox)) {throw new Error("a new bus has no unit")}
+                const effect = api.insertEffect(busUnit.audioEffects, factory)
+                boxAdapters.adapterFor(effect, Devices.isEffect)
+                // Its settings as the effect's setup (fully wet on a return), not a performance: written to the field.
+                for (const field of primitives(effect.fields())) {
+                    const path = effect.mapFields(field => field.fieldName, ...field.address.fieldKeys).join("/")
+                    const setting = plan.effect.settings.find(setting => setting.param === path)
+                    if (setting === undefined || !Number.isFinite(setting.value)) {continue}
+                    parameterFieldAdapters.opt(field.address).ifSome(parameter =>
+                        parameter.field.setValue((isSwitch(parameter) ? setting.value !== 0 : parameter.valueMapping.clamp(setting.value)) as never))
+                }
+            } else {
+                bus = found.bus
+            }
+            const has = unit.auxSends.adapters().some(send => send.box instanceof AuxSendBox && send.box.targetBus.targetVertex
+                .mapOr(target => target.box === bus.input.box && target.address.equals(bus.input.address), false))
+            if (!has) {
+                const index = unit.box.auxSends.pointerHub.incoming().length
+                const send = AuxSendBox.create(boxGraph, UUID.generate(), box => {
+                    box.audioUnit.refer(unit.box.auxSends)
+                    box.targetBus.refer(bus.input)
+                    box.routing.setValue(AudioSendRouting.Post)
+                    box.index.setValue(index)
+                })
+                const adapter = boxAdapters.adapterFor(send, AuxSendBoxAdapter)
+                send.sendGain.setValue(adapter.sendGain.valueMapping.y(0))      // silent; it glides up by its ref
+            }
+            return {made: found === null, sent: !has}
+        }).unwrapOrNull())
+        if (made === null) {return this.#status(request, {state: "failed", reason: "opendaw_error", detail: "the send failed"})}
+        this.#params = null
+        const ref = `${this.#trackRef(unit)}.send.${plan.bus}`
+        const params = this.#allParams().filter(param => param.ref.startsWith(`${ref}.`)).map(param => this.#state(param))
+        const device: Device = {key: "Send", name: `Send to ${plan.bus}`, enabled: true, ref, params}
+        this.#lastAgentEdit = {label: `${unit.label} › Send to ${plan.bus}`, steps: this.#historySteps}
+        this.#jamming ||= this.#project.engine.isPlaying.getValue()
+        this.#status(request, {state: "applied", detail: [made.made ? `made the ${plan.bus} return` : "", made.sent ? "a new send, silent" : "the send was there"]
+            .filter(part => part !== "").join("; "), result: {ref, label: device.name, device}})
     }
 
     async #removeEffect(request: Apply, plan: RemoveEffectPlan): Promise<void> {
@@ -1325,7 +1407,13 @@ export class Adapter implements Terminable {
                     }]
                 }))
             })
-            return [...mix, ...effects]
+            // Sends by their return bus's name (t2.send.Reverb.gain): a send a plan makes has that ref before it's made.
+            const sends = unit.auxSends.adapters().flatMap(send => {
+                const bus = this.#sendBus(send)
+                return bus === "" ? [] : ([["gain", send.sendGain], ["pan", send.sendPan]] as const).map(([name, parameter]) =>
+                    ({ref: `${ref}.send.${bus}.${name}`, label: `${label} › Send to ${bus} › ${parameter.name}`, parameter: parameter as AutomatableParameterFieldAdapter}))
+            })
+            return [...mix, ...effects, ...sends]
         })
         return this.#params
     }

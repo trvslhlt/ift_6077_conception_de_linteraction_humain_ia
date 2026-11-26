@@ -1,0 +1,5 @@
+{"//": "Sends (2026-11-25, style mix profiles): a track sends into a shared reverb or delay, a return bus made the first time, and the send glides up. Loop off, as the producer plays it.",
+ "project": "01_good_base.odb", "messages": [
+  {"loop": false},
+  {"text": "put the drums and the bass in a shared reverb, and a bit of delay on the bass"},
+  {"wait_ms": 20000}]}

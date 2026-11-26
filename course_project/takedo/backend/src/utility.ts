@@ -35,7 +35,7 @@ const MaxCalls = 80
 const EffectKinds: PieceKind[] = ["effects", "sound"]
 const ToolKinds: Record<string, PieceKind[]> = {
     evolve_notes: ["drums", "notes", "arrange"],
-    add_effect: EffectKinds, remove_effect: EffectKinds
+    add_effect: EffectKinds, remove_effect: EffectKinds, send: ["mix", "effects"]
 }
 // The project with effect settings only on the piece's own tracks; the rest by name.
 const focus = (project: ReturnType<typeof projectFor>, tracks: string[]) => ({...project,

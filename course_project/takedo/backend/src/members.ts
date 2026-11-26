@@ -123,6 +123,7 @@ export const projectFor = (snapshot: Snapshot, withParams: boolean) => ({
     tracks: snapshot.tracks.map(track => ({
         ref: track.ref, name: track.name, instrument: track.instrument, bars: track.bars,
         volume_db: Number(track.mix.volume.toFixed(1)), pan: Number(track.mix.pan.toFixed(2)), muted: track.mix.mute,
+        ...(track.kind === "bus" ? {return_bus: true} : {}), ...(track.sends !== undefined && track.sends.length > 0 ? {sends: track.sends} : {}),
         effects: track.effects.map(effect => ({ref: effect.ref, device: effect.key, name: effect.name,
             ...(withParams ? {params: effect.params?.map(param => ({ref: param.ref, name: param.name, value: param.value,
                     shows: param.display, range: [param.min, param.max], ...(param.stepped ? {stepped: true} : {})}))} : {})}))
@@ -153,14 +154,28 @@ const trackName = (snapshot: Snapshot, ref: string): string =>
 
 // ---------- the mix engineer ----------
 
+// The return buses sends go to (2026-11-25, style mix profiles: a style's space is shared reverb and delay, every part
+// sending into one): each made the first time a track sends to it, its effect fully wet; a send's level is how much of
+// a track goes into that space.
+export const Returns = {
+    Reverb: {factory: "DattorroReverb", settings: [{param: "wet", value: 0}, {param: "dry", value: -96}, {param: "preDelay", value: 20},
+        {param: "decay", value: 0.75}, {param: "damping", value: 0.3}]},
+    Delay: {factory: "Delay", settings: [{param: "wet", value: 0}, {param: "dry", value: -96}, {param: "delayMusical", value: 13},
+        {param: "feedback", value: 0.35}, {param: "filter", value: -0.3}]}
+} as const
+export type Return = keyof typeof Returns
+const SendFloorDb = -60
+
 export class MixEngineer extends LlmMember {
     readonly agent: Actor = "agent:mix_engineer"
     readonly role = "mix_engineer"
     readonly name = "Mix engineer"
     readonly area = "balance between parts: levels, panning, EQ, compression, sidechain"
-    readonly can = "set or ramp each track's and the master's volume, and each track's pan"
+    readonly can = "set or ramp each track's and the master's volume, each track's pan, and its sends to the shared reverb and delay"
 
-    may(plan: Plan): boolean {return (plan.op === "ramp" || plan.op === "set") && /\.mix\.(volume|pan)$/.test(plan.ref)}
+    may(plan: Plan): boolean {
+        return plan.op === "send" || ((plan.op === "ramp" || plan.op === "set") && /\.(mix\.(volume|pan)|send\.[^.]+\.(gain|pan))$/.test(plan.ref))
+    }
 
     tools(snapshot: Snapshot): Anthropic.Tool[] {
         const tracks = ["master", ...snapshot.tracks.map(track => track.ref)]
@@ -170,7 +185,12 @@ export class MixEngineer extends LlmMember {
                 over_beats: OverBeats, at_bar: AtBar}),
             tool("pan", "Set or ramp a track's pan position.", {
                 track: {type: "string", enum: snapshot.tracks.map(track => track.ref)},
-                to: {type: "number", description: "-1 hard left, 0 centre, +1 hard right"}, over_beats: OverBeats, at_bar: AtBar})
+                to: {type: "number", description: "-1 hard left, 0 centre, +1 hard right"}, over_beats: OverBeats, at_bar: AtBar}),
+            tool("send", "Send a track into the shared reverb or delay (return buses every part can send to, made the first time), or change how much it sends: the send glides to its level. A style's space: most parts in one reverb, a little of a lead or snare in the delay.", {
+                track: {type: "string", enum: snapshot.tracks.filter(track => track.kind !== "bus").map(track => track.ref)},
+                bus: {type: "string", enum: Object.keys(Returns)},
+                to_db: {type: "number", description: `How much it sends: -60 (none) to 0 dB; -20 a touch, -12 clearly in the space, -6 drenched`},
+                over_beats: OverBeats, at_bar: AtBar})
         ]
     }
 
@@ -180,6 +200,19 @@ export class MixEngineer extends LlmMember {
             const to = Math.min(MaxDb, Math.max(MinDb, Number(input.to_db)))
             return {plan: {op: "ramp", ref: `${track}.mix.volume`, to, beats}, when: whenFor(bar),
                 says: `${trackName(snapshot, track)} to ${db(to)}${beats > 0 ? ` over ${beats} beats` : ""}`}
+        }
+        if (name === "send") {
+            const bus = String(input.bus) as Return
+            if (!(bus in Returns)) {return `no return ${bus}`}
+            const to = Math.min(0, Math.max(SendFloorDb, Number(input.to_db)))
+            // Made (or found) on its bar, then its level glides there, over a beat at least (no jumps).
+            const then = (added: Device): Step[] => {
+                const gain = added.params?.find(param => param.ref === `${added.ref}.gain`)
+                return gain === undefined ? [] : [{plan: {op: "ramp", ref: gain.ref, to, beats: Math.max(1, beats)}, when: {at: "next", unit: "beat"},
+                    says: `${trackName(snapshot, track)}'s ${bus.toLowerCase()} send to ${db(to)}`}]
+            }
+            return {plan: {op: "send", track, bus, effect: {factory: Returns[bus].factory, settings: Returns[bus].settings.map(setting => ({...setting}))}},
+                when: whenFor(bar), says: `${trackName(snapshot, track)} into the ${bus.toLowerCase()}`, then}
         }
         if (name === "pan") {
             const to = Math.min(1, Math.max(-1, Number(input.to)))

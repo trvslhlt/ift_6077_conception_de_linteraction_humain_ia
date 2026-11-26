@@ -41,6 +41,7 @@ export type Track = {
     mix: { volume: number, pan: number, mute: boolean, solo: boolean }  // volume in dB, pan -1..1
     bars: { from: number, to: number } | null       // the bars its regions cover, if any
     lanes: string[]                                 // refs of its parameters (mix, effects) that have an automation lane
+    sends?: Array<{ bus: string, gain: number, pan: number }>   // its sends to return buses (gain in dB)
     regions: Region[]
 }
 // position: the playhead in pulses. played: pulses played since the page began following this project, counting each
@@ -74,10 +75,15 @@ export type SetPlan = { op: "set", ref: string, to: number }
 export type AddEffectPlan = { op: "add_effect", track: string, device: string, factory: string,
     settings: Array<{ param: string, value: number }> }
 export type RemoveEffectPlan = { op: "remove_effect", ref: string }
+// A track's send to a return bus (2026-11-25, style mix profiles: a style's space is shared reverb and delay): the bus,
+// an aux track named bus, is made if it isn't there, with effect on it (fully wet); the send is made at silence if the
+// track has none to it. Its level is then ramped like any parameter: \`${track}.send.${bus}.gain\` (and .pan).
+export type SendPlan = { op: "send", track: string, bus: string,
+    effect: { factory: string, settings: Array<{ param: string, value: number }> } }
 // The open path (STRATEGY.md, "Keep the open path"): a function body run with `takedo` in scope inside one edit (one
 // undo step, attributed); it may return a JSON-able value. Rolled back if it throws, undone if it touched a held control.
 export type ScriptPlan = { op: "script", code: string, description: string }
-export type Plan = RampPlan | SetPlan | AddEffectPlan | RemoveEffectPlan | ScriptPlan
+export type Plan = RampPlan | SetPlan | AddEffectPlan | RemoveEffectPlan | SendPlan | ScriptPlan
 // Who decided an edit (2026-11-25, the activity view's icons): a model's turn, Jev (a fast judgment, code filling it
 // in), or code alone (a rule: a dial's blend, a recall). Every edit is carried out by code; this is what chose it.
 export type Decided = { by: "model" | "jev" | "code", ms?: number }
@@ -85,7 +91,7 @@ export type Apply = { id: string, from: Actor, plan: Plan, when: When, seq: numb
 
 // What a plan changes, for claims: a parameter, an effect, or a track's effect chain (adding to it).
 export const target = (plan: Plan): string =>
-    plan.op === "add_effect" ? `${plan.track}.effects` : plan.op === "script" ? "project.script" : plan.ref
+    plan.op === "add_effect" ? `${plan.track}.effects` : plan.op === "send" ? `${plan.track}.send.${plan.bus}` : plan.op === "script" ? "project.script" : plan.ref
 
 // cancelled: an agent took back a request still waiting for its bar (state dropped).
 export type FailReason = "invalid_args" | "unknown_ref" | "not_allowed" | "held" | "cancelled" | "out_of_range"
