@@ -1,3 +1,1854 @@
 {
- "sounds": {}
+ "sounds": {
+  "Drawbar organ emulation/Drawbar organ": {
+   "verdict": "kept",
+   "roles": [
+    "keys",
+    "pad"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": {
+     "chain": "chain/lush-hall",
+     "amount": 1
+    }
+   },
+   "tags": [
+    "church",
+    "gospel"
+   ],
+   "note": "",
+   "t": 1795676480588
+  },
+  "FSS Steel String Guitar/Steel String Guitar": {
+   "verdict": "kept",
+   "roles": [
+    "guitar"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795700499971
+  },
+  "GeneralUser GS/808/909": {
+   "verdict": "kept",
+   "roles": [
+    "drums"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "same as jazz kit maybe",
+   "t": 1795700045472
+  },
+  "GeneralUser GS/808/909 Kit": {
+   "verdict": "kept",
+   "roles": [
+    "drums"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": -1,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795699823764
+  },
+  "GeneralUser GS/Acoustic Bass": {
+   "verdict": "kept",
+   "roles": [
+    "bass"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 2501
+    },
+    "effect": null
+   },
+   "tags": [
+    "jazz",
+    "acoustic",
+    "lounge"
+   ],
+   "note": "upright bass",
+   "t": 1795675215984
+  },
+  "GeneralUser GS/Bright Grand Piano": {
+   "verdict": "kept",
+   "roles": [
+    "keys"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795676545970
+  },
+  "GeneralUser GS/Brush Kit": {
+   "verdict": "kept",
+   "roles": [
+    "drums"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "same as Jazz Kit",
+   "t": 1795699846565
+  },
+  "GeneralUser GS/Celeste": {
+   "verdict": "kept",
+   "roles": [
+    "keys",
+    "bells"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795676551053
+  },
+  "GeneralUser GS/Cello": {
+   "verdict": "kept",
+   "roles": [
+    "pad",
+    "strings"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": -1,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": {
+     "chain": "chain/tape-dust",
+     "amount": 0.7
+    }
+   },
+   "tags": [
+    "midi string",
+    "mid tone"
+   ],
+   "note": "",
+   "t": 1795700579957
+  },
+  "GeneralUser GS/Clavinet": {
+   "verdict": "kept",
+   "roles": [
+    "keys"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": {
+     "chain": "chain/telephone",
+     "amount": 1
+    }
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795676565186
+  },
+  "GeneralUser GS/Clean Guitar": {
+   "verdict": "kept",
+   "roles": [
+    "guitar"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795700164409
+  },
+  "GeneralUser GS/Clean Guitar 2": {
+   "verdict": "kept",
+   "roles": [
+    "guitar"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795700440335
+  },
+  "GeneralUser GS/CM-64/32L Kit": {
+   "verdict": "kept",
+   "roles": [
+    "drums"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "similar to jazz kit",
+   "t": 1795699871499
+  },
+  "GeneralUser GS/Concert Choir": {
+   "verdict": "kept",
+   "roles": [
+    "pad",
+    "strings"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [
+    "synthetic voice"
+   ],
+   "note": "",
+   "t": 1795700602358
+  },
+  "GeneralUser GS/Dance Kit": {
+   "verdict": "kept",
+   "roles": [
+    "drums"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [
+    "early drum machine",
+    "dry"
+   ],
+   "note": "",
+   "t": 1795699964069
+  },
+  "GeneralUser GS/Distortion Guitar": {
+   "verdict": "kept",
+   "roles": [
+    "guitar"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": -1,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [
+    "shoegaze"
+   ],
+   "note": "",
+   "t": 1795700179143
+  },
+  "GeneralUser GS/Dulcimer": {
+   "verdict": "rejected",
+   "roles": [
+    "keys",
+    "bells"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795676569836
+  },
+  "GeneralUser GS/Electric Grand Piano": {
+   "verdict": "kept",
+   "roles": [
+    "keys"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795676573069
+  },
+  "GeneralUser GS/Electronic Kit": {
+   "verdict": "kept",
+   "roles": [
+    "drums"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795699970252
+  },
+  "GeneralUser GS/Fast Strings": {
+   "verdict": "kept",
+   "roles": [
+    "pad",
+    "strings"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795700657993
+  },
+  "GeneralUser GS/Finger Bass": {
+   "verdict": "rejected",
+   "roles": [
+    "bass"
+   ],
+   "tags": [],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "note": "sounds like slap",
+   "t": 1
+  },
+  "GeneralUser GS/FM Electric Piano": {
+   "verdict": "rejected",
+   "roles": [
+    "keys"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795676581969
+  },
+  "GeneralUser GS/Fretless Bass": {
+   "verdict": "kept",
+   "roles": [
+    "bass",
+    "pad"
+   ],
+   "tuning": {
+    "level_db": -7.5,
+    "octave": -1,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 3002
+    },
+    "effect": {
+     "chain": "chain/saturate",
+     "amount": 1
+    }
+   },
+   "tags": [
+    "round",
+    "warm",
+    "lofi",
+    "crunchy",
+    "buzz"
+   ],
+   "note": "probe",
+   "t": 1795675077540
+  },
+  "GeneralUser GS/Glockenspiel": {
+   "verdict": "kept",
+   "roles": [
+    "keys",
+    "bells"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 2,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [
+    "high",
+    "accent",
+    "clear"
+   ],
+   "note": "",
+   "t": 1795676632868
+  },
+  "GeneralUser GS/Grand Piano": {
+   "verdict": "kept",
+   "roles": [
+    "keys"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795676638801
+  },
+  "GeneralUser GS/Guitar Feedback": {
+   "verdict": "rejected",
+   "roles": [
+    "guitar"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 1,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": {
+     "chain": "chain/saturate",
+     "amount": 1
+    }
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795700344315
+  },
+  "GeneralUser GS/Guitar Harmonics": {
+   "verdict": "kept",
+   "roles": [
+    "guitar"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 1,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [
+    "motorik",
+    "rhythm"
+   ],
+   "note": "like the Rugrats theme.",
+   "t": 1795700251379
+  },
+  "GeneralUser GS/Harmonica": {
+   "verdict": "kept",
+   "roles": [
+    "keys"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795676643767
+  },
+  "GeneralUser GS/Harpsichord": {
+   "verdict": "kept",
+   "roles": [
+    "guitar"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795676663033
+  },
+  "GeneralUser GS/Hawaiian Guitar": {
+   "verdict": "kept",
+   "roles": [
+    "guitar"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [
+    "warm",
+    "slow attack",
+    "sustain",
+    "exotica"
+   ],
+   "note": "",
+   "t": 1795700378150
+  },
+  "GeneralUser GS/Honky-Tonk Piano": {
+   "verdict": "kept",
+   "roles": [
+    "keys"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [
+    "jangly",
+    "country",
+    "detuned"
+   ],
+   "note": "",
+   "t": 1795676684883
+  },
+  "GeneralUser GS/Jazz": {
+   "verdict": "rejected",
+   "roles": [
+    "drums"
+   ],
+   "tuning": {
+    "level_db": -7,
+    "octave": -1,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795676380524
+  },
+  "GeneralUser GS/Jazz Kit": {
+   "verdict": "kept",
+   "roles": [
+    "drums"
+   ],
+   "tuning": {
+    "level_db": -2,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [
+    "midi percussion",
+    "early hip hop",
+    "live"
+   ],
+   "note": "this is a collection of percussion sounds",
+   "t": 1795699669758
+  },
+  "GeneralUser GS/Mandolin": {
+   "verdict": "kept",
+   "roles": [
+    "guitar"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 1,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [
+    "out of tune",
+    "harsh"
+   ],
+   "note": "",
+   "t": 1795700466970
+  },
+  "GeneralUser GS/Marimba": {
+   "verdict": "kept",
+   "roles": [
+    "keys",
+    "bells"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [
+    "soothing",
+    "warm",
+    "wooden",
+    "percussive"
+   ],
+   "note": "",
+   "t": 1795676709832
+  },
+  "GeneralUser GS/Music Box": {
+   "verdict": "kept",
+   "roles": [
+    "keys",
+    "bells"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 1,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [
+    "childish",
+    "dreamy"
+   ],
+   "note": "",
+   "t": 1795676745115
+  },
+  "GeneralUser GS/Muted Guitar": {
+   "verdict": "kept",
+   "roles": [
+    "guitar"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795700266180
+  },
+  "GeneralUser GS/Nylon Guitar": {
+   "verdict": "kept",
+   "roles": [
+    "guitar"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [
+    "clean"
+   ],
+   "note": "",
+   "t": 1795700277297
+  },
+  "GeneralUser GS/Orchestra Hit": {
+   "verdict": "kept",
+   "roles": [
+    "pad",
+    "strings"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [
+    "late 80s",
+    "rnb",
+    "poison"
+   ],
+   "note": "",
+   "t": 1795700684343
+  },
+  "GeneralUser GS/Orchestral Harp": {
+   "verdict": "kept",
+   "roles": [
+    "pad",
+    "strings"
+   ],
+   "tuning": {
+    "level_db": -2.5,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795700697627
+  },
+  "GeneralUser GS/Pick Bass": {
+   "verdict": "kept",
+   "roles": [
+    "bass"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [
+    "slap",
+    "90s",
+    "corny"
+   ],
+   "note": "the seinfeld theme song",
+   "t": 1795675265065
+  },
+  "GeneralUser GS/Pizzicato Strings": {
+   "verdict": "kept",
+   "roles": [
+    "pad",
+    "strings"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [
+    "clean",
+    "bright",
+    "plucky",
+    "picked"
+   ],
+   "note": "",
+   "t": 1795700727645
+  },
+  "GeneralUser GS/Power": {
+   "verdict": "rejected",
+   "roles": [
+    "drums"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795676833546
+  },
+  "GeneralUser GS/Power Kit": {
+   "verdict": "kept",
+   "roles": [
+    "drums"
+   ],
+   "tuning": {
+    "level_db": -1.5,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "same as 'Jazz Kit'",
+   "t": 1795699707376
+  },
+  "GeneralUser GS/Room": {
+   "verdict": "rejected",
+   "roles": [
+    "drums"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795676835062
+  },
+  "GeneralUser GS/Room Kit": {
+   "verdict": "kept",
+   "roles": [
+    "drums"
+   ],
+   "tuning": {
+    "level_db": 0,
+    "octave": -1,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "similar or same as 'Jazz Kit'",
+   "t": 1795699749811
+  },
+  "GeneralUser GS/Slap Bass 1": {
+   "verdict": "rejected",
+   "roles": [
+    "bass"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795675271531
+  },
+  "GeneralUser GS/Slap Bass 2": {
+   "verdict": "kept",
+   "roles": [
+    "bass",
+    "guitar"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": -1,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 2720
+    },
+    "effect": {
+     "chain": "chain/telephone",
+     "amount": 1
+    }
+   },
+   "tags": [
+    "grunge",
+    "rock"
+   ],
+   "note": "",
+   "t": 1795675441789
+  },
+  "GeneralUser GS/Slow Strings": {
+   "verdict": "kept",
+   "roles": [
+    "pad",
+    "strings"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795700735178
+  },
+  "GeneralUser GS/Standard 1": {
+   "verdict": "rejected",
+   "roles": [
+    "drums"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795676836696
+  },
+  "GeneralUser GS/Standard 1 Kit": {
+   "verdict": "rejected",
+   "roles": [
+    "drums"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": -2,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795699760128
+  },
+  "GeneralUser GS/Standard 2": {
+   "verdict": "rejected",
+   "roles": [
+    "drums"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795676838079
+  },
+  "GeneralUser GS/Standard 2 Kit": {
+   "verdict": "rejected",
+   "roles": [
+    "drums"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795676827379
+  },
+  "GeneralUser GS/Standard 3": {
+   "verdict": "rejected",
+   "roles": [
+    "drums"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795676839012
+  },
+  "GeneralUser GS/Standard 3 Kit": {
+   "verdict": "rejected",
+   "roles": [
+    "drums"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795676828813
+  },
+  "GeneralUser GS/Synth Bass 1": {
+   "verdict": "kept",
+   "roles": [
+    "bass"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": -1,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 1078
+    },
+    "effect": {
+     "chain": "chain/saturate",
+     "amount": 1
+    }
+   },
+   "tags": [
+    "rubbery",
+    "saw"
+   ],
+   "note": "",
+   "t": 1795675589998
+  },
+  "GeneralUser GS/Synth Bass 2": {
+   "verdict": "rejected",
+   "roles": [
+    "bass"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795675594598
+  },
+  "GeneralUser GS/Synth Strings 1": {
+   "verdict": "kept",
+   "roles": [
+    "pad",
+    "strings"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795700745296
+  },
+  "GeneralUser GS/Synth Strings 2": {
+   "verdict": "rejected",
+   "roles": [
+    "pad",
+    "strings"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": -1,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795700765896
+  },
+  "GeneralUser GS/Synth Voice": {
+   "verdict": "kept",
+   "roles": [
+    "pad",
+    "strings"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": -1,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [
+    "breathy",
+    "calming",
+    "ambient"
+   ],
+   "note": "",
+   "t": 1795700798064
+  },
+  "GeneralUser GS/Timpani": {
+   "verdict": "kept",
+   "roles": [
+    "pad",
+    "strings"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [
+    "clang",
+    "noisy",
+    "cheap"
+   ],
+   "note": "",
+   "t": 1795700828082
+  },
+  "GeneralUser GS/Tremolo Strings": {
+   "verdict": "kept",
+   "roles": [
+    "pad",
+    "strings"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795700833365
+  },
+  "GeneralUser GS/Ukulele": {
+   "verdict": "kept",
+   "roles": [
+    "guitar"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [
+    "childish",
+    "refreshing"
+   ],
+   "note": "",
+   "t": 1795700406701
+  },
+  "GeneralUser GS/Viola": {
+   "verdict": "kept",
+   "roles": [
+    "pad",
+    "strings"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [
+    "emotional",
+    "personal"
+   ],
+   "note": "",
+   "t": 1795700861716
+  },
+  "GeneralUser GS/Violin": {
+   "verdict": "kept",
+   "roles": [
+    "pad",
+    "strings"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795700868399
+  },
+  "GeneralUser GS/Voice Oohs": {
+   "verdict": "kept",
+   "roles": [
+    "pad",
+    "strings"
+   ],
+   "tuning": {
+    "level_db": -1,
+    "octave": -1,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [
+    "ambient",
+    "blue",
+    "soothing"
+   ],
+   "note": "",
+   "t": 1795700941285
+  },
+  "GeneralUser GS/Wah Guitar (CC21)": {
+   "verdict": "kept",
+   "roles": [
+    "guitar"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": -1,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [
+    "generic rock",
+    "indie rock"
+   ],
+   "note": "",
+   "t": 1795700436302
+  },
+  "HS TB-303/TB-BASS 1": {
+   "verdict": "kept",
+   "roles": [
+    "bass",
+    "keys",
+    "pad"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": -1,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": {
+     "chain": "chain/chorus",
+     "amount": 1
+    }
+   },
+   "tags": [
+    "art",
+    "vocal noise",
+    "character"
+   ],
+   "note": "Black Dice could have created this. 2000s indie noise",
+   "t": 1795675763889
+  },
+  "HS TB-303/TB-BASS 10": {
+   "verdict": "kept",
+   "roles": [
+    "bass"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "cat purr",
+   "t": 1795675797020
+  },
+  "HS TB-303/TB-BASS 2": {
+   "verdict": "kept",
+   "roles": [
+    "bass",
+    "pad"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": -1,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [
+    "warm",
+    "round",
+    "vibrating"
+   ],
+   "note": "",
+   "t": 1795675863218
+  },
+  "HS TB-303/TB-BASS 3": {
+   "verdict": "kept",
+   "roles": [
+    "bass",
+    "keys",
+    "other"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": {
+     "chain": "chain/tape-dust",
+     "amount": 1
+    }
+   },
+   "tags": [
+    "acid house",
+    "rubbery",
+    "sound effect"
+   ],
+   "note": "",
+   "t": 1795675910500
+  },
+  "HS TB-303/TB-BASS 4": {
+   "verdict": "kept",
+   "roles": [
+    "bass"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": -1,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795675926500
+  },
+  "HS TB-303/TB-BASS 5": {
+   "verdict": "rejected",
+   "roles": [
+    "bass"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795675929367
+  },
+  "HS TB-303/TB-BASS 6": {
+   "verdict": "kept",
+   "roles": [
+    "bass"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [
+    "80s",
+    "space funk"
+   ],
+   "note": "",
+   "t": 1795675962483
+  },
+  "HS TB-303/TB-BASS 7": {
+   "verdict": "kept",
+   "roles": [
+    "bass",
+    "pad"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [
+    "mean",
+    "90s",
+    "house",
+    "techno"
+   ],
+   "note": "heard on Delroy Edwards or Black Dice",
+   "t": 1795676047264
+  },
+  "HS TB-303/TB-BASS 8": {
+   "verdict": "rejected",
+   "roles": [
+    "bass"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795676051580
+  },
+  "HS TB-303/TB-BASS 9": {
+   "verdict": "kept",
+   "roles": [
+    "bass"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [
+    "general",
+    "well rounded"
+   ],
+   "note": "hit and tail. synthetic but could stand-in for an acoustic",
+   "t": 1795676107946
+  },
+  "HS TB-303/TB303 SQR-1": {
+   "verdict": "kept",
+   "roles": [
+    "bass"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [
+    "sub",
+    "trap"
+   ],
+   "note": "",
+   "t": 1795676170145
+  },
+  "HS TB-303/TB303 SQR-2": {
+   "verdict": "kept",
+   "roles": [
+    "bass",
+    "keys"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [
+    "powerful",
+    "warm",
+    "aggressive"
+   ],
+   "note": "",
+   "t": 1795676198761
+  },
+  "HS TB-303/TB303 SQR-3": {
+   "verdict": "rejected",
+   "roles": [
+    "bass",
+    "keys"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795676205461
+  },
+  "HS TB-303/TB303 SQR-4": {
+   "verdict": "rejected",
+   "roles": [
+    "bass",
+    "keys"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795676208527
+  },
+  "HS TB-303/TB303 SQR-5": {
+   "verdict": "rejected",
+   "roles": [
+    "bass",
+    "keys"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795676211594
+  },
+  "HS TB-303/TB303 SQR-6": {
+   "verdict": "rejected",
+   "roles": [
+    "bass",
+    "keys"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795676221560
+  },
+  "HS TB-303/TB303 SQR-7": {
+   "verdict": "rejected",
+   "roles": [
+    "bass",
+    "keys"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795676223110
+  },
+  "HS TB-303/TB303 SQR-8": {
+   "verdict": "rejected",
+   "roles": [
+    "bass",
+    "keys"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [],
+   "note": "",
+   "t": 1795676224277
+  },
+  "openDAW/String Brass": {
+   "verdict": "kept",
+   "roles": [
+    "pad",
+    "strings"
+   ],
+   "tuning": {
+    "level_db": -2,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [
+    "generic",
+    "safe"
+   ],
+   "note": "",
+   "t": 1795700972236
+  },
+  "Spanish classical guitar/Classical guitar": {
+   "verdict": "kept",
+   "roles": [
+    "guitar"
+   ],
+   "tuning": {
+    "level_db": -6,
+    "octave": 0,
+    "register": null,
+    "tone": {
+     "low_cut": 20,
+     "high_cut": 20000
+    },
+    "effect": null
+   },
+   "tags": [
+    "clean",
+    "acoustic"
+   ],
+   "note": "",
+   "t": 1795700307731
+  }
+ },
+ "drums": {}
 }
