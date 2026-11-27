@@ -4,7 +4,7 @@
       "style": "lofi",
       "role": "chords",
       "text": "The keys are a Rhodes held as a pad: each chord held through its bar, soft attack, never short or choppy hits",
-      "said": "the keys are way too bright and have too much attack for lofi / they are now choppy hits, not sustained / use a rhodes pad instead → much better",
+      "said": "the keys are way too bright and have too much attack for lofi / they are now choppy hits, not sustained / use a rhodes pad instead \u2192 much better",
       "date": "2026-11-26"
     },
     {
@@ -48,6 +48,21 @@
       "text": "Lofi keeps the song's own bass, warmed (low-passed, round); not a sampled fretless bass",
       "said": "whatever bass was originally used for lofi was better than fretless",
       "date": "2026-11-26"
+    },
+    {
+      "style": "lofi",
+      "role": "chords",
+      "text": "The lofi Rhodes is audible through the whole song, held as a pad, one chord per bar at a clear level; never let it drop to a single stab or go inaudible.",
+      "said": "can't hear the rhodes except for 1 stab",
+      "date": "2026-11-26"
+    },
+    {
+      "style": "boombap",
+      "role": "lead",
+      "text": "Hip hop leads are never a harmonica or a reedy, nasal tone (the Muted Trumpet sounds like one); use a clear, warm, defined-attack lead sound for boom bap.",
+      "said": "that harmonica sound is horrible for hip hop",
+      "date": "2026-11-26",
+      "not_sound": "GeneralUser GS/Muted Trumpet"
     }
   ]
 }
