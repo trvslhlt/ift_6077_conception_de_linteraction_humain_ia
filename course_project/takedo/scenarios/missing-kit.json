@@ -1,0 +1,6 @@
+{"//": "A sound the library doesn't have (2026-11-27, the producer's session: 'try a more organic drum kit', no acoustic kit in the library, and the team swapped the drums for a stand-in of the MPC60's sounds anyway, then parked that for a break kit that left the loop silent). The team should leave the TR-808 playing, say what's missing, and offer what there is.",
+ "project": "01_good_base.odb", "messages": [
+  {"text": "swap the drums for a human beatbox kit, recorded mouth sounds"},
+  {"wait_ms": 40000}
+ ]
+}

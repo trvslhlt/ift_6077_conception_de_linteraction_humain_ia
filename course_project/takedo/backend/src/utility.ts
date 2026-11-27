@@ -142,6 +142,7 @@ Rules:
 - Keep scripts small, one job each; check the result with a look when it matters.
 - Decided limits, for now: ${Limits} \`devices\` lists the devices you may add, by kind, as named in openDAW's factories. Anything else openDAW can do, you can: never answer that it can't be done; look up how and do it.
 - Every edit you stage lands: never stage a placeholder or a test.
+- A replacement only for what was asked (2026-11-27, the producer: the team found no organic kit and swapped the drums for a stand-in anyway): when nothing you can reach fits the piece (no sound, kit or samples of that kind), stage nothing and park nothing: the old part keeps playing as it is. Say in your report what's missing and the nearest things there are, so the producer chooses. A near fit is fine only when the piece allows one.
 - If something fails twice the same way, stop and say what's in the way.`
 
 // What only one kind of piece needs (2026-11-23): moved out of the shared prompt, so a worker reads its kind's recipes
@@ -589,7 +590,7 @@ export class Utility implements Member {
                 bar => this.#run(current, made.says, made.code, bar))
         }
         return [
-            tool("samples", "Find drum and percussion samples in TakeDo's collections (~2,800 one-shots from 70 classic drum machines: TR-808, TR-909, LinnDrum, MPC60, SP-12, DMX, ...) by machine, role and words; all empty lists the machines.", {
+            tool("samples", "Find drum and percussion samples in TakeDo's collections (~2,800 one-shots from 70 classic drum machines: TR-808, TR-909, LinnDrum, MPC60, SP-12, DMX, ...) by machine, role and words; all empty lists the machines. Whole kits played as one instrument (GeneralUser GS's General MIDI kits: standard, room, jazz, brush, acoustic and more, and the producer's kept kits) are in sounds with role drums: look there too before saying a kind of kit doesn't exist.", {
                 machine: z.string().describe("Part of a machine's name (\"808\", \"LinnDrum\", \"MPC\"); \"\" for any"),
                 role: z.string().describe("kick, snare, clap, rim, closed hat, open hat, crash, ride, low tom, mid tom, high tom, cowbell, percussion, shaker, tambourine, misc, effect; \"\" for any"),
                 words: z.string().describe("Words in the sample's id, the producer's tags or its moods (\"BD0010\", \"dusty\"); \"\" for none"),
@@ -649,7 +650,7 @@ export class Utility implements Member {
                 ...Placement},
                 handler(make("sampler"))),
             ...(samples.sounds.length === 0 ? [] : [
-                tool("sounds", "Find instrument sounds by words in their names and descriptions: sampled instruments (soundfont presets: GeneralUser GS's 287 General MIDI sounds, and openDAW's upright piano, guitars, harp, organ, xylophone, TB-303) and openDAW's factory synth presets (\"openDAW/...\": FM Rhodes, organs, pads, house and square basses, brass, plucks, on Tubular, Neon, Vaporisateur). Usually a better start for a genre's bass, keys, strings, brass, guitar or pad than a synth set by hand.", {
+                tool("sounds", "Find instrument sounds by words in their names and descriptions: sampled instruments (soundfont presets: GeneralUser GS's 287 General MIDI sounds, and openDAW's upright piano, guitars, harp, organ, xylophone, TB-303) and openDAW's factory synth presets (\"openDAW/...\": FM Rhodes, organs, pads, house and square basses, brass, plucks, on Tubular, Neon, Vaporisateur). Usually a better start for a genre's bass, keys, strings, brass, guitar or pad than a synth set by hand. With role drums: whole kits (acoustic, jazz, brush, room, electronic), each a drum track playing General MIDI drum notes.", {
                     words: z.string().describe("Words in the name, the producer's tags or the moods (\"electric piano\", \"warm\"); \"\" for any: role and style are usually enough"),
                     role: z.enum(["", ...SoundRoles] as [string, ...string[]]).describe("The part it's for (bass, keys, pad, lead, strings, guitar, brass, bells, drums or percussion: a whole kit, other); \"\" for any"),
                     style: z.enum(["", ...Genres] as [string, ...string[]]).describe(`The style the music is going for (${Genres.join(", ")}); those good for it come first; "" for any`)},

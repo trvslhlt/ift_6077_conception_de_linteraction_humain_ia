@@ -77,6 +77,14 @@ const playbackText = ({playing, pos, loop}: Playback): string =>
 const speaker = (actor: string): string =>
     actor === "user" ? "You" : actor.replace(/^agent:/, "").replace(/_/g, " ")
 
+// Each member's colour (2026-11-27, the producer: give the team members colours, a card matching its chat messages):
+// its card's edge and name, its chat lines' edge and name, its name in the activity. You keep the activity's green.
+const MemberColors: Record<string, string> = {
+    "user": "#8fd18f", "agent:team_lead": "#e8c468", "agent:composer": "#b48ef0", "agent:performer": "#f08a6c",
+    "agent:sound_designer": "#5fd0c8", "agent:mix_engineer": "#7fb0ff", "agent:conductor": "#f07fb4"
+}
+const memberColor = (actor: string): string => MemberColors[actor] ?? "#aaaaaa"
+
 // The overview (FEATURES.md, "Project overview"): the Team Lead's lines, then a playback line the page keeps live, and
 // a refresh button once the project has changed since the overview was written.
 const OverviewBox = (lifecycle: Lifecycle, connection: Connection, adapter: () => AdapterType | null) => {
@@ -176,8 +184,10 @@ export const TakeDoPanel = ({lifecycle, service, visible}: Construct): HTMLEleme
         chat.append(
             <li data-from={line.from} data-shown={shown(line.from)} style={{alignSelf: fromUser ? "flex-end" : "flex-start", maxWidth: "80%",
                 padding: "0.5em 0.75em", borderRadius: "8px", fontSize: "15px", lineHeight: "1.45",
+                borderLeft: fromUser ? "none" : `3px solid ${memberColor(shown(line.from))}`,
                 background: fromUser ? "rgba(36, 65, 74, 0.95)" : "rgba(42, 47, 53, 0.95)"}}>
-                <div style={{fontSize: "11px", opacity: "0.7", marginBottom: "2px"}}>{speaker(shown(line.from))}</div>
+                <div style={{fontSize: "11px", marginBottom: "2px", fontWeight: "bold",
+                    color: fromUser ? "inherit" : memberColor(shown(line.from)), opacity: fromUser ? "0.7" : "1"}}>{speaker(shown(line.from))}</div>
                 <div>{withMentions(line.text, team)}</div>
             </li>
         )
@@ -470,9 +480,9 @@ input.takedo-dial:active::-webkit-slider-thumb { cursor: grabbing; background: r
         const area = areas.get(agent)
         const element: HTMLElement = (
             <div data-testid={`takedo-card-${id}`} data-agent={agent} data-actual={card.agent}
-                 style={{padding: "0.5em", border: "1px solid #444", borderRadius: "6px",
+                 style={{padding: "0.5em", border: "1px solid #444", borderLeft: `3px solid ${memberColor(agent)}`, borderRadius: "6px",
                      background: "rgba(22, 25, 29, 0.95)"}}>
-                <div style={{fontWeight: "bold"}}>{name}</div>
+                <div style={{fontWeight: "bold", color: memberColor(agent)}}>{name}</div>
                 {area === undefined ? null : <div style={{fontSize: "11px", opacity: "0.6"}}>{area}</div>}
                 <div data-testid="takedo-card-doing" title={card.doing || "idle"} style={{fontSize: "11px", marginTop: "0.3em",
                     whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis"}}>{card.doing || "idle"}</div>
@@ -524,7 +534,7 @@ input.takedo-dial:active::-webkit-slider-thumb { cursor: grabbing; background: r
             <li data-request={activity.request.id} data-state={activity.status.state} data-agent={agent}
                 data-decided={activity.request.decided?.by ?? "model"}>
                 <span title={decidedBy(activity)[1]} style={{cursor: "default"}}>{decidedBy(activity)[0]}</span>{" "}
-                <span style={{color, fontWeight: "bold"}}>●</span> <span style={{opacity: "0.7"}}>{speaker(agent)}</span>
+                <span style={{color, fontWeight: "bold"}}>●</span> <span style={{color: memberColor(agent)}}>{speaker(agent)}</span>
                 {" · "}{activity.label}: <span style={{color}}>{text}</span>
             </li>
         )
