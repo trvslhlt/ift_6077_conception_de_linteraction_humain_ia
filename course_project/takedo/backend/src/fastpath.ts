@@ -1,4 +1,4 @@
-import type {Snapshot} from "../../shared/protocol.ts"
+import type {Device, Snapshot} from "../../shared/protocol.ts"
 import type {Step} from "./members.ts"
 import type {Triage} from "./triage.ts"
 import {playing} from "./blend.ts"
@@ -22,7 +22,8 @@ const PanSteps = [0.25, 0.5, 0.75]      // of the way to one side; "all the way"
 const Smooth = 2                        // beats: a volume or pan move glides, so it doesn't click
 const Fade = 8                          // beats: "gradually", a fade
 
-export type FastMix = { step: Step, says: string }
+// also: steps landing with it (a compressor's threshold and ratio); panel: the device whose panel goes on the card after.
+export type FastMix = { step: Step, says: string, also?: Step[], panel?: string }
 
 // previous: each mix control's value before its latest change (a ref such as t1.mix.volume → its from), for "back".
 export const fastMix = (judged: Triage, message: string, snapshot: Snapshot,
@@ -111,6 +112,9 @@ export const fastEffect = (judged: Triage, message: string, snapshot: Snapshot):
     const step = (plan: Step["plan"], says: string): FastMix => ({step: {plan, when: {at: "asap"}, says}, says})
     // "More reverb" on a part with none adds one; "give it a reverb" when it has one is still an add (a second, by the amount).
     const action = judged.action === "more" && existing === undefined ? "add" : judged.action
+    // A compressor already there (strips.ts: drums and bass have one, flat) is set, not doubled: "compress the bass" on a
+    // flat one brings it in mild, "more" or "less" squash moves its threshold and ratio together.
+    if (judged.effect === "compressor" && existing !== undefined && action !== "remove") {return squash(existing, action, level, name, step)}
     switch (action) {
         case "add":
             // A second limiter (the master has its safety one) is the Team Lead's call.
@@ -129,6 +133,90 @@ export const fastEffect = (judged: Triage, message: string, snapshot: Snapshot):
             const to = Math.max(main.min, Math.min(main.max, param.value + (action === "more" ? 1 : -1) * main.step * (level + 1) / 2))
             if (Math.abs(to - param.value) < 1e-3) {return null}
             return step({op: "ramp", ref: param.ref, to, beats: Smooth}, `${action === "more" ? "More" : "Less"} ${judged.effect} on ${name}.`)
+        }
+    }
+}
+
+const squash = (device: Device, action: Triage["action"], level: number, name: string,
+                step: (plan: Step["plan"], says: string) => FastMix): FastMix | null => {
+    const value = (param: string) => device.params?.find(candidate => candidate.ref === `${device.ref}.${param}`)?.value
+    const threshold = value("threshold"), ratio = value("ratio")
+    if (threshold === undefined || ratio === undefined) {return null}
+    const flat = ratio <= 1.05
+    if (action === "less" && flat) {return null}
+    const [toThreshold, toRatio] = action === "add" || flat
+        ? EffectPlans.compressor.at(Math.min(level, 1)).map(({value}) => value)
+        : action === "more" ? [Math.max(-40, threshold - 6), Math.min(8, ratio + 1)] : [Math.min(0, threshold + 6), Math.max(1, ratio - 1)]
+    if (Math.abs(toThreshold - threshold) < 0.5 && Math.abs(toRatio - ratio) < 0.05) {return null}
+    const glide = (param: string, to: number): Step => ({plan: {op: "ramp", ref: `${device.ref}.${param}`, to, beats: Smooth}, when: {at: "asap"}, says: ""})
+    const says = action === "less" ? `Less squash on ${name}.` : `${flat ? "Compressing" : "More squash on"} ${name}${flat ? " with its compressor" : ""}.`
+    return {...step(glide("threshold", toThreshold).plan, says), also: [glide("ratio", toRatio)], panel: device.ref}
+}
+
+// ---------- the tone path ----------
+
+// One part's tone on its EQ (2026-11-27, the producer: the strip's effects there up front so slow requests become
+// quick ones; strips.ts gives every playing part a flat Revamp). Jev's tone answer moves one band, by its amount:
+// darker closes the low-pass, brighter opens it (or lifts the top shelf once it's open), thinner raises the low cut,
+// fuller lowers it (or lifts the low shelf once it's down). Only when Jev is sure of the tone and the part, the path
+// isn't a mixer move, the notes aren't what's asked (a composer's or performer's "darker chords"), no number, not later.
+// At 0.9 (`make triage-bench`, 2026-11-27: the 13 tones right, all but one at 0.95 or more; the nearest wrong at 0.84,
+// "that bass is mostly midrange. it should be much lower" as fuller, and "more bass", a level, as fuller).
+export const SureTone = 0.9
+const Octaves = [1, 2, 3, 4]            // a filter's move by amount: subtle, moderate, big, extreme
+const ShelfDb = [2, 4, 6, 9]            // a shelf's lift by amount (the page caps an EQ's gain at 12 dB)
+const MaxShelf = 9
+const OpenTop = 15000, LowestTop = 300, OpenBottom = 30, HighestCut = 1000
+
+export const fastTone = (judged: Triage, message: string, snapshot: Snapshot): FastMix | null => {
+    if (judged.tone === "none" || judged.toneP < SureTone || judged.partP < SurePart || judged.path === "mix") {return null}
+    if (/\d/.test(message) || judged.when === "later" || judged.newPart >= 0.5) {return null}
+    if (["composer", "performer"].includes(judged.member) && judged.memberP >= 0.5) {return null}
+    const master = judged.part === "whole_mix"
+    const track = snapshot.tracks.find(track => track.ref === judged.part)
+    if (track === undefined && !master) {return null}
+    const name = master ? "the whole track" : track!.name
+    const eq = (master ? snapshot.master.effects : track!.effects).filter(effect => effect.key === "Revamp" && effect.enabled && effect.ref !== undefined).at(-1)
+    if (eq === undefined) {return null}
+    const value = (param: string) => eq.params?.find(candidate => candidate.ref === `${eq.ref}.${param}`)?.value
+    const on = (band: string) => (value(`${band}/enabled`) ?? 0) >= 0.5
+    const level = Math.round(Math.max(0, Math.min(3, judged.amount)))
+    const beats = judged.when === "gradual" ? Fade : Smooth
+    const glide = (param: string, to: number, says: string): FastMix | null => {
+        const now = value(param)
+        if (now === undefined || Math.abs(to - now) < (param.endsWith("gain") ? 0.5 : now * 0.05)) {return null}
+        return {step: {plan: {op: "ramp", ref: `${eq.ref}.${param}`, to: Math.round(to), beats}, when: {at: "asap"}, says}, says, panel: eq.ref}
+    }
+    const top = value("lowPass/frequency"), bottom = value("highPass/frequency")
+    const hz = (value: number) => value >= 1000 ? `${Number((value / 1000).toFixed(1))} kHz` : `${Math.round(value)} Hz`
+    switch (judged.tone) {
+        case "darker": {
+            if (!on("lowPass") || top === undefined) {return null}
+            const to = Math.max(LowestTop, Math.min(top, OpenTop) / 2 ** Octaves[level])
+            return glide("lowPass/frequency", to, `${capital(name)} darker: its EQ's top down to ${hz(to)}.`)
+        }
+        case "brighter": {
+            if (on("lowPass") && top !== undefined && top < OpenTop) {
+                const to = Math.min(20000, top * 2 ** Octaves[level])
+                return glide("lowPass/frequency", to, `${capital(name)} brighter: its EQ's top opened to ${hz(to)}.`)
+            }
+            const gain = value("highShelf/gain")
+            if (!on("highShelf") || gain === undefined) {return null}
+            return glide("highShelf/gain", Math.min(MaxShelf, gain + ShelfDb[level]), `${capital(name)} brighter: its EQ's top lifted ${ShelfDb[level]} dB.`)
+        }
+        case "thinner": {
+            if (!on("highPass") || bottom === undefined) {return null}
+            const to = Math.min(HighestCut, Math.max(bottom, 40) * 2 ** Octaves[level])
+            return glide("highPass/frequency", to, `${capital(name)} thinner: its low cut up to ${hz(to)}.`)
+        }
+        case "fuller": {
+            if (on("highPass") && bottom !== undefined && bottom > OpenBottom) {
+                const to = Math.max(20, bottom / 2 ** Octaves[level])
+                return glide("highPass/frequency", to, `${capital(name)} fuller: its low cut down to ${hz(to)}.`)
+            }
+            const gain = value("lowShelf/gain")
+            if (!on("lowShelf") || gain === undefined) {return null}
+            return glide("lowShelf/gain", Math.min(MaxShelf, gain + ShelfDb[level]), `${capital(name)} fuller: its EQ's low end lifted ${ShelfDb[level]} dB.`)
         }
     }
 }

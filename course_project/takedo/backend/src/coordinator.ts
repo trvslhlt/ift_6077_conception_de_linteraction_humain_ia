@@ -21,7 +21,7 @@ import type {Knowledge} from "./knowledge.ts"
 import {Utility} from "./utility.ts"
 import {type Line, type Triage, triage, triageState} from "./triage.ts"
 import {Tweaks} from "./variants.ts"
-import {fastEffect, fastMix, SurePath, fastTweak} from "./fastpath.ts"
+import {fastEffect, fastMix, fastTone, SurePath, fastTweak} from "./fastpath.ts"
 import {Profiles, Styles, styleSteps} from "./mixProfiles.ts"
 import {HeavyShuffle, StraightGroove, stripPlans} from "./strips.ts"
 import {effectPanel, MaxGroup, plainName, slots} from "./panels.ts"
@@ -908,15 +908,19 @@ export class Coordinator {
         this.#landsWith = {message, judged}
         if (judged.path === "effect" && judged.pathP >= SurePath) {this.#effectAsked = message}
         const mixed = fastMix(judged, message, snapshot, Object.fromEntries(this.#mixBefore))
-        const single = mixed ?? fastEffect(judged, message, full ?? snapshot)
-        const fast = single !== null ? {steps: [single.step], says: single.says}
+        const effected = mixed ?? fastEffect(judged, message, full ?? snapshot)
+        // A tone on the part's strip EQ (strips.ts), the sound designer's.
+        const toned = effected === null ? fastTone(judged, message, full ?? snapshot) : null
+        const single = effected ?? toned
+        const fast = single !== null ? {steps: [single.step, ...single.also ?? []], says: single.says}
             : full === null ? null : fastTweak(judged, message, full, (call, args) => this.#knowledge?.script(call, args) ?? null)
         this.#log.write("triage", {message, ...judged, fast: fast !== null})
         if (fast === null) {return false}
         // Done as the member it lands with when Jev is sure who (a swing is the performer's, a level the mix engineer's);
         // an effect always by its member (#effectMember).
         const member = this.landsWith(message)?.member
-        const agent: Actor = mixed === null && single !== null ? memberActor(this.#effectMember(message, judged.effect))
+        const agent: Actor = toned !== null ? memberActor("sound_designer")
+            : mixed === null && single !== null ? memberActor(this.#effectMember(message, judged.effect))
             : member !== undefined && (MemberNames as readonly string[]).includes(member) ? memberActor(member as MemberName) : "agent:team_lead"
         this.say(agent, fast.says)
         // Its own direction on the board, so the edit is owned (the ledger) and an effect it adds gets its knob (#effectKnob).
@@ -926,6 +930,12 @@ export class Coordinator {
             void performStep(this, agent, {...step, decided: {by: "jev", ms: judged.ms}, activity: {direction: direction.id}}, message).then(result => {
                 if (/not done/.test(result)) {this.say(agent, `That didn't land: ${result.replace(/^.*?: not done/, "not done")}.`)}
             })
+        }
+        // A strip device moved (an EQ's tone, a compressor's squash) gets its panel on the mover's card, to ride from there.
+        const panel = single?.panel
+        if (panel !== undefined) {
+            const tempo = snapshot.timeline.bpm
+            setTimeout(() => void this.#offerPanel(agent, panel).catch(error => this.#log.write("tweak_dial", {error: String(error)})), 3 * 60000 / tempo)
         }
         return true
     }
@@ -1424,18 +1434,23 @@ export class Coordinator {
         // After its fade-in (a beat, page/Adapter.ts EffectFadeBeats), so the knob starts where the effect settles.
         const tempo = (await this.snapshot())?.timeline.bpm ?? 120
         await new Promise(resolve => setTimeout(resolve, 1.5 * 60000 / tempo))
+        // On the card of the member the request landed with (a reverb the mix engineer's, a crusher the sound designer's):
+        // a panel of the settings it's ridden by and a bypass switch (panels.ts), one slot on the card.
+        await this.#offerPanel(memberActor(this.#effectMember(asked ?? "", this.#landsWith?.judged.effect ?? "other")), added.ref)
+    }
+
+    // A device's panel on a member's card, and they say so (or, already there, the card has it).
+    async #offerPanel(knobOwner: Actor, ref: string): Promise<void> {
         const snapshot = await this.snapshot()
         if (snapshot === null) {return}
         const devices = [...snapshot.tracks.map(track => ({where: track.name, effects: track.effects})), {where: "the master", effects: snapshot.master.effects}]
-        const owner = devices.find(({effects}) => effects.some(effect => effect.ref === added.ref))
-        const device = owner?.effects.find(effect => effect.ref === added.ref)
+        const owner = devices.find(({effects}) => effects.some(effect => effect.ref === ref))
+        const device = owner?.effects.find(effect => effect.ref === ref)
         if (owner === undefined || device === undefined) {return}
-        // On the card of the member the request landed with (a reverb the mix engineer's, a crusher the sound designer's):
-        // a panel of the settings it's ridden by and a bypass switch (panels.ts), one slot on the card.
-        const knobOwner = memberActor(this.#effectMember(asked ?? "", this.#landsWith?.judged.effect ?? "other"))
-        const where = owner.where === "the master" ? "the master" : owner.where
+        const where = owner.where
         const panel = effectPanel(device, where)
-        if (panel.length === 0) {return}
+        // Already on the card (a second "darker"): it's there to ride, nothing to say.
+        if (panel.length === 0 || panel.every(control => this.controls().some(mine => mine.ref === control.ref && mine.owner === knobOwner))) {return}
         const said = panel.map(control => this.offerControl(knobOwner, control))
         if (said[0]?.startsWith("On your card")) {
             const dials = panel.filter(control => control.widget === "dial").map(control => control.label.toLowerCase())

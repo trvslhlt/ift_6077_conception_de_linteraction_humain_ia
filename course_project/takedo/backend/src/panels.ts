@@ -21,7 +21,7 @@ const Knobs: Record<string, Knob[]> = {
     Tidal: [{param: "depth", label: "Depth", low: "steady", high: "pulsing", from: 0, to: 1}],
     Compressor: [{param: "threshold", label: "Squash", low: "light", high: "squashed", from: 0, to: -30},
         {param: "ratio", label: "Ratio", low: "gentle", high: "hard", from: 1.5, to: 8}],
-    Revamp: [{param: "lowPass/frequency", label: "Tone", low: "dark", high: "open", from: 1500, to: 16000},
+    Revamp: [{param: "lowPass/frequency", label: "Tone", low: "dark", high: "open", from: 1500, to: 20000},
         {param: "highPass/frequency", label: "Low cut", low: "full", high: "thin", from: 20, to: 400},
         {param: "highShelf/gain", label: "Top", low: "dark", high: "bright", from: -12, to: 6},
         {param: "lowShelf/gain", label: "Body", low: "thin", high: "warm", from: -6, to: 6}]

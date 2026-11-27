@@ -1,0 +1,11 @@
+{
+  "//": "The strip's devices moved by code (2026-11-27, the producer: the common effects up front so slow requests become quick ones): every playing part has a flat EQ, drums and bass a flat compressor (strips.ts). A tone is Jev's and code's on the part's EQ, the sound designer's, with its panel after; compressing a part with a flat compressor sets that one, not a second. Each should take no Team Lead turn.",
+  "project": "01_good_base.odb",
+  "messages": [
+    {"text": "make the bass darker"},
+    {"text": "take some low end off the bass"},
+    {"text": "compress the drums"},
+    {"text": "more squash on the drums"},
+    {"text": "the drums sound muffled"}
+  ]
+}

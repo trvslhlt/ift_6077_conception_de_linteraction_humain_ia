@@ -1,7 +1,7 @@
 import {strict as assert} from "node:assert"
 import {describe, it} from "node:test"
 import type {Snapshot, Track} from "../../shared/protocol.ts"
-import {fastEffect, fastMix, fastTweak} from "./fastpath.ts"
+import {fastEffect, fastMix, fastTone, fastTweak} from "./fastpath.ts"
 import type {Triage} from "./triage.ts"
 
 // The mix fast path offline: Jev's answers given, so these check what code does with them. Run from backend/:
@@ -19,7 +19,7 @@ const snapshot: Snapshot = {
     master: {volume: 0, effects: []}
 }
 const judged = (part: string, move: Triage["move"], extra: Partial<Triage> = {}): Triage => ({
-    path: "mix", pathP: 0.95, part, partP: 0.95, move, moveP: 0.95, effect: "other", effectP: 0, action: "add", actionP: 0,
+    path: "mix", pathP: 0.95, part, partP: 0.95, move, moveP: 0.95, effect: "other", effectP: 0, action: "add", actionP: 0, tone: "none", toneP: 0,
     tweak: "none", tweakP: 0, amount: 1, when: "unspecified", member: "mix_engineer", memberP: 0.9, control: "none", controlP: 0.9, newPart: 0, ms: 90, ...extra
 })
 
@@ -106,5 +106,55 @@ describe("the musical fast path", () => {
         assert.equal(fastTweak(tweak({tweak: "fill"}), "a fill on the bass", full, script), null)     // a fill is for drums
         assert.equal(fastTweak(tweak({member: "mix_engineer", memberP: 0.7}), "add some space on the bass", full, script), null)
         assert.equal(fastTweak(tweak({newPart: 0.9}), "sparse lead melody", full, script), null)
+    })
+})
+
+describe("the tone path, on a part's strip EQ (strips.ts)", () => {
+    const param = (ref: string, value: number) => ({ref, name: ref, value, display: String(value), min: 0, max: 20000, stepped: false})
+    const eq = (values: Record<string, number>) => ({key: "Revamp", name: "Revamp", enabled: true, ref: "t3.fx1",
+        params: Object.entries({"highPass/enabled": 1, "highPass/frequency": 20, "lowPass/enabled": 1, "lowPass/frequency": 20000,
+            "lowShelf/enabled": 1, "lowShelf/gain": 0, "highShelf/enabled": 1, "highShelf/gain": 0, ...values}).map(([name, value]) => param(`t3.fx1.${name}`, value))})
+    const withEq = (values: Record<string, number> = {}): Snapshot => ({...snapshot, tracks: snapshot.tracks.map(track => track.ref === "t3" ? {...track, effects: [eq(values)]} : track)})
+    const tone = (way: Triage["tone"], extra: Partial<Triage> = {}): Triage =>
+        judged("t3", "quieter", {path: "team", tone: way, toneP: 0.95, member: "sound_designer", ...extra})
+    const plan = (judged: Triage, from = withEq()) => fastTone(judged, "make it so", from)?.step.plan
+    it("moves one band by Jev's amount: darker closes the top, thinner raises the low cut", () => {
+        assert.deepEqual(plan(tone("darker")), {op: "ramp", ref: "t3.fx1.lowPass/frequency", to: 3750, beats: 2})
+        assert.deepEqual(plan(tone("darker", {amount: 0})), {op: "ramp", ref: "t3.fx1.lowPass/frequency", to: 7500, beats: 2})
+        assert.deepEqual(plan(tone("thinner")), {op: "ramp", ref: "t3.fx1.highPass/frequency", to: 160, beats: 2})
+        assert.equal(fastTone(tone("darker"), "darker", withEq())?.panel, "t3.fx1")
+    })
+    it("on a flat EQ, brighter and fuller lift a shelf; once a filter has moved, they open it again", () => {
+        assert.deepEqual(plan(tone("brighter")), {op: "ramp", ref: "t3.fx1.highShelf/gain", to: 4, beats: 2})
+        assert.deepEqual(plan(tone("fuller")), {op: "ramp", ref: "t3.fx1.lowShelf/gain", to: 4, beats: 2})
+        assert.deepEqual(plan(tone("brighter"), withEq({"lowPass/frequency": 3000})), {op: "ramp", ref: "t3.fx1.lowPass/frequency", to: 12000, beats: 2})
+        assert.deepEqual(plan(tone("fuller"), withEq({"highPass/frequency": 160})), {op: "ramp", ref: "t3.fx1.highPass/frequency", to: 40, beats: 2})
+    })
+    it("leaves to the Team Lead: notes (the composer's darker chords), a mixer move, a number, no EQ, an unsure part", () => {
+        assert.equal(plan(tone("darker", {member: "composer", memberP: 0.8})), undefined)
+        assert.equal(plan(tone("darker", {path: "mix"})), undefined)
+        assert.equal(fastTone(tone("darker"), "darker, cut above 2k", withEq()), null)
+        assert.equal(plan(tone("darker"), snapshot), undefined)
+        assert.equal(plan(tone("darker", {partP: 0.8})), undefined)
+        assert.equal(plan(tone("darker", {toneP: 0.85})), undefined)
+    })
+})
+
+describe("the compressor on a part's strip", () => {
+    const param = (ref: string, value: number) => ({ref, name: ref, value, display: String(value), min: -60, max: 24, stepped: false})
+    const comp = (threshold: number, ratio: number): Snapshot => ({...snapshot, tracks: snapshot.tracks.map(track => track.ref === "t1" ? {...track,
+        effects: [{key: "Compressor", name: "Compressor", enabled: true, ref: "t1.fx2", params: [param("t1.fx2.threshold", threshold), param("t1.fx2.ratio", ratio)]}]} : track)})
+    const effect = (action: Triage["action"]) => judged("t1", "quieter", {path: "effect", effect: "compressor", effectP: 0.95, action, actionP: 0.95})
+    const plans = (action: Triage["action"], from: Snapshot) => {
+        const fast = fastEffect(effect(action), "compress the drums", from)
+        return fast === null ? null : [fast.step, ...fast.also ?? []].map(step => step.plan)
+    }
+    it("a flat one is brought in mild, not doubled; more and less move threshold and ratio together", () => {
+        assert.deepEqual(plans("add", comp(0, 1)), [{op: "ramp", ref: "t1.fx2.threshold", to: -18, beats: 2}, {op: "ramp", ref: "t1.fx2.ratio", to: 3, beats: 2}])
+        assert.deepEqual(plans("more", comp(0, 1)), [{op: "ramp", ref: "t1.fx2.threshold", to: -18, beats: 2}, {op: "ramp", ref: "t1.fx2.ratio", to: 3, beats: 2}])
+        assert.deepEqual(plans("more", comp(-18, 3)), [{op: "ramp", ref: "t1.fx2.threshold", to: -24, beats: 2}, {op: "ramp", ref: "t1.fx2.ratio", to: 4, beats: 2}])
+        assert.deepEqual(plans("less", comp(-18, 3)), [{op: "ramp", ref: "t1.fx2.threshold", to: -12, beats: 2}, {op: "ramp", ref: "t1.fx2.ratio", to: 2, beats: 2}])
+        assert.equal(plans("less", comp(0, 1)), null)
+        assert.equal(fastEffect(effect("add"), "compress the drums", comp(0, 1))?.panel, "t1.fx2")
     })
 })

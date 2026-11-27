@@ -30,6 +30,17 @@ export const Effects = {
     limiter: "a limiter, so it doesn't clip or take the headroom", tremolo: "tremolo, a pulsing volume",
     other: "another effect (a filter, an EQ, chorus, phaser, a gate...), or no effect at all"
 } as const
+// Which way one part's tone should go, as its EQ would move it (fastpath.ts, fastTone: every playing part has a flat
+// EQ on its strip, strips.ts). Asked apart from the path: "make the bass darker" is the sound designer's, not a mixer move.
+export const Tones = {
+    darker: "darker, duller, warmer, less bright or harsh, more muffled: less of its highs",
+    brighter: "brighter, crisper, more air or sparkle, less dull or muffled: more of its highs",
+    thinner: "thinner, lighter, less bass, low end, boom or mud",
+    fuller: "fuller, heavier, more bass, low end, weight or body",
+    none: "none of these: not one part's tone. Its notes, chords or melody (darker chords, a brighter melody), a new sound " +
+        "or instrument, an effect such as distortion, crunch or reverb, its level, more than one change at once (a darker " +
+        "tone and a reverb, brighter and louder), the whole style, or not about tone"
+} as const
 export const Actions = {
     add: "add it", remove: "take it out", more: "more of it (wetter, stronger)", less: "less of it (drier, gentler)"
 } as const
@@ -97,6 +108,7 @@ export type Triage = {
     move: keyof typeof Moves, moveP: number
     effect: keyof typeof Effects, effectP: number
     action: keyof typeof Actions, actionP: number
+    tone: keyof typeof Tones, toneP: number         // one part's tone, as its EQ would move it (fastTone)
     tweak: keyof typeof Tweaks | "none", tweakP: number   // a musical tweak of the part's notes (variants.ts)
     amount: number                                // 0..3 on Amounts' scale
     when: keyof typeof When
@@ -124,6 +136,7 @@ export const triage = async (gateway: Gateway, log: ModelLog, state: TriageState
         move: choice(`${Premise}If it asks for a mixer move, which one?`, Moves),
         effect: choice(`${Premise}If it asks about an audio effect, which kind?`, Effects),
         action: choice(`${Premise}If it asks about an audio effect, what should happen to it?`, Actions),
+        tone: choice(`${Premise}If the message asks for one change only, the tone of one part's sound as an EQ would move it, which way?`, Tones),
         tweak: choice(`${Premise}If it's one change to how one part's notes are played, made from the notes it already plays, which?`,
             {...Tweaks, none: "none of these: a new style or pattern, a new part or sound, two changes at once, the mix, effects " +
                 "or tempo, a button, knob or control to play, or not about the notes"}),
@@ -142,6 +155,7 @@ export const triage = async (gateway: Gateway, log: ModelLog, state: TriageState
         move: answers.move.choice as Triage["move"], moveP: p(answers.move),
         effect: answers.effect.choice as Triage["effect"], effectP: p(answers.effect),
         action: answers.action.choice as Triage["action"], actionP: p(answers.action),
+        tone: answers.tone.choice as Triage["tone"], toneP: p(answers.tone),
         tweak: answers.tweak.choice as Triage["tweak"], tweakP: p(answers.tweak),
         amount: answers.amount.score, when: answers.when.choice as Triage["when"],
         member: answers.member.choice as Triage["member"], memberP: p(answers.member),

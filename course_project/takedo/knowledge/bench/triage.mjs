@@ -6,6 +6,8 @@
 //   part   for mix and effect: the track ref (Project, below), or whole_mix; null when the message doesn't say
 //   move   for mix: quieter | louder | mute | unmute | pan_left | pan_right | center | back; a list when either is right
 //   effect for effect: reverb | delay | distortion | crusher | compressor | limiter | tremolo | other; action: add | remove | more | less
+//   tone   one part's tone as its EQ would move it (fastpath.ts, fastTone): darker | brighter | thinner | fuller; none when
+//          not given (its notes, a new sound, two changes at once, or not about tone); a list when either is right
 //   recent the chat just before (follow-ups: "bring them back up" after "lower the drums"), oldest first
 //   src    observed (takedo/sessions logs, 2026-11-20..25) | simulated
 //
@@ -28,7 +30,8 @@ export const Project = {
 
 const mix = (msg, part, move, src = "observed", recent = []) => ({msg, path: "mix", part, move, src, recent})
 const effect = (msg, part, kind, action, src = "observed", recent = []) => ({msg, path: "effect", part, effect: kind, action, src, recent})
-const team = (msg, src = "observed", recent = []) => ({msg, path: "team", src, recent})
+const team = (msg, src = "observed", recent = [], extra = {}) => ({msg, path: "team", src, recent, ...extra})
+const tone = (msg, part, way, src = "simulated") => ({msg, path: "team", part, tone: way, src, recent: []})
 const said = (user, team_lead) => [{from: "user", text: user}, {from: "team_lead", text: team_lead}]
 
 export const Messages = [
@@ -78,11 +81,32 @@ export const Messages = [
     effect("put a reverb on master", "whole_mix", "reverb", "add"),
     effect("less reverb on the keys", "t2", "reverb", "less", "simulated"),
     effect("put some delay on the pad", "t4", "delay", "add", "simulated"),
-    effect("add a low-pass filter to the whole thing", "whole_mix", "other", "add", "simulated"),
+    {...effect("add a low-pass filter to the whole thing", "whole_mix", "other", "add", "simulated"), tone: "darker"},   // the master EQ's low-pass, if it has one
     effect("add some distortion to the guitar", "t6", "distortion", ["add", "more"], "simulated"),
     effect("crush the drums", "t1", "crusher", "add", "simulated"),
     effect("less distortion on the guitar", "t6", "distortion", "less", "simulated"),
     effect("compress the bass", "t3", "compressor", "add", "simulated"),
+
+    // ---------- tone: one part's EQ, one way (the path is the Team Lead's: fastTone reads the tone apart) ----------
+    tone("make the bass darker", "t3", "darker"),
+    tone("the keys are too bright", "t2", "darker"),
+    tone("the pad sounds harsh, warm it up", "t4", "darker"),
+    tone("make the whole mix a bit darker", "whole_mix", "darker"),
+    tone("the drums sound muffled", "t1", "brighter"),
+    tone("give the guitar some more air", "t6", "brighter"),
+    tone("brighter keys please", "t2", "brighter"),
+    tone("the bass is muddy", "t3", "thinner"),
+    tone("thin out the pad, it's boomy", "t4", "thinner"),
+    tone("take some low end off the guitar", "t6", "thinner"),
+    tone("the drums need more weight", "t1", "fuller"),
+    tone("more body on the keys", "t2", "fuller"),
+    tone("fatten up the bass", "t3", "fuller"),
+    // not a tone the EQ makes: notes, a new sound, two changes at once
+    team("darker chords on the keys", "simulated"),
+    team("a brighter melody on the synth", "simulated"),
+    team("make the bass darker and add some reverb to it", "simulated"),
+    team("swap the keys for a darker sounding piano", "simulated"),
+    team("make the drums brighter and louder", "simulated"),
 
     // ---------- team: everything else ----------
     team("Slowly, and without sudden large changes, evolve this into a lofi girl beat"),
@@ -150,7 +174,7 @@ export const Messages = [
     team("turn this into a neo-soul groove: new keys and a new bass, warm and played"),
     team("add some soft strings underneath"),
     team("put a reverb on the keys and give me a knob for how wet it is, I want to ride it myself"),
-    team("the 808 bass sounds more miderange than sub"),
+    team("the 808 bass sounds more miderange than sub", "observed", [], {tone: ["fuller", "none"]}),
     team("it still sounds more like a tom than a kick or bass"),
     team("much better. now transform the song into a krautrock motorik beat. like neu! halogalo"),
     team("replace that annoying synth sound with a muted guitar"),

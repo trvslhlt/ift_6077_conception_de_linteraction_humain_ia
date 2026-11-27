@@ -2,7 +2,7 @@ import {mkdirSync, writeFileSync} from "node:fs"
 import {join} from "node:path"
 import {Gateway, loadConfig} from "./gateway.ts"
 import {type Triage, triage, type TriageState} from "./triage.ts"
-import {Sure, SurePart, SurePath} from "./fastpath.ts"
+import {Sure, SurePart, SurePath, SureTone} from "./fastpath.ts"
 
 // Jev in front of the Team Lead, judged (triage.ts): on knowledge/bench/triage.mjs's labelled messages, how often it
 // picks the right path, and for mixer moves the right part and move; then, at each threshold, how many messages a
@@ -14,7 +14,7 @@ const Takedo = join(import.meta.dirname, "..", "..")
 const Concurrency = 4
 const {Messages, Project} = await import(join(Takedo, "knowledge", "bench", "triage.mjs")) as {
     Messages: Array<{ msg: string, path: Triage["path"], part?: string | null, move?: Triage["move"] | Triage["move"][], src: string,
-        effect?: Triage["effect"], action?: Triage["action"] | Triage["action"][],
+        effect?: Triage["effect"], action?: Triage["action"] | Triage["action"][], tone?: Triage["tone"] | Triage["tone"][],
         recent: Array<{ from: string, text: string }> }>,
     Project: TriageState
 }
@@ -93,6 +93,23 @@ effects.filter(result => !effectRight(result)).forEach(({item, judged}) => conso
     const wrong = taken.filter(result => result.item.path !== "effect" || !effectRight(result))
     console.log(`  live policy: taken ${taken.length} of ${effects.filter(({item}) => item.effect !== "other" && item.part !== null).length} fast-able effect messages, wrong ${wrong.length}` +
         `${wrong.length > 0 ? `: ${wrong.map(({item, judged}) => `"${item.msg}" → ${judged.part} ${judged.effect} ${judged.action}`).join("; ")}` : ""}`)
+}
+// The tone path (fastpath.ts, fastTone): the tone at SureTone, the part at SurePart, not a mixer move, not the notes.
+{
+    const want = (item: Judged["item"]) => [item.tone ?? "none"].flat()
+    const tones = judged.filter(({item}) => item.tone !== undefined && !want(item).includes("none"))
+    const toneRight = ({item, judged}: Judged) => want(item).includes(judged.tone) && (item.part === undefined || item.part === null || judged.part === item.part)
+    console.log(`\nTones (${tones.length}): way and part right ${pct(tones.filter(toneRight).length, tones.length)}`)
+    tones.filter(result => !toneRight(result)).forEach(({item, judged}) => console.log(`  "${item.msg}": ${judged.tone} on ${judged.part}` +
+        ` (want ${want(item).join("/")} on ${item.part}; p ${judged.toneP.toFixed(2)} ${judged.partP.toFixed(2)})`))
+    const taken = judged.filter(({item, judged}) => judged.tone !== "none" && judged.toneP >= SureTone && judged.partP >= SurePart && judged.path !== "mix"
+        && !/\d/.test(item.msg) && judged.when !== "later" && judged.newPart < 0.5 && !(["composer", "performer"].includes(judged.member) && judged.memberP >= 0.5))
+    const wrong = taken.filter(result => !toneRight(result))
+    console.log(`  live policy (tone ${SureTone}, part ${SurePart}): taken ${taken.length} of ${tones.length} tone messages, wrong ${wrong.length}` +
+        `${wrong.length > 0 ? `: ${wrong.map(({item, judged}) => `"${item.msg}" → ${judged.tone} on ${judged.part} (p ${judged.toneP.toFixed(2)})`).join("; ")}` : ""}`)
+    const missed = tones.filter(result => !taken.includes(result))
+    missed.forEach(({item, judged}) => console.log(`  not taken: "${item.msg}" (${judged.tone} ${judged.toneP.toFixed(2)}, part ${judged.part} ${judged.partP.toFixed(2)}, ` +
+        `path ${judged.path}, ${judged.member} ${judged.memberP.toFixed(2)}, new ${judged.newPart.toFixed(2)})`))
 }
 const follow = followUps(judged)
 console.log(`\nFollow-ups (${follow.length}, with the chat before them): path right ${pct(follow.filter(({item, judged}) => item.path === judged.path).length, follow.length)}`)
