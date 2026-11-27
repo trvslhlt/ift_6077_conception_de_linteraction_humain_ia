@@ -373,6 +373,26 @@ try {
             && Math.abs(wetAfter + 10) < 0.5 && parkedFx.state === "applied" && /faded out/.test(parkedFx.result?.label ?? "") && Math.abs(wetKept + 10) < 0.5,
         JSON.stringify({set: glided.state, setMs, added: fadedIn.state, wetAtFirst, wetAfter, parked: parkedFx.state, label: parkedFx.result?.label, wetKept}))
 
+    // ---------- parking (2026-11-27): a part muted a while has its instrument and effects switched off; unmuted, back on ----------
+    // (openDAW's mute is a gain at the strip's end: the chain ran on.) An effect the producer bypassed stays bypassed.
+    const keysState = () => page.evaluate(ref => {
+        const track = window.takedo.adapter.snapshot().tracks.find(track => track.ref === ref)
+        return {muted: track.mix.mute, instrument: track.device?.enabled ?? null, effects: Object.fromEntries(track.effects.map(effect => [effect.ref, effect.enabled]))}
+    }, keys)
+    const parkDelay = await apply({op: "add_effect", track: keys, device: "Delay", factory: "Delay", settings: []})
+    const parkCrusher = await apply({op: "add_effect", track: keys, device: "Crusher", factory: "Crusher", settings: []})
+    await page.evaluate(ref => window.takedo.adapter.setAsProducer(`${ref}.enabled`, 0), parkCrusher.result?.ref)
+    const parkMuted = await apply({op: "set", ref: `${keys}.mix.mute`, to: 1})
+    await page.waitForTimeout(3500)
+    const whileParked = await keysState()
+    const parkUnmuted = await apply({op: "set", ref: `${keys}.mix.mute`, to: 0})
+    const backIn = await keysState()
+    const [delayRef, crusherRef] = [parkDelay.result?.ref, parkCrusher.result?.ref]
+    check("parking: a part muted a while has its instrument and effects switched off, and back on when unmuted; one the producer bypassed stays off",
+        parkMuted.state === "applied" && parkUnmuted.state === "applied" && whileParked.muted && whileParked.instrument === false && whileParked.effects[delayRef] === false
+            && !backIn.muted && backIn.instrument === true && backIn.effects[delayRef] === true && backIn.effects[crusherRef] === false,
+        JSON.stringify({whileParked, backIn, delayRef, crusherRef}))
+
     // ---------- loop off: an edit changes only what's still to play (the take replays as performed) ----------
     // A part looping 1 bar over 64 bars from bar 1, the loop off: an agent rewriting its notes splits it where the
     // playhead is (the bars played keep the old notes), and a tempo step lands on the tempo track.

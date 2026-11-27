@@ -39,6 +39,7 @@ import type {Connection} from "./Connection"
 
 const StallSeconds = 3            // a playhead stuck this long while playing: the engine has stalled
 const EngineSettleMs = 3000      // an engine start this soon after the adapter is the project opening, not a restart
+const ParkAfterMs = 2000         // a track muted this long has its instrument and effects switched off (#watchParking)
 const GlideBeats = 0.25          // the shortest change of a continuous value: a sixteenth's glide, never a jump
 const HeartbeatSeconds = 5     // a heartbeat to the session log (Meter.ts)
 const EffectFadeBeats = 1        // an effect added or parked fades through its wet or mix over a beat
@@ -109,6 +110,10 @@ export class Adapter implements Terminable {
     #seq = 0
     #revision = 0                                               // every box graph update (UI state included)
     #applying: { actor: Actor, request: string } | null = null  // set around our own writes (origin tagging)
+    readonly #parked = new Map<string, { instrument: boolean, effects: Address[] }>()  // unit address → what parking switched off
+    readonly #mutedSince = new Map<string, number>()            // unit address → when it was last seen go muted
+    #parking = false                                            // around parking's own writes: housekeeping, not a change
+    readonly #waking = new Map<string, number>()                // unit address → until when it stays on, an unmute on its way
     #auditioning: AudioUnitBox[] = []                            // the Sounds tab's audition track, while it plays
     #lastAgentEdit: { label: string, steps: number } | null = null   // the latest script or added effect, for a crash
     #historySteps = 0
@@ -153,6 +158,7 @@ export class Adapter implements Terminable {
         }))
         this.#watchEngine(project)
         this.#watchHealth(project)
+        this.#watchParking()
     }
 
     // Every second: a playhead that hasn't moved for StallSeconds while playing, or openDAW's "Audio-Engine Error"
@@ -536,6 +542,8 @@ export class Adapter implements Terminable {
             while (this.#held.size > 0) {await this.#clock.tick()}
             if (held()) {return this.#status(request, {state: "dropped", reason: "held"})}
         }
+        // A parked part coming back is switched on now, ahead of its unmute landing, so it plays from that bar line.
+        if (/\.mix\.mute$/.test(param.ref) && to < 0.5) {this.#unparkTrack(param.ref)}
         if (!(await this.#land(request))) {return}
         if (held()) {return this.#status(request, {state: "dropped", reason: "held"})}
         // No jumps (2026-11-25, the producer: every change that can be gradual is, short, not slow): a continuous value
@@ -1254,6 +1262,7 @@ export class Adapter implements Terminable {
         }
         const param = this.#param(ref)
         if (param === null || !Number.isFinite(value)) {return false}
+        if (/\.mix\.mute$/.test(param.ref) && value < 0.5) {this.#unparkTrack(param.ref)}
         const {parameter} = param
         const written = isSwitch(parameter) ? value >= 0.5
             : isStepped(parameter) ? Math.round(parameter.valueMapping.clamp(value)) : parameter.valueMapping.clamp(value)
@@ -1398,7 +1407,7 @@ export class Adapter implements Terminable {
             // An effect switched on or off (a bypass toggle on a card, or an agent parking it): reported as its
             // "enabled", 0 or 1, so the team sees the producer's hand on it.
             const effect = this.#units().flatMap(unit => this.#effects(unit)).find(effect => effect.adapter.enabledField.address.equals(update.address))
-            if (effect === undefined) {return}
+            if (effect === undefined || this.#parking) {return}
             this.#seq++
             const actor: Actor = this.#applying?.actor ?? "user"
             this.#connection.send({type: "change", event: {
@@ -1469,6 +1478,80 @@ export class Adapter implements Terminable {
             }
             return {ref, label: `${this.#trackLabel(unit)} › ${adapter.labelField.getValue()}`, adapter}
         })
+    }
+
+    // Parking (2026-11-27, the producer: why do parked tracks still play their chains?): openDAW's mute is a gain at the
+    // end of the strip, so a muted part's instrument and effects run on (park-bench, 16 synth+reverb tracks: 0.58 ms a
+    // block playing, 0.55 muted, 0.21 muted with them switched off). Every path parks by muting (a style change, a
+    // worker's replaces, the mute tool, the producer's own switch), so it's done here, once for all: a track muted for
+    // ParkAfterMs has its instrument and the effects that were on switched off, and when it's unmuted, by anyone, they're
+    // switched back on: at once for a set or the producer's hand (before an unmute lands), else as soon as it's seen.
+    // Written outside the undo history and not reported as a change: housekeeping, not anyone's edit.
+    #watchParking(): void {
+        const timer = setInterval(() => {
+            const now = Date.now()
+            for (const unit of this.#units()) {
+                if (unit.isOutput) {continue}
+                const key = unit.address.toString()
+                if (this.#now(unit.namedParameter.mute) !== 0) {
+                    const since = this.#mutedSince.get(key) ?? now
+                    this.#mutedSince.set(key, since)
+                    const waking = (this.#waking.get(key) ?? 0) > now
+                    if (!this.#parked.has(key) && !waking && now - since >= ParkAfterMs) {this.#park(unit)}
+                } else {
+                    this.#mutedSince.delete(key)
+                    this.#waking.delete(key)
+                    if (this.#parked.has(key)) {this.#unpark(unit)}
+                }
+            }
+        }, 250)
+        this.#terminator.own({terminate: () => clearInterval(timer)})
+    }
+
+    #park(unit: AudioUnitBoxAdapter): void {
+        const instrument = unit.inputAdapter.mapOr(input => input.enabledField.getValue(), false)
+        const effects = this.#effects(unit).filter(effect => effect.adapter.enabledField.getValue()).map(effect => effect.adapter.enabledField.address)
+        if (!this.#quietly(() => {
+            if (instrument) {unit.inputAdapter.ifSome(input => input.enabledField.setValue(false))}
+            this.#effects(unit).forEach(effect => {if (effects.some(address => address.equals(effect.adapter.enabledField.address))) {effect.adapter.enabledField.setValue(false)}})
+        })) {return}
+        this.#parked.set(unit.address.toString(), {instrument, effects})
+    }
+
+    // Only what parking switched off: an effect the producer bypassed stays bypassed.
+    #unpark(unit: AudioUnitBoxAdapter): void {
+        const key = unit.address.toString(), parked = this.#parked.get(key)
+        if (parked === undefined) {return}
+        if (!this.#quietly(() => {
+            if (parked.instrument) {unit.inputAdapter.ifSome(input => input.enabledField.setValue(true))}
+            this.#effects(unit).forEach(effect => {if (parked.effects.some(address => address.equals(effect.adapter.enabledField.address))) {effect.adapter.enabledField.setValue(true)}})
+        })) {return}
+        this.#parked.delete(key)
+        this.#mutedSince.delete(key)
+    }
+
+    // An unmute on its way (a set landing bars from now): switched on now and kept on until it lands (a minute at most).
+    #unparkTrack(muteRef: string): void {
+        const track = muteRef.replace(/\.mix\.mute$/, "")
+        const unit = this.#units().find(candidate => this.#trackRef(candidate) === track)
+        if (unit === undefined) {return}
+        this.#waking.set(unit.address.toString(), Date.now() + 60000)
+        this.#unpark(unit)
+    }
+
+    // A write to the project outside its undo history (parking): false when another edit is open, to try again later.
+    #quietly(write: () => void): boolean {
+        const {boxGraph} = this.#project
+        if (boxGraph.inTransaction()) {return false}
+        this.#parking = true
+        try {
+            boxGraph.beginTransaction()
+            write()
+            boxGraph.endTransaction()
+        } finally {
+            this.#parking = false
+        }
+        return true
     }
 
     // A track's MIDI effects (t1.mfx1, by their place in the chain), each with the boxes its parameters are in: its own,
