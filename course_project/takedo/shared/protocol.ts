@@ -213,7 +213,11 @@ export type PageToBackend =
     | { type: "engine_health", state: "stalled" | "crashed" | "recovered" | "page_error" | "overload", detail: string }
     // Every few seconds (page/Meter.ts): the engine's output (peak, samples at full scale, NaNs), frames drawn and the
     // longest gap, long tasks, the tab's visibility, the JS heap; for the session log.
-    | { type: "heartbeat", pos: string, playing: boolean, cpu: number, audio: string, underruns: number | null, frames: number, longestFrameMs: number,
+    // Since the last one: blocks rendered, how many overran the block's time, the slowest and the mean; box updates sent
+    // to the engine. Now: the output's dropout time and latency so far, the project's boxes and devices switched on.
+    | { type: "heartbeat", pos: string, playing: boolean, cpu: number, audio: string, underruns: number | null,
+        underrunMs?: number | null, latencyMs?: number | null, blocks?: number, blocksOver?: number, blockMaxMs?: number, blockMeanMs?: number,
+        updates?: number, boxes?: number, devicesOn?: number, frames: number, longestFrameMs: number,
         visible: boolean, peak: number, clipped: number, nan: number, heapMb: number | null, longTasks: number, longestTaskMs: number }
 
 export type BackendToPage =

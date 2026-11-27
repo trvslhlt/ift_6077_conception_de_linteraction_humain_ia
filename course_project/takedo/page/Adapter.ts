@@ -204,13 +204,43 @@ export class Adapter implements Terminable {
             overload()
         }
         this.#terminator.own({terminate: () => {project.engine.sleep = sleep; project.handleCpuOverload = overload}})
-        const stats = (audio as AudioContext & { playbackStats?: { underrunEvents: number } }).playbackStats
+        const stats = (audio as AudioContext & { playbackStats?: { underrunEvents: number, underrunDuration: number, averageLatency: number } }).playbackStats
+        // Where the audio time goes (2026-11-27, the producer's best session yet: dropouts from 3 minutes in, rising to
+        // ~600 per 5 s by 12 minutes, while openDAW's CPU figure, the slowest block's render each second, sat at ~30%):
+        // every block's render time read from the engine's perf buffer (openDAW's cpuLoad samples one second in five
+        // here), so a heartbeat says how many blocks overran against how many dropouts the output had; how many box
+        // updates the page sent the engine (each is applied on the audio thread, outside the render's timing); and what
+        // the project holds (boxes, devices switched on).
+        project.engine.preferences.settings.debug.dspLoadMeasurement = true   // on in the studio's footer; headless, off
+        const blocks = {count: 0, over: 0, max: 0, sum: 0}
+        let perfAt = project.engine.perfIndex
+        const readPerf = setInterval(() => {
+            const buffer = project.engine.perfBuffer, index = project.engine.perfIndex
+            const budget = 128 / audio.sampleRate * 1000
+            for (; buffer.length > 0 && perfAt !== index; perfAt = (perfAt + 1) % buffer.length) {
+                const ms = buffer[perfAt]
+                blocks.count++; blocks.sum += ms
+                if (ms > blocks.max) {blocks.max = ms}
+                if (ms >= budget) {blocks.over++}
+            }
+        }, 250)
+        this.#terminator.own({terminate: () => clearInterval(readPerf)})
+        let revisionAt = this.#revision
+        const devicesOn = (): number => project.boxGraph.boxes().filter(box => box.name.endsWith("DeviceBox")
+            && "enabled" in box && (box.enabled as { getValue(): boolean }).getValue()).length
         let ticks = 0
         const timer = setInterval(() => {
             // Every few seconds, what the page and the engine's output were doing (Meter.ts), for the session log.
             if (++ticks % HeartbeatSeconds === 0) {
                 this.#connection.send({type: "heartbeat", pos: this.#pos(project.engine.position.getValue()), playing: project.engine.isPlaying.getValue(),
-                    cpu: Math.round(project.engine.cpuLoad.getValue()), audio: audio.state, underruns: stats?.underrunEvents ?? null, ...beat()})
+                    cpu: Math.round(project.engine.cpuLoad.getValue()), audio: audio.state, underruns: stats?.underrunEvents ?? null,
+                    underrunMs: stats === undefined ? null : Math.round(stats.underrunDuration * 1000),
+                    latencyMs: stats === undefined ? null : Number((stats.averageLatency * 1000).toFixed(1)),
+                    blocks: blocks.count, blocksOver: blocks.over, blockMaxMs: Number(blocks.max.toFixed(2)),
+                    blockMeanMs: blocks.count === 0 ? 0 : Number((blocks.sum / blocks.count).toFixed(3)),
+                    updates: this.#revision - revisionAt, boxes: project.boxGraph.boxes().length, devicesOn: devicesOn(), ...beat()})
+                Object.assign(blocks, {count: 0, over: 0, max: 0, sum: 0})
+                revisionAt = this.#revision
             }
             const dialog = [...document.querySelectorAll<HTMLElement>("dialog, [role=dialog]")]
                 .find(element => element.innerText?.startsWith("Audio-Engine Error"))
