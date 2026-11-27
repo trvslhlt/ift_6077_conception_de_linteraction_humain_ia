@@ -318,6 +318,9 @@ export type Knowledge = {
     sampler(input: Record<string, unknown>, snapshot: Snapshot): { code: string, says: string } | string
     // A new track playing a soundfont's preset (a sampled instrument: "GeneralUser GS/Finger Bass"), optionally with notes.
     soundfont(input: Record<string, unknown>, snapshot: Snapshot): { code: string, says: string } | string
+    // A new track on one of openDAW's synths at the settings given (field paths: {cutoff: 0.28}), with notes and a tone,
+    // as soundfont's input (restyle.ts: a template part's synth, the lofi Cubed).
+    synth(input: Record<string, unknown>, snapshot: Snapshot): { code: string, says: string } | string
     effectPreset(input: Record<string, unknown>, snapshot: Snapshot): { code: string, says: string } | string
     // A new part on an existing notes track from the bar given, replacing what was there: notes as written.
     part(input: Record<string, unknown>, snapshot: Snapshot): { code: string, says: string } | string
@@ -720,6 +723,27 @@ export const loadKnowledge = (dir: string, catalog: Catalog, warn: (text: string
         return {code: helper("soundfont", {name, uuid: sound.uuid, file_name: sound.soundfont, preset: sound.index, preset_name: sound.preset,
                 volume_db: volume, notes, effects})!, says}
     }
+    const synthPlan = (input: Record<string, unknown>, snapshot: Snapshot): { code: string, says: string } | string => {
+        if (kbScript === null) {return "the knowledge base's page helpers (scripts/kb.js) are missing"}
+        const device = catalog.device(String(input.device))
+        if (device === null || device.kind !== "instrument") {return `no instrument ${String(input.device)}`}
+        if (device.allowed === false) {return `${device.key} isn't allowed`}
+        const settings = isRecord(input.settings) ? input.settings as Record<string, number> : {}
+        const outside = Object.entries(settings).filter(([path, value]) => {
+            const param = parameter(device.key, path)
+            return param === null || !inRange(param, value)
+        })
+        if (outside.length > 0) {return `${outside.map(([path, value]) => `${path} = ${value}`).join(", ")} unknown or out of range for ${device.key}`}
+        const name = typeof input.name === "string" && input.name !== "" ? input.name : device.name
+        const notes = melodicNotes(input, snapshot, null, name)
+        if (typeof notes === "string") {return notes}
+        const tone = isRecord(input.tone) && typeof input.tone.low_cut === "number" && typeof input.tone.high_cut === "number"
+            ? {low_cut: input.tone.low_cut, high_cut: input.tone.high_cut} : null
+        const effects = tone === null ? [] : tuningEffects({...DefaultTuning, tone})
+        return {code: helper("instrument", {track: null, factory: device.factory, settings, name,
+                volume_db: volumeOf(input.start_db) ?? volumeOf(input.volume_db), notes, effects})!,
+            says: `${name}: a new track playing ${device.name} (${Object.entries(settings).map(([path, value]) => `${path} ${value}`).join(", ")})${notes === null ? "" : `, ${startText(notes)}`}`}
+    }
     // A new part on an existing track (its notes as written, looping every loop_bars), replacing what was in those bars:
     // a track made empty (a sound entry with no notes) gets its part, and a part can be rewritten from a bar on.
     const partPlan = (input: Record<string, unknown>, snapshot: Snapshot): { code: string, says: string } | string => {
@@ -952,6 +976,7 @@ export const loadKnowledge = (dir: string, catalog: Catalog, warn: (text: string
         },
         sampler: (input, snapshot) => samplerPlan(input, snapshot, null),
         soundfont: (input, snapshot) => soundfontPlan(input, snapshot, null),
+        synth: (input, snapshot) => synthPlan(input, snapshot),
         effectPreset: (input, snapshot) => effectPresetPlan(input, snapshot),
         part: (input, snapshot) => partPlan(input, snapshot),
         samples,

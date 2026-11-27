@@ -45,8 +45,8 @@
     {
       "style": "lofi",
       "role": "bass",
-      "text": "Lofi keeps the song's own bass, warmed (low-passed, round); not a sampled fretless bass",
-      "said": "whatever bass was originally used for lofi was better than fretless",
+      "text": "Lofi bass is the early sessions' Cubed with the squelch taken out (cutoff 0.28, resonance 0.05, env mod 0.2, accent 0.4, decay 0.6), low-passed: a low attack, smooth, sustained and warm; never a sampled finger or fretless bass",
+      "said": "whatever bass was originally used for lofi was better than fretless; (2026-11-27) i want that to be the default. it was not finger bass style. low attack, smooth sustained warm sound",
       "date": "2026-11-26"
     },
     {

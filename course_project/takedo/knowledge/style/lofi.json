@@ -1,6 +1,6 @@
 {
   "style": "lofi",
-  "about": "lofi hip hop (lofi girl): sparse, swung TR-808 drums low-passed and pushed back, the song's own bass kept and warmed (low-passed, round, never boomy), a Rhodes held as a pad playing 2-4 jazzy seventh and ninth chords, an optional soft vibraphone line; 70-90 BPM, warm, nothing bright or distorted",
+  "about": "lofi hip hop (lofi girl): sparse, swung TR-808 drums low-passed and pushed back, a warm, round, sustained Cubed bass with the squelch taken out (the early lofi sessions' bass; the song's own bass kept and set so when it's a Cubed), low-passed, never boomy, a Rhodes held as a pad playing 2-4 jazzy seventh and ninth chords, an optional soft vibraphone line; 70-90 BPM, warm, nothing bright or distorted",
   "tempo": [
     70,
     90
@@ -44,7 +44,22 @@
       "level_db": -8
     },
     "bass": {
-      "keep": true,
+      "synth": {
+        "device": "Cubed",
+        "name": "Lofi Bass",
+        "settings": {
+          "waveform": 0,
+          "cutoff": 0.28,
+          "resonance": 0.05,
+          "envMod": 0.2,
+          "decay": 0.6,
+          "accent": 0.4
+        }
+      },
+      "range": [
+        33,
+        57
+      ],
       "tone": {
         "low_cut": 30,
         "high_cut": 600

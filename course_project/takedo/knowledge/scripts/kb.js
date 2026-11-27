@@ -102,9 +102,10 @@ const kb = (() => {
                 return {track: args.track, ...(missing.length > 0 ? {not_found: missing} : {}),
                     ...(args.notes ? {notes: writeNotes(notesTrackOf(unit).box, notesTrackOf(unit), args.notes)} : {})}
             }
-            const {trackBox, instrumentBox} = newInstrument(args.factory, args.name, args.volume_db)
+            const {trackBox, instrumentBox, audioUnitBox} = newInstrument(args.factory, args.name, args.volume_db)
             const missing = setFields(instrumentBox, args.settings)
-            return {track: "new", name: args.name, ...(missing.length > 0 ? {not_found: missing} : {}),
+            const tuned = args.effects && args.effects.length > 0 ? tune(audioUnitBox, args.effects) : []
+            return {track: "new", name: args.name, ...(missing.length > 0 ? {not_found: missing} : {}), ...(tuned.length > 0 ? {effects: tuned} : {}),
                 ...(args.notes ? {notes: writeNotes(trackBox, null, args.notes)} : {})}
         },
         // Notes onto an existing track, replacing what was in those bars.

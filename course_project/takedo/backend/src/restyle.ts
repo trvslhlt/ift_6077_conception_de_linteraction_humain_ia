@@ -24,6 +24,10 @@ export type PartSpec = {
     sound?: string                              // a sound (soundfont or preset) its new track plays
     kit?: { name: string, pads: Array<{ role: string, sample: string }> }   // or a drum kit of samples (a Playfield)
     keep?: boolean                              // or the song's own part stays on its sound, only its tone and level glide
+    // or one of openDAW's synths at these settings (2026-11-27, the producer: the early lofi sessions' bass as the default,
+    // low attack, smooth, sustained and warm: their Cubed with the squelch taken out). A part already on that synth is
+    // kept, its settings gliding there; else a new track on it plays the old part's notes.
+    synth?: { device: string, name: string, settings: Record<string, number> }
     level_db?: number                           // the level it ends at (a keep without one stays where it is)
     range?: [number, number]                    // pitched parts: every note moved by octaves into it (chords as a whole)
     rhythm?: "hold" | "as played"               // hold: each chord rings until the next one (repeats merged)
@@ -61,11 +65,11 @@ export const learnPart = (dir: string, style: string, role: TemplateRole, change
     if (!existsSync(path)) {return `no template for ${style}`}
     const template = JSON.parse(readFileSync(path, "utf8")) as Template
     // A new sound replaces a kit or keeping the song's own part.
-    const {kit: _kit, keep: _keep, ...before} = template.parts[role] ?? {}
+    const {kit: _kit, keep: _keep, synth: _synth, ...before} = template.parts[role] ?? {}
     template.parts[role] = {...(change.sound !== undefined ? before : template.parts[role] ?? {}), ...change,
         ...(change.level_db !== undefined || change.tone !== undefined ? {heard: true} : {})}
     const part = template.parts[role]!
-    if (part.sound === undefined && part.kit === undefined && part.keep !== true) {return `a new ${role} part needs its sound`}
+    if (part.sound === undefined && part.kit === undefined && part.keep !== true && part.synth === undefined) {return `a new ${role} part needs its sound`}
     writeFileSync(path, `${JSON.stringify(template, null, 2)}\n`)
     return null
 }
@@ -101,13 +105,16 @@ export const withoutRejected = (template: Template, rules: ReadonlyArray<Rule>,
 // A part of the template made on a new track: the edit, its old part (null: a new part), and the level it ends at.
 // keep: no new track (code null): the old part itself glides to the tone and level.
 export type Move = { role: TemplateRole, old: Track | null, name: string, code: string | null, says: string, level_db: number, handover: boolean,
-    keep?: boolean, tone?: { low_cut: number, high_cut: number } }
+    keep?: boolean, tone?: { low_cut: number, high_cut: number },
+    // a kept part's instrument settings to glide to (field paths), and the Revamp already on it to tone (its strip's)
+    settings?: Array<{ param: string, value: number }>, revamp?: string }
 
 // What a template part's tracks are named: after its sound or kit, so a later restyle knows them ("Fretless Bass").
 // Drums on a sound are named for their style too ("Funk Room Kit"): styles share a kit sound with different grooves.
 export const partName = (spec: PartSpec, style?: string): string | null => {
     const sound = spec.sound?.split("/").pop()
     if (spec.kit !== undefined) {return spec.kit.name}
+    if (spec.synth !== undefined) {return spec.synth.name}
     if (sound === undefined) {return null}
     return spec.groove !== undefined && style !== undefined ? `${style.charAt(0).toUpperCase()}${style.slice(1)} ${sound}` : sound
 }
@@ -182,7 +189,10 @@ export const restyleMoves = (template: Template, snapshot: Snapshot, knowledge: 
         // Every part fades in over the bars given, the drums too (2026-11-26, the producer: the lofi drums jumped in).
         const handover = !fading || old === null
         const tone = spec.tone !== undefined ? {tone: spec.tone} : {}
-        const plan = spec.kit !== undefined
+        const plan = spec.synth !== undefined
+            ? knowledge.synth({device: spec.synth.device, settings: spec.synth.settings, name, start_db: handover ? level : -60, ...tone,
+                notes: {notes: notes.hits, loop_bars: Math.max(1, Math.ceil(notes.beats / bpb))}}, snapshot)
+            : spec.kit !== undefined
             ? knowledge.kit({name, pads: spec.kit.pads, volume_db: handover ? level : -60, ...tone,
                 notes: {hits: notes.hits.map(([beat, role, , velocity]) => [beat, role, velocity]), beats: notes.beats}}, snapshot)
             : knowledge.soundfont({sound: spec.sound, name, start_db: handover ? level : -60, ...tone,
@@ -198,11 +208,18 @@ export const restyleMoves = (template: Template, snapshot: Snapshot, knowledge: 
         const spec = role === null ? undefined : template.parts[role]
         if (role === null || spec === undefined) {left.push(`${track.ref} ${track.name}: ${role ?? roleOf(track)} isn't in the ${template.style} template`); continue}
         covered.add(role)
-        // The song's own part kept: only its tone and level glide there (once: a Revamp on it means it's done).
-        if (spec.keep === true) {
-            if (track.effects.some(effect => effect.key === "Revamp")) {left.push(`${track.ref} ${track.name}: kept, already toned`); continue}
+        // The song's own part kept (or already on the template's synth): its tone, level and settings glide there, once.
+        const onSynth = spec.synth !== undefined && track.device?.key === spec.synth.device
+        if (spec.keep === true || onSynth) {
+            // Toned already: its Revamp's low-pass where the template puts it (every part has a flat strip Revamp now,
+            // 2026-11-27: "a Revamp on it means it's done" skipped every kept bass, and the lofi bass stayed acid).
+            const revamp = track.effects.find(effect => effect.key === "Revamp")
+            const lowPass = revamp?.params?.find(param => param.ref.endsWith(".lowPass/frequency"))?.value
+            if (spec.tone !== undefined && typeof lowPass === "number" && lowPass <= spec.tone.high_cut * 1.05) {left.push(`${track.ref} ${track.name}: kept, already toned`); continue}
+            const settings = onSynth ? Object.entries(spec.synth!.settings).map(([param, value]) => ({param, value})) : []
             moves.push({role, old: track, name: track.name, code: null, keep: true, handover: !fading, level_db: spec.level_db ?? track.mix.volume,
-                says: `${track.name} kept on its own sound${spec.tone !== undefined ? `, low-passed to ${spec.tone.high_cut} Hz` : ""}`, ...(spec.tone !== undefined ? {tone: spec.tone} : {})})
+                says: `${track.name} kept on its own sound${settings.length > 0 ? `, set as ${spec.synth!.name}` : ""}${spec.tone !== undefined ? `, low-passed to ${spec.tone.high_cut} Hz` : ""}`,
+                ...(spec.tone !== undefined ? {tone: spec.tone} : {}), ...(settings.length > 0 ? {settings} : {}), ...(revamp?.ref !== undefined ? {revamp: revamp.ref} : {})})
             continue
         }
         // Drums by their name only: the same kit sound on another style's groove isn't this style's drums.
@@ -258,7 +275,7 @@ export const templateText = (template: Template, rules: ReadonlyArray<Rule>): st
     `${template.style}: ${template.about}. Tempo ${template.tempo[0]}–${template.tempo[1]} BPM.`,
     ...TemplateRoles.flatMap(role => {
         const spec = template.parts[role]
-        return spec === undefined ? [] : [`${role}: ${spec.keep ? "the song's own part, kept" : spec.kit !== undefined ? `${spec.kit.name} (${spec.kit.pads.map(pad => pad.sample).join(", ")})` : spec.sound}${spec.tone ? `, low cut ${spec.tone.low_cut} Hz, high cut ${spec.tone.high_cut} Hz` : ""}${spec.groove ? `, groove ${spec.groove}` : ""}${spec.range ? `, notes ${spec.range[0]}–${spec.range[1]}` : ""}${spec.rhythm === "hold" ? ", chords held" : ""}`]
+        return spec === undefined ? [] : [`${role}: ${spec.keep ? "the song's own part, kept" : spec.synth !== undefined ? `${spec.synth.name} (${spec.synth.device}: ${Object.entries(spec.synth.settings).map(([path, value]) => `${path} ${value}`).join(", ")}; a part already on ${spec.synth.device} is kept and set so)` : spec.kit !== undefined ? `${spec.kit.name} (${spec.kit.pads.map(pad => pad.sample).join(", ")})` : spec.sound}${spec.tone ? `, low cut ${spec.tone.low_cut} Hz, high cut ${spec.tone.high_cut} Hz` : ""}${spec.groove ? `, groove ${spec.groove}` : ""}${spec.range ? `, notes ${spec.range[0]}–${spec.range[1]}` : ""}${spec.rhythm === "hold" ? ", chords held" : ""}`]
     }),
     `master: ${template.master}`,
     ...rules.map(rule => `the producer's rule: ${ruleLine(rule)}`)

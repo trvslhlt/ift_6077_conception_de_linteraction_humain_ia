@@ -1665,13 +1665,21 @@ export class Adapter implements Terminable {
                         label: `${effect.label} › ${prefix}${parameter.name}`, parameter
                     }]
                 }))))
+            // The instrument's own (t2.in.cutoff, 2026-11-27: the lofi template's bass glides a Cubed's filter there).
+            const instrument = unit.inputAdapter.mapOr(input => primitives(input.box.fields()).flatMap(field => parameterFieldAdapters.opt(field.address).match({
+                none: () => [],
+                some: parameter => [{
+                    ref: `${ref}.in.${input.box.mapFields(field => field.fieldName, ...field.address.fieldKeys).join("/")}`,
+                    label: `${label} › ${parameter.name}`, parameter
+                }]
+            })), [] as Param[])
             // Sends by their return bus's name (t2.send.Reverb.gain): a send a plan makes has that ref before it's made.
             const sends = unit.auxSends.adapters().flatMap(send => {
                 const bus = this.#sendBus(send)
                 return bus === "" ? [] : ([["gain", send.sendGain], ["pan", send.sendPan]] as const).map(([name, parameter]) =>
                     ({ref: `${ref}.send.${bus}.${name}`, label: `${label} › Send to ${bus} › ${parameter.name}`, parameter: parameter as AutomatableParameterFieldAdapter}))
             })
-            return [...mix, ...effects, ...midi, ...sends]
+            return [...mix, ...effects, ...midi, ...instrument, ...sends]
         })
         return this.#params
     }

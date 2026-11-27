@@ -1,0 +1,60 @@
+{
+  "key": "sound/bass-lofi-cubed",
+  "kind": "sound",
+  "summary": "Lofi bass: a warm, round, sustained Cubed with the squelch taken out, the producer's default lofi bass",
+  "tags": [
+    "bass",
+    "lofi",
+    "lofi hip hop",
+    "warm",
+    "round",
+    "sustained",
+    "soft attack",
+    "chill"
+  ],
+  "devices": [
+    "Cubed"
+  ],
+  "links": [],
+  "checked": {
+    "how": "written",
+    "by": "claude (from the producer's 2026-11-24 session)",
+    "date": "2026-11-27",
+    "opendaw": "652e6ca"
+  },
+  "body": [
+    "The producer's lofi bass (2026-11-27: 'low attack, smooth sustained warm sound', the early lofi sessions' bass, not a finger or fretless one): openDAW's Cubed (303-style) on a sawtooth with its filter nearly closed, almost no resonance or envelope, a soft accent, so the acid squelch is gone and a round, sustained low end is left; a low-pass around 600 Hz on top. Long notes on the chord roots and fifths.",
+    "Register: MIDI 33-57 (openDAW names C3 = 60). A bass already on a Cubed gets these settings (set_param on its instrument) instead of a new track."
+  ],
+  "apply": {
+    "params": {
+      "track": {
+        "type": "track",
+        "optional": true,
+        "about": "a Cubed track to set so; leave out for a new track"
+      },
+      "name": {
+        "type": "text",
+        "optional": true
+      }
+    },
+    "steps": [
+      {
+        "op": "instrument",
+        "input": {
+          "track": "$track",
+          "device": "Cubed",
+          "name": "$name",
+          "settings": {
+            "waveform": 0,
+            "cutoff": 0.28,
+            "resonance": 0.05,
+            "envMod": 0.2,
+            "decay": 0.6,
+            "accent": 0.4
+          }
+        }
+      }
+    ]
+  }
+}

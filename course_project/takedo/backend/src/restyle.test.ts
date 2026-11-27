@@ -26,7 +26,7 @@ describe("style templates", () => {
             for (const role of TemplateRoles) {
                 const spec = template.parts[role]
                 if (spec === undefined) {continue}
-                assert.equal([spec.sound, spec.kit, spec.keep].filter(given => given !== undefined).length, 1, `${template.style} ${role}: a sound, a kit or keep`)
+                assert.equal([spec.sound, spec.kit, spec.keep, spec.synth].filter(given => given !== undefined).length, 1, `${template.style} ${role}: a sound, a kit, a synth or keep`)
                 if (spec.sound !== undefined) {assert.notEqual(samples.sound(spec.sound), null, `${template.style} ${role}: no sound ${spec.sound}`)}
                 spec.kit?.pads.forEach(pad => assert.notEqual(samples.find(pad.sample), null, `${template.style} ${role}: no sample ${pad.sample}`))
                 if (spec.groove !== undefined) {assert.ok(knowledge.applicable().some(line => line.key === spec.groove) || knowledge.get([spec.groove])[0] !== undefined)}
@@ -64,10 +64,30 @@ describe("style templates", () => {
         assert.equal(made.moves.length, 3)
         assert.deepEqual(made.moves.map(move => move.name).sort(), ["Cubed", "Lofi 808", "Rhodes"])
     })
+    it("gives lofi the early sessions' bass: a Cubed kept and set so, any other bass a new Cubed playing its notes", () => {
+        const kept = restyleMoves(templates.get("lofi")!, base, knowledge, catalog, true)
+        if (typeof kept === "string") {assert.fail(kept)}
+        const cubed = kept.moves.find(move => move.role === "bass")!
+        assert.ok(cubed.keep && cubed.code === null)
+        assert.deepEqual(Object.fromEntries((cubed.settings ?? []).map(({param, value}) => [param, value])),
+            {waveform: 0, cutoff: 0.28, resonance: 0.05, envMod: 0.2, decay: 0.6, accent: 0.4})
+        const finger = structuredClone(base)
+        finger.tracks[1] = {...finger.tracks[1], name: "Finger Bass", instrument: "Soundfont", device: {key: "Soundfont", name: "Finger Bass", enabled: true}}
+        const made = restyleMoves(templates.get("lofi")!, finger, knowledge, catalog, true)
+        if (typeof made === "string") {assert.fail(made)}
+        const bass = made.moves.find(move => move.role === "bass")!
+        assert.equal(bass.name, "Lofi Bass")
+        assert.equal(bass.old?.name, "Finger Bass")
+        assert.match(bass.code!, /"factory":"Cubed"/)
+        assert.match(bass.code!, /"cutoff":0\.28/)
+        assert.match(bass.code!, /"lowPass\/frequency":600/)
+    })
     it("leaves alone what is the template already (keep going), a soundfont kit read as drums", () => {
         const after = structuredClone(base)
         after.tracks[0].mix.mute = true
-        after.tracks[1].effects = [{key: "Revamp", name: "Revamp", enabled: true, ref: "t2.fx1"}]
+        // Toned already: its Revamp low-passed where the template puts it (a flat strip Revamp isn't, see below).
+        after.tracks[1].effects = [{key: "Revamp", name: "Revamp", enabled: true, ref: "t2.fx1",
+            params: [{ref: "t2.fx1.lowPass/frequency", name: "Low-Pass Freq", value: 600, display: "600 Hz", min: 20, max: 20000, stepped: false}]}]
         const like = (ref: string, name: string, notes: Array<[string, number, number, number]>) => ({...structuredClone(base.tracks[1]), ref, name,
             instrument: "Soundfont", device: {key: "Soundfont", name, enabled: true}, mix: {volume: -8, pan: 0, mute: false, solo: false},
             regions: [{...structuredClone(base.tracks[1].regions[0]), notes}]})

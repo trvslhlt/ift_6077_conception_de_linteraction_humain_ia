@@ -1279,8 +1279,16 @@ export class Coordinator {
         if (Math.abs(track.mix.volume - move.level_db) > 0.5) {
             results.push(step({op: "ramp", ref: `${track.ref}.mix.volume`, to: move.level_db, beats: over}, `${track.name} to ${move.level_db} dB`))
         }
+        // Its instrument's settings (the lofi Cubed's filter), each gliding there; a stepped one (a waveform) steps.
+        for (const {param, value} of move.settings ?? []) {
+            results.push(step({op: "ramp", ref: `${track.ref}.in.${param}`, to: value, beats: over}, `${track.name}'s ${param} to ${value}`))
+        }
         const tone = move.tone
-        if (tone !== undefined) {
+        // Its strip's Revamp, toned where it is (every playing part has one, flat, strips.ts).
+        if (tone !== undefined && move.revamp !== undefined) {
+            results.push(step({op: "ramp", ref: `${move.revamp}.lowPass/frequency`, to: tone.high_cut, beats: over}, `${track.name} low-passed to ${tone.high_cut} Hz`))
+            results.push(step({op: "ramp", ref: `${move.revamp}.highPass/frequency`, to: tone.low_cut, beats: over}, `${track.name} high-passed at ${tone.low_cut} Hz`))
+        } else if (tone !== undefined) {
             results.push(step({op: "add_effect", track: track.ref, device: "Revamp", factory: "Revamp", settings: [
                 {param: "highPass/enabled", value: 1}, {param: "highPass/frequency", value: 20},
                 {param: "lowPass/enabled", value: 1}, {param: "lowPass/frequency", value: 20000}]}, `${track.name}: a Revamp, open`, added => {
