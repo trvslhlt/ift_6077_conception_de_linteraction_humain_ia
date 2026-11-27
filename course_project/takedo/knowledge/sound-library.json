@@ -3719,7 +3719,7 @@
    ],
    "tuning": {
     "level_db": -6,
-    "octave": 0,
+    "octave": -1,
     "register": null,
     "tone": {
      "low_cut": 20,
@@ -3729,10 +3729,20 @@
    },
    "tags": [
     "sub",
-    "trap"
+    "trap",
+    "lofi"
    ],
    "note": "",
-   "t": 1795676170145
+   "t": 1795800938415,
+   "styles": [
+    "boombap",
+    "jazz",
+    "house"
+   ],
+   "moods": [
+    "warm",
+    "vintage"
+   ]
   },
   "HS TB-303/TB303 SQR-2": {
    "verdict": "kept",
