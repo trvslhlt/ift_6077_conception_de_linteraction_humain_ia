@@ -427,13 +427,12 @@ input.takedo-dial:active::-webkit-slider-thumb { cursor: grabbing; background: r
         for (const control of controls) {
             const element = (widgets[control.widget] ?? dial)(control)
             if (control.group === undefined) {drawn.push(element); continue}
-            let panel = panels.get(control.group)
-            if (panel === undefined) {
-                panel = <div data-testid="takedo-control-panel" data-group={control.group} style={{border: "1px solid #444",
+            const panel: HTMLElement = panels.get(control.group) ?? <div data-testid="takedo-control-panel" data-group={control.group} style={{border: "1px solid #444",
                     borderRadius: "6px", padding: "0.35em 0.5em", display: "flex", flexWrap: "wrap", gap: "0.4em 0.6em", alignItems: "flex-start"}}>
                     <div style={{flexBasis: "100%", display: "flex", alignItems: "center", fontWeight: "bold"}}>
                         <span style={{opacity: "0.85"}}>{control.group}</span>{doneButtons(control)}</div>
-                </div>
+                </div> as HTMLElement
+            if (!panels.has(control.group)) {
                 panels.set(control.group, panel)
                 drawn.push(panel)
             }

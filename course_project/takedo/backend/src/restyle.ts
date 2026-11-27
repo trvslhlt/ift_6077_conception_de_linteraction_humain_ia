@@ -39,7 +39,9 @@ export type Template = { style: string, about: string, tempo: [number, number], 
 // The producer's rules, learned from their corrections in sessions (2026-11-26, the producer: apply them at once, but
 // only corrections, never the experimental, exploratory combinations): knowledge/rules.json, for one style or every one
 // (style null), about one role or the whole song (role null), with their words and the date.
-export type Rule = { style: string | null, role: TemplateRole | null, text: string, said: string, date: string }
+// not_sound: the sound the correction rejected for that style and part (2026-11-26, the producer: "that harmonica sound is
+// horrible for hip hop", the boombap template's Muted Trumpet; the rule alone left the template playing it next time).
+export type Rule = { style: string | null, role: TemplateRole | null, text: string, said: string, date: string, not_sound?: string }
 export const loadRules = (path: string): Rule[] =>
     existsSync(path) ? (JSON.parse(readFileSync(path, "utf8")) as { rules: Rule[] }).rules : []
 export const rulesFor = (path: string, styles: ReadonlyArray<string>): Rule[] =>
@@ -76,6 +78,24 @@ export const loadTemplates = (dir: string): Map<string, Template> => {
         templates.set(template.style, template)
     }
     return templates
+}
+
+// A template whose part plays a sound a rule rejects gets another (pick: the library's best for the role and style, never
+// a rejected one); the template on disk stays as it is until the producer approves a fix (learnPart).
+export const withoutRejected = (template: Template, rules: ReadonlyArray<Rule>,
+                                pick: (role: TemplateRole, avoid: string[]) => string | null): Template => {
+    const parts = {...template.parts}
+    const notes: string[] = []
+    for (const [role, spec] of Object.entries(parts) as Array<[TemplateRole, PartSpec]>) {
+        const avoid = rules.filter(rule => rule.style === template.style && rule.role === role && rule.not_sound !== undefined)
+            .map(rule => rule.not_sound!)
+        if (spec.sound === undefined || !avoid.includes(spec.sound)) {continue}
+        const other = pick(role, avoid)
+        parts[role] = other === null ? {...spec, sound: undefined, keep: true} : {...spec, sound: other}
+        notes.push(`its ${role} is ${other ?? "the song's own"}, never ${spec.sound} (the producer rejected it)`)
+    }
+    // Its description names the old sound ("a muted trumpet phrase on top"), and the Team Lead tells the producer from it.
+    return {...template, parts, ...(notes.length > 0 ? {about: `${template.about}; but ${notes.join("; ")}`} : {})}
 }
 
 // A part of the template made on a new track: the edit, its old part (null: a new part), and the level it ends at.

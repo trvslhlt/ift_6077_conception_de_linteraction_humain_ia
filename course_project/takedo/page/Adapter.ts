@@ -10,7 +10,7 @@ import {
     AudioBusBox, AudioRegionBox, AudioUnitBox, AuxSendBox, MaximizerDeviceBox, NoteEventBox, NoteRegionBox, TrackBox, ValueEventBox, ValueEventCollectionBox, ValueRegionBox
 } from "@opendaw/studio-boxes"
 import {AudioSendRouting, AudioUnitType, IconSymbol} from "@opendaw/studio-enums"
-import {EffectFactories, type EffectFactory, type Project, RegionClipResolver} from "@opendaw/studio-core"
+import {EffectFactories, type EffectFactory, type Project, RegionClipResolver, StudioPreferences} from "@opendaw/studio-core"
 import type {
     Actor, AddEffectPlan, Apply, BackendToPage, Change, Content, Detail, Device, FailReason, Note, ParamState, Playback, Region,
     RemoveEffectPlan, ScriptPlan, SendPlan, Snapshot, Status, Track
@@ -178,12 +178,33 @@ export class Adapter implements Terminable {
         window.addEventListener("error", onError)
         window.addEventListener("unhandledrejection", onError)
         this.#terminator.own({terminate: () => {window.removeEventListener("error", onError); window.removeEventListener("unhandledrejection", onError)}})
+        // openDAW stops playback on a CPU overload or repeated audio dropouts (its "stop playback when overloading"): it puts
+        // the engine to sleep, which then keeps reporting its last state, playing at a frozen playhead, with no audio and
+        // no notice the page or the backend saw (2026-11-26: two stalls, 6 to 7 minutes into a long jam, CPU 0%, the page
+        // drawing at 60 fps). In a live set a moment's glitch beats a stop, so TakeDo turns that off, and each overload,
+        // and any sleep, goes to the session log.
+        StudioPreferences.settings.engine["stop-playback-when-overloading"] = false
+        let asleep: string | null = null
+        const sleep = project.engine.sleep.bind(project.engine)
+        project.engine.sleep = () => {
+            asleep = `${this.#pos(project.engine.position.getValue())} (CPU load ${Math.round(project.engine.cpuLoad.getValue())}%)`
+            this.#connection.send({type: "engine_health", state: "overload", detail: `the engine was put to sleep at ${asleep}`})
+            sleep()
+        }
+        const overload = project.handleCpuOverload.bind(project)
+        project.handleCpuOverload = () => {
+            this.#connection.send({type: "engine_health", state: "overload",
+                detail: `CPU overload at ${this.#pos(project.engine.position.getValue())} (CPU load ${Math.round(project.engine.cpuLoad.getValue())}%; playback goes on)`})
+            overload()
+        }
+        this.#terminator.own({terminate: () => {project.engine.sleep = sleep; project.handleCpuOverload = overload}})
+        const stats = (audio as AudioContext & { playbackStats?: { underrunEvents: number } }).playbackStats
         let ticks = 0
         const timer = setInterval(() => {
             // Every few seconds, what the page and the engine's output were doing (Meter.ts), for the session log.
             if (++ticks % HeartbeatSeconds === 0) {
                 this.#connection.send({type: "heartbeat", pos: this.#pos(project.engine.position.getValue()), playing: project.engine.isPlaying.getValue(),
-                    cpu: Math.round(project.engine.cpuLoad.getValue() * 100), audio: audio.state, ...beat()})
+                    cpu: Math.round(project.engine.cpuLoad.getValue()), audio: audio.state, underruns: stats?.underrunEvents ?? null, ...beat()})
             }
             const dialog = [...document.querySelectorAll<HTMLElement>("dialog, [role=dialog]")]
                 .find(element => element.innerText?.startsWith("Audio-Engine Error"))
@@ -191,7 +212,7 @@ export class Adapter implements Terminable {
             stuck = playing && position === last ? stuck + 1 : 0
             if (stuck <= 1) {audioAtStuck = audio.currentTime}
             last = position
-            const cpu = `CPU load ${Math.round(project.engine.cpuLoad.getValue() * 100)}%`
+            const cpu = `CPU load ${Math.round(project.engine.cpuLoad.getValue())}%; ${asleep === null ? "the engine wasn't put to sleep" : `the engine put to sleep at ${asleep}`}`
             if (dialog !== undefined && state !== "crashed") {send("crashed", `${dialog.innerText.slice(0, 300)} (${cpu})`)}
             else if (dialog === undefined && stuck >= StallSeconds && state === "ok") {
                 // Which side stopped: the engine's state channel's flag (EngineState.ts), and the page's repair if it's the page's.

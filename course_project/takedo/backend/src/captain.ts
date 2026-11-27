@@ -405,7 +405,7 @@ export class Captain {
                     .describe("direct: the parameters it sets, each from its from to its to across the control (several make a macro)"),
                 meaning: z.string().describe("What moving or pressing it should change, for yourself later: what changes, between which settings"),
                 value: z.number().min(0).describe("Where it starts: a dial or switch where the direction you just assigned takes the project once it has landed, not how far it has got yet (asked for a lush lofi beat on a lofi dial: near 1); a choice, its option's index; a button, 0; a direct control, where its parameters are now"),
-                before: z.number().min(0).max(1).optional().describe("An intent dial or switch for a direction you just assigned: where the project was before it, on this control (a lofi dial for a beat that wasn't lofi: 0). Its take is kept there, and moving the dial to it brings that project back: so its low end names what the song was (\"original\", \"acid house\"), never a lighter version of the direction (2026-11-26: a \"Lush\" dial, dry to lush, whose 0 was the song before the lofi change: moved to dry, the old drums came back)")},
+                before: z.number().min(0).max(1).optional().describe("An intent dial or switch for a direction you just assigned: where the project was before it, on this control (a lofi dial for a beat that wasn't lofi: 0). Its take is kept there, and moving the dial to it brings that project back: so its low end names what the song was (\"original\", \"acid house\"), never a lighter version of the direction (2026-11-26: a \"Lush\" dial, dry to lush, whose 0 was the song before the lofi change: moved to dry, the old drums came back). Leave it out when the project before isn't a point on the dial's line: a sparse-to-busy dial for a new melody (no melody isn't \"sparse\"); its moves then come to you")},
                 handler(async (current, input) => {
                     const ref = `c:${String(input.name)}`
                     const widget = input.widget as Control["widget"]
@@ -429,8 +429,10 @@ export class Captain {
                     current.context.ledger.dial(ref, current.direction.id)
                     // An intent dial's or switch's other end: the project before this direction, kept as a take.
                     if (kind !== "intent" || (widget !== "dial" && widget !== "switch") || current.before === undefined) {return said}
-                    const before = input.before !== undefined && Number.isFinite(Number(input.before)) ? Math.min(1, Math.max(0, Number(input.before)))
-                        : placed.value >= 0.5 ? 0 : 1
+                    // Only where it's given (2026-11-26: a "Lead busy" dial, sparse to busy, for a new melody, kept the project
+                    // without it at "busy", guessed from its value: turned toward busy, the lead faded out).
+                    if (input.before === undefined || !Number.isFinite(Number(input.before))) {return said}
+                    const before = Math.min(1, Math.max(0, Number(input.before)))
                     const id = await current.context.keepTake(ref, before, "the project before this direction", current.before)
                     return id === null ? said : `${said} Kept the project before this direction as take ${id}.`
                 })),
@@ -450,6 +452,7 @@ export class Captain {
                 role: z.enum(["drums", "bass", "chords", "lead", ""]).describe("The part it's about; \"\" for the whole song or the master"),
                 rule: z.string().describe("What to do from now on, as an instruction for any worker: \"lofi keys are a Rhodes held as a pad, soft attack, never short hits\""),
                 said: z.string().describe("The producer's own words this comes from, quoted exactly from their messages; several joined by \" / \""),
+                not_sound: z.string().optional().describe("When the correction rejects the sound a part plays (\"that harmonica sound is horrible\"): that part's sound id, read from the project (its instrument, as the sounds tool names it: \"GeneralUser GS/Muted Trumpet\"), whatever the producer called it. The style's template then never plays it for that part"),
                 part: z.object({sound: z.string().optional().describe("A sound id"), low: z.number().int().optional(), high: z.number().int().optional(),
                     rhythm: z.enum(["hold", "as played"]).optional(), velocity: z.number().optional(),
                     level_db: z.number().optional().describe("The part's level as the fix left it (the project's volume_db)"),
@@ -465,7 +468,8 @@ export class Captain {
                         ...(part.low_cut !== undefined || part.high_cut !== undefined ? {tone: {low_cut: part.low_cut ?? 20, high_cut: part.high_cut ?? 20000}} : {}),
                         ...(part.low !== undefined && part.high !== undefined ? {range: [part.low, part.high] as [number, number]} : {})}
                     return current.context.learn({style: input.style === "" ? null : String(input.style), role: input.role === "" ? null : input.role as "drums",
-                        text: String(input.rule), said: String(input.said), date: new Date().toISOString().slice(0, 10)}, change)
+                        text: String(input.rule), said: String(input.said), date: new Date().toISOString().slice(0, 10),
+                        ...(typeof input.not_sound === "string" && input.not_sound !== "" ? {not_sound: input.not_sound} : {})}, change)
                 })),
             tool("style_mix", "Give the project a style's mix, by code: each part's pan, and how much it sends into a shared reverb and delay set up for that style (made the first time), by what it plays (drums, perc, bass, chords, pad, lead). It goes on once this direction's parts have landed, so new parts get their place too, every change gliding. Call it after assigning a style direction's pieces; it's cheaper and more consistent than an effects piece for the space and placement.", {
                 style: z.enum(Styles as [string, ...string[]]).describe("The style whose mix this is: the nearest to the producer's")},

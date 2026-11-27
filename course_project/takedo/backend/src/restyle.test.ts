@@ -6,7 +6,7 @@ import {describe, it} from "node:test"
 import type {Snapshot} from "../../shared/protocol.ts"
 import {loadCatalog} from "./catalog.ts"
 import {loadKnowledge} from "./knowledge.ts"
-import {addRule, held, intoRange, learnPart, loadRules, loadTemplates, restyleMoves, rulesFor, TemplateRoles} from "./restyle.ts"
+import {addRule, held, intoRange, learnPart, loadRules, loadTemplates, restyleMoves, rulesFor, TemplateRoles, withoutRejected} from "./restyle.ts"
 import {loadSamples} from "./samples.ts"
 
 // Style templates (restyle.ts) on the lofi scenario's starting project (01_good_base: a TR-808 loop and a Cubed acid line,
@@ -129,5 +129,26 @@ describe("style templates", () => {
     })
     it("the knowledge base's rules file reads", () => {
         assert.ok(loadRules(join(Takedo, "knowledge", "rules.json")).length >= 3)
+    })
+})
+
+describe("a sound the producer rejected", () => {
+    const template = {style: "boombap", about: "", tempo: [85, 95] as [number, number], master: "",
+        parts: {lead: {sound: "GeneralUser GS/Muted Trumpet", level_db: -15}, bass: {sound: "GeneralUser GS/Acoustic Bass"}}}
+    const rule = {style: "boombap", role: "lead" as const, text: "no harmonica tones", said: "that harmonica sound is horrible for hip hop",
+        date: "2026-11-26", not_sound: "GeneralUser GS/Muted Trumpet"}
+    it("isn't played for that style's part: another one is, the part's other settings kept", () => {
+        const asked: string[][] = []
+        const changed = withoutRejected(template, [rule], (role, avoid) => {asked.push([role, ...avoid]); return "GeneralUser GS/Vibraphone"})
+        assert.deepEqual(changed.parts.lead, {sound: "GeneralUser GS/Vibraphone", level_db: -15})
+        assert.deepEqual(changed.parts.bass, template.parts.bass)
+        assert.deepEqual(asked, [["lead", "GeneralUser GS/Muted Trumpet"]])
+        assert.match(changed.about, /lead is GeneralUser GS\/Vibraphone, never GeneralUser GS\/Muted Trumpet/)
+        assert.equal(template.parts.lead.sound, "GeneralUser GS/Muted Trumpet")
+    })
+    it("leaves other styles, and a rule without a sound, alone; keeps the song's own part when nothing else fits", () => {
+        assert.deepEqual(withoutRejected({...template, style: "jazz"}, [rule], () => "x").parts, template.parts)
+        assert.deepEqual(withoutRejected(template, [{...rule, not_sound: undefined}], () => "x").parts, template.parts)
+        assert.equal(withoutRejected(template, [rule], () => null).parts.lead?.keep, true)
     })
 })

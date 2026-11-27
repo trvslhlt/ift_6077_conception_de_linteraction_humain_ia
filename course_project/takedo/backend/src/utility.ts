@@ -391,6 +391,9 @@ export class Utility implements Member {
                     const text = String(input.text).trim()
                     const problem = replyProblem(text)
                     if (problem !== null) {return reply(`Not sent: ${problem}. Call reply again.`)}
+                    // A failure the model hasn't heard yet: it would report done what didn't land.
+                    const late = current.work.late.splice(0)
+                    if (late.length > 0) {return reply(`Not sent: since then, failed: ${late.join("; ")}. Fix it, or say in your reply it didn't land. Call reply again.`)}
                     current.said = text
                     return reply("Sent. End your turn now.")
                 }),
@@ -938,23 +941,23 @@ export class Utility implements Member {
     // playhead and the edits keep their spacing. Resolves with the edit's result if it ends at once, else as soon as it's
     // scheduled or under way; a later failure goes to work.late, for the model's next tool result or the producer.
     #start(work: Work, edit: (onStatus: (status: Status) => void) => Promise<string>): Promise<string> {
-        let waiting = true, failed = false
+        // told: the model was answered "scheduled" (the first status wins the race), so a failure after it is late, even one
+        // in the same moment (2026-11-26: a script scheduled and failed at once; the worker heard only "scheduled" and
+        // reported the swap done).
+        let told = false, failed = false
         let started: (text: string) => void = () => {}
         const early = new Promise<string>(resolve => {started = resolve})
         const finished = edit(status => {
             // A cancelled step isn't a failure: it was taken back on purpose.
             if (status.state === "failed" || (status.state === "dropped" && status.reason !== "cancelled")) {failed = true}
-            if (status.state === "scheduled") {started(`Scheduled, lands at ${status.landsAt ?? "the bar you chose"}; you'll hear back only if it fails. Go on.`)}
-            if (status.state === "running") {started("Under way; you'll hear back only if it fails. Go on.")}
+            if (!told && status.state === "scheduled") {told = true; started(`Scheduled, lands at ${status.landsAt ?? "the bar you chose"}; you'll hear back only if it fails. Go on.`)}
+            if (!told && status.state === "running") {told = true; started("Under way; you'll hear back only if it fails. Go on.")}
         }).then(text => {
-            if (failed && !waiting) {work.late.push(text)}
+            if (failed && told) {work.late.push(text)}
             return text
         })
         work.pending.push(finished)
-        return Promise.race([early, finished]).then(text => {
-            waiting = false
-            return text
-        })
+        return Promise.race([early, finished])
     }
 
     // A fixed operation, borrowed: a lookup answers at once; anything else becomes the owner's step on a fresh

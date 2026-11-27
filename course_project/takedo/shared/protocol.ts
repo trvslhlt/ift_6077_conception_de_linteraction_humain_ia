@@ -210,10 +210,10 @@ export type PageToBackend =
     // playing, or openDAW's crash dialog showed; detail: what the page saw (the dialog's text, CPU load).
     // page_error: an uncaught error on the page (logged only). One thrown in a frame callback that reads the engine's state
     // leaves its shared buffer mid-read for good, so the playhead stops while the audio plays on (a "stall").
-    | { type: "engine_health", state: "stalled" | "crashed" | "recovered" | "page_error", detail: string }
+    | { type: "engine_health", state: "stalled" | "crashed" | "recovered" | "page_error" | "overload", detail: string }
     // Every few seconds (page/Meter.ts): the engine's output (peak, samples at full scale, NaNs), frames drawn and the
     // longest gap, long tasks, the tab's visibility, the JS heap; for the session log.
-    | { type: "heartbeat", pos: string, playing: boolean, cpu: number, audio: string, frames: number, longestFrameMs: number,
+    | { type: "heartbeat", pos: string, playing: boolean, cpu: number, audio: string, underruns: number | null, frames: number, longestFrameMs: number,
         visible: boolean, peak: number, clipped: number, nan: number, heapMb: number | null, longTasks: number, longestTaskMs: number }
 
 export type BackendToPage =

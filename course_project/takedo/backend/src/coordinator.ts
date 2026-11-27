@@ -28,7 +28,7 @@ import {MaxControls, MaxTotalControls, memberActor, type MemberName, MemberNames
 import {auditionPhrase, drumAudition, padRole} from "./library.ts"
 import {soundsAgainst} from "./soundFit.ts"
 import {join} from "node:path"
-import {addRule, learnPart, loadTemplates, type Move, type PartSpec, restyleMoves, type Rule, rulesFor, type Template, type TemplateRole, templateText} from "./restyle.ts"
+import {addRule, learnPart, loadRules, loadTemplates, type Move, type PartSpec, restyleMoves, type Rule, rulesFor, type Template, type TemplateRole, templateText, withoutRejected} from "./restyle.ts"
 
 // The backend half of the bus (TAKEDO_API.md, "Overview"), one per connected page: claims, plans, chat, routing.
 // Talks to the page's adapter for state (snapshot queries) and to apply plans.
@@ -279,7 +279,7 @@ export class Coordinator {
                 // With what came just before: the last changes, by hand or by agents (the session's riding of a tremolo).
                 const recent = this.#recentChanges.slice(-12)
                 this.#log.write("engine", {health: message.state, detail: message.detail, recent, beat: this.#lastBeat})
-                if (message.state === "recovered" || message.state === "page_error") {return}
+                if (message.state === "recovered" || message.state === "page_error" || message.state === "overload") {return}
                 const text = message.state === "crashed" ? "The audio engine crashed (openDAW is asking to restart it)."
                     : "The audio engine has stalled: the playhead stopped while playing."
                 this.say("agent:team_lead", `${text} The last changes before it: ${recent.slice(-4).map(change => `${change.label} ${change.from} → ${change.to} (${change.actor.replace("agent:", "")})`).join("; ") || "none"}.`)
@@ -1033,8 +1033,22 @@ export class Coordinator {
     }
 
     // Style templates (restyle.ts), read again each time, so a rule learned in this session applies at once.
+    // A part whose sound a rule rejects plays the library's best other one for its role and style (withoutRejected).
     templates(): Map<string, Template> {
-        return loadTemplates(join(KnowledgeDir, "style"))
+        const rules = loadRules(join(KnowledgeDir, "rules.json"))
+        const library = this.#knowledge?.library ?? null, sounds = this.#knowledge?.samples?.sounds ?? []
+        const roles: Record<TemplateRole, SoundRole> = {drums: "drums", bass: "bass", chords: "keys", lead: "lead"}
+        return new Map([...loadTemplates(join(KnowledgeDir, "style"))].map(([style, template]) => [style, withoutRejected(template, rules,
+            (role, avoid) => {
+                if (library === null) {return null}
+                const ranked = sounds.filter(sound => !avoid.includes(sound.id))
+                    .map(sound => ({sound, rank: library.rank(sound, roles[role], style as Genre)}))
+                    // Only one for both the role and the style (library.ts's tiers 0 and 1): past those the library offers
+                    // anything (a boombap lead: a soprano sax, a clarinet, the reedy tone rejected), so the song's own part stays.
+                    .filter((entry): entry is { sound: typeof entry.sound, rank: number } => entry.rank !== null && entry.rank <= 1)
+                    .sort((a, b) => a.rank - b.rank)
+                return ranked[0]?.sound.id ?? null
+            })]))
     }
 
     // The producer's rules for these styles and every style (restyle.ts), read again each time.
@@ -1045,6 +1059,10 @@ export class Coordinator {
     // A correction learned (the Team Lead's learn): the rule kept at once, and a template's part changed when a fix the
     // producer approved changed it. The event goes in the session log.
     learn(rule: Rule, part: Partial<PartSpec> | null): string {
+        if (rule.not_sound !== undefined) {
+            if (rule.style === null || rule.role === null) {return "Not learned: a rejected sound needs its style and role."}
+            if (this.#knowledge?.samples?.sound(rule.not_sound) === null) {return `Not learned: no sound ${rule.not_sound} (ids as the sounds tool gives them).`}
+        }
         if (part !== null) {
             if (rule.style === null || rule.role === null) {return "Not learned: a part change needs its style and role."}
             if (part.sound !== undefined && this.#knowledge?.samples?.sound(part.sound) === null) {return `Not learned: no sound ${part.sound} (ids as the sounds tool gives them).`}
