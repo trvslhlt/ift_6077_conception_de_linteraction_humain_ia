@@ -40,8 +40,6 @@ export class Takes {
         return take
     }
 
-    // Whether a dial has a take at all (its 0 end kept: its first move keeps the other and glides between them).
-    has(control: string): boolean {return this.#takes.some(take => take.control === control)}
 
     get(id: string): Take | null {return this.#takes.find(take => take.id === id) ?? null}
 

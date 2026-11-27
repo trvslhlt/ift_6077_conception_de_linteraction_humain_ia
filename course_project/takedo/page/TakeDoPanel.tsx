@@ -199,7 +199,22 @@ export const TakeDoPanel = ({lifecycle, service, visible}: Construct): HTMLEleme
     // Not everything is a slider: a dial (a range between its ends), a switch (two states), a choice (a few options) or
     // a button (a press). An intent control's release, flip, pick or press is sent to its owner; a direct one also sets
     // the parameters it's bound to as the producer's own hand while it moves (one undo step a gesture).
-    const send = (control: Control, value: number): void => connection.send({type: "control", ref: control.ref, value})
+    // A direct control's move is the producer's own edit, not a request, so it's put in the activity too (2026-11-27, the
+    // producer: the swing dial's change wasn't in the activity log), once a gesture ends.
+    const send = (control: Control, value: number): void => {
+        connection.send({type: "control", ref: control.ref, value})
+        if (control.kind === "direct") {showHand(control, value)}
+    }
+    const showHand = (control: Control, value: number): void => {
+        const where = control.widget === "switch" ? (value >= 0.5 ? control.high : control.low)
+            : `${Math.round(value * 100)}% (${control.low} to ${control.high})`
+        activityList.prepend(<li data-hand={control.ref} data-agent="producer" data-decided="producer">
+            <span title="your hand: set at once by code" style={{cursor: "default"}}>⚡</span>{" "}
+            <span style={{color: "#8fd18f", fontWeight: "bold"}}>●</span> <span style={{opacity: "0.7"}}>You</span>
+            {" · "}{control.label}: {where}
+        </li>)
+        while (activityList.children.length > MaxActivity) {activityList.lastElementChild?.remove()}
+    }
     const direct = (control: Control, value: number, mark: boolean): void => {
         const adapter = handle.adapter
         if (control.kind !== "direct" || adapter === null) {return}

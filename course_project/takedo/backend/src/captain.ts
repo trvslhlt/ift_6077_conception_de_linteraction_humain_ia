@@ -79,7 +79,7 @@ export type Turn = { kind: "producer_message" | "control_moved", text: string, h
 // revising: a job this turn cancelled while it was planning; the pieces assigned after it join its plan.
 // before: the project, fully, as the producer's turn began (a take of it is kept if the turn offers a new dial).
 type Current = { context: Coordinator, turn: Turn, direction: Direction, anchor: Anchor | null, calls: number, said?: string, revising?: string,
-    before?: Promise<Snapshot | null> }
+    before?: Promise<Snapshot | null>, pressed?: boolean }
 
 const text = (value: string): CallToolResult => ({content: [{type: "text", text: value}]})
 const anchorOf = (snapshot: Snapshot): Anchor | null => snapshot.playback.position === undefined ? null
@@ -501,6 +501,12 @@ export class Captain {
                     const said = String(input.text).trim()
                     const problem = replyProblem(said)
                     if (problem !== null) {return `Not sent: ${problem}. Call reply again.`}
+                    // A control's move answered with nothing done (2026-11-27: "The TR-808 now plays noticeably shuffled", a
+                    // reply its only call): asked once to act on it, or to say plainly that nothing changed.
+                    if (current.turn.kind === "control_moved" && current.calls === 1 && current.pressed !== true) {
+                        current.pressed = true
+                        return "Not sent: you've done nothing for this move yet. Act on it as its meaning says (assign the piece, recall a take), or, if nothing needs changing, say so plainly without claiming a change. Call reply again."
+                    }
                     current.said = said
                     return "Sent. End your turn now."
                 }))

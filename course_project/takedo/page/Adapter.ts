@@ -379,7 +379,8 @@ export class Adapter implements Terminable {
                 ref, name: unit.label, kind: unit.isBus ? "bus" : unit.isInstrument ? "notes" : "audio",
                 instrument: unit.inputAdapter.mapOr(input => deviceKey(input.box), null),
                 device: unit.inputAdapter.mapOr(input => ({...describe(input), ...content(input)}), null),
-                midiEffects: unit.midiEffects.mapOr(effects => effects.adapters().map(describe), []),
+                midiEffects: this.#midiEffects(unit).map(effect => ({...describe(effect.adapter), ref: effect.ref,
+                    params: this.#allParams().filter(param => param.ref.startsWith(`${effect.ref}.`)).map(param => this.#state(param))})),
                 effects: this.#effectsOf(unit),
                 mix: {
                     volume: this.#now(unit.namedParameter.volume), pan: this.#now(unit.namedParameter.panning),
@@ -1470,6 +1471,18 @@ export class Adapter implements Terminable {
         })
     }
 
+    // A track's MIDI effects (t1.mfx1, by their place in the chain), each with the boxes its parameters are in: its own,
+    // and a Zeitgeist's groove ("groove/"), which it points to.
+    #midiEffects(unit: AudioUnitBoxAdapter): Array<{ ref: string, label: string, adapter: DeviceBoxAdapter, boxes: Array<[string, Box]> }> {
+        const track = this.#trackRef(unit)
+        return unit.midiEffects.mapOr(effects => effects.adapters(), []).map((adapter, index) => {
+            const groove = (adapter.box as unknown as { groove?: { targetVertex: { nonEmpty(): boolean, unwrap(): { box: Box } } } }).groove
+            const boxes: Array<[string, Box]> = [["", adapter.box]]
+            if (groove?.targetVertex?.nonEmpty()) {boxes.push(["groove/", groove.targetVertex.unwrap().box])}
+            return {ref: `${track}.mfx${index + 1}`, label: `${this.#trackLabel(unit)} › ${adapter.labelField.getValue()}`, adapter, boxes}
+        })
+    }
+
     // Every parameter agents can write: each channel's mix controls and every audio effect's automatable parameters,
     // by their path in the box (as the catalog lists them).
     #allParams(): ReadonlyArray<Param> {
@@ -1492,13 +1505,23 @@ export class Adapter implements Terminable {
                     }]
                 }))
             })
+            // A MIDI effect's too, and a Zeitgeist's groove's, which lives in a box of its own (2026-11-27, the producer:
+            // swing is just a change of Zeitgeist's groove, so the swing dial is bound to it: t1.mfx1.groove/amount).
+            const midi = this.#midiEffects(unit).flatMap(effect => effect.boxes.flatMap(([prefix, box]) =>
+                primitives(box.fields()).flatMap(field => parameterFieldAdapters.opt(field.address).match({
+                    none: () => [],
+                    some: parameter => [{
+                        ref: `${effect.ref}.${prefix}${box.mapFields(field => field.fieldName, ...field.address.fieldKeys).join("/")}`,
+                        label: `${effect.label} › ${prefix}${parameter.name}`, parameter
+                    }]
+                }))))
             // Sends by their return bus's name (t2.send.Reverb.gain): a send a plan makes has that ref before it's made.
             const sends = unit.auxSends.adapters().flatMap(send => {
                 const bus = this.#sendBus(send)
                 return bus === "" ? [] : ([["gain", send.sendGain], ["pan", send.sendPan]] as const).map(([name, parameter]) =>
                     ({ref: `${ref}.send.${bus}.${name}`, label: `${label} › Send to ${bus} › ${parameter.name}`, parameter: parameter as AutomatableParameterFieldAdapter}))
             })
-            return [...mix, ...effects, ...sends]
+            return [...mix, ...effects, ...midi, ...sends]
         })
         return this.#params
     }

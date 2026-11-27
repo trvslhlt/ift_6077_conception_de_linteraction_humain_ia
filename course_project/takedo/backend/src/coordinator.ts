@@ -60,7 +60,7 @@ const TweakDials: Partial<Record<string, string>> = {busier: "Busy", sparser: "S
 const MaxOptions = 6
 const Pressed = -1                                  // a button's "was" in #moved: never its value, so a press is always news
 // A parameter a direct control may set: a track's or the master's mix control, or an effect's parameter.
-const ParamRef = /^(t\d+|master)\.(mix\.(volume|pan|mute|solo)|fx\d+\.[A-Za-z0-9_./]+)$/
+const ParamRef = /^(t\d+|master)\.(mix\.(volume|pan|mute|solo)|m?fx\d+\.[A-Za-z0-9_./]+)$/      // mfx: a MIDI effect's (a Zeitgeist's groove)
 // A control's value as its widget has it: a switch on one of its two states, a choice on an option, a button at 0.
 const settled = (widget: Control["widget"], value: number, options?: ReadonlyArray<string>): number => {
     const clamped = Number.isFinite(value) ? value : 0
@@ -525,7 +525,7 @@ export class Coordinator {
         this.#send({type: "controls", controls: this.controls().map(control => {
             const track = trackOfControl(control)
             const out = track === null ? undefined : this.#muted.get(track)
-            const moves = control.kind === "direct" || ((control.widget === "dial" || control.widget === "switch") && this.#takes.has(control.ref)) ? "code" : "model"
+            const moves = control.kind === "direct" || ((control.widget === "dial" || control.widget === "switch") && this.#takes.ends(control.ref) !== null) ? "code" : "model"
             return {...control, moves, ...(out === undefined ? {} : {idle: `${out} is out`})}
         })})
     }
@@ -578,7 +578,7 @@ export class Coordinator {
         const bind = kind === "direct" ? (offered.bind ?? []).filter(({ref, from, to}) =>
             ParamRef.test(ref) && Number.isFinite(from) && Number.isFinite(to)) : undefined
         if (bind !== undefined && (bind.length === 0 || (widget !== "dial" && widget !== "switch"))) {
-            return "Not offered: a direct control is a dial or a switch, bound to at least one parameter (t2.mix.volume, t3.fx1.wet) with its from and to."
+            return "Not offered: a direct control is a dial or a switch, bound to at least one parameter (t2.mix.volume, t3.fx1.wet, t1.mfx1.groove/amount) with its from and to."
         }
         const control: Control = {ref: offered.ref, owner, kind, widget, label: offered.label, low: offered.low, high: offered.high,
             meaning: offered.meaning, value: settled(widget, existing?.widget === widget ? existing.value : offered.value, options),
@@ -711,9 +711,13 @@ export class Coordinator {
         const owner = memberOf(control.owner)
         if (control.owner !== captain.agent && owner === null) {return}
         const card = {agent: control.owner, name: owner === null ? captain.name : Members[owner].name}
+        // Between two takes that differ: two kept with nothing done between them (2026-11-27: a swing dial's takes at 0
+        // and 0.78 were the same project, its work landing only after) glide nowhere, so the move goes to its owner.
         const within = () => {
             const ends = this.#takes.ends(ref)
-            return ends !== null && control.value >= ends.lo.value - Edge && control.value <= ends.hi.value + Edge
+            if (ends === null || control.value < ends.lo.value - Edge || control.value > ends.hi.value + Edge) {return false}
+            const apart = recallOf(ends.hi.snapshot, ends.lo.snapshot)
+            return apart.scripts.length > 0 || apart.values.length > 0
         }
         const glide = () => {
             this.#moved.delete(ref)
@@ -1134,8 +1138,17 @@ export class Coordinator {
         if (drums !== undefined) {
             offer("conductor", [{ref: `c:${drums.ref}_in`, kind: "direct", widget: "switch", label: drums.name.slice(0, 30), low: "out", high: "in",
                 meaning: `The ${drums.name} dropped out or back in`, value: 1, bind: [{ref: `${drums.ref}.mix.mute`, from: 1, to: 0}]}])
-            offer("performer", [{ref: `c:${drums.ref}_swing`, kind: "intent", widget: "dial", label: `Swing: ${drums.name}`.slice(0, 30),
-                low: "as it plays", high: "shuffled", value: 0, meaning: `How swung the ${drums.name} plays: up from where it is asks the performer for more swing, in proportion`}])
+            // Swing is the drums' Zeitgeist groove amount (2026-11-27, the producer: "shouldn't swing just be an automation
+            // change on zeitgeist?"; an intent dial went to a model, a 20 s job, and its glides between takes did nothing):
+            // a direct dial on it, set at once by code. A drum part with no Zeitgeist keeps the intent dial.
+            const groove = drums.midiEffects.flatMap(effect => effect.key === "Zeitgeist" ? effect.params ?? [] : [])
+                .find(param => param.ref.endsWith(".groove/amount"))
+            offer("performer", [groove !== undefined
+                ? {ref: `c:${drums.ref}_swing`, kind: "direct", widget: "dial", label: `Swing: ${drums.name}`.slice(0, 30), low: "straight", high: "shuffled",
+                    value: Math.max(0, Math.min(1, (groove.value - groove.min) / (groove.max - groove.min))),
+                    meaning: `How swung the ${drums.name} plays: its groove's shuffle amount`, bind: [{ref: groove.ref, from: groove.min, to: groove.max}]}
+                : {ref: `c:${drums.ref}_swing`, kind: "intent", widget: "dial", label: `Swing: ${drums.name}`.slice(0, 30),
+                    low: "as it plays", high: "shuffled", value: 0, meaning: `How swung the ${drums.name} plays: up from where it is asks the performer for more swing, in proportion`}])
         }
         const panelOf = (devices: ReadonlyArray<Device>, where: string, keys: ReadonlyArray<string>) => devices
             .filter(device => device.enabled && keys.includes(device.key)).map(device => effectPanel(device, where))
