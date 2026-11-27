@@ -493,6 +493,17 @@ These are for the detailed design, whatever the shape:
   recall parks a leaving part as: faded out, then muted with instrument and effects disabled, notes kept; one coming
   back is re-enabled and unmuted at silence on the first bar line, then faded in. scenarios/takes.json checks both.
   Later: deleting parked parts nothing can bring back, once ownership says what can.
+- 2026-11-27, every muted part is parked, and what a default strip costs. The style changes, a worker's replaces and
+  the mute tool parked by muting alone, so the page now parks any track muted for 2 s (Adapter #watchParking:
+  instrument and the effects that were on switched off, outside the undo history; back on when unmuted by anyone,
+  ahead of an unmute that lands later; an effect the producer bypassed stays off). `make strip-bench`
+  (test/strip-bench.mjs, 16 Vaporisateur tracks, headless Chromium, 3 runs; a block is 2.67 ms): an instrument
+  0.045-0.05 ms a block; a Zeitgeist about 0 (noise); a Revamp EQ 0.008-0.017 ms; a compressor 0.014-0.022 ms; a
+  Dattorro reverb 0.01-0.025 ms. A strip of the three, 0.024-0.033 ms a track: 16 strips add 15-20% of a block.
+  Bypassed, the strip costs the same as on (bypass saves nothing in this engine). Parked (muted, instrument and
+  effects off) a track with four devices still costs 0.055 ms, about 60% of it playing; `make park-bench` today:
+  16 synth+reverb tracks 1.08 ms playing, 0.55 muted, 0.50 muted and disabled (the engine has changed since 11-24:
+  mute alone now saves most of what disabling did). So only deleting frees a parked part's cost.
 
 - 2026-11-24, ownership, cycle 1: recorded, nothing acts on it yet. The page says what an agent's script changed by
   comparing the project just before and after it (shared/touched.ts: values with what they replaced, notes per region,

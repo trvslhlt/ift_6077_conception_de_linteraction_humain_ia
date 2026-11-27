@@ -129,6 +129,11 @@ park-bench: build $(TYPES_DIR)/packages ## What a parked part costs the audio en
 	$(COMPOSE) build smoke
 	$(COMPOSE) run --rm -e TRACKS=$(or $(TRACKS),8) smoke node park-bench.mjs
 
+strip-bench: build $(TYPES_DIR)/packages ## What a default strip (Zeitgeist, EQ, compressor) on every track costs the audio engine: dry vs on vs bypassed vs a reverb each, then parked (TRACKS=16)
+	$(COMPOSE) up -d --wait studio backend
+	$(COMPOSE) build smoke
+	$(COMPOSE) run --rm -e SECONDS=$(or $(SECONDS),6) -e TRACKS=$(or $(TRACKS),16) smoke node strip-bench.mjs
+
 loop-probe: build $(TYPES_DIR)/packages ## Does widening the loop while playing freeze the engine headless? (no models)
 	$(COMPOSE) up -d --wait studio backend
 	$(COMPOSE) build smoke
