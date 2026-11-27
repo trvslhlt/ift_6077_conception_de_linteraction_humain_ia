@@ -60,6 +60,7 @@ server.on("upgrade", (request, socket, head) => {
 sockets.on("connection", (socket: WebSocket) => {
     const session = randomUUID()
     let coordinator: Coordinator | null = null
+    let sessionLog: SessionLog | null = null
     log("connected", {session})
     socket.on("message", data => {
         const message = decode<PageToBackend>(data.toString())
@@ -75,7 +76,7 @@ sockets.on("connection", (socket: WebSocket) => {
                     return
                 }
                 const stamp = new Date().toISOString().replace(/[:.]/g, "-")
-                const sessionLog = new SessionLog(join(SessionsDir, `${stamp}_${session.slice(0, 8)}`), session,
+                sessionLog = new SessionLog(join(SessionsDir, `${stamp}_${session.slice(0, 8)}`), session,
                     {protocol: ProtocolVersion, jev: gateway.available("fast_path")})
                 coordinator = new Coordinator(reply => send(socket, reply), gateway, catalog, sessionLog, NotebooksDir, source,
                     knowledge.size > 0 ? knowledge : null)
@@ -97,6 +98,7 @@ sockets.on("connection", (socket: WebSocket) => {
     })
     socket.on("close", () => {
         coordinator?.close()
+        sessionLog?.close()
         log("disconnected", {session})
     })
 })
