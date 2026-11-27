@@ -371,11 +371,16 @@ input.takedo-dial:active::-webkit-slider-thumb { cursor: grabbing; background: r
             if (step === 0) {return}
             event.preventDefault()
             set(value + step, control.kind === "direct")
+            if (control.kind === "direct") {handle.adapter?.gestureMark()}
             send(control, value)
         }
         // The hidden input moved by a keyboard or a scenario: the knob follows.
         input.oninput = () => set(Number(input.value) / 100, control.kind === "direct")
-        input.onchange = () => {set(Number(input.value) / 100, false); send(control, value)}
+        input.onchange = () => {
+            set(Number(input.value) / 100, false)
+            if (control.kind === "direct") {handle.adapter?.gestureMark()}
+            send(control, value)
+        }
         // The ends under the knob, not across the card.
         const element = shell(control, holder, true)
         element.style.minWidth = "4.5em"

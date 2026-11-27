@@ -102,6 +102,7 @@ export class Adapter implements Terminable {
     readonly #nextEffect = new Map<string, number>()           // track ref → its next effect number
     readonly #regionRefs = new Map<string, string>()           // region address → region ref, never reused
     readonly #held = new Set<string>()                          // parameter addresses the producer holds
+    readonly #hand = new Map<string, { parameter: AutomatableParameterFieldAdapter, at: ppqn, from: number, to: number }>() // a recorded gesture under way
     readonly #lastTouched = new Map<string, number>()           // ref → seq of its last change by someone else
     readonly #pending = new Map<string, Pending>()              // ref → gesture being folded
     #params: ReadonlyArray<Param> | null = null                 // cached until the project's structure changes
@@ -1173,13 +1174,15 @@ export class Adapter implements Terminable {
 
     // One value region on a parameter's lane (made if it has none), from `at` for `duration`: from → to, linear or a step.
     // back: a step to this value at the end (a parked effect's amount, set back once it's switched off).
-    #writeLane(request: Apply, parameter: AutomatableParameterFieldAdapter, at: ppqn, duration: ppqn, from: number, to: number,
+    // request null: the producer's hand (#handDone), not tagged as anyone's edit.
+    #writeLane(request: Apply | null, parameter: AutomatableParameterFieldAdapter, at: ppqn, duration: ppqn, from: number, to: number,
                linear: boolean, back?: number): boolean {
         const {editing, boxGraph, boxAdapters} = this.#project
         const unit = (value: number): number => parameter.valueMapping.x((isSwitch(parameter) ? value !== 0 : value) as never)
         const tracks = parameter.optTracks()
         if (tracks.isEmpty()) {return false}
-        return this.#tagged(request, () => editing.modify(() => {
+        const tagged = <R>(edit: () => R): R => request === null ? edit() : this.#tagged(request, edit)
+        return tagged(() => editing.modify(() => {
             const owner = tracks.unwrap()
             const track = owner.controls(parameter.field).unwrapOrElse(() =>
                 boxAdapters.adapterFor(owner.create(TrackType.Value, parameter.field), TrackBoxAdapter))
@@ -1190,7 +1193,7 @@ export class Adapter implements Terminable {
                 box.duration.setValue(duration)
                 box.loopDuration.setValue(duration)
                 box.hue.setValue(ColorCodes.forTrackType(TrackType.Value))
-                box.label.setValue(request.from === "agent:team_lead" ? "Team Lead" : "TakeDo")
+                box.label.setValue(request === null ? "Producer" : request.from === "agent:team_lead" ? "Team Lead" : "TakeDo")
                 box.events.refer(collection.owners)
                 box.regions.refer(track.box.regions)
             })
@@ -1296,11 +1299,45 @@ export class Adapter implements Terminable {
         const {parameter} = param
         const written = isSwitch(parameter) ? value >= 0.5
             : isStepped(parameter) ? Math.round(parameter.valueMapping.clamp(value)) : parameter.valueMapping.clamp(value)
+        // While recording, past openDAW's recorder, as the agents' writes are (#ramp): each parameter it records opens an
+        // automation region that grows every frame until stop (2026-11-27: a 15-minute recorded jam, each card dial the
+        // producer touched left one growing, ~1400 box updates every 5 s by the end, and the dropouts climbed with them,
+        // the engine's render flat; `make jam-probe EDITS=hand`). The hand is heard at once; in a loop-off jam it goes
+        // into the lane as one region when the gesture ends (#handDone), so the song keeps it in its place.
+        if (this.#project.engine.isRecording.getValue()) {
+            const key = parameter.address.toString()
+            if (!this.#hand.has(key)) {
+                this.#hand.set(key, {parameter, at: this.#project.engine.position.getValue(),
+                    from: numeric(this.valueAt(parameter, this.#project.engine.position.getValue())), to: numeric(written)})
+            }
+            this.#hand.get(key)!.to = numeric(written)
+            this.#project.editing.modify(() => parameter.field.setValue(written as never), mark)
+            if (mark) {this.#handDone()}
+            return true
+        }
         this.#project.editing.modify(() => parameter.setValue(written), mark)
         return true
     }
 
-    gestureMark(): void {this.#project.editing.mark()}
+    gestureMark(): void {
+        this.#handDone()
+        this.#project.editing.mark()
+    }
+
+    // A gesture made while recording, ended: in a loop-off jam, one value region on each touched parameter's lane, from
+    // where the hand took it to where it let go (linear, at least a sixteenth), so the take keeps it; else (loop on) the
+    // mixer's setting stays, as an agent's does.
+    #handDone(): void {
+        if (this.#hand.size === 0) {return}
+        const touched = [...this.#hand.values()]
+        this.#hand.clear()
+        if (!this.#onTimeline()) {return}
+        const now = this.#project.engine.position.getValue()
+        touched.forEach(({parameter, at, from, to}) => {
+            const start = Math.max(0, Math.min(at, now - PPQN.SemiQuaver))
+            this.#writeLane(null, parameter, start, Math.max(PPQN.SemiQuaver, now - start), from, to, !isSwitch(parameter) && !isStepped(parameter))
+        })
+    }
 
     // Whether a ref is a parameter that can be set (a direct control's binding).
     hasParam(ref: string): boolean {return this.#param(ref) !== null || this.#enabledOf(ref) !== null}

@@ -162,6 +162,19 @@ try {
                 }))
                 return `moved ${reverbs.length} reverbs`
             }
+            // EDITS=hand: from bar 3, every 4 s, the producer's hand dragging a direct control on a card (the panel's path:
+            // adapter.setAsProducer, unmarked writes between two marks) on the next part's volume, then let go (2026-11-27:
+            // a 15-minute recorded jam's box updates and dropouts climbed with each dial the producer touched).
+            if (edits === "hand") {
+                if (engine.position.getValue() < 2 * bar || second % 4 !== 0) {return null}
+                const {adapter} = window.takedo
+                const refs = [...adapter.snapshot().tracks.map(track => `${track.ref}.mix.volume`), "master.mix.volume"]
+                const ref = refs[(second / 4 - 1) % refs.length]
+                adapter.gestureMark()
+                for (let step = 0; step <= 10; step++) {adapter.setAsProducer(ref, -8 + step * 0.3, false)}
+                adapter.gestureMark()
+                return `hand on ${ref}`
+            }
             if (edits === "" || engine.position.getValue() < 15 * bar || second % 4 !== 0) {return null}
             const region = regions().find(region => region.optCollection?.nonEmpty?.())
             const did = []
@@ -180,12 +193,15 @@ try {
             })
             return did.join(", ")
         }
+        let revision = window.takedo.adapter.revision
         for (let second = 1; second <= seconds; second++) {
             await new Promise(resolve => setTimeout(resolve, 1000))
             const edited = edit(second)
+            const updates = window.takedo.adapter.revision - revision
+            revision = window.takedo.adapter.revision
             samples.push({label: `${second} s`, bar: Math.round(engine.position.getValue() / bar * 100) / 100 + 1,
                 playing: engine.isPlaying.getValue(), recording: engine.isRecording.getValue(),
-                length: timelineBox.durationInPulses.getValue() / bar, ends: ends(), ctx: Number(service.audioContext.currentTime.toFixed(1)), edited})
+                length: timelineBox.durationInPulses.getValue() / bar, ends: ends(), ctx: Number(service.audioContext.currentTime.toFixed(1)), updates, edited})
         }
         return samples
     }, [SECONDS, PROJECT !== "", process.env.EDITS ?? "", process.env.LOOP === "1", Number(process.env.RAMP_MS ?? 20), probeEffects,

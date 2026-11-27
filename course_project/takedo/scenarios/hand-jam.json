@@ -1,0 +1,11 @@
+{"//": "The producer's hand on the cards' dials in a recorded loop-off jam (2026-11-27, the producer's 15-minute session: each card dial touched while recording left openDAW's recorder growing an automation region every frame until stop, ~1400 box updates every 5 s by the end, and the dropouts climbed with them). The starter dials, moved and let go while recording: the heartbeats' updates should fall back to about nothing between moves, and each move sits in its lane.",
+ "project": "01_good_base.odb", "messages": [
+  {"loop": false},
+  {"record": "start"},
+  {"wait_ms": 4000},
+  {"control": "c:start_master_fx2_lowpass_frequency", "value": 0.6}, {"wait_ms": 6000},
+  {"control": "c:start_t1_fx1_crush", "value": 0.4}, {"wait_ms": 6000},
+  {"control": "c:start_master_fx2_lowpass_frequency", "value": 0.9}, {"wait_ms": 25000},
+  {"record": "stop"}
+ ]
+}
