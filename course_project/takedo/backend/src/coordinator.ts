@@ -1,7 +1,7 @@
 import {randomUUID} from "node:crypto"
 import {
     type Actor, type Apply, type Decided, type BackendToPage, type ChangeEvent, type Control, type Detail, type Device, type MemberCard, type PageToBackend,
-    type Plan, type Snapshot, type DrumPiece, type DrumTuning, type Genre, type SoundRole, type SoundTuning, type Status, target, type When
+    type Plan, type Snapshot, type Track, type DrumPiece, type DrumTuning, type Genre, type SoundRole, type SoundTuning, type Status, target, type When
 } from "../../shared/protocol.ts"
 import type {Catalog} from "./catalog.ts"
 import type {Gateway, ModelLog} from "./gateway.ts"
@@ -23,6 +23,7 @@ import {type Line, type Triage, triage, triageState} from "./triage.ts"
 import {Tweaks} from "./variants.ts"
 import {fastEffect, fastMix, SurePath, fastTweak} from "./fastpath.ts"
 import {Profiles, Styles, styleSteps} from "./mixProfiles.ts"
+import {HeavyShuffle, StraightGroove, stripPlans} from "./strips.ts"
 import {effectPanel, MaxGroup, plainName, slots} from "./panels.ts"
 import {MaxControls, MaxTotalControls, memberActor, type MemberName, MemberNames, Members, memberOf, TeamList} from "./team.ts"
 import {auditionPhrase, drumAudition, padRole} from "./library.ts"
@@ -760,6 +761,12 @@ export class Coordinator {
             ...(activity?.job !== undefined ? {job: activity.job} : {}), ...(activity?.step !== undefined ? {step: activity.step} : {}),
             says: request.plan.op === "script" ? request.plan.description : status.result?.label ?? request.plan.op, op: request.plan.op, touched}
         if (this.#ledger.record(entry)) {this.#log.write("activity", entry)}
+        // A part just made gets its strip, once its maker's other edits (its level, its notes) have had a moment.
+        const made = status.state === "applied" ? touched.tracks.filter(track => track.change === "added").map(track => track.ref) : []
+        if (made.length > 0) {
+            setTimeout(() => void this.snapshot("full").then(now => now === null ? 0
+                : this.#addStrips(now.tracks.filter(track => made.includes(track.ref)))).catch(error => this.#log.write("strip", {error: String(error)})), 3000)
+        }
     }
 
     // ---------- takes (takes.ts) ----------
@@ -1116,6 +1123,20 @@ export class Coordinator {
             ...assigned, mix, `The template:\n${templateText(template, this.rules([style]))}`].filter(line => line !== "").join("\n")
     }
 
+    // Each part's strip (strips.ts), added by code as the mix engineer's, one track at a time: what was added.
+    async #addStrips(tracks: ReadonlyArray<Track>): Promise<number> {
+        let added = 0
+        for (const track of tracks) {
+            for (const plan of stripPlans(track)) {
+                const says = plan.op === "script" ? plan.description : `${plan.op === "add_effect" ? plan.device === "Revamp" ? "EQ" : plan.device : ""} on ${track.name}, flat`
+                const result = await performStep(this, "agent:mix_engineer", {plan, when: {at: "asap"}, says, decided: {by: "code"}}, "the part's strip")
+                if (/not done/.test(result)) {this.#log.write("strip", {track: track.ref, result})} else {added++}
+            }
+        }
+        if (added > 0) {this.#log.write("board", {event: "strips", tracks: tracks.map(track => track.ref), added})}
+        return added
+    }
+
     // Controls the members have from the start (2026-11-26, the producer: maybe the members should already have
     // controls based on the project when it is loaded): offered by code from what the project has, each on the card of
     // the member who'd ride it: the conductor a switch for the drums, the performer a swing dial for them (a direction
@@ -1130,6 +1151,11 @@ export class Coordinator {
         }
         if (snapshot === null || this.#project !== project) {return}
         snapshot.tracks.filter(track => track.mix.mute).forEach(track => this.#muted.set(track.ref, track.name))
+        // The parts' strips first (strips.ts), so the controls below find them (the swing dial its Zeitgeist).
+        if (await this.#addStrips(snapshot.tracks) > 0) {
+            snapshot = await this.snapshot("full")
+            if (snapshot === null || this.#project !== project) {return}
+        }
         if (this.controls().length > 0) {return this.#sendControls()}
         const starter = (control: Omit<Control, "owner">): Omit<Control, "owner"> => ({...control, ref: control.ref.replace(/^c:/, Starter)})
         const offer = (member: MemberName, controls: Array<Omit<Control, "owner">>) => controls.forEach(control => this.offerControl(memberActor(member), starter(control)))
@@ -1144,9 +1170,10 @@ export class Coordinator {
             const groove = drums.midiEffects.flatMap(effect => effect.key === "Zeitgeist" ? effect.params ?? [] : [])
                 .find(param => param.ref.endsWith(".groove/amount"))
             offer("performer", [groove !== undefined
+                // From straight (0.5: below it pushes the off-beats early) to a heavy shuffle.
                 ? {ref: `c:${drums.ref}_swing`, kind: "direct", widget: "dial", label: `Swing: ${drums.name}`.slice(0, 30), low: "straight", high: "shuffled",
-                    value: Math.max(0, Math.min(1, (groove.value - groove.min) / (groove.max - groove.min))),
-                    meaning: `How swung the ${drums.name} plays: its groove's shuffle amount`, bind: [{ref: groove.ref, from: groove.min, to: groove.max}]}
+                    value: Math.max(0, Math.min(1, (groove.value - StraightGroove) / (HeavyShuffle - StraightGroove))),
+                    meaning: `How swung the ${drums.name} plays: its groove's shuffle amount`, bind: [{ref: groove.ref, from: StraightGroove, to: HeavyShuffle}]}
                 : {ref: `c:${drums.ref}_swing`, kind: "intent", widget: "dial", label: `Swing: ${drums.name}`.slice(0, 30),
                     low: "as it plays", high: "shuffled", value: 0, meaning: `How swung the ${drums.name} plays: up from where it is asks the performer for more swing, in proportion`}])
         }
