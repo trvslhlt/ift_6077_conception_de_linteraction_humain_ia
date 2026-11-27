@@ -1080,6 +1080,12 @@ export class Coordinator {
     // A correction learned (the Team Lead's learn): the rule kept at once, and a template's part changed when a fix the
     // producer approved changed it. The event goes in the session log.
     learn(rule: Rule, part: Partial<PartSpec> | null): string {
+        // A scenario's messages are scripted, not the producer's (2026-11-27: strip-moves' "the bass is muddy" taught a
+        // rule to high-pass every bass at 120-150 Hz): its project (`make scenario`: scenario-<name>) learns nothing.
+        if (this.#project?.startsWith("scenario-")) {
+            this.#log.write("board", {event: "not_learned", why: "scenario", rule})
+            return "Not learned: this is a scripted scenario, not the producer; act on the correction, but say nothing about remembering it."
+        }
         if (rule.not_sound !== undefined) {
             if (rule.style === null || rule.role === null) {return "Not learned: a rejected sound needs its style and role."}
             if (this.#knowledge?.samples?.sound(rule.not_sound) === null) {return `Not learned: no sound ${rule.not_sound} (ids as the sounds tool gives them).`}
